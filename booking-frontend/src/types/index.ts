@@ -1,10 +1,12 @@
 // User types
+export type UserRole = "GUEST" | "HOST" | "REALTOR" | "ADMIN";
+
 export interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: "GUEST" | "HOST" | "ADMIN";
+  role: UserRole;
   isEmailVerified: boolean;
   status?: "ACTIVE" | "SUSPENDED" | "BANNED";
   avatar?: string;
@@ -60,6 +62,16 @@ export interface Property {
 }
 
 // Booking types
+export type BookingStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "CANCELLED"
+  | "COMPLETED"
+  | "REFUNDED"
+  | "DISPUTED";
+
+export type PayoutStatus = "PENDING" | "RELEASED" | "ON_HOLD" | "FAILED";
+
 export interface Booking {
   id: string;
   checkInDate: string;
@@ -68,10 +80,14 @@ export interface Booking {
   nights: number;
   totalPrice: number;
   currency: string;
-  status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "REFUNDED";
+  status: BookingStatus;
   specialRequests?: string;
   isRefundable: boolean;
   refundDeadline?: string;
+  payoutStatus?: PayoutStatus;
+  payoutReleaseDate?: string | null;
+  payoutHoldReason?: string | null;
+  payoutHoldUntil?: string | null;
   createdAt: string;
   updatedAt: string;
   property: Property;
@@ -96,11 +112,36 @@ export interface Payment {
   paystackReference?: string;
   refundAmount?: number;
   refundReason?: string;
+  isDisputed?: boolean;
+  disputeId?: string | null;
+  disputeStatus?: string | null;
   metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
   booking: Booking;
   user: User;
+}
+
+export interface StripeOnboardingLink {
+  url: string;
+  expiresAt: string | null;
+}
+
+export interface StripeAccountStatus {
+  connected: boolean;
+  requiresOnboarding: boolean;
+  detailsSubmitted: boolean;
+  payoutsEnabled: boolean;
+  chargesEnabled: boolean;
+  disabledReason?: string | null;
+  outstandingRequirements: string[];
+  releaseOffsetHours?: number;
+  stripeAccountId?: string;
+}
+
+export interface StripeDashboardLink {
+  url: string;
+  expiresAt: string | null;
 }
 
 // Review types
@@ -158,7 +199,7 @@ export interface RegisterFormData {
   firstName: string;
   lastName: string;
   phone?: string;
-  role?: "GUEST" | "HOST";
+  role?: Exclude<UserRole, "ADMIN">;
   country?: string;
   city?: string;
 }

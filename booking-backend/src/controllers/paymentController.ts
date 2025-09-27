@@ -3,7 +3,7 @@ import { PaymentMethod, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
-import { stripeService } from "@/services/stripe";
+import { stripeService, stripe } from "@/services/stripe";
 import { paystackService } from "@/services/paystack";
 import { refundPolicyService } from "@/services/refundPolicy";
 import { PDFService } from "@/services/pdf";
@@ -37,10 +37,66 @@ export const createStripePaymentIntent = asyncHandler(
 
     // Prevent duplicate payment
     if (booking.payment && booking.payment.status !== PaymentStatus.FAILED) {
+      let clientSecret: string | undefined;
+
+      if (booking.payment.stripePaymentIntentId) {
+        try {
+          const existingIntent = await stripe.paymentIntents.retrieve(
+            booking.payment.stripePaymentIntentId
+          );
+          clientSecret = existingIntent.client_secret ?? undefined;
+        } catch (intentError) {
+          console.error(
+            "Error retrieving existing Stripe payment intent:",
+            intentError
+          );
+        }
+      }
+
+      if (!clientSecret && booking.payment.status === PaymentStatus.PENDING) {
+        try {
+          const guest = await prisma.user.findUnique({
+            where: { id: booking.guestId },
+            select: { email: true },
+          });
+
+          const realtorStripeAccountId =
+            booking.property.realtor.stripeAccountId || "";
+
+          const intent = await stripeService.createPaymentIntentWithSplit({
+            id: booking.id,
+            totalPrice: Number(booking.totalPrice),
+            currency: booking.currency,
+            propertyPrice: Number(booking.propertyPrice),
+            serviceFee: Number(booking.serviceFee),
+            platformCommission: Number(booking.platformCommission),
+            realtorPayout: Number(booking.realtorPayout),
+            realtorStripeAccountId,
+            guestEmail: guest?.email || "",
+          });
+
+          await prisma.payment.update({
+            where: { id: booking.payment.id },
+            data: { stripePaymentIntentId: intent.payment_intent_id },
+          });
+
+          clientSecret = intent.client_secret ?? undefined;
+        } catch (recreateError) {
+          console.error(
+            "Error recreating Stripe payment intent:",
+            recreateError
+          );
+        }
+      }
+
       return res.json({
         success: true,
         message: "Existing payment found",
-        data: { paymentId: booking.payment.id },
+        data: {
+          paymentId: booking.payment.id,
+          clientSecret,
+          paymentStatus: booking.payment.status,
+        },
       });
     }
 
@@ -118,10 +174,71 @@ export const initializePaystackPayment = asyncHandler(
     const booking = await fetchBookingForPayment(bookingId, req.user!.id);
 
     if (booking.payment && booking.payment.status !== PaymentStatus.FAILED) {
+      if (!booking.payment.paystackReference) {
+        const guest = await prisma.user.findUnique({
+          where: { id: booking.guestId },
+          select: { email: true },
+        });
+
+        const realtorSubAccount = booking.property.realtor.paystackSubAccountId;
+        if (!realtorSubAccount) {
+          throw new AppError("Realtor not onboarded for Paystack", 400);
+        }
+
+        const init = await paystackService.initializeSplitPayment({
+          id: booking.id,
+          totalPrice: Number(booking.totalPrice),
+          currency: booking.currency,
+          guestEmail: guest?.email || "",
+          realtorSubAccountCode: realtorSubAccount,
+          realtorPayout: Number(booking.realtorPayout),
+          platformCommission: Number(booking.platformCommission),
+        });
+
+        const existingMeta = (booking.payment.metadata || {}) as Record<
+          string,
+          unknown
+        >;
+
+        await prisma.payment.update({
+          where: { id: booking.payment.id },
+          data: {
+            paystackReference: init.reference,
+            paystackSplitCode: init.split_code,
+            metadata: {
+              ...existingMeta,
+              authorizationUrl: init.authorization_url,
+            },
+          },
+        });
+
+        return res.json({
+          success: true,
+          message: "Paystack payment refreshed",
+          data: {
+            authorizationUrl: init.authorization_url,
+            reference: init.reference,
+            paymentId: booking.payment.id,
+            paymentStatus: booking.payment.status,
+          },
+        });
+      }
+
+      const metadata = (booking.payment.metadata || {}) as Record<
+        string,
+        unknown
+      >;
+
       return res.json({
         success: true,
         message: "Existing payment found",
-        data: { paymentId: booking.payment.id },
+        data: {
+          paymentId: booking.payment.id,
+          reference: booking.payment.paystackReference,
+          authorizationUrl:
+            (metadata.authorizationUrl as string | undefined) || undefined,
+          paymentStatus: booking.payment.status,
+        },
       });
     }
 
@@ -167,6 +284,9 @@ export const initializePaystackPayment = asyncHandler(
       data: {
         paystackReference: init.reference,
         paystackSplitCode: init.split_code,
+        metadata: {
+          authorizationUrl: init.authorization_url,
+        },
       },
     });
 
@@ -177,6 +297,7 @@ export const initializePaystackPayment = asyncHandler(
         authorizationUrl: init.authorization_url,
         reference: init.reference,
         paymentId: payment.id,
+        paymentStatus: payment.status,
       },
     });
 
@@ -327,6 +448,108 @@ export const processRefund = asyncHandler(
     const finalAmount = targetAmount; // after potential capping
     const fullAfterThis = alreadyRefunded + finalAmount >= totalPaid - 0.0001;
 
+    const originalPropertyAmount = Number(payment.propertyAmount);
+    const originalServiceFee = Number(payment.serviceFeeAmount);
+    const originalCommission = Number(payment.platformCommission);
+    const originalRealtorPayout = Number(payment.realtorPayout);
+    const originalGatewayFee = Number(payment.gatewayFee);
+
+    const previouslyRefundedAmount = Number(payment.refundedAmount || 0);
+    const previouslyRefundedCommission = Number(
+      payment.refundedCommission || 0
+    );
+    const previouslyRefundedService = Number(payment.refundedServiceFee || 0);
+    const previouslyRefundedRealtor = Number(
+      payment.refundedRealtorAmount || 0
+    );
+
+    const propertyRemaining = Math.max(
+      0,
+      originalPropertyAmount - previouslyRefundedRealtor
+    );
+    const serviceRemaining = Math.max(
+      0,
+      originalServiceFee - previouslyRefundedService
+    );
+
+    const propertyRatio =
+      totalPaid > 0 ? originalPropertyAmount / totalPaid : 0;
+    const serviceRatio = totalPaid > 0 ? originalServiceFee / totalPaid : 0;
+
+    let refundFromProperty = Math.min(
+      propertyRemaining,
+      Number((finalAmount * propertyRatio).toFixed(2))
+    );
+    let refundFromService = Math.min(
+      serviceRemaining,
+      Number((finalAmount * serviceRatio).toFixed(2))
+    );
+
+    let allocated = refundFromProperty + refundFromService;
+    if (allocated < finalAmount) {
+      const remainder = Number((finalAmount - allocated).toFixed(2));
+      if (propertyRemaining - refundFromProperty >= remainder) {
+        refundFromProperty = Number(
+          (refundFromProperty + remainder).toFixed(2)
+        );
+        allocated += remainder;
+      } else if (serviceRemaining - refundFromService >= remainder) {
+        refundFromService = Number((refundFromService + remainder).toFixed(2));
+        allocated += remainder;
+      }
+    }
+
+    // Boundaries to avoid over-refund due to rounding
+    refundFromProperty = Math.min(refundFromProperty, propertyRemaining);
+    refundFromService = Math.min(refundFromService, serviceRemaining);
+
+    const commissionPerDollar =
+      originalPropertyAmount > 0
+        ? originalCommission / originalPropertyAmount
+        : 0;
+    const realtorPerDollar =
+      originalPropertyAmount > 0
+        ? originalRealtorPayout / originalPropertyAmount
+        : 0;
+
+    const commissionRefundThis = Number(
+      (refundFromProperty * commissionPerDollar).toFixed(2)
+    );
+    const realtorRefundThis = Number(
+      (refundFromProperty * realtorPerDollar).toFixed(2)
+    );
+
+    const totalRefundedAmount = Number(
+      (previouslyRefundedAmount + finalAmount).toFixed(2)
+    );
+    const totalRefundedService = Number(
+      (previouslyRefundedService + refundFromService).toFixed(2)
+    );
+    const totalRefundedCommission = Number(
+      (previouslyRefundedCommission + commissionRefundThis).toFixed(2)
+    );
+    const totalRefundedRealtor = Number(
+      (previouslyRefundedRealtor + realtorRefundThis).toFixed(2)
+    );
+
+    const remainingCommission = Math.max(
+      0,
+      originalCommission - commissionRefundThis
+    );
+    const remainingRealtor = Math.max(
+      0,
+      originalRealtorPayout - realtorRefundThis
+    );
+    const remainingServiceFee = Math.max(
+      0,
+      originalServiceFee - refundFromService
+    );
+    const recalculatedPlatformNet = Number(
+      (remainingServiceFee + remainingCommission - originalGatewayFee).toFixed(
+        2
+      )
+    );
+
     await prisma.$transaction(async (tx) => {
       await tx.refund.create({
         data: {
@@ -354,7 +577,15 @@ export const processRefund = asyncHandler(
           status: fullAfterThis
             ? PaymentStatus.REFUNDED
             : PaymentStatus.PARTIALLY_REFUNDED,
-        },
+          refundedAmount: totalRefundedAmount,
+          refundedServiceFee: totalRefundedService,
+          refundedCommission: totalRefundedCommission,
+          refundedRealtorAmount: totalRefundedRealtor,
+          platformCommission: remainingCommission,
+          realtorPayout: remainingRealtor,
+          serviceFeeAmount: remainingServiceFee,
+          platformNet: recalculatedPlatformNet,
+        } as any,
       });
 
       if (fullAfterThis) {

@@ -7,8 +7,11 @@ import {
   deleteProperty,
   getPropertiesByHost,
   uploadPropertyImages,
+  deletePropertyImage,
+  reorderPropertyImages,
 } from "@/controllers/propertyController";
 import { authenticate, authorize } from "@/middleware/auth";
+import { upload } from "@/utils/upload";
 
 const router = express.Router();
 
@@ -765,7 +768,22 @@ router.post(
   "/:id/images",
   authenticate,
   authorize("REALTOR", "ADMIN"),
+  upload.array("images", 8),
   uploadPropertyImages
+);
+
+router.delete(
+  "/:id/images/:imageId",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  deletePropertyImage
+);
+
+router.put(
+  "/:id/images/reorder",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  reorderPropertyImages
 );
 
 export default router;

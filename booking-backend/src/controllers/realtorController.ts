@@ -4,6 +4,13 @@ import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
+import { config } from "@/config";
+import {
+  createAccountLink,
+  createConnectAccount,
+  createDashboardLink,
+  getAccountStatus,
+} from "@/services/stripe";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -26,18 +33,13 @@ const generateUniqueSlug = async (businessName: string): Promise<string> => {
   let slug = baseSlug;
   let counter = 1;
 
-  while (true) {
-    const existingRealtor = await prisma.realtor.findUnique({
-      where: { slug },
-    });
-
-    if (!existingRealtor) {
-      return slug;
-    }
-
+  // Continue generating slugs until we find one that isn't taken
+  while (await prisma.realtor.findUnique({ where: { slug } })) {
     slug = `${baseSlug}-${counter}`;
-    counter++;
+    counter += 1;
   }
+
+  return slug;
 };
 
 /**
@@ -204,6 +206,156 @@ export const uploadLogo = asyncHandler(
       console.error("Cloudinary upload error:", error);
       throw new AppError("Failed to upload logo", 500);
     }
+  }
+);
+
+export const startStripeOnboarding = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user!.id },
+      include: {
+        user: {
+          select: {
+            email: true,
+            country: true,
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    if (!realtor.businessEmail && !realtor.user?.email) {
+      throw new AppError(
+        "Realtor must have a business or account email before onboarding",
+        400
+      );
+    }
+
+    let stripeAccountId = realtor.stripeAccountId;
+
+    if (!stripeAccountId) {
+      const account = await createConnectAccount({
+        id: realtor.id,
+        businessName: realtor.businessName,
+        businessEmail: realtor.businessEmail || realtor.user!.email!,
+        country: realtor.user?.country || "US",
+      });
+
+      stripeAccountId = account.id;
+
+      await prisma.realtor.update({
+        where: { id: realtor.id },
+        data: { stripeAccountId },
+      });
+    }
+
+    const refreshUrl = `${config.FRONTEND_URL}/dashboard/payments/stripe/onboarding?refresh=true`;
+    const returnUrl = `${config.FRONTEND_URL}/dashboard/payments/stripe/onboarding?completed=true`;
+
+    const link = await createAccountLink(
+      stripeAccountId,
+      refreshUrl,
+      returnUrl
+    );
+
+    return res.json({
+      success: true,
+      message: "Stripe onboarding link generated",
+      data: {
+        url: link.url,
+        expiresAt: link.expiresAt,
+      },
+    });
+  }
+);
+
+export const getStripeAccountStatusController = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user!.id },
+      include: {
+        user: {
+          select: {
+            country: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    if (!realtor.stripeAccountId) {
+      return res.json({
+        success: true,
+        message: "Stripe account not connected",
+        data: {
+          connected: false,
+          requiresOnboarding: true,
+          detailsSubmitted: false,
+          payoutsEnabled: false,
+          chargesEnabled: false,
+          outstandingRequirements: [],
+          releaseOffsetHours: config.ESCROW_RELEASE_OFFSET_HOURS,
+        },
+      });
+    }
+
+    const status = await getAccountStatus(realtor.stripeAccountId);
+    const requirements = status.requirements;
+    const outstandingRequirements = [
+      ...(requirements?.currently_due || []),
+      ...(requirements?.past_due || []),
+      ...(requirements?.pending_verification || []),
+    ];
+
+    return res.json({
+      success: true,
+      message: "Stripe account status retrieved",
+      data: {
+        connected: true,
+        stripeAccountId: status.id,
+        chargesEnabled: status.chargesEnabled,
+        payoutsEnabled: status.payoutsEnabled,
+        detailsSubmitted: status.detailsSubmitted,
+        disabledReason: requirements?.disabled_reason || null,
+        outstandingRequirements,
+        releaseOffsetHours: config.ESCROW_RELEASE_OFFSET_HOURS,
+        requiresOnboarding: !status.detailsSubmitted,
+      },
+    });
+  }
+);
+
+export const getStripeDashboardLinkController = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user!.id },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    if (!realtor.stripeAccountId) {
+      throw new AppError("Realtor has not started Stripe onboarding", 400);
+    }
+
+    const link = await createDashboardLink(realtor.stripeAccountId);
+
+    return res.json({
+      success: true,
+      message: "Stripe dashboard link generated",
+      data: {
+        url: link.url,
+        expiresAt: link.expiresAt,
+      },
+    });
   }
 );
 

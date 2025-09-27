@@ -43,20 +43,33 @@ export const createConnectAccount = async (realtor: {
 /**
  * Create account link for onboarding
  */
+export interface AccountLinkInfo {
+  url: string;
+  expiresAt: Date | null;
+}
+
 export const createAccountLink = async (
   accountId: string,
   refreshUrl: string,
   returnUrl: string
-) => {
+): Promise<AccountLinkInfo> => {
   try {
-    const accountLink = await stripe.accountLinks.create({
+    const accountLinkResponse = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: refreshUrl,
       return_url: returnUrl,
       type: "account_onboarding",
     });
+    const accountLink = accountLinkResponse as Stripe.AccountLink & {
+      expires_at?: number | null;
+    };
 
-    return accountLink;
+    return {
+      url: accountLink.url,
+      expiresAt: accountLink.expires_at
+        ? new Date(accountLink.expires_at * 1000)
+        : null,
+    };
   } catch (error) {
     console.error("Error creating account link:", error);
     throw new Error("Failed to create onboarding link");
@@ -66,15 +79,25 @@ export const createAccountLink = async (
 /**
  * Check Connect account status
  */
-export const getAccountStatus = async (accountId: string) => {
+export interface AccountStatusSummary {
+  id: string;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  requirements: Stripe.Account.Requirements | null;
+}
+
+export const getAccountStatus = async (
+  accountId: string
+): Promise<AccountStatusSummary> => {
   try {
     const account = await stripe.accounts.retrieve(accountId);
     return {
       id: account.id,
-      charges_enabled: account.charges_enabled,
-      details_submitted: account.details_submitted,
-      payouts_enabled: account.payouts_enabled,
-      requirements: account.requirements,
+      chargesEnabled: account.charges_enabled,
+      detailsSubmitted: account.details_submitted,
+      payoutsEnabled: account.payouts_enabled,
+      requirements: account.requirements ?? null,
     };
   } catch (error) {
     console.error("Error getting account status:", error);
@@ -181,10 +204,23 @@ export const processRefund = async (
 /**
  * Get Connect dashboard link for realtor
  */
-export const createDashboardLink = async (accountId: string) => {
+export interface DashboardLinkInfo {
+  url: string;
+  expiresAt: Date | null;
+}
+
+export const createDashboardLink = async (
+  accountId: string
+): Promise<DashboardLinkInfo> => {
   try {
-    const link = await stripe.accounts.createLoginLink(accountId);
-    return link;
+    const linkResponse = await stripe.accounts.createLoginLink(accountId);
+    const link = linkResponse as Stripe.LoginLink & {
+      expires_at?: number | null;
+    };
+    return {
+      url: link.url,
+      expiresAt: link.expires_at ? new Date(link.expires_at * 1000) : null,
+    };
   } catch (error) {
     console.error("Error creating dashboard link:", error);
     throw new Error("Failed to create dashboard link");

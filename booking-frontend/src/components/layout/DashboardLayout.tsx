@@ -3,10 +3,11 @@
 import React from "react";
 import { Layout } from "./Layout";
 import { ProtectedRoute } from "../auth";
+import { UserRole } from "@/types";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  requiredRole?: "GUEST" | "HOST" | "ADMIN";
+  requiredRole?: UserRole;
   className?: string;
 }
 

@@ -31,6 +31,7 @@ enum BookingStatus {
    PENDING
    CONFIRMED
    CANCELLED
+   DISPUTED
    COMPLETED
    REFUNDED
 }
@@ -58,6 +59,7 @@ enum RealtorStatus {
 enum PayoutStatus {
    PENDING
    RELEASED
+   ON_HOLD
    FAILED
 }
 
@@ -126,6 +128,7 @@ model Realtor {
    refundPolicies     RealtorRefundPolicy[]
    subscriptionPlan   String                @default("FREE") // FREE, PRO
    subscriptionStatus String                @default("ACTIVE") // ACTIVE, CANCELLED, SUSPENDED
+   payouts            Payout[]
 
    @@map("realtors")
 }
@@ -190,6 +193,7 @@ model PropertyImage {
    width     Int?
    height    Int?
    order     Int      @default(0)
+   publicId  String?
    createdAt DateTime @default(now())
 
    // Relations
@@ -230,6 +234,8 @@ model Booking {
    refundDeadline     DateTime?
    payoutReleaseDate  DateTime? // When funds are released to realtor
    payoutStatus       PayoutStatus  @default(PENDING)
+   payoutHoldReason   String?
+   payoutHoldUntil    DateTime?
    createdAt          DateTime      @default(now())
    updatedAt          DateTime      @updatedAt
 
@@ -241,6 +247,7 @@ model Booking {
    payment    Payment?
    refunds    Refund[]
    review     Review?
+   payouts    Payout[]
 
    @@map("bookings")
 }
@@ -254,6 +261,13 @@ model Payment {
    realtorPayout         Decimal       @db.Decimal(10, 2) // Amount due to realtor
    gatewayFee            Decimal       @db.Decimal(10, 2) // Gateway processing fee
    platformNet           Decimal       @db.Decimal(10, 2) // Platform net after all deductions
+   isDisputed            Boolean       @default(false)
+   disputeId             String?
+   disputeStatus         String?
+   refundedAmount        Decimal       @default(0) @db.Decimal(10, 2)
+   refundedCommission    Decimal       @default(0) @db.Decimal(10, 2)
+   refundedServiceFee    Decimal       @default(0) @db.Decimal(10, 2)
+   refundedRealtorAmount Decimal       @default(0) @db.Decimal(10, 2)
    currency              String        @default("USD")
    status                PaymentStatus @default(PENDING)
    method                PaymentMethod
@@ -273,6 +287,7 @@ model Payment {
    userId    String
    user      User     @relation(fields: [userId], references: [id])
    refunds   Refund[]
+   payouts   Payout[]
 
    @@map("payments")
 }
@@ -353,4 +368,27 @@ model AuditLog {
    user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
    @@map("audit_logs")
+}
+
+model Payout {
+   id                 String       @id @default(cuid())
+   bookingId          String
+   paymentId          String       @unique
+   realtorId          String
+   amount             Decimal      @db.Decimal(10, 2)
+   currency           String       @default("USD")
+   provider           String
+   status             PayoutStatus @default(PENDING)
+   providerTransferId String?
+   processedAt        DateTime?
+   metadata           Json?
+   createdAt          DateTime     @default(now())
+   updatedAt          DateTime     @updatedAt
+
+   // Relations
+   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+   realtor Realtor @relation(fields: [realtorId], references: [id], onDelete: Cascade)
+
+   @@map("payouts")
 }

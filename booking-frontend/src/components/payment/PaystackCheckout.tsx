@@ -1,354 +1,244 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { Button, Card, Loading } from "../ui";
 import {
   CreditCard,
   Lock,
   Shield,
   AlertCircle,
-  Smartphone,
-  Building,
+  ExternalLink,
+  CheckCircle,
 } from "lucide-react";
+import { paymentService, serviceUtils } from "@/services";
+import { Payment } from "@/types";
 
 interface PaystackCheckoutProps {
+  bookingId: string;
   amount: number;
   currency: string;
   email: string;
   description?: string;
   customerName?: string;
   customerPhone?: string;
-  onSuccess: (paymentResult: any) => void;
+  onInitialized?: (details: {
+    paymentId: string;
+    reference?: string;
+    paymentStatus?: Payment["status"];
+  }) => void;
   onError: (error: string) => void;
   onCancel?: () => void;
-  isLoading?: boolean;
   className?: string;
 }
 
+const paystackPublicKey =
+  process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
+  process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC ||
+  "";
+
 export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
+  bookingId,
   amount,
   currency,
   email,
   description,
   customerName,
   customerPhone,
-  onSuccess,
+  onInitialized,
   onError,
   onCancel,
-  isLoading = false,
   className = "",
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paystackLoaded, setPaystackLoaded] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<
-    "card" | "bank" | "ussd" | "qr"
-  >("card");
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<Payment["status"] | null>(
+    null
+  );
+  const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null);
+  const [reference, setReference] = useState<string | null>(null);
 
-  // Mock Paystack loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPaystackLoaded(true);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
+  const formatCurrency = useMemo(() => {
+    const paymentCurrency = (currency || "NGN").toUpperCase();
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: paymentCurrency,
+    });
+  }, [currency]);
 
   const handlePayment = async () => {
-    if (!paystackLoaded) {
-      setPaymentError("Payment system not ready. Please try again.");
-      return;
-    }
-
     setIsProcessing(true);
     setPaymentError(null);
 
     try {
-      // In real implementation, this would initialize Paystack popup or inline payment
-      // For demo purposes, we'll simulate the payment process
+      const response = await paymentService.initializePaystackPayment({
+        bookingId,
+      });
 
-      // Generate reference
-      const reference = `paystack_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
+      if (response.paymentStatus && response.paymentStatus !== "PENDING") {
+        setPaymentStatus(response.paymentStatus);
+        if (onInitialized) {
+          onInitialized({
+            paymentId: response.paymentId,
+            paymentStatus: response.paymentStatus,
+            reference: response.reference,
+          });
+        }
+        return;
+      }
 
-      // Simulate payment processing time
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      if (!response.authorizationUrl || !response.reference) {
+        throw new Error(
+          "Unable to start Paystack payment. Please contact support."
+        );
+      }
 
-      // Mock successful payment result
-      const paymentResult = {
-        reference,
-        status: "success",
-        trans: Math.floor(Math.random() * 1000000),
-        transaction: Math.floor(Math.random() * 1000000),
-        message: "Approved",
-        amount: amount * 100, // Paystack works in kobo (for NGN) or cents
-        currency: currency.toUpperCase(),
-        channel: paymentMethod,
-        customer: {
-          email,
-          first_name: customerName?.split(" ")[0] || "",
-          last_name: customerName?.split(" ").slice(1).join(" ") || "",
-          phone: customerPhone || "",
-        },
-        created_at: new Date().toISOString(),
-      };
+      localStorage.setItem(
+        "paystackPaymentMeta",
+        JSON.stringify({
+          reference: response.reference,
+          paymentId: response.paymentId,
+          bookingId,
+        })
+      );
 
-      onSuccess(paymentResult);
+      setAuthorizationUrl(response.authorizationUrl);
+      setReference(response.reference);
+
+      if (onInitialized) {
+        onInitialized({
+          paymentId: response.paymentId,
+          reference: response.reference,
+          paymentStatus: response.paymentStatus,
+        });
+      }
+
+      window.location.href = response.authorizationUrl;
     } catch (error: any) {
-      const errorMessage =
-        error.message ||
-        "An unexpected error occurred during payment processing.";
-      setPaymentError(errorMessage);
-      onError(errorMessage);
+      const message = serviceUtils.extractErrorMessage(error);
+      setPaymentError(message);
+      onError(message);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: currency === "NGN" ? "NGN" : "USD",
-    }).format(value);
+  const handleResume = () => {
+    if (authorizationUrl) {
+      window.open(authorizationUrl, "_blank");
+    }
   };
-
-  const paymentMethods = [
-    {
-      id: "card" as const,
-      name: "Debit/Credit Card",
-      icon: <CreditCard className="h-5 w-5" />,
-      description: "Visa, Mastercard, Verve",
-    },
-    {
-      id: "bank" as const,
-      name: "Bank Transfer",
-      icon: <Building className="h-5 w-5" />,
-      description: "Direct bank transfer",
-    },
-    {
-      id: "ussd" as const,
-      name: "USSD",
-      icon: <Smartphone className="h-5 w-5" />,
-      description: "Pay with your phone",
-    },
-    {
-      id: "qr" as const,
-      name: "QR Code",
-      icon: <CreditCard className="h-5 w-5" />,
-      description: "Scan to pay",
-    },
-  ];
-
-  if (!paystackLoaded) {
-    return (
-      <Card className={`p-8 text-center ${className}`}>
-        <Loading size="lg" />
-        <p className="text-gray-600 mt-4">Loading Paystack payment...</p>
-      </Card>
-    );
-  }
 
   return (
     <div className={`max-w-md mx-auto ${className}`}>
-      <Card className="p-6">
-        {/* Header */}
-        <div className="text-center mb-6">
+      <Card className="p-6 space-y-5">
+        <div className="text-center">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-green-100 rounded-full">
               <div className="text-green-600 font-bold text-lg">PAY</div>
             </div>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Paystack Payment
+          <h2 className="text-xl font-semibold text-gray-900 mb-1">
+            Paystack Checkout
           </h2>
-          {description && <p className="text-gray-600 mb-2">{description}</p>}
-          <div className="text-2xl font-bold text-gray-900">
-            {formatCurrency(amount)}
+          {description && <p className="text-gray-600">{description}</p>}
+          <div className="text-2xl font-bold text-gray-900 mt-2">
+            {formatCurrency.format(amount)}
           </div>
         </div>
 
-        {/* Customer Information */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">
-            Payment Details
-          </h3>
-          <div className="space-y-1 text-sm text-gray-600">
-            <div>Email: {email}</div>
-            {customerName && <div>Name: {customerName}</div>}
-            {customerPhone && <div>Phone: {customerPhone}</div>}
-          </div>
+        <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-600 space-y-1">
+          <div className="font-medium text-gray-900">Payment details</div>
+          <div>Email: {email}</div>
+          {customerName && <div>Name: {customerName}</div>}
+          {customerPhone && <div>Phone: {customerPhone}</div>}
         </div>
 
-        {/* Payment Method Selection */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Choose Payment Method
-          </label>
-          <div className="space-y-2">
-            {paymentMethods.map((method) => (
-              <button
-                key={method.id}
-                type="button"
-                onClick={() => setPaymentMethod(method.id)}
-                disabled={isProcessing}
-                className={`w-full p-3 border-2 rounded-lg text-left transition-colors ${
-                  paymentMethod === method.id
-                    ? "border-green-500 bg-green-50"
-                    : "border-gray-300 hover:border-gray-400"
-                } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <div className="flex items-center">
-                  <div className="text-gray-600 mr-3">{method.icon}</div>
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">
-                      {method.name}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {method.description}
-                    </div>
-                  </div>
-                  <div
-                    className={`w-4 h-4 rounded-full border-2 ${
-                      paymentMethod === method.id
-                        ? "border-green-500 bg-green-500"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    {paymentMethod === method.id && (
-                      <div className="w-full h-full rounded-full bg-white scale-50"></div>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Payment Method Info */}
-        {paymentMethod === "bank" && (
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-blue-700 text-sm">
-              You will be redirected to complete the bank transfer after
-              clicking pay.
-            </p>
-          </div>
-        )}
-
-        {paymentMethod === "ussd" && (
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-blue-700 text-sm">
-              You will receive a USSD code to dial on your phone to complete the
-              payment.
-            </p>
-          </div>
-        )}
-
-        {paymentMethod === "qr" && (
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-blue-700 text-sm">
-              A QR code will be generated for you to scan with your banking app.
-            </p>
-          </div>
-        )}
-
-        {/* Error Message */}
         {paymentError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <div className="flex items-center">
-              <AlertCircle className="h-4 w-4 text-red-600 mr-2" />
-              <p className="text-red-700 text-sm">{paymentError}</p>
-            </div>
+          <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
+            <AlertCircle className="h-4 w-4 text-red-600 mr-2 mt-0.5" />
+            <p className="text-sm text-red-700">{paymentError}</p>
           </div>
         )}
 
-        {/* Security Notice */}
-        <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-md">
-          <div className="flex items-center">
-            <Shield className="h-4 w-4 text-green-600 mr-2" />
-            <p className="text-green-700 text-sm">
-              Secured by Paystack. Your payment information is safe and
-              encrypted.
+        {paymentStatus && paymentStatus !== "PENDING" && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
+            <CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />
+            <p className="text-sm text-green-700">
+              This booking already has a {paymentStatus.toLowerCase()} payment.
             </p>
           </div>
+        )}
+
+        {!paystackPublicKey && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
+            Add <code>NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY</code> to enable inline
+            branding. Redirect payments will continue to work.
+          </div>
+        )}
+
+        <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
+          <Shield className="h-4 w-4 text-green-600 mr-2 mt-0.5" />
+          <p className="text-sm text-green-700">
+            You will be redirected to Paystack to complete your payment safely.
+            You can pay with cards, bank transfer, USSD, or mobile money.
+          </p>
         </div>
 
-        {/* Pay Button */}
         <Button
           type="button"
           variant="primary"
           onClick={handlePayment}
           loading={isProcessing}
-          disabled={isLoading || isProcessing}
+          disabled={isProcessing}
           className="w-full py-3 text-lg font-medium bg-green-600 hover:bg-green-700"
         >
           {isProcessing ? (
             <div className="flex items-center justify-center">
               <Loading size="sm" />
-              <span className="ml-2">Processing...</span>
+              <span className="ml-2">Connecting to Paystack...</span>
             </div>
           ) : (
             <div className="flex items-center justify-center">
               <Lock className="h-5 w-5 mr-2" />
-              Pay {formatCurrency(amount)}
+              Pay with Paystack
             </div>
           )}
         </Button>
 
-        {/* Cancel Button */}
-        {onCancel && (
+        {authorizationUrl && !isProcessing && (
           <Button
             type="button"
             variant="outline"
+            onClick={handleResume}
+            className="w-full flex items-center justify-center"
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Re-open Paystack checkout
+          </Button>
+        )}
+
+        {reference && (
+          <div className="text-xs text-gray-500 text-center">
+            Reference: <span className="font-mono">{reference}</span>
+          </div>
+        )}
+
+        {onCancel && (
+          <Button
+            type="button"
+            variant="ghost"
             onClick={onCancel}
-            disabled={isProcessing}
-            className="w-full mt-3"
+            className="w-full"
           >
             Cancel
           </Button>
         )}
 
-        {/* Powered by Paystack */}
-        <div className="text-center mt-4">
-          <p className="text-xs text-gray-500">
-            Powered by{" "}
-            <span className="font-semibold text-green-600">Paystack</span>
-          </p>
+        <div className="text-center text-xs text-gray-500">
+          Powered by{" "}
+          <span className="font-semibold text-green-600">Paystack</span>
         </div>
       </Card>
-
-      {/* Supported Banks/Cards (for NGN) */}
-      {currency === "NGN" && (
-        <Card className="mt-4 p-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">
-            Supported Banks & Cards
-          </h4>
-          <div className="grid grid-cols-4 gap-2 text-xs text-gray-600">
-            <div>• GTBank</div>
-            <div>• Access Bank</div>
-            <div>• Zenith Bank</div>
-            <div>• First Bank</div>
-            <div>• UBA</div>
-            <div>• Stanbic</div>
-            <div>• Verve</div>
-            <div>• Mastercard</div>
-          </div>
-        </Card>
-      )}
-
-      {/* Terms and Privacy */}
-      <div className="text-center mt-4">
-        <p className="text-xs text-gray-600">
-          By completing this payment, you agree to our{" "}
-          <a href="#" className="text-green-600 hover:underline">
-            Terms of Service
-          </a>{" "}
-          and{" "}
-          <a href="#" className="text-green-600 hover:underline">
-            Privacy Policy
-          </a>
-        </p>
-      </div>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, ReactNode } from "react";
+import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "../store/authStore";
 
 interface AuthContextType {
@@ -33,7 +34,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initAuth();
   }, [checkAuth, setLoading]);
 
-  return <AuthContext.Provider value={{}}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{}}>
+      {children}
+      <Toaster position="top-center" reverseOrder={false} />
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

@@ -4,12 +4,13 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "../../store/authStore";
+import { UserRole } from "@/types";
 
 interface SidebarItem {
   name: string;
   href: string;
   icon: React.ReactNode;
-  roles?: Array<"GUEST" | "HOST" | "ADMIN">;
+  roles?: Array<UserRole>;
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -99,8 +100,8 @@ const sidebarItems: SidebarItem[] = [
     roles: ["HOST", "ADMIN"],
   },
   {
-    name: "Payments",
-    href: "/payments",
+    name: "Payouts",
+    href: "/dashboard/payments",
     icon: (
       <svg
         className="w-5 h-5"
@@ -112,10 +113,11 @@ const sidebarItems: SidebarItem[] = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth="2"
-          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+          d="M12 8c1.657 0 3-1.343 3-3S13.657 2 12 2 9 3.343 9 5s1.343 3 3 3zm0 0v4m0 0c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3m-3-3c1.657 0 3-1.343 3-3m6 3a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </svg>
     ),
+    roles: ["HOST", "ADMIN"],
   },
   {
     name: "Reviews",
@@ -187,9 +189,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const pathname = usePathname();
   const { user } = useAuthStore();
 
+  const effectiveRole: UserRole | undefined =
+    user?.role === "REALTOR" ? "HOST" : user?.role;
+
   const filteredItems = sidebarItems.filter((item) => {
     if (!item.roles) return true;
-    return user?.role && item.roles.includes(user.role);
+    return effectiveRole && item.roles.includes(effectiveRole);
   });
 
   const isActive = (href: string) => {

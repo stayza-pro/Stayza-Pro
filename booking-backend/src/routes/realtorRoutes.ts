@@ -6,6 +6,9 @@ import {
   getRealtorProfile,
   updateRealtorProfile,
   getPublicRealtorProfile,
+  startStripeOnboarding,
+  getStripeAccountStatusController,
+  getStripeDashboardLinkController,
 } from "@/controllers/realtorController";
 import { authenticate, requireRole } from "@/middleware/auth";
 
@@ -191,6 +194,27 @@ router.post(
   requireRole("REALTOR"),
   uploadMiddleware,
   uploadLogo
+);
+
+router.post(
+  "/stripe/onboarding",
+  authenticate,
+  requireRole("REALTOR"),
+  startStripeOnboarding
+);
+
+router.get(
+  "/stripe/status",
+  authenticate,
+  requireRole("REALTOR"),
+  getStripeAccountStatusController
+);
+
+router.post(
+  "/stripe/dashboard-link",
+  authenticate,
+  requireRole("REALTOR"),
+  getStripeDashboardLinkController
 );
 
 /**

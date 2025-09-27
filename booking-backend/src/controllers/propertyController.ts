@@ -8,6 +8,7 @@ import {
 } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { createPropertySchema, updatePropertySchema } from "@/utils/validation";
+import { uploadMultipleImages, deleteImage } from "@/utils/upload";
 
 /**
  * @desc    Get all properties with search and filtering
@@ -322,6 +323,203 @@ export const updateProperty = asyncHandler(
   }
 );
 
+const MAX_PROPERTY_IMAGES = 8;
+
+/**
+ * @desc    Upload property images
+ * @route   POST /api/properties/:id/images
+ * @access  Private (Owner or ADMIN)
+ */
+export const uploadPropertyImages = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const files = req.files as Express.Multer.File[] | undefined;
+
+    if (!files || files.length === 0) {
+      throw new AppError("Please upload at least one image", 400);
+    }
+
+    if (files.length > MAX_PROPERTY_IMAGES) {
+      throw new AppError("You can upload a maximum of 8 images at once", 400);
+    }
+
+    const property = await prisma.property.findUnique({
+      where: { id },
+      include: { images: { orderBy: { order: "asc" } }, realtor: true },
+    });
+
+    if (!property) {
+      throw new AppError("Property not found", 404);
+    }
+
+    if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
+      throw new AppError("Not authorized to modify this property", 403);
+    }
+
+    if (property.images.length + files.length > MAX_PROPERTY_IMAGES) {
+      throw new AppError(
+        `You can only have up to ${MAX_PROPERTY_IMAGES} images per property`,
+        400
+      );
+    }
+
+    const buffers = files.map((file) => file.buffer);
+    const uploads = await uploadMultipleImages(
+      buffers,
+      `properties/${property.realtor.slug || property.realtorId}`
+    );
+
+    const startingOrder = property.images.length;
+
+    await prisma.propertyImage.createMany({
+      data: uploads.map((upload, index) => ({
+        propertyId: property.id,
+        url: upload.secure_url,
+        width: upload.width || null,
+        height: upload.height || null,
+        order: startingOrder + index,
+        publicId: upload.public_id,
+      })),
+    });
+
+    const updatedImages = await prisma.propertyImage.findMany({
+      where: { propertyId: property.id },
+      orderBy: { order: "asc" },
+    });
+
+    res.json({
+      success: true,
+      message: "Images uploaded successfully",
+      data: { images: updatedImages },
+    });
+  }
+);
+
+/**
+ * @desc    Delete a property image
+ * @route   DELETE /api/properties/:id/images/:imageId
+ * @access  Private (Owner or ADMIN)
+ */
+export const deletePropertyImage = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id, imageId } = req.params;
+
+    const property = await prisma.property.findUnique({
+      where: { id },
+      include: { images: { orderBy: { order: "asc" } } },
+    });
+
+    if (!property) {
+      throw new AppError("Property not found", 404);
+    }
+
+    if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
+      throw new AppError("Not authorized to modify this property", 403);
+    }
+
+    const image = property.images.find((img) => img.id === imageId);
+
+    if (!image) {
+      throw new AppError("Image not found", 404);
+    }
+
+    if (image.publicId) {
+      await deleteImage(image.publicId);
+    }
+
+    await prisma.propertyImage.delete({ where: { id: image.id } });
+
+    const remainingImages = await prisma.propertyImage.findMany({
+      where: { propertyId: property.id },
+      orderBy: { order: "asc" },
+    });
+
+    await Promise.all(
+      remainingImages.map((img, index) =>
+        prisma.propertyImage.update({
+          where: { id: img.id },
+          data: { order: index },
+        })
+      )
+    );
+
+    const refreshed = await prisma.propertyImage.findMany({
+      where: { propertyId: property.id },
+      orderBy: { order: "asc" },
+    });
+
+    res.json({
+      success: true,
+      message: "Image deleted successfully",
+      data: { images: refreshed },
+    });
+  }
+);
+
+/**
+ * @desc    Reorder property images
+ * @route   PUT /api/properties/:id/images/reorder
+ * @access  Private (Owner or ADMIN)
+ */
+export const reorderPropertyImages = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const { imageOrder } = req.body as { imageOrder?: string[] };
+
+    if (!Array.isArray(imageOrder) || imageOrder.length === 0) {
+      throw new AppError("imageOrder must be a non-empty array", 400);
+    }
+
+    const property = await prisma.property.findUnique({
+      where: { id },
+      include: { images: true },
+    });
+
+    if (!property) {
+      throw new AppError("Property not found", 404);
+    }
+
+    if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
+      throw new AppError("Not authorized to modify this property", 403);
+    }
+
+    if (imageOrder.length !== property.images.length) {
+      throw new AppError("imageOrder must include all property images", 400);
+    }
+
+    const uniqueIds = new Set(imageOrder);
+    if (uniqueIds.size !== imageOrder.length) {
+      throw new AppError("Duplicate image IDs in order payload", 400);
+    }
+
+    const propertyImageIds = property.images.map((img) => img.id);
+    const missing = imageOrder.filter((id) => !propertyImageIds.includes(id));
+    if (missing.length > 0) {
+      throw new AppError("imageOrder contains invalid image IDs", 400);
+    }
+
+    await prisma.$transaction(
+      imageOrder.map((imageId, index) =>
+        prisma.propertyImage.update({
+          where: { id: imageId },
+          data: { order: index },
+        })
+      )
+    );
+
+    const reordered = await prisma.propertyImage.findMany({
+      where: { propertyId: property.id },
+      orderBy: { order: "asc" },
+    });
+
+    res.json({
+      success: true,
+      message: "Images reordered successfully",
+      data: { images: reordered },
+    });
+  }
+);
+
 /**
  * @desc    Delete property
  * @route   DELETE /api/properties/:id
@@ -453,59 +651,59 @@ export const getPropertiesByHost = asyncHandler(
   }
 );
 
-/**
- * @desc    Upload property images
- * @route   POST /api/properties/:id/images
- * @access  Private (Owner or ADMIN)
- */
-export const uploadPropertyImages = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
-    const { images } = req.body;
+// /**
+//  * @desc    Upload property images
+//  * @route   POST /api/properties/:id/images
+//  * @access  Private (Owner or ADMIN)
+//  */
+// export const uploadPropertyImages = asyncHandler(
+//   async (req: AuthenticatedRequest, res: Response) => {
+//     const { id } = req.params;
+//     const { images } = req.body;
 
-    if (!images || !Array.isArray(images)) {
-      throw new AppError("Images array is required", 400);
-    }
+//     if (!images || !Array.isArray(images)) {
+//       throw new AppError("Images array is required", 400);
+//     }
 
-    // Find property
-    const property = await prisma.property.findUnique({
-      where: { id },
-      include: {
-        images: true,
-      },
-    });
+//     // Find property
+//     const property = await prisma.property.findUnique({
+//       where: { id },
+//       include: {
+//         images: true,
+//       },
+//     });
 
-    if (!property) {
-      throw new AppError("Property not found", 404);
-    }
+//     if (!property) {
+//       throw new AppError("Property not found", 404);
+//     }
 
-    // Check ownership
-    if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
-      throw new AppError("Not authorized to update this property", 403);
-    }
+//     // Check ownership
+//     if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
+//       throw new AppError("Not authorized to update this property", 403);
+//     }
 
-    // Update property with new images
-    const updatedProperty = await prisma.property.update({
-      where: { id },
-      data: {
-        images: {
-          create: images.map((image, index) => ({
-            url: image.url,
-            width: image.width,
-            height: image.height,
-            order: property.images.length + index,
-          })),
-        },
-      },
-      include: {
-        images: true,
-      },
-    });
+//     // Update property with new images
+//     const updatedProperty = await prisma.property.update({
+//       where: { id },
+//       data: {
+//         images: {
+//           create: images.map((image, index) => ({
+//             url: image.url,
+//             width: image.width,
+//             height: image.height,
+//             order: property.images.length + index,
+//           })),
+//         },
+//       },
+//       include: {
+//         images: true,
+//       },
+//     });
 
-    res.json({
-      success: true,
-      message: "Images uploaded successfully",
-      data: { images: updatedProperty.images },
-    });
-  }
-);
+//     res.json({
+//       success: true,
+//       message: "Images uploaded successfully",
+//       data: { images: updatedProperty.images },
+//     });
+//   }
+// );

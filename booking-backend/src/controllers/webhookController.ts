@@ -8,7 +8,7 @@ import {
 } from "@/services/stripe";
 import { verifyWebhookSignature as verifyPaystackSignature } from "@/services/paystack";
 import { config } from "@/config";
-import { PaymentStatus, PayoutStatus } from "@prisma/client";
+import { BookingStatus, PaymentStatus, PayoutStatus } from "@prisma/client";
 import { auditLogger } from "@/services/auditLogger";
 import {
   transitionBookingStatus,
@@ -160,6 +160,10 @@ export const handleStripeWebhook = asyncHandler(
         await handleChargeDispute(event.data.object, event.id);
         break;
 
+      case "charge.dispute.closed":
+        await handleChargeDisputeClosed(event.data.object, event.id);
+        break;
+
       case "account.updated":
         await handleAccountUpdated(event.data.object, event.id);
         break;
@@ -253,17 +257,48 @@ async function handlePaymentIntentSucceeded(
   }
 
   try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        payoutReleaseDate: true,
+        checkInDate: true,
+        payoutStatus: true,
+      },
+    });
+
+    const offsetHours = config.ESCROW_RELEASE_OFFSET_HOURS || 0;
+    const offsetMs = offsetHours * 60 * 60 * 1000;
+    let computedRelease: Date | undefined;
+
+    if (booking?.checkInDate) {
+      computedRelease = new Date(booking.checkInDate.getTime() + offsetMs);
+    } else {
+      computedRelease = new Date(Date.now() + offsetMs);
+    }
+
+    let payoutReleaseDate = booking?.payoutReleaseDate || computedRelease;
+
+    if (
+      computedRelease &&
+      (!payoutReleaseDate || computedRelease > payoutReleaseDate)
+    ) {
+      payoutReleaseDate = computedRelease;
+    }
+
+    const transitionData: Record<string, unknown> = {
+      payoutStatus: PayoutStatus.PENDING,
+    };
+
+    if (payoutReleaseDate) {
+      transitionData.payoutReleaseDate = payoutReleaseDate;
+    }
+
     // Attempt transition only if currently PENDING
     await transitionBookingStatus(
       bookingId,
       "PENDING" as any,
       "CONFIRMED" as any,
-      {
-        payoutReleaseDate: new Date(
-          Date.now() +
-            (config.ESCROW_RELEASE_OFFSET_HOURS || 24) * 60 * 60 * 1000
-        ),
-      }
+      transitionData
     );
   } catch (e) {
     if (e instanceof BookingStatusConflictError) {
@@ -408,24 +443,171 @@ async function handleChargeDispute(dispute: any, eventId: string) {
 
   // Find payment by Stripe charge ID
   const payment = await prisma.payment.findFirst({
-    where: { stripePaymentIntentId: chargeId },
-    include: { booking: true },
+    where: {
+      OR: [{ stripePaymentIntentId: chargeId }, { disputeId: dispute.id }],
+    },
+    include: {
+      booking: {
+        include: {
+          property: {
+            select: {
+              realtorId: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (payment) {
-    // Mark booking as disputed and hold payouts
-    await prisma.booking.update({
-      where: { id: payment.bookingId },
-      data: {
-        status: "CANCELLED", // Or create DISPUTED status
-        payoutStatus: PayoutStatus.FAILED,
-      },
-    });
-
     console.log(`Dispute created for booking ${payment.bookingId}`);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: payment.bookingId },
+        data: {
+          status: BookingStatus.DISPUTED,
+          payoutStatus: PayoutStatus.ON_HOLD,
+          payoutHoldReason: `STRIPE_DISPUTE_${dispute.id}`,
+          payoutHoldUntil: dispute.evidence_due_by
+            ? new Date(dispute.evidence_due_by * 1000)
+            : null,
+        },
+      });
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          isDisputed: true,
+          disputeId: dispute.id,
+          disputeStatus: dispute.status,
+        },
+      });
+
+      if (payment.booking?.property?.realtorId) {
+        await (tx as any).payout.upsert({
+          where: { paymentId: payment.id },
+          update: {
+            status: PayoutStatus.ON_HOLD,
+            metadata: {
+              ...(payment.metadata as Record<string, any>),
+              disputeId: dispute.id,
+              disputeStatus: dispute.status,
+              disputeCreatedAt: new Date().toISOString(),
+            },
+          },
+          create: {
+            bookingId: payment.bookingId,
+            paymentId: payment.id,
+            realtorId: payment.booking.property.realtorId,
+            amount: payment.realtorPayout,
+            currency: payment.currency,
+            provider: payment.method,
+            status: PayoutStatus.ON_HOLD,
+            metadata: {
+              ...(payment.metadata as Record<string, any>),
+              disputeId: dispute.id,
+              disputeStatus: dispute.status,
+              disputeCreatedAt: new Date().toISOString(),
+            },
+          },
+        });
+      }
+    });
   }
   // Idempotency not strictly necessary here unless dispute events repeat
   await markProcessed(eventId, payment?.bookingId);
+}
+
+async function handleChargeDisputeClosed(dispute: any, eventId: string) {
+  const disputeId = dispute.id;
+  let payment = await prisma.payment.findFirst({
+    where: { disputeId },
+    include: { booking: true },
+  });
+
+  if (!payment && dispute.charge) {
+    payment = await prisma.payment.findFirst({
+      where: { stripePaymentIntentId: dispute.charge },
+      include: { booking: true },
+    });
+  }
+
+  if (!payment) {
+    console.warn("Dispute closed but payment not found", disputeId);
+    await markProcessed(eventId, undefined);
+    return;
+  }
+
+  const booking = payment.booking;
+
+  await prisma.$transaction(async (tx) => {
+    // Update payment dispute tracking
+    await tx.payment.update({
+      where: { id: payment!.id },
+      data: {
+        disputeStatus: dispute.status,
+        isDisputed: false,
+      },
+    });
+
+    if (!booking) {
+      return;
+    }
+
+    if (dispute.status === "won") {
+      const offsetHours = config.ESCROW_RELEASE_OFFSET_HOURS || 0;
+      const offsetMs = offsetHours * 60 * 60 * 1000;
+      let payoutReleaseDate = booking.payoutReleaseDate || new Date();
+
+      if (booking.checkInDate) {
+        const computed = new Date(booking.checkInDate.getTime() + offsetMs);
+        if (computed > payoutReleaseDate) {
+          payoutReleaseDate = computed;
+        }
+      }
+
+      if (payoutReleaseDate < new Date()) {
+        payoutReleaseDate = new Date();
+      }
+
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          status:
+            booking.status === BookingStatus.REFUNDED
+              ? BookingStatus.REFUNDED
+              : booking.checkOutDate < new Date()
+              ? BookingStatus.COMPLETED
+              : BookingStatus.CONFIRMED,
+          payoutStatus: PayoutStatus.PENDING,
+          payoutHoldReason: null,
+          payoutHoldUntil: null,
+          payoutReleaseDate,
+        },
+      });
+    } else {
+      // Lost dispute or warning closed against us
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: BookingStatus.REFUNDED,
+          payoutStatus: PayoutStatus.FAILED,
+          payoutHoldReason: `DISPUTE_${disputeId}_LOST`,
+          payoutHoldUntil: null,
+        },
+      });
+
+      await tx.payment.update({
+        where: { id: payment!.id },
+        data: {
+          status: PaymentStatus.REFUNDED,
+        },
+      });
+    }
+  });
+
+  await markProcessed(eventId, payment.bookingId);
 }
 
 async function handleAccountUpdated(account: any, eventId: string) {
@@ -467,16 +649,46 @@ async function handlePaystackChargeSuccess(
     return;
   }
   try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        payoutReleaseDate: true,
+        checkInDate: true,
+      },
+    });
+
+    const offsetHours = config.ESCROW_RELEASE_OFFSET_HOURS || 0;
+    const offsetMs = offsetHours * 60 * 60 * 1000;
+    let computedRelease: Date | undefined;
+
+    if (booking?.checkInDate) {
+      computedRelease = new Date(booking.checkInDate.getTime() + offsetMs);
+    } else {
+      computedRelease = new Date(Date.now() + offsetMs);
+    }
+
+    let payoutReleaseDate = booking?.payoutReleaseDate || computedRelease;
+
+    if (
+      computedRelease &&
+      (!payoutReleaseDate || computedRelease > payoutReleaseDate)
+    ) {
+      payoutReleaseDate = computedRelease;
+    }
+
+    const transitionData: Record<string, unknown> = {
+      payoutStatus: PayoutStatus.PENDING,
+    };
+
+    if (payoutReleaseDate) {
+      transitionData.payoutReleaseDate = payoutReleaseDate;
+    }
+
     await transitionBookingStatus(
       bookingId,
       "PENDING" as any,
       "CONFIRMED" as any,
-      {
-        payoutReleaseDate: new Date(
-          Date.now() +
-            (config.ESCROW_RELEASE_OFFSET_HOURS || 24) * 60 * 60 * 1000
-        ),
-      }
+      transitionData
     );
   } catch (e) {
     if (e instanceof BookingStatusConflictError) {
@@ -595,13 +807,36 @@ export const releasePendingPayouts = async () => {
     console.log("Starting payout release job...");
 
     // Find bookings ready for payout release
+    const now = new Date();
+
     const readyBookings = await prisma.booking.findMany({
       where: {
-        status: "CONFIRMED",
-        payoutStatus: PayoutStatus.PENDING,
-        payoutReleaseDate: {
-          lte: new Date(), // Release date has passed
+        status: {
+          in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED],
         },
+        payoutReleaseDate: {
+          lte: now, // Release date has passed
+        },
+        OR: [
+          {
+            payoutStatus: PayoutStatus.PENDING,
+            OR: [
+              { payoutHoldUntil: null },
+              {
+                payoutHoldUntil: {
+                  lte: now,
+                },
+              },
+            ],
+          },
+          {
+            payoutStatus: PayoutStatus.ON_HOLD,
+            payoutHoldUntil: {
+              not: null,
+              lte: now,
+            },
+          },
+        ],
       },
       include: {
         property: {
@@ -616,48 +851,115 @@ export const releasePendingPayouts = async () => {
     console.log(`Found ${readyBookings.length} bookings ready for payout`);
 
     for (const booking of readyBookings) {
+      const payment = booking.payment;
+      const paymentMetadata = (payment?.metadata as Record<string, any>) || {};
       try {
+        if (!payment) {
+          console.warn(
+            "Booking ready for payout but missing payment",
+            booking.id
+          );
+          continue;
+        }
+
+        if (payment.payoutReleased) {
+          console.log("Payout already released for booking", booking.id);
+          continue;
+        }
+
+        if (payment.isDisputed) {
+          console.log(
+            `Skipping payout for booking ${booking.id} due to active dispute`
+          );
+          continue;
+        }
+
+        let providerTransferId: string | undefined;
+
         if (
-          booking.payment?.method === "STRIPE" &&
-          booking.property.realtor.stripeAccountId
+          payment.method === "STRIPE" &&
+          booking.property.realtor.stripeAccountId &&
+          payment.stripePaymentIntentId
         ) {
-          // Process Stripe transfer
-          await captureAndTransfer(
-            booking.payment.stripePaymentIntentId!,
+          // Process Stripe capture + transfer
+          const result = await captureAndTransfer(
+            payment.stripePaymentIntentId,
             booking.property.realtor.stripeAccountId,
             Number(booking.realtorPayout),
             booking.currency,
             booking.id
           );
+          providerTransferId = result.transfer?.id;
         }
-        // Paystack handles splits automatically, so we just mark as released
-        else if (booking.payment?.method === "PAYSTACK") {
-          await prisma.$transaction(async (tx) => {
-            await tx.booking.update({
-              where: { id: booking.id },
-              data: { payoutStatus: PayoutStatus.RELEASED },
-            });
 
-            await tx.payment.update({
-              where: { id: booking.payment!.id },
-              data: {
-                payoutReleased: true,
-                payoutReleasedAt: new Date(),
+        await prisma.$transaction(async (tx) => {
+          const processedAt = new Date();
+
+          await (tx as any).payout.upsert({
+            where: { paymentId: payment.id },
+            update: {
+              status: PayoutStatus.RELEASED,
+              providerTransferId:
+                providerTransferId ??
+                payment.paystackReference ??
+                payment.stripeTransferId ??
+                undefined,
+              processedAt,
+              metadata: {
+                ...paymentMetadata,
+                releasedBy: "system",
               },
-            });
+            },
+            create: {
+              bookingId: booking.id,
+              paymentId: payment.id,
+              realtorId: booking.property.realtorId,
+              amount: booking.realtorPayout,
+              currency: booking.currency,
+              provider: payment.method,
+              status: PayoutStatus.RELEASED,
+              providerTransferId:
+                providerTransferId ??
+                payment.paystackReference ??
+                payment.stripeTransferId ??
+                undefined,
+              processedAt,
+              metadata: {
+                ...paymentMetadata,
+                releasedBy: "system",
+              },
+            },
           });
-        }
+
+          await tx.booking.update({
+            where: { id: booking.id },
+            data: {
+              payoutStatus: PayoutStatus.RELEASED,
+              payoutHoldReason: null,
+              payoutHoldUntil: null,
+            },
+          });
+
+          await tx.payment.update({
+            where: { id: payment.id },
+            data: {
+              payoutReleased: true,
+              payoutReleasedAt: processedAt,
+              stripeTransferId: providerTransferId ?? payment.stripeTransferId,
+            },
+          });
+        });
 
         console.log(`Released payout for booking ${booking.id}`);
         auditLogger
           .log("PAYOUT_RELEASED", "Payout", {
             entityId: booking.id,
-            details: { method: booking.payment?.method },
+            details: { method: payment.method },
           })
           .catch(() => {});
-        // Notify realtor of payout
-        try {
-          if (booking.property.realtor.businessEmail) {
+
+        if (booking.property.realtor.businessEmail) {
+          try {
             await sendRealtorPayout(
               booking.property.realtor.businessEmail,
               booking.property.realtor,
@@ -665,9 +967,9 @@ export const releasePendingPayouts = async () => {
               booking.currency,
               booking.id
             );
+          } catch (e) {
+            console.error("Failed to send payout email", e);
           }
-        } catch (e) {
-          console.error("Failed to send payout email", e);
         }
       } catch (error) {
         console.error(
@@ -675,10 +977,38 @@ export const releasePendingPayouts = async () => {
           error
         );
 
-        // Mark payout as failed
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { payoutStatus: PayoutStatus.FAILED },
+        await prisma.$transaction(async (tx) => {
+          await tx.booking.update({
+            where: { id: booking.id },
+            data: { payoutStatus: PayoutStatus.FAILED },
+          });
+
+          if (payment) {
+            await (tx as any).payout.upsert({
+              where: { paymentId: payment.id },
+              update: {
+                status: PayoutStatus.FAILED,
+                processedAt: new Date(),
+                metadata: {
+                  ...paymentMetadata,
+                  error: (error as Error).message,
+                },
+              },
+              create: {
+                bookingId: booking.id,
+                paymentId: payment.id,
+                realtorId: booking.property.realtorId,
+                amount: booking.realtorPayout,
+                currency: booking.currency,
+                provider: payment.method,
+                status: PayoutStatus.FAILED,
+                metadata: {
+                  ...paymentMetadata,
+                  error: (error as Error).message,
+                },
+              },
+            });
+          }
         });
       }
     }

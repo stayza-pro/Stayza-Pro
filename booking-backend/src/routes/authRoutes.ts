@@ -6,6 +6,10 @@ import {
   updateProfile,
   logout,
   refreshToken,
+  verifyEmail,
+  resendVerification,
+  forgotPassword,
+  resetPassword,
 } from "@/controllers/authController";
 import { authenticate } from "@/middleware/auth";
 import { authLimiter } from "@/middleware/rateLimiter";
@@ -238,6 +242,10 @@ router.post("/register", authLimiter, register);
  *               $ref: '#/components/schemas/ApiError'
  */
 router.post("/login", authLimiter, login);
+router.get("/verify-email", verifyEmail);
+router.post("/resend-verification", authLimiter, resendVerification);
+router.post("/forgot-password", authLimiter, forgotPassword);
+router.post("/reset-password", authLimiter, resetPassword);
 
 /**
  * @swagger

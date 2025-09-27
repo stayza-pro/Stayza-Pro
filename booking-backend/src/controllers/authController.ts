@@ -15,7 +15,11 @@ import {
   resetPasswordSchema,
   updateProfileSchema,
 } from "@/utils/validation";
-import { sendWelcomeEmail, sendEmailVerification } from "@/services/email";
+import {
+  sendWelcomeEmail,
+  sendEmailVerification,
+  sendPasswordReset,
+} from "@/services/email";
 import { config } from "@/config";
 import { auditLogger } from "@/services/auditLogger";
 
@@ -360,5 +364,199 @@ export const refreshToken = asyncHandler(
         req,
       })
       .catch(() => {});
+  }
+);
+
+/**
+ * @desc    Verify email using token
+ * @route   GET /api/auth/verify-email
+ * @access  Public
+ */
+export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+  const { token, email } = req.query as { token?: string; email?: string };
+
+  if (!token || !email) {
+    throw new AppError("Email and token are required", 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase() },
+  });
+
+  if (!user || !user.emailVerificationToken) {
+    throw new AppError("Invalid or expired verification token", 400);
+  }
+
+  if (user.isEmailVerified) {
+    return res.json({
+      success: true,
+      message: "Email already verified",
+    });
+  }
+
+  if (user.emailVerificationToken !== token) {
+    throw new AppError("Invalid verification token", 400);
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      isEmailVerified: true,
+      emailVerificationToken: null,
+    },
+  });
+
+  return res.json({
+    success: true,
+    message: "Email verified successfully",
+  });
+});
+
+/**
+ * @desc    Resend verification email
+ * @route   POST /api/auth/resend-verification
+ * @access  Public
+ */
+export const resendVerification = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email } = req.body as { email?: string };
+
+    if (!email) {
+      throw new AppError("Email is required", 400);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    if (user.isEmailVerified) {
+      throw new AppError("Email already verified", 400);
+    }
+
+    const emailVerificationToken = generateRandomToken();
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerificationToken },
+    });
+
+    const verificationUrl = `${
+      config.FRONTEND_URL
+    }/verify-email?token=${emailVerificationToken}&email=${encodeURIComponent(
+      user.email
+    )}`;
+
+    await sendEmailVerification(
+      user.email,
+      user.firstName || "User",
+      verificationUrl
+    );
+
+    res.json({
+      success: true,
+      message: "Verification email resent",
+    });
+  }
+);
+
+/**
+ * @desc    Forgot password
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { error, value } = forgotPasswordSchema.validate(req.body);
+
+    if (error) {
+      throw new AppError(error.details[0].message, 400);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: value.email.toLowerCase() },
+    });
+
+    if (!user) {
+      // Do not reveal user existence
+      return res.json({
+        success: true,
+        message: "If that email exists, a reset link has been sent",
+      });
+    }
+
+    const resetToken = generateRandomToken();
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: resetExpires,
+      },
+    });
+
+    const resetUrl = `${
+      config.FRONTEND_URL
+    }/reset-password?token=${resetToken}&email=${encodeURIComponent(
+      user.email
+    )}`;
+
+    await sendPasswordReset(user.email, user.firstName || "User", resetUrl);
+
+    return res.json({
+      success: true,
+      message: "If that email exists, a reset link has been sent",
+    });
+  }
+);
+
+/**
+ * @desc    Reset password
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { error, value } = resetPasswordSchema.validate(req.body);
+
+    if (error) {
+      throw new AppError(error.details[0].message, 400);
+    }
+
+    const { token, email, password } = value;
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (
+      !user ||
+      !user.resetPasswordToken ||
+      user.resetPasswordToken !== token ||
+      !user.resetPasswordExpires ||
+      user.resetPasswordExpires < new Date()
+    ) {
+      throw new AppError("Invalid or expired reset token", 400);
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Password reset successfully",
+    });
   }
 );

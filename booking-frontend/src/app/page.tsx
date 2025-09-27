@@ -1,73 +1,31 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuthStore } from "../store/authStore";
-import { Header } from "../components/layout/Header";
-import { SearchFilters } from "../components/property/SearchFilters";
-import { PropertyGrid } from "../components/property/PropertyGrid";
-import { Footer } from "../components/layout/Footer";
-import Loading from "../components/ui/Loading";
-import { useProperties } from "../hooks/useProperties";
+import { HeroSection } from "@/app/(marketing)/sections/HeroSection";
+import { TrustBar } from "@/app/(marketing)/sections/TrustBar";
+import { WhySection } from "@/app/(marketing)/sections/WhySection";
+import { CapabilitiesSection } from "@/app/(marketing)/sections/CapabilitiesSection";
+import { WorkflowSection } from "@/app/(marketing)/sections/WorkflowSection";
+import { ControlCenterSection } from "@/app/(marketing)/sections/ControlCenterSection";
+import { ExperienceSection } from "@/app/(marketing)/sections/ExperienceSection";
+import { SignalsSection } from "@/app/(marketing)/sections/SignalsSection";
+import { FAQSection } from "@/app/(marketing)/sections/FAQSection";
+import { FinalCTABand } from "@/app/(marketing)/sections/FinalCTABand";
+import { FooterSection } from "@/app/(marketing)/sections/FooterSection";
 
 export default function HomePage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, user } = useAuthStore();
-  const router = useRouter();
-
-  // Fetch properties using the properties hook
-  const { data: propertiesResponse, isLoading: propertiesLoading } =
-    useProperties(
-      undefined, // filters
-      { page: 1, limit: 12 } // searchParams
-    );
-
-  useEffect(() => {
-    // Simulate loading check
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading size="lg" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-
-      <main>
-        {/* Simple Hero Section */}
-        <section className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-24">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Find Your Perfect Stay
-            </h1>
-            <p className="text-xl md:text-2xl mb-12 text-blue-100">
-              Discover amazing places to stay around the world
-            </p>
-          </div>
-        </section>
-
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="space-y-8">
-            <SearchFilters />
-            <PropertyGrid
-              properties={propertiesResponse?.data || []}
-              loading={propertiesLoading}
-            />
-          </div>
-        </section>
+    <div className="marketing-theme min-h-screen antialiased">
+      <HeroSection />
+      <TrustBar />
+      <main className="bg-marketing-surface text-marketing-foreground">
+        <WhySection />
+        <CapabilitiesSection />
+        <WorkflowSection />
+        <ControlCenterSection />
+        <ExperienceSection />
+        <SignalsSection />
+        <FAQSection />
+        <FinalCTABand />
       </main>
-
-      <Footer />
+      <FooterSection />
     </div>
   );
 }

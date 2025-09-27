@@ -54,6 +54,10 @@ export const config = {
 
   // Booking
   REFUND_WINDOW_HOURS: parseInt(process.env.REFUND_WINDOW_HOURS || "24", 10),
+  BOOKING_PAYMENT_TIMEOUT_MINUTES: parseInt(
+    process.env.BOOKING_PAYMENT_TIMEOUT_MINUTES || "30",
+    10
+  ),
 
   // Financial (platform economics)
   SERVICE_FEE_RATE: parseFloat(process.env.SERVICE_FEE_RATE || "0.12"), // 12% of property price (visible service fee)

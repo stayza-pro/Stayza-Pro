@@ -4,10 +4,18 @@ export { propertyService } from "./properties";
 export { bookingService } from "./bookings";
 export { paymentService } from "./payments";
 export { reviewService } from "./reviews";
+export { realtorService } from "./realtors";
 
 // Export API client and types
 export { apiClient, type ApiResponse, type PaginatedResponse } from "./api";
-export type { PaymentIntentData, PaymentConfirmData } from "./payments";
+export type {
+  StripePaymentIntentRequest,
+  StripePaymentIntentResponse,
+  PaystackInitializationRequest,
+  PaystackInitializationResponse,
+  PaystackVerificationRequest,
+  PaystackVerificationResponse,
+} from "./payments";
 
 // Utility functions for services
 export const serviceUtils = {

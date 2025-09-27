@@ -1,4 +1,5 @@
 import axios from "axios";
+import crypto from "crypto";
 import { config } from "@/config";
 
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
@@ -245,7 +246,6 @@ export const verifyWebhookSignature = (
   payload: string,
   signature: string
 ): boolean => {
-  const crypto = require("crypto");
   const hash = crypto
     .createHmac("sha512", config.PAYSTACK_WEBHOOK_SECRET)
     .update(payload, "utf8")
