@@ -43,8 +43,15 @@ export function HeroSection() {
                 receipts. You get paid instantly. No middlemen. No mess.
               </p>
               <div className="flex flex-wrap items-center gap-4">
-                <CTAButton label="Launch Your Booking Site" />
-                <CTAButton label="Preview a Realtor Site" variant="ghost" />
+                <CTAButton
+                  label="Launch Your Booking Site"
+                  href="/get-started"
+                />
+                <CTAButton
+                  label="Preview a Realtor Site"
+                  variant="ghost"
+                  href="/demo/realtor"
+                />
               </div>
               <div className="grid gap-4 pt-6 sm:grid-cols-3">
                 {heroHighlights.map(({ title, description, Icon }) => (

@@ -26,17 +26,21 @@ describe("Landing page accessibility", () => {
   it("surfaces the primary calls to action", () => {
     renderPage();
 
-    expect(
-      screen.getByRole("button", { name: /create your microsite/i })
-    ).toBeVisible();
+    const launchCta = screen.getByRole("link", {
+      name: /launch your booking site/i,
+    });
 
-    const startForFreeCtas = screen.getAllByRole("button", {
+    expect(launchCta).toBeVisible();
+    expect(launchCta).toHaveAttribute("href", "/get-started");
+
+    const startForFreeCtas = screen.getAllByRole("link", {
       name: /start for free/i,
     });
 
     expect(startForFreeCtas.length).toBeGreaterThan(0);
     startForFreeCtas.forEach((cta) => {
       expect(cta).toBeVisible();
+      expect(cta).toHaveAttribute("href", "/get-started");
     });
   });
 });

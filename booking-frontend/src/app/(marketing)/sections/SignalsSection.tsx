@@ -65,6 +65,7 @@ export function SignalsSection() {
                 <CTAButton
                   label={waitlistDetails.buttonLabel}
                   variant="outline"
+                  href="/early-access"
                 />
               </div>
             </div>

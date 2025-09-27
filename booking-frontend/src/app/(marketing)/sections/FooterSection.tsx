@@ -47,7 +47,7 @@ export function FooterSection() {
               </Link>
             ))}
             <Link
-              href="#contact"
+              href="/contact"
               className="transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--marketing-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--marketing-footer-bg)]"
             >
               Contact

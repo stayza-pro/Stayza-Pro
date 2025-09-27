@@ -10,7 +10,7 @@ export function FinalCTABand() {
           Faster
         </h2>
         <div className="flex items-center justify-center">
-          <CTAButton label="Start for free" />
+          <CTAButton label="Start for free" href="/get-started" />
         </div>
         <p className="text-sm text-white/70">
           Set up your custom mini-site in minutes with your logo and colors.
