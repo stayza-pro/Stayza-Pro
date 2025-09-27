@@ -32,19 +32,19 @@ export function HeroSection() {
           <div className="grid items-center gap-16 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="space-y-8 text-white">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]">
-                Launch-ready booking engine
+                Booking made personal
               </span>
               <h1 className="text-4xl font-bold leading-tight md:text-6xl">
-                Bring every booking touchpoint under your own brand.
+                Your booking site. Branded. Live in minutes.
               </h1>
               <p className="max-w-xl text-lg text-white/80 md:text-xl">
-                Stayza Pro replaces disjointed messaging, spreadsheets, and
-                payment links with one immersive booking experience your clients
-                trust.
+                Every realtor gets a personal booking hub—your logo, your
+                colours, your listings, your payments. Guests book, pay, and get
+                receipts. You get paid instantly. No middlemen. No mess.
               </p>
               <div className="flex flex-wrap items-center gap-4">
-                <CTAButton label="Get Started Free" />
-                <CTAButton label="Preview a live microsite" variant="ghost" />
+                <CTAButton label="Launch Your Booking Site" />
+                <CTAButton label="Preview a Realtor Site" variant="ghost" />
               </div>
               <div className="grid gap-4 pt-6 sm:grid-cols-3">
                 {heroHighlights.map(({ title, description, Icon }) => (
@@ -82,7 +82,7 @@ export function HeroSection() {
                           Indigo Estates
                         </p>
                         <p className="text-xs text-marketing-muted">
-                          stayza.pro/indigo
+                          yourbrand.stayza.pro
                         </p>
                       </div>
                     </div>
@@ -93,21 +93,25 @@ export function HeroSection() {
                         color: palette.neutralDark,
                       }}
                     >
-                      Auto-confirm
+                      Instant Booking
                     </span>
                   </div>
                   <div className="space-y-4 rounded-2xl border border-marketing-subtle bg-marketing-surface p-5">
                     <div className="h-44 rounded-xl bg-gradient-to-br from-slate-200 via-white to-slate-100" />
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="text-marketing-muted">Next check-in</p>
+                        <p className="text-marketing-muted">
+                          Upcoming check-in
+                        </p>
                         <p className="font-semibold text-marketing-foreground">
                           28 Sept • 4 nights
                         </p>
                       </div>
                       <div>
-                        <p className="text-marketing-muted">Forecast payout</p>
-                        <p className="font-semibold text-green-600">₦312,500</p>
+                        <p className="text-marketing-muted">Next payout</p>
+                        <p className="font-semibold text-green-600">
+                          ₦280,000 total • ₦32,500 commission
+                        </p>
                       </div>
                     </div>
                     <div
@@ -118,10 +122,10 @@ export function HeroSection() {
                     >
                       <div>
                         <p className="text-xs uppercase tracking-[0.12em] text-marketing-muted">
-                          Payment split
+                          Paystack / Stripe
                         </p>
                         <p className="text-sm font-semibold text-marketing-foreground">
-                          ₦280,000 realtor • ₦32,500 platform
+                          Funds cleared • Just now
                         </p>
                       </div>
                       <svg
@@ -142,7 +146,7 @@ export function HeroSection() {
                       View booking
                     </button>
                     <button className="flex-1 rounded-xl border border-marketing-subtle bg-transparent py-2.5 text-sm font-semibold text-marketing-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--marketing-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--marketing-ring-offset)] hover:bg-marketing-surface/80">
-                      Send receipt
+                      Email receipt
                     </button>
                   </div>
                 </div>
@@ -150,10 +154,12 @@ export function HeroSection() {
               <aside className="absolute -bottom-12 -right-10 hidden lg:block">
                 <div className="rounded-3xl border border-white/20 bg-white/15 px-6 py-4 text-white shadow-xl backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.14em] text-white/70">
-                    Realtime activity
+                    Live updates
                   </p>
-                  <p className="mt-2 text-lg font-semibold">3 new enquiries</p>
-                  <p className="text-xs text-white/60">in the last hour</p>
+                  <p className="mt-2 text-lg font-semibold">
+                    6 guests saved this
+                  </p>
+                  <p className="text-xs text-white/60">within the last hour</p>
                 </div>
               </aside>
             </div>

@@ -1,8 +1,8 @@
 const trustStatements = [
-  "Loved by residential agencies",
-  "Trusted by serviced apartment brands",
-  "Adopted by corporate housing teams",
-  "Accelerating vacation rental collectives",
+  "Independent realtor teams",
+  "Serviced apartment brands",
+  "Vacation rental agencies",
+  "Corporate housing partners",
 ];
 
 export function TrustBar() {
@@ -10,7 +10,7 @@ export function TrustBar() {
     <section className="bg-marketing-surface py-10">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-6 px-4 text-sm font-medium text-marketing-muted sm:px-6 lg:px-8">
         <span className="flex items-center gap-2 text-xs uppercase tracking-[0.2em]">
-          Trusted by teams modernising their booking ops
+          Trusted by realtors who outgrow Airbnb & JumiaHouse
         </span>
         <div
           className="hidden h-8 w-px sm:block"

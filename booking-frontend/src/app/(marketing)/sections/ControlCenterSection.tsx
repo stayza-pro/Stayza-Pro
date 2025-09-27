@@ -10,8 +10,8 @@ export function ControlCenterSection() {
       <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
         <SectionTitle
           eyebrow="control centre"
-          title="One workspace that scales with your portfolio"
-          description="Toggle on the modules you need today and add more sophistication as you grow."
+          title="Total control without the chaos"
+          description="One dashboard for portfolios, payments, and guest trust — switch on what you need and grow without breaking your flow."
         />
         <div className="grid gap-6 md:grid-cols-3">
           {capabilityColumns.map((column) => (

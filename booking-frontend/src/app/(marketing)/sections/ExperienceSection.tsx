@@ -11,8 +11,8 @@ export function ExperienceSection() {
       <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
         <SectionTitle
           eyebrow="experience"
-          title="Give guests and teams a journey that feels effortless"
-          description="Stayza Pro keeps clarity, accountability, and speed at the heart of every stay."
+          title="Guest experiences that win repeat bookings"
+          description="From wishlists to instant payouts, every interaction is designed to feel clear, fast, and reliable — no surprises, no friction."
         />
         <div className="grid gap-6 md:grid-cols-3">
           {operationsSnapshots.map((card) => (

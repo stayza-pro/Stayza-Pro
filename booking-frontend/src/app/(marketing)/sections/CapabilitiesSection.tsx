@@ -11,8 +11,8 @@ export function CapabilitiesSection() {
       <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
         <SectionTitle
           eyebrow="capabilities"
-          title="Stayza Pro keeps your operations, revenue, and brand aligned"
-          description="Swap tool sprawl for a single platform that feels premium to clients and efficient for your team."
+          title="All-in-one power for realtors who rent smarter"
+          description="Stop juggling tools. From branding to bookings, payouts to compliance—one platform covers every part of the shortlet experience."
         />
         <div className="grid gap-8 lg:grid-cols-3">
           {featurePillars.map(({ title, copy, Icon }) => (

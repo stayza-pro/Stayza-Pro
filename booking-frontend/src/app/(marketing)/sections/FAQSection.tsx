@@ -11,8 +11,8 @@ export function FAQSection() {
       <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
         <SectionTitle
           eyebrow="FAQ"
-          title="Answers teams ask before they switch"
-          description="Need more context? Book a walkthrough and we’ll tailor the setup to your workflow."
+          title="What realtors ask before switching"
+          description="Still unsure? Here are the most common deal-breakers we clear up on every demo."
         />
         <div className="grid gap-6 md:grid-cols-2">
           {faqItems.map((faq) => (

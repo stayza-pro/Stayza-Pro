@@ -7,14 +7,18 @@ export function WhySection() {
       <div className="mx-auto grid max-w-6xl items-start gap-16 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
         <div className="space-y-6">
           <SectionTitle
-            eyebrow="why teams switch"
-            title="The traditional stack wasn’t built for stay-focused bookings"
-            description="When conversations, payments, and scheduling live in different places, trust disappears fast. Stayza Pro keeps momentum alive so enquiries become confirmed stays."
+            eyebrow="why realtors switch"
+            title="Generic marketplaces weren’t built for modern agencies"
+            description="Stayza Pro gives every realtor a branded booking hub, automated split payouts, and an audit trail that keeps admins in control."
             align="left"
           />
           <div className="flex flex-wrap gap-4 pt-4">
-            <MetricPill value="12+" label="Manual touchpoints removed" />
-            <MetricPill value="2x" label="Faster quote-to-book time" />
+            <MetricPill value="100%" label="Your brand front and center" />
+            <MetricPill value="0 hrs" label="Wasted on manual payouts" />
+            <MetricPill
+              value="1 link"
+              label="For bookings, payments, receipts"
+            />
           </div>
         </div>
         <div className="grid gap-6 sm:grid-cols-2">

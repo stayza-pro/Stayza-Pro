@@ -17,8 +17,8 @@ export function SignalsSection() {
       <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
         <SectionTitle
           eyebrow="real-world signals"
-          title="Teams shipping memorable stays with Stayza Pro"
-          description="The operators below replaced duct-taped workflows with branded journeys that convert."
+          title="Realtors turning portals into profit with Stayza Pro"
+          description="Independent brokers, serviced apartments, and vacation rental teams are ditching generic marketplaces for branded hubs that actually convert."
         />
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="grid gap-6 sm:grid-cols-2">

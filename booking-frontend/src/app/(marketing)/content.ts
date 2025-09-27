@@ -25,7 +25,7 @@ export const palette = {
 
 export const brand = {
   name: "Stayza Pro",
-  tagline: "Branded booking microsites with automatic split payouts.",
+  tagline: "Your booking site. Branded. Live in minutes.",
   logoIcon: Sparkles,
 } as const;
 
@@ -43,21 +43,21 @@ export const heroHighlights: Array<{
   Icon: LucideIcon;
 }> = [
   {
-    title: "Custom-branded microsites",
+    title: "Your brand, your site",
     description:
-      "Upload your logo, pick colours, and share your ourapp.com/agency link in minutes.",
+      "Logo, colours, and style—make your booking link feel like your business, not ours.",
     Icon: MonitorSmartphone,
   },
   {
-    title: "Automatic split payouts",
+    title: "Money flows instantly",
     description:
-      "Stripe Connect or Paystack Split routes every payment between you and your agents automatically.",
+      "Split payouts handled automatically. Guests pay online, funds clear straight to your account.",
     Icon: CreditCard,
   },
   {
-    title: "Numbers that drive action",
+    title: "See what matters",
     description:
-      "Dashboards surface bookings, revenue, and cancellations without spreadsheet gymnastics.",
+      "Bookings, revenue, and refunds—everything in one dashboard. No chasing, no spreadsheets.",
     Icon: BarChart3,
   },
 ];
@@ -68,27 +68,27 @@ export const painPoints: Array<{
   Icon: LucideIcon;
 }> = [
   {
-    title: "Generic portals dilute trust",
+    title: "Your brand gets buried",
     description:
-      "Marketplace listings bury your brand and scatter enquiries across inboxes.",
+      "Marketplaces push THEIR logo, not yours. Guests barely remember who you are.",
     Icon: Megaphone,
   },
   {
-    title: "Manual payout gymnastics",
+    title: "Payout chaos every month",
     description:
-      "Chasing transfers, calculating commissions, and logging refunds eats into selling time.",
+      "Spreadsheet math, late transfers, and missing commissions drain your time and trust.",
     Icon: RotateCcw,
   },
   {
-    title: "Fragmented guest experience",
+    title: "Guests hate friction",
     description:
-      "Guests can’t filter, favourite, or checkout without endless back-and-forth.",
+      "No favorites, clunky checkout, endless back-and-forth. Frustrated guests don’t return.",
     Icon: MessageSquare,
   },
   {
-    title: "Zero audit trail",
+    title: "No proof when things go wrong",
     description:
-      "Approvals, disputes, and actions vanish without a system-level log.",
+      "Disputes, cancellations, and approvals vanish without a clear audit trail. You lose leverage.",
     Icon: ShieldCheck,
   },
 ];
@@ -99,19 +99,24 @@ export const featurePillars: Array<{
   Icon: LucideIcon;
 }> = [
   {
-    title: "Build once, brand everywhere",
-    copy: "Spin up microsites, emails, and receipts that match your logo, colours, and custom URL.",
+    title: "Branded microsites in minutes",
+    copy: "Launch polished booking pages that carry your logo, colours, and URL—no more being lost in generic portals.",
     Icon: Globe,
   },
   {
-    title: "Automate money movement",
-    copy: "Stripe Connect and Paystack Split route payouts, refunds, and fees without manual work.",
+    title: "Hands-free payouts & refunds",
+    copy: "Stripe Connect and Paystack Split move money instantly, track fees, and issue refunds without you touching a calculator.",
     Icon: Wallet,
   },
   {
-    title: "Delight every guest journey",
-    copy: "Wishlists, maps, reviews, and PDF agreements keep guests confident from browse to stay.",
+    title: "A guest journey that sells itself",
+    copy: "Interactive maps, wishlists, reviews, and auto-generated agreements keep guests confident and converting.",
     Icon: Users,
+  },
+  {
+    title: "Compliance built in",
+    copy: "Every approval, edit, and dispute is logged—giving you an audit trail banks, partners, and regulators trust.",
+    Icon: ShieldCheck,
   },
 ];
 
@@ -121,21 +126,21 @@ export const workflowSteps: Array<{
   Icon: LucideIcon;
 }> = [
   {
-    title: "Sign up and claim your link",
+    title: "Claim your branded hub",
     description:
-      "Choose your colours, upload your logo, and launch a branded ourapp.com/agency microsite.",
+      "Pick your colours, drop in your logo, and instantly launch a custom ourapp.com/agency page that feels 100% yours.",
     Icon: UploadCloud,
   },
   {
-    title: "List properties and pricing",
+    title: "Showcase listings that sell",
     description:
-      "Bulk upload photos, set weekend or seasonal rules, and keep calendars in sync.",
+      "Upload photos in bulk, set smart pricing rules, and sync calendars so every enquiry is accurate and ready to book.",
     Icon: CalendarCheck,
   },
   {
-    title: "Connect payouts and go live",
+    title: "Switch on payments & go live",
     description:
-      "Authenticate Stripe or Paystack once, share your link, and let automated receipts handle the rest.",
+      "Connect Stripe or Paystack once. From that moment, payouts, receipts, and refunds just run automatically.",
     Icon: ShieldCheck,
   },
 ];
@@ -144,44 +149,44 @@ export const capabilityColumns = [
   {
     heading: "Portfolio & pricing",
     bullets: [
-      "Bulk import listings with rich media and amenities",
-      "Smart availability calendar with conflict prevention",
-      "Weekend, seasonal, and channel-specific rate rules",
+      "Upload once — photos, videos, amenities all in one place",
+      "Smart calendar that prevents double-bookings automatically",
+      "Flexible pricing rules for weekends, seasons, or channels",
     ],
   },
   {
     heading: "Payments & compliance",
     bullets: [
-      "Instant split payouts with transparent ledger visibility",
-      "Refund and dispute workflows backed by audit logs",
-      "Automatic PDF receipts and lease agreements per booking",
+      "Split payouts hit every wallet instantly, no chasing transfers",
+      "Refunds and disputes tracked with full audit history",
+      "Auto-generated PDF receipts and contracts on every booking",
     ],
   },
   {
     heading: "Guest experience",
     bullets: [
-      "Filters by location, price, and amenities with map view",
-      "Wishlists and booking history for returning guests",
-      "Photo reviews and verified realtor badges for trust",
+      "Search and filter with map view for instant clarity",
+      "Wishlists and booking history keep loyal guests coming back",
+      "Photo reviews and verified badges build trust at a glance",
     ],
   },
 ] as const;
 
 export const operationsSnapshots = [
   {
-    title: "Live performance dashboard",
+    title: "Real-time performance dashboard",
     description:
-      "Bookings, revenue, cancellations, and occupancy trends update in real time for every realtor.",
+      "Track bookings, revenue, and cancellations at a glance — no spreadsheets, no waiting.",
   },
   {
-    title: "Availability control centre",
+    title: "Smart availability calendar",
     description:
-      "Drag-and-drop calendars highlight gaps, blocked dates, and overbook risks instantly.",
+      "Spot gaps, block dates, and prevent double-bookings with simple drag-and-drop control.",
   },
   {
-    title: "Admin oversight & logs",
+    title: "Full accountability log",
     description:
-      "Approvals, disputes, and moderation actions are recorded with a full audit trail.",
+      "Every approval, dispute, and admin action recorded automatically for total transparency.",
   },
 ] as const;
 
@@ -189,17 +194,17 @@ export const operationsMetrics = [
   {
     label: "Average payout time",
     value: "Same day",
-    hint: "Stripe Connect and Paystack Split transfer funds as soon as bookings clear.",
+    hint: "Funds land in your account as soon as bookings clear — no chasing transfers.",
   },
   {
-    label: "Listings launched week one",
+    label: "Listings live in week one",
     value: "12",
-    hint: "Bulk uploads and reusable templates accelerate onboarding for new realtors.",
+    hint: "Bulk uploads and templates help new realtors launch fast without friction.",
   },
   {
     label: "Guest satisfaction",
     value: "4.9 / 5",
-    hint: "Wishlists, maps, and photo reviews keep guests engaged and confident.",
+    hint: "Smooth search, wishlists, and trusted reviews keep guests coming back.",
   },
 ] as const;
 
@@ -214,34 +219,33 @@ export const caseStudies = [
   {
     company: "Harbor & Keys Realty",
     industry: "Independent brokerage",
-    result: "2× more direct bookings in 45 days",
+    result: "2× direct bookings in 6 weeks",
     delta:
-      "by launching branded microsites with automated Stripe Connect payouts",
+      "by replacing portal listings with their own branded microsite and automated payouts",
   },
   {
     company: "PalmStay Apartments",
     industry: "Serviced apartment collective",
-    result: "Weekend revenue up 34%",
+    result: "+34% weekend revenue",
     delta:
-      "after rolling out seasonal pricing rules and automated PDF lease agreements",
+      "after rolling out dynamic seasonal pricing and instant PDF lease agreements",
   },
   {
     company: "MetroHost Partners",
     industry: "Urban vacation rentals",
-    result: "Chargebacks down 72%",
-    delta:
-      "thanks to verified realtor badges and mapped dispute workflows",
+    result: "72% fewer chargebacks",
+    delta: "thanks to verified realtor badges and built-in dispute workflows",
   },
 ] as const;
 
 export const waitlistDetails = {
-  headline: "Stayza Pro launch cohort",
+  headline: "Join the next Stayza Pro cohort",
   subcopy:
-    "We activate a limited number of realtor teams each month to keep migrations hands-on and fast.",
+    "We onboard a limited number of realtor teams each month so migrations stay fast, personal, and hands-on.",
   bulletPoints: [
-    "Guided branding and property import in week one",
-    "Stripe Connect or Paystack Split configured with compliance checks",
-    "Reporting and automation playbooks tailored to your portfolio",
+    "Your logo, colours, and listings live in week one",
+    "Stripe Connect or Paystack Split configured with compliance built in",
+    "Custom reporting and automation playbooks tailored to your team",
   ],
   buttonLabel: "Apply for early access",
 } as const;
@@ -250,21 +254,26 @@ export const faqItems = [
   {
     question: "Do I need a developer to launch my microsite?",
     answer:
-      "No. Upload your assets, choose colours, and pick your custom URL with guided steps and live previews.",
+      "No. The setup is guided — upload your logo, choose your colours, and your branded hub is live in minutes.",
   },
   {
-    question: "Can I stay on my own domain?",
+    question: "Can I use my own domain?",
     answer:
-      "Yes. Point any subdomain or use ourapp.com/your-name — both keep the experience fully branded.",
+      "Yes. Point a subdomain like bookings.youragency.com, or use your ourapp.com/agency link — both keep your brand front and centre.",
   },
   {
     question: "How are payouts and fees handled?",
     answer:
-      "Connect Stripe Connect or Paystack Split once. We route commissions, refunds, and receipts automatically.",
+      "Stripe Connect or Paystack Split handle everything: commissions, refunds, receipts. Money flows automatically — no spreadsheets.",
   },
   {
-    question: "What about plans and limits?",
+    question: "What if I’m already using Airbnb or a marketplace?",
     answer:
-      "Start free with two live listings. Upgrade to Pro for unlimited properties, analytics, and custom branding.",
+      "You can keep them. Stayza Pro runs in parallel, giving you direct bookings you own while marketplaces stay as overflow.",
+  },
+  {
+    question: "What about pricing and limits?",
+    answer:
+      "Start free with two listings and 5% commission. Upgrade to Pro for unlimited properties, analytics, and lower fees.",
   },
 ] as const;

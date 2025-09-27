@@ -7,8 +7,8 @@ export function WorkflowSection() {
       <div className="mx-auto max-w-5xl space-y-12 px-4 sm:px-6 lg:px-8">
         <SectionTitle
           eyebrow="workflow"
-          title="Launch a branded booking experience in three guided steps"
-          description="Every stage is mapped so you can move from sign-up to booking-ready without second guessing."
+          title="Your booking hub, live in minutes"
+          description="No tech headaches. Just three guided steps from sign-up to first payout."
         />
         <div className="relative">
           <div

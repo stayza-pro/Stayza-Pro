@@ -41,7 +41,7 @@ export function Navigation() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <CTAButton label="Get Started Free" />
+          <CTAButton label="Start for free" />
         </div>
       </nav>
 
@@ -58,7 +58,7 @@ export function Navigation() {
             </Link>
           ))}
           <CTAButton
-            label="Get Started Free"
+            label="Start for free"
             variant="solid"
             className="w-full justify-center"
           />

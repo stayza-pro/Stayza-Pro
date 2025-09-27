@@ -26,12 +26,16 @@ describe("Landing page accessibility", () => {
   it("surfaces the primary calls to action", () => {
     renderPage();
 
-    const primaryCtas = screen.getAllByRole("button", {
-      name: /get started free/i,
+    expect(
+      screen.getByRole("button", { name: /create your microsite/i })
+    ).toBeVisible();
+
+    const startForFreeCtas = screen.getAllByRole("button", {
+      name: /start for free/i,
     });
 
-    expect(primaryCtas.length).toBeGreaterThan(0);
-    primaryCtas.forEach((cta) => {
+    expect(startForFreeCtas.length).toBeGreaterThan(0);
+    startForFreeCtas.forEach((cta) => {
       expect(cta).toBeVisible();
     });
   });
