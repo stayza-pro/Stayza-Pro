@@ -1,12 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Menu, X } from "lucide-react";
 
-import { navLinks } from "@/app/(marketing)/content";
+import { navLinks, palette } from "@/app/(marketing)/content";
 import { CTAButton } from "@/app/(marketing)/components/CTAButton";
 import { LogoLockup } from "@/app/(marketing)/components/LogoLockup";
+
+const navToggleStyles: CSSProperties & Record<string, string> = {
+  "--nav-toggle-border":
+    "color-mix(in srgb, var(--marketing-primary-foreground, #f1f5f9) 32%, transparent)",
+  "--nav-toggle-color":
+    "color-mix(in srgb, var(--marketing-primary-foreground, #f1f5f9) 78%, transparent)",
+  "--nav-toggle-hover-border": palette.primaryForeground,
+  "--nav-toggle-hover-bg":
+    "color-mix(in srgb, var(--marketing-primary-foreground, #f1f5f9) 18%, transparent)",
+  "--nav-toggle-hover-text": palette.primaryForeground,
+  "--nav-toggle-ring": palette.primaryForeground,
+};
 
 export function Navigation() {
   const [open, setOpen] = useState(false);
@@ -23,7 +35,8 @@ export function Navigation() {
           type="button"
           aria-label="Toggle navigation menu"
           onClick={() => setOpen((prev) => !prev)}
-          className="rounded-full border border-white/20 p-2 text-white/80 transition hover:border-white/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--marketing-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent md:hidden"
+          className="rounded-full border border-[var(--nav-toggle-border)] p-2 text-[color:var(--nav-toggle-color)] transition hover:border-[var(--nav-toggle-hover-border)] hover:bg-[var(--nav-toggle-hover-bg)] hover:text-[color:var(--nav-toggle-hover-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-toggle-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent md:hidden"
+          style={navToggleStyles}
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>

@@ -21,6 +21,7 @@ export const palette = {
   accent: "var(--marketing-accent, #F97316)",
   neutralLight: "var(--marketing-surface, #F3F4F6)",
   neutralDark: "var(--marketing-foreground, #111827)",
+  primaryForeground: "var(--marketing-primary-foreground, #f1f5f9)",
 } as const;
 
 export const brand = {
@@ -239,15 +240,15 @@ export const caseStudies = [
 ] as const;
 
 export const waitlistDetails = {
-  headline: "Join the next Stayza Pro cohort",
+  headline: "Secure your onboarding slot",
   subcopy:
-    "We onboard a limited number of realtor teams each month so migrations stay fast, personal, and hands-on.",
+    "We open a limited number of white-glove engagements each month to keep migrations fast, personal, and hands-on.",
   bulletPoints: [
     "Your logo, colours, and listings live in week one",
     "Stripe Connect or Paystack Split configured with compliance built in",
     "Custom reporting and automation playbooks tailored to your team",
   ],
-  buttonLabel: "Apply for early access",
+  buttonLabel: "Book a discovery call",
 } as const;
 
 export const faqItems = [

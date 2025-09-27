@@ -65,7 +65,7 @@ export function SignalsSection() {
                 <CTAButton
                   label={waitlistDetails.buttonLabel}
                   variant="outline"
-                  href="/early-access"
+                  href="https://cal.com/stayza-pro/discovery"
                 />
               </div>
             </div>
