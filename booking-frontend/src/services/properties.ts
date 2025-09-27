@@ -4,6 +4,7 @@ import {
   PropertyFilters,
   SearchParams,
   PropertyFormData,
+  Review,
 } from "../types";
 
 export const propertyService = {
@@ -167,7 +168,7 @@ export const propertyService = {
   getPropertyReviews: async (
     propertyId: string,
     searchParams?: SearchParams
-  ): Promise<PaginatedResponse<any>> => {
+  ): Promise<PaginatedResponse<Review>> => {
     const params = new URLSearchParams();
 
     if (searchParams) {
@@ -183,8 +184,8 @@ export const propertyService = {
       ? `/properties/${propertyId}/reviews?${queryString}`
       : `/properties/${propertyId}/reviews`;
 
-    const response = await apiClient.get<any[]>(url);
-    return response as PaginatedResponse<any>;
+    const response = await apiClient.get<PaginatedResponse<Review>>(url);
+    return response.data;
   },
 
   // Search properties by location

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import Image from "next/image";
 import { Card, Button, Loading } from "../ui";
 import { PropertyCard } from "../property";
-import { BookingCard } from "../booking";
 import { ReviewCard } from "../review";
 import {
   Shield,
@@ -15,13 +15,10 @@ import {
   TrendingUp,
   Calendar,
   MessageSquare,
-  Settings,
   Flag,
   CheckCircle,
   XCircle,
-  Eye,
   Search,
-  Filter,
 } from "lucide-react";
 import { User as UserType, Property, Booking, Review } from "../../types";
 
@@ -263,10 +260,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {recentUsers.slice(0, 5).map((user) => (
               <div key={user.id} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <img
+                  <Image
                     src={user.avatar || "/default-avatar.png"}
                     alt={`${user.firstName} ${user.lastName}`}
+                    width={32}
+                    height={32}
                     className="w-8 h-8 object-cover rounded-full"
+                    unoptimized
                   />
                   <div>
                     <p className="font-medium text-gray-900">
@@ -314,10 +314,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 className="flex items-center justify-between"
               >
                 <div className="flex items-center space-x-3">
-                  <img
+                  <Image
                     src={property.images[0] || "/placeholder-image.jpg"}
                     alt={property.title}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 object-cover rounded-lg"
+                    unoptimized
                   />
                   <div>
                     <p className="font-medium text-gray-900 truncate max-w-48">
@@ -414,10 +417,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <img
+                      <Image
                         src={user.avatar || "/default-avatar.png"}
                         alt={`${user.firstName} ${user.lastName}`}
+                        width={40}
+                        height={40}
                         className="w-10 h-10 object-cover rounded-full mr-4"
+                        unoptimized
                       />
                       <div>
                         <p className="text-sm font-medium text-gray-900">
@@ -496,10 +502,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 key={property.id}
                 className="border border-yellow-200 rounded-lg overflow-hidden"
               >
-                <img
+                <Image
                   src={property.images[0] || "/placeholder-image.jpg"}
                   alt={property.title}
+                  width={600}
+                  height={256}
                   className="w-full h-48 object-cover"
+                  unoptimized
                 />
                 <div className="p-4">
                   <h4 className="font-semibold text-gray-900 mb-2">
@@ -593,10 +602,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <tr key={booking.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <img
+                      <Image
                         src={booking.guest.avatar || "/default-avatar.png"}
                         alt={`${booking.guest.firstName} ${booking.guest.lastName}`}
+                        width={32}
+                        height={32}
                         className="w-8 h-8 object-cover rounded-full mr-3"
+                        unoptimized
                       />
                       <div>
                         <p className="text-sm font-medium text-gray-900">
@@ -738,10 +750,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="flex items-center justify-between p-4 border border-red-200 rounded-lg bg-red-50"
                 >
                   <div className="flex items-center space-x-4">
-                    <img
+                    <Image
                       src={property.images[0] || "/placeholder-image.jpg"}
                       alt={property.title}
+                      width={64}
+                      height={64}
                       className="w-16 h-16 object-cover rounded-lg"
+                      unoptimized
                     />
                     <div>
                       <h4 className="font-medium text-gray-900">
@@ -789,10 +804,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center space-x-3">
-                      <img
+                      <Image
                         src={review.guest.avatar || "/default-avatar.png"}
                         alt={`${review.guest.firstName} ${review.guest.lastName}`}
+                        width={32}
+                        height={32}
                         className="w-8 h-8 object-cover rounded-full"
+                        unoptimized
                       />
                       <div>
                         <p className="font-medium text-gray-900">

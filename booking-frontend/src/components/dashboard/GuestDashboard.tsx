@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import Image from "next/image";
 import { Card, Button, Loading } from "../ui";
 import { BookingCard } from "../booking";
 import { CompactRating } from "../review";
@@ -8,7 +9,6 @@ import {
   Calendar,
   MapPin,
   Star,
-  Clock,
   CreditCard,
   User,
   Heart,
@@ -184,12 +184,15 @@ export const GuestDashboard: React.FC<GuestDashboardProps> = ({
                   className="border border-gray-200 rounded-lg p-4"
                 >
                   <div className="flex items-start space-x-3">
-                    <img
+                    <Image
                       src={
                         booking.property.images[0] || "/placeholder-image.jpg"
                       }
                       alt={booking.property.title}
+                      width={64}
+                      height={64}
                       className="w-16 h-16 object-cover rounded-lg"
+                      unoptimized
                     />
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900 mb-1">
@@ -232,12 +235,15 @@ export const GuestDashboard: React.FC<GuestDashboardProps> = ({
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   <div className="flex items-center space-x-3">
-                    <img
+                    <Image
                       src={
                         booking.property.images[0] || "/placeholder-image.jpg"
                       }
                       alt={booking.property.title}
+                      width={40}
+                      height={40}
                       className="w-10 h-10 object-cover rounded"
+                      unoptimized
                     />
                     <div>
                       <p className="text-sm font-medium text-gray-900">
@@ -348,10 +354,13 @@ export const GuestDashboard: React.FC<GuestDashboardProps> = ({
               className="overflow-hidden hover:shadow-md transition-shadow"
             >
               <div className="relative">
-                <img
+                <Image
                   src={property.images[0] || "/placeholder-image.jpg"}
                   alt={property.title}
+                  width={600}
+                  height={256}
                   className="w-full h-48 object-cover"
+                  unoptimized
                 />
                 <button className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md">
                   <Heart className="h-5 w-5 text-red-500 fill-current" />
@@ -414,10 +423,13 @@ export const GuestDashboard: React.FC<GuestDashboardProps> = ({
           {reviews.map((review) => (
             <Card key={review.id} className="p-6">
               <div className="flex items-start space-x-4">
-                <img
+                <Image
                   src={review.property?.images[0] || "/placeholder-image.jpg"}
                   alt={review.property?.title || "Property"}
+                  width={64}
+                  height={64}
                   className="w-16 h-16 object-cover rounded-lg"
+                  unoptimized
                 />
 
                 <div className="flex-1">
@@ -455,10 +467,13 @@ export const GuestDashboard: React.FC<GuestDashboardProps> = ({
     <div className="max-w-2xl">
       <Card className="p-6">
         <div className="flex items-center space-x-6 mb-6">
-          <img
+          <Image
             src={user.avatar || "/default-avatar.png"}
             alt={`${user.firstName} ${user.lastName}`}
+            width={96}
+            height={96}
             className="w-24 h-24 object-cover rounded-full"
+            unoptimized
           />
 
           <div>

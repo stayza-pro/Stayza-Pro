@@ -172,7 +172,7 @@ export const LoginForm: React.FC = () => {
 
         <div className="text-center">
           <p className="text-gray-600">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/auth/register"
               className="text-blue-600 hover:text-blue-800 font-medium"

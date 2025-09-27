@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Button, Card, Loading } from "../ui";
-import { ChevronLeft, ChevronRight, Calendar, Clock, Ban } from "lucide-react";
+import { Button, Card } from "../ui";
+import { ChevronLeft, ChevronRight, Calendar, Ban } from "lucide-react";
 
 interface AvailabilityRule {
   id?: string;
@@ -517,7 +517,9 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                         </>
                       )}
                       {rule.reason && (
-                        <span className="italic">"{rule.reason}"</span>
+                        <span className="italic">
+                          &ldquo;{rule.reason}&rdquo;
+                        </span>
                       )}
                     </div>
                   </div>

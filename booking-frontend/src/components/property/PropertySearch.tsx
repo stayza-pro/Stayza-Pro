@@ -71,12 +71,6 @@ export const PropertySearch: React.FC<PropertySearchProps> = ({
     lg: "p-8",
   };
 
-  const inputSizes = {
-    sm: "sm",
-    md: "md",
-    lg: "lg",
-  } as const;
-
   const buttonSizes = {
     sm: "sm",
     md: "md",

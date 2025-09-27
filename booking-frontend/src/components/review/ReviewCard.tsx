@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Card } from "../ui";
 import {
   Star,
@@ -126,10 +127,13 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
             {/* Guest Avatar */}
             <div className="flex-shrink-0">
               {showGuestName ? (
-                <img
+                <Image
                   src={review.guest.avatar || "/default-avatar.png"}
                   alt={`${review.guest.firstName} ${review.guest.lastName}`}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 object-cover rounded-full"
+                  unoptimized
                 />
               ) : (
                 <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
@@ -253,10 +257,13 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
         {review.hostResponse && (
           <div className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r">
             <div className="flex items-start space-x-3">
-              <img
+              <Image
                 src={review.property?.host?.avatar || "/default-avatar.png"}
                 alt="Host"
+                width={32}
+                height={32}
                 className="w-8 h-8 object-cover rounded-full flex-shrink-0"
+                unoptimized
               />
 
               <div className="flex-1">

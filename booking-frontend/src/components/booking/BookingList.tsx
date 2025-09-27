@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Button, Card, Loading } from "../ui";
 import { BookingCard } from "./BookingCard";
-import { Search, Filter, Calendar, SortAsc } from "lucide-react";
+import { Search, Filter, Calendar } from "lucide-react";
 import { Booking } from "../../types";
 
 interface BookingListProps {

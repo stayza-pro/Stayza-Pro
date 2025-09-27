@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Button, Card, Loading } from "../ui";
 import { Star, MessageSquare, AlertCircle, CheckCircle } from "lucide-react";
 import { ReviewFormData, Booking } from "../../types";
@@ -118,10 +119,13 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
         </h2>
 
         <div className="flex items-start space-x-4">
-          <img
+          <Image
             src={booking.property.images[0] || "/placeholder-image.jpg"}
             alt={booking.property.title}
+            width={64}
+            height={64}
             className="w-16 h-16 object-cover rounded-lg"
+            unoptimized
           />
 
           <div className="flex-1">
@@ -304,10 +308,13 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
         </h3>
 
         <div className="flex items-center space-x-4">
-          <img
+          <Image
             src={booking.property.host.avatar || "/default-avatar.png"}
             alt={`${booking.property.host.firstName} ${booking.property.host.lastName}`}
+            width={48}
+            height={48}
             className="w-12 h-12 object-cover rounded-full"
+            unoptimized
           />
 
           <div>

@@ -115,7 +115,7 @@ export interface Payment {
   isDisputed?: boolean;
   disputeId?: string | null;
   disputeStatus?: string | null;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
   booking: Booking;
@@ -173,7 +173,7 @@ export interface Review {
 }
 
 // API Response types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;

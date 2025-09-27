@@ -6,16 +6,17 @@ import { Footer } from "../../components/layout/Footer";
 import { PropertyGrid } from "../../components/property/PropertyGrid";
 import { SearchFilters } from "../../components/property/SearchFilters";
 import { useState } from "react";
+import type { PropertyFilters } from "../../types";
 
 export default function PropertiesPage() {
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState<PropertyFilters>({});
 
   const { data: propertiesResponse, isLoading } = useProperties(filters, {
     page: 1,
     limit: 20,
   });
 
-  const handleFiltersChange = (newFilters: any) => {
+  const handleFiltersChange = (newFilters: PropertyFilters) => {
     setFilters(newFilters);
   };
 

@@ -14,8 +14,16 @@ import {
   Utensils,
 } from "lucide-react";
 
+interface FiltersState {
+  priceRange: { min: number; max: number };
+  propertyType: string;
+  minRating: number;
+  amenities: string[];
+  instantBook: boolean;
+}
+
 interface SearchFiltersProps {
-  onFiltersChange?: (filters: any) => void;
+  onFiltersChange?: (filters: FiltersState) => void;
   className?: string;
 }
 
@@ -24,11 +32,11 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   className = "",
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<FiltersState>({
     priceRange: { min: 0, max: 1000 },
     propertyType: "",
     minRating: 0,
-    amenities: [] as string[],
+    amenities: [],
     instantBook: false,
   });
 
@@ -46,7 +54,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     { value: "pool", label: "Pool", icon: MapPin },
   ];
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = <K extends keyof FiltersState>(
+    key: K,
+    value: FiltersState[K]
+  ) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     onFiltersChange?.(newFilters);
@@ -61,11 +72,11 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   };
 
   const clearFilters = () => {
-    const defaultFilters = {
+    const defaultFilters: FiltersState = {
       priceRange: { min: 0, max: 1000 },
       propertyType: "",
       minRating: 0,
-      amenities: [] as string[],
+      amenities: [],
       instantBook: false,
     };
     setFilters(defaultFilters);

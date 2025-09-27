@@ -117,7 +117,10 @@ export const ReviewList: React.FC<ReviewListProps> = ({
     }));
   };
 
-  const handleFilterChange = (key: keyof ReviewFilters, value: any) => {
+  const handleFilterChange = <K extends keyof ReviewFilters>(
+    key: K,
+    value: ReviewFilters[K]
+  ) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 

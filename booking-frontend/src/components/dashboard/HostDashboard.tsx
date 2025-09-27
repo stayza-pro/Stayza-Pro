@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import Image from "next/image";
 import { Card, Button, Loading } from "../ui";
 import { PropertyCard } from "../property";
 import { BookingCard } from "../booking";
@@ -15,9 +16,7 @@ import {
   Clock,
   Plus,
   BarChart,
-  MapPin,
   MessageSquare,
-  Settings,
   Eye,
 } from "lucide-react";
 import { User as UserType, Property, Booking, Review } from "../../types";
@@ -48,7 +47,6 @@ interface HostDashboardProps {
 }
 
 export const HostDashboard: React.FC<HostDashboardProps> = ({
-  user,
   properties = [],
   bookings = [],
   reviews = [],
@@ -237,7 +235,7 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
       <div className="space-y-6">
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Today's Activity
+            Today&apos;s Activity
           </h3>
 
           <div className="space-y-4">
@@ -304,10 +302,13 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
                 key={property.id}
                 className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50"
               >
-                <img
+                <Image
                   src={property.images[0] || "/placeholder-image.jpg"}
                   alt={property.title}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 object-cover rounded-lg"
+                  unoptimized
                 />
                 <div className="flex-1">
                   <h4 className="text-sm font-medium text-gray-900 truncate">
@@ -445,10 +446,13 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
                     <tr key={booking.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <img
+                          <Image
                             src={booking.guest.avatar || "/default-avatar.png"}
                             alt={`${booking.guest.firstName} ${booking.guest.lastName}`}
+                            width={32}
+                            height={32}
                             className="w-8 h-8 object-cover rounded-full mr-3"
+                            unoptimized
                           />
                           <div>
                             <p className="text-sm font-medium text-gray-900">
@@ -544,10 +548,13 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <img
+                      <Image
                         src={review.guest.avatar || "/default-avatar.png"}
                         alt={`${review.guest.firstName} ${review.guest.lastName}`}
+                        width={32}
+                        height={32}
                         className="w-8 h-8 object-cover rounded-full"
+                        unoptimized
                       />
                       <div>
                         <p className="font-medium text-gray-900">
@@ -592,10 +599,13 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
           {reviews.map((review) => (
             <Card key={review.id} className="p-6">
               <div className="flex items-start space-x-4">
-                <img
+                <Image
                   src={review.guest.avatar || "/default-avatar.png"}
                   alt={`${review.guest.firstName} ${review.guest.lastName}`}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 object-cover rounded-full"
+                  unoptimized
                 />
 
                 <div className="flex-1">
@@ -726,10 +736,13 @@ export const HostDashboard: React.FC<HostDashboardProps> = ({
               className="flex items-center justify-between py-3 border-b border-gray-200"
             >
               <div className="flex items-center space-x-4">
-                <img
+                <Image
                   src={booking.property.images[0] || "/placeholder-image.jpg"}
                   alt={booking.property.title}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 object-cover rounded-lg"
+                  unoptimized
                 />
                 <div>
                   <p className="font-medium text-gray-900">

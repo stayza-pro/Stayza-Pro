@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from "react";
 import { Button, Card, Loading } from "../ui";
 import {
-  CreditCard,
   Lock,
   Shield,
   AlertCircle,
@@ -113,7 +112,7 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
       }
 
       window.location.href = response.authorizationUrl;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = serviceUtils.extractErrorMessage(error);
       setPaymentError(message);
       onError(message);

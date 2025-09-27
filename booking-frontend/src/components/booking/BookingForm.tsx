@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Image from "next/image";
 import { Button, Input, Card, Loading } from "../ui";
 import { Calendar, Users, MapPin, Clock, AlertCircle } from "lucide-react";
 import { Property, BookingFormData } from "../../types";
@@ -52,7 +53,10 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     };
   }, [formData.checkInDate, formData.checkOutDate, property.pricePerNight]);
 
-  const handleInputChange = (field: keyof BookingFormData, value: any) => {
+  const handleInputChange = <K extends keyof BookingFormData>(
+    field: K,
+    value: BookingFormData[K]
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -140,10 +144,13 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       {/* Property Summary */}
       <Card className="p-6">
         <div className="flex items-start space-x-4">
-          <img
+          <Image
             src={property.images[0] || "/placeholder-image.jpg"}
             alt={property.title}
+            width={80}
+            height={80}
             className="w-20 h-20 object-cover rounded-lg"
+            unoptimized
           />
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-gray-900 mb-1">
@@ -359,8 +366,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               </h4>
               <ul className="text-sm text-blue-800 space-y-1">
                 <li>
-                  • You won't be charged until your reservation is accepted by
-                  the host
+                  • You won&apos;t be charged until your reservation is accepted
+                  by the host
                 </li>
                 <li>• Free cancellation until 48 hours before check-in</li>
                 <li>• Check-in time: 3:00 PM - 11:00 PM</li>

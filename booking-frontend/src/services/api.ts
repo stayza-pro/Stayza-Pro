@@ -1,4 +1,9 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  AxiosError,
+} from "axios";
 import { toast } from "react-hot-toast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -27,10 +32,14 @@ api.interceptors.request.use(
 );
 
 // Response interceptor for handling errors and token refresh
+interface RetryableAxiosRequestConfig extends AxiosRequestConfig {
+  _retry?: boolean;
+}
+
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
-  async (error) => {
-    const originalRequest = error.config;
+  async (error: AxiosError) => {
+    const originalRequest = error.config as RetryableAxiosRequestConfig;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -64,7 +73,13 @@ api.interceptors.response.use(
 
     // Handle other errors
     const message =
-      error.response?.data?.message || error.message || "An error occurred";
+      (typeof error.response?.data === "object" &&
+      error.response?.data !== null &&
+      "message" in error.response.data
+        ? String((error.response.data as { message?: string }).message)
+        : undefined) ||
+      error.message ||
+      "An error occurred";
 
     // Don't show toast for certain errors
     const silentErrors = [400, 401, 404];
@@ -100,23 +115,23 @@ export const apiClient = {
   get: <T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> =>
     api.get(url, config).then((res) => res.data),
 
-  post: <T>(
+  post: <T, TData = unknown>(
     url: string,
-    data?: any,
+    data?: TData,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> =>
     api.post(url, data, config).then((res) => res.data),
 
-  put: <T>(
+  put: <T, TData = unknown>(
     url: string,
-    data?: any,
+    data?: TData,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> =>
     api.put(url, data, config).then((res) => res.data),
 
-  patch: <T>(
+  patch: <T, TData = unknown>(
     url: string,
-    data?: any,
+    data?: TData,
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> =>
     api.patch(url, data, config).then((res) => res.data),

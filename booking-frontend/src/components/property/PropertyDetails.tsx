@@ -376,7 +376,7 @@ export const PropertyDetails: React.FC<PropertyDetailsProps> = ({
                 </Button>
 
                 <div className="text-center text-sm text-gray-600">
-                  You won't be charged yet
+                  You won&apos;t be charged yet
                 </div>
 
                 {/* Host Info */}

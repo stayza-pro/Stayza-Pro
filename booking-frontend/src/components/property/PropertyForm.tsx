@@ -69,7 +69,10 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleInputChange = (field: keyof PropertyFormData, value: any) => {
+  const handleInputChange = <K extends keyof PropertyFormData>(
+    field: K,
+    value: PropertyFormData[K]
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,

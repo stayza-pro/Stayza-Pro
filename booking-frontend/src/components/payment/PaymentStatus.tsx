@@ -127,7 +127,6 @@ export const PaymentStatus: React.FC<PaymentStatusProps> = ({
 
   const statusConfig = getStatusConfig();
   const paymentAmount = payment?.amount || amount || 0;
-  const paymentCurrency = payment?.currency || currency;
   const method = payment?.method || paymentMethod;
   const txnId =
     payment?.stripePaymentIntentId ||

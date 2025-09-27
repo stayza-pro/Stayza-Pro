@@ -8,8 +8,9 @@ import "../styles/globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "BookingApp - Find Your Perfect Stay",
-  description: "Discover and book amazing accommodations worldwide",
+  title: "Stayz Pro – Smart Booking for Realtors and Guests",
+  description:
+    "Stayz Pro lets realtors create branded mini booking sites with Stripe/Paystack payouts, property management, guest reviews, maps, and more — all in one seamless platform.",
 };
 
 export default function RootLayout({

@@ -1,27 +1,50 @@
+"use client";
+
+import { motion, useReducedMotion } from "framer-motion";
 import { heroHighlights, palette } from "@/app/(marketing)/content";
 import { CTAButton } from "@/app/(marketing)/components/CTAButton";
 import { Navigation } from "@/app/(marketing)/sections/Navigation";
 
 export function HeroSection() {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
-    <section
+    <motion.section
       className="relative overflow-hidden"
       style={{ backgroundColor: palette.primary }}
+      initial={shouldReduceMotion ? false : { opacity: 0 }}
+      animate={
+        shouldReduceMotion
+          ? undefined
+          : { opacity: 1, transition: { duration: 0.6, ease: "easeOut" } }
+      }
     >
       <div className="absolute inset-0">
-        <div
+        <motion.div
           className="absolute right-[-18%] top-[-35%] h-[460px] w-[460px] rounded-full"
           style={{
             background:
               "radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)",
           }}
+          animate={
+            shouldReduceMotion
+              ? undefined
+              : { x: [0, 45, 0], y: [0, -35, 0], rotate: [0, 8, 0] }
+          }
+          transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
         />
-        <div
+        <motion.div
           className="absolute bottom-[-30%] left-[-8%] h-[380px] w-[380px] rounded-full"
           style={{
             background:
               "radial-gradient(circle, rgba(4,120,87,0.25) 0%, transparent 70%)",
           }}
+          animate={
+            shouldReduceMotion
+              ? undefined
+              : { x: [0, -35, 0], y: [0, 28, 0], rotate: [0, -6, 0] }
+          }
+          transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
         />
       </div>
 
@@ -30,19 +53,87 @@ export function HeroSection() {
 
         <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8 lg:pb-28 lg:pt-24">
           <div className="grid items-center gap-16 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="space-y-8 text-white">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]">
+            <motion.div
+              className="space-y-8 text-white"
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }}
+              animate={
+                shouldReduceMotion
+                  ? undefined
+                  : {
+                      opacity: 1,
+                      y: 0,
+                      transition: {
+                        duration: 0.7,
+                        delay: 0.1,
+                        ease: [0.21, 0.61, 0.35, 1],
+                      },
+                    }
+              }
+            >
+              <motion.span
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+                animate={
+                  shouldReduceMotion
+                    ? undefined
+                    : {
+                        opacity: 1,
+                        y: 0,
+                        transition: { duration: 0.6, delay: 0.25 },
+                      }
+                }
+              >
                 Booking made personal
-              </span>
-              <h1 className="text-4xl font-bold leading-tight md:text-6xl">
+              </motion.span>
+              <motion.h1
+                className="text-4xl font-bold leading-tight md:text-6xl"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 28 }}
+                animate={
+                  shouldReduceMotion
+                    ? undefined
+                    : {
+                        opacity: 1,
+                        y: 0,
+                        transition: {
+                          duration: 0.75,
+                          delay: 0.3,
+                          ease: [0.22, 1, 0.36, 1],
+                        },
+                      }
+                }
+              >
                 Your booking site. Branded. Live in minutes.
-              </h1>
-              <p className="max-w-xl text-lg text-white/80 md:text-xl">
+              </motion.h1>
+              <motion.p
+                className="max-w-xl text-lg text-white/80 md:text-xl"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 24 }}
+                animate={
+                  shouldReduceMotion
+                    ? undefined
+                    : {
+                        opacity: 1,
+                        y: 0,
+                        transition: { duration: 0.6, delay: 0.38 },
+                      }
+                }
+              >
                 Every realtor gets a personal booking hub—your logo, your
                 colours, your listings, your payments. Guests book, pay, and get
                 receipts. You get paid instantly. No middlemen. No mess.
-              </p>
-              <div className="flex flex-wrap items-center gap-4">
+              </motion.p>
+              <motion.div
+                className="flex flex-wrap items-center gap-4"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
+                animate={
+                  shouldReduceMotion
+                    ? undefined
+                    : {
+                        opacity: 1,
+                        y: 0,
+                        transition: { duration: 0.6, delay: 0.45 },
+                      }
+                }
+              >
                 <CTAButton
                   label="Launch Your Booking Site"
                   href="/get-started"
@@ -52,12 +143,38 @@ export function HeroSection() {
                   variant="ghost"
                   href="/demo/realtor"
                 />
-              </div>
-              <div className="grid gap-4 pt-6 sm:grid-cols-3">
+              </motion.div>
+              <motion.div
+                className="grid gap-4 pt-6 sm:grid-cols-3"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 28 }}
+                animate={
+                  shouldReduceMotion
+                    ? undefined
+                    : {
+                        opacity: 1,
+                        y: 0,
+                        transition: { duration: 0.6, delay: 0.55 },
+                      }
+                }
+              >
                 {heroHighlights.map(({ title, description, Icon }) => (
-                  <article
+                  <motion.article
                     key={title}
                     className="rounded-2xl border border-white/15 bg-white/5 px-4 py-5 backdrop-blur transition-transform motion-safe:hover:-translate-y-1"
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
+                    whileInView={
+                      shouldReduceMotion
+                        ? undefined
+                        : {
+                            opacity: 1,
+                            y: 0,
+                            transition: {
+                              duration: 0.55,
+                              ease: [0.25, 0.8, 0.25, 1],
+                            },
+                          }
+                    }
+                    viewport={{ once: true, margin: "0px 0px -120px" }}
                   >
                     <div className="flex items-center gap-3 text-white/85">
                       <Icon className="h-5 w-5" />
@@ -66,13 +183,29 @@ export function HeroSection() {
                       </span>
                     </div>
                     <p className="mt-3 text-sm text-white/75">{description}</p>
-                  </article>
+                  </motion.article>
                 ))}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             <div className="relative">
-              <div className="rounded-[32px] border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur">
+              <motion.div
+                className="rounded-[32px] border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur"
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 40 }}
+                whileInView={
+                  shouldReduceMotion
+                    ? undefined
+                    : {
+                        opacity: 1,
+                        y: 0,
+                        transition: {
+                          duration: 0.7,
+                          ease: [0.25, 0.8, 0.25, 1],
+                        },
+                      }
+                }
+                viewport={{ once: true, margin: "0px 0px -120px" }}
+              >
                 <div className="space-y-6 rounded-[24px] border border-marketing-subtle bg-marketing-elevated p-6 shadow-xl">
                   <div
                     className="flex items-center justify-between"
@@ -157,9 +290,26 @@ export function HeroSection() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
               <aside className="absolute -bottom-12 -right-10 hidden lg:block">
-                <div className="rounded-3xl border border-white/20 bg-white/15 px-6 py-4 text-white shadow-xl backdrop-blur">
+                <motion.div
+                  className="rounded-3xl border border-white/20 bg-white/15 px-6 py-4 text-white shadow-xl backdrop-blur"
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 24 }}
+                  whileInView={
+                    shouldReduceMotion
+                      ? undefined
+                      : {
+                          opacity: 1,
+                          y: 0,
+                          transition: {
+                            duration: 0.6,
+                            delay: 0.2,
+                            ease: [0.25, 0.8, 0.25, 1],
+                          },
+                        }
+                  }
+                  viewport={{ once: true, margin: "0px 0px -80px" }}
+                >
                   <p className="text-xs uppercase tracking-[0.14em] text-white/70">
                     Live updates
                   </p>
@@ -167,12 +317,12 @@ export function HeroSection() {
                     6 guests saved this
                   </p>
                   <p className="text-xs text-white/60">within the last hour</p>
-                </div>
+                </motion.div>
               </aside>
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }

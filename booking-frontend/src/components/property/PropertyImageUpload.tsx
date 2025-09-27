@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import Image from "next/image";
 import { Button, Card, Loading } from "../ui";
-import { Upload, X, Camera, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Camera } from "lucide-react";
 
 interface PropertyImage {
   id?: string;
@@ -27,7 +28,6 @@ export const PropertyImageUpload: React.FC<PropertyImageUploadProps> = ({
   className = "",
 }) => {
   const [dragActive, setDragActive] = useState(false);
-  const [uploadingCount, setUploadingCount] = useState(0);
 
   const handleFiles = useCallback(
     (files: FileList | File[]) => {
@@ -174,7 +174,7 @@ export const PropertyImageUpload: React.FC<PropertyImageUploadProps> = ({
             <div className="space-y-4">
               <div className="flex justify-center">
                 <div className="p-3 bg-gray-100 rounded-full">
-                  {uploadingCount > 0 ? (
+                  {isLoading ? (
                     <Loading size="lg" />
                   ) : (
                     <Upload className="h-8 w-8 text-gray-600" />
@@ -184,8 +184,8 @@ export const PropertyImageUpload: React.FC<PropertyImageUploadProps> = ({
 
               <div>
                 <p className="text-lg font-medium text-gray-900">
-                  {uploadingCount > 0
-                    ? `Uploading ${uploadingCount} image(s)...`
+                  {isLoading
+                    ? "Uploading images..."
                     : "Drop images here or click to browse"}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
@@ -221,10 +221,13 @@ export const PropertyImageUpload: React.FC<PropertyImageUploadProps> = ({
                 }}
               >
                 {/* Image */}
-                <img
+                <Image
                   src={image.url}
                   alt={`Property image ${index + 1}`}
+                  width={600}
+                  height={600}
                   className="w-full h-full object-cover"
+                  unoptimized
                 />
 
                 {/* Primary Badge */}

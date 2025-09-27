@@ -18,6 +18,31 @@ export type {
 } from "./payments";
 
 // Utility functions for services
+type QueryPrimitive = string | number | boolean | Date;
+type QueryValue = QueryPrimitive | null | undefined | QueryPrimitive[];
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null;
+};
+
+interface ErrorResponseShape {
+  data?: {
+    message?: string;
+    errors?: unknown[];
+  };
+  status?: number;
+}
+
+interface ErrorShape {
+  response?: ErrorResponseShape;
+  request?: unknown;
+  message?: string;
+}
+
+const isErrorShape = (error: unknown): error is ErrorShape => {
+  return isRecord(error);
+};
+
 export const serviceUtils = {
   // Format date for API
   formatDateForAPI: (date: Date): string => {
@@ -25,14 +50,21 @@ export const serviceUtils = {
   },
 
   // Build query string from object
-  buildQueryString: (params: Record<string, any>): string => {
+  buildQueryString: (params: Record<string, QueryValue>): string => {
     const searchParams = new URLSearchParams();
 
     Object.keys(params).forEach((key) => {
       const value = params[key];
       if (value !== undefined && value !== null && value !== "") {
         if (Array.isArray(value)) {
-          searchParams.append(key, value.join(","));
+          const serialized = value
+            .map((item) =>
+              item instanceof Date
+                ? item.toISOString().split("T")[0]
+                : String(item)
+            )
+            .join(",");
+          searchParams.append(key, serialized);
         } else if (value instanceof Date) {
           searchParams.append(key, value.toISOString().split("T")[0]);
         } else {
@@ -54,41 +86,51 @@ export const serviceUtils = {
   },
 
   // Extract error message from API response
-  extractErrorMessage: (error: any): string => {
-    if (error.response?.data?.message) {
-      return error.response.data.message;
+  extractErrorMessage: (error: unknown): string => {
+    if (isErrorShape(error)) {
+      const data = error.response?.data;
+      if (isRecord(data)) {
+        if (typeof data.message === "string" && data.message.trim().length) {
+          return data.message;
+        }
+        const [firstError] = Array.isArray(data.errors) ? data.errors : [];
+        if (typeof firstError === "string" && firstError.trim().length) {
+          return firstError;
+        }
+      }
+      if (typeof error.message === "string" && error.message.trim().length) {
+        return error.message;
+      }
     }
-    if (error.response?.data?.errors?.[0]) {
-      return error.response.data.errors[0];
-    }
-    if (error.message) {
+
+    if (error instanceof Error && error.message.trim().length) {
       return error.message;
     }
     return "An unexpected error occurred";
   },
 
   // Check if error is a network error
-  isNetworkError: (error: any): boolean => {
-    return !error.response && error.request;
+  isNetworkError: (error: unknown): boolean => {
+    return isErrorShape(error) && !error.response && !!error.request;
   },
 
   // Check if error is an authentication error
-  isAuthError: (error: any): boolean => {
-    return error.response?.status === 401;
+  isAuthError: (error: unknown): boolean => {
+    return isErrorShape(error) && error.response?.status === 401;
   },
 
   // Check if error is a permission error
-  isPermissionError: (error: any): boolean => {
-    return error.response?.status === 403;
+  isPermissionError: (error: unknown): boolean => {
+    return isErrorShape(error) && error.response?.status === 403;
   },
 
   // Check if error is a validation error
-  isValidationError: (error: any): boolean => {
-    return error.response?.status === 400;
+  isValidationError: (error: unknown): boolean => {
+    return isErrorShape(error) && error.response?.status === 400;
   },
 
   // Check if error is a not found error
-  isNotFoundError: (error: any): boolean => {
-    return error.response?.status === 404;
+  isNotFoundError: (error: unknown): boolean => {
+    return isErrorShape(error) && error.response?.status === 404;
   },
 };

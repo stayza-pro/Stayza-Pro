@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "react-query";
-import { authService } from "../services";
+import { authService, serviceUtils } from "../services";
 import { useAuthStore } from "../store";
 import { User, LoginCredentials, RegisterData } from "../types";
 
@@ -16,9 +16,9 @@ export const useProfile = () => {
   return useQuery(authKeys.profile, authService.getProfile, {
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount: number, error: any) => {
+    retry: (failureCount: number, error: unknown) => {
       // Don't retry on 401 errors
-      if (error?.response?.status === 401) {
+      if (serviceUtils.isAuthError(error)) {
         return false;
       }
       return failureCount < 3;
@@ -40,7 +40,7 @@ export const useLogin = () => {
         // Invalidate and refetch user profile
         queryClient.invalidateQueries(authKeys.profile);
       },
-      onError: (error: any) => {
+      onError: (error: unknown) => {
         console.error("Login error:", error);
       },
     }
@@ -60,7 +60,7 @@ export const useRegister = () => {
         // Invalidate and refetch user profile
         queryClient.invalidateQueries(authKeys.profile);
       },
-      onError: (error: any) => {
+      onError: (error: unknown) => {
         console.error("Registration error:", error);
       },
     }
@@ -76,7 +76,7 @@ export const useLogout = () => {
       // Clear all cached data on logout
       queryClient.clear();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Logout error:", error);
       // Even if logout fails on server, clear client-side data
       queryClient.clear();
@@ -89,11 +89,11 @@ export const useUpdateProfile = () => {
   const queryClient = useQueryClient();
 
   return useMutation((userData: Partial<User>) => updateProfile(userData), {
-    onSuccess: (updatedUser: any) => {
+    onSuccess: (updatedUser: User) => {
       // Update cached profile data
       queryClient.setQueryData(authKeys.profile, updatedUser);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Profile update error:", error);
     },
   });
@@ -101,7 +101,7 @@ export const useUpdateProfile = () => {
 
 export const useChangePassword = () => {
   return useMutation(authService.changePassword, {
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Change password error:", error);
     },
   });
@@ -109,7 +109,7 @@ export const useChangePassword = () => {
 
 export const useRequestPasswordReset = () => {
   return useMutation(authService.requestPasswordReset, {
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Password reset request error:", error);
     },
   });
@@ -117,7 +117,7 @@ export const useRequestPasswordReset = () => {
 
 export const useResetPassword = () => {
   return useMutation(authService.resetPassword, {
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Password reset error:", error);
     },
   });
@@ -131,7 +131,7 @@ export const useVerifyEmail = () => {
       // Refetch profile to update verification status
       queryClient.invalidateQueries(authKeys.profile);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Email verification error:", error);
     },
   });
@@ -139,7 +139,7 @@ export const useVerifyEmail = () => {
 
 export const useResendVerificationEmail = () => {
   return useMutation(authService.resendVerificationEmail, {
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Resend verification error:", error);
     },
   });

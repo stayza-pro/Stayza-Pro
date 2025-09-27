@@ -13,34 +13,72 @@ import {
   PaystackCheckout,
   PaymentStatus,
 } from "@/components/payment";
-// We will display a custom confirmation card instead of BookingConfirmation for now
-import { Card, Button, Loading } from "@/components/ui";
+import { Button, Card, Loading } from "@/components/ui";
 import { useProperty } from "@/hooks/useProperties";
-import { bookingService, paymentService, serviceUtils } from "@/services";
-import { Booking, BookingFormData, Payment, Property } from "@/types";
 import { useAuthStore } from "@/store/authStore";
+import { bookingService, paymentService, serviceUtils } from "@/services";
+import type { Booking, BookingFormData, Payment, Property } from "@/types";
+
+type RawImage =
+  | string
+  | {
+      url?: unknown;
+      imageUrl?: unknown;
+    }
+  | null
+  | undefined;
+
+type RawHostCandidate = {
+  id?: string;
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
+  surname?: string;
+  name?: string;
+  businessName?: string;
+  avatar?: string;
+  logoUrl?: string;
+  photoUrl?: string;
+};
+
+type RawProperty = Partial<
+  Omit<Property, "images" | "pricePerNight" | "host"> & {
+    host: Property["host"];
+  }
+> & {
+  images?: unknown;
+  pricePerNight?: unknown;
+  host?: RawHostCandidate;
+  hostId?: string;
+  realtorId?: string;
+  realtor?: RawHostCandidate & { user?: RawHostCandidate };
+};
 
 interface PropertyDetailClientProps {
   propertyId: string;
 }
 
-const normalizeImages = (images: any): string[] => {
-  if (!Array.isArray(images)) {
+const normalizeImages = (images: RawProperty["images"]): string[] => {
+  if (!images) {
     return [];
   }
 
-  return images
+  const imageArray = Array.isArray(images) ? images : [images];
+
+  return imageArray
     .map((image) => {
-      if (typeof image === "string") {
-        return image;
+      const rawImage = image as RawImage;
+      if (typeof rawImage === "string") {
+        return rawImage;
       }
 
-      if (image && typeof image === "object") {
-        if (typeof image.url === "string") {
-          return image.url;
+      if (rawImage && typeof rawImage === "object") {
+        const { url, imageUrl } = rawImage;
+        if (typeof url === "string") {
+          return url;
         }
-        if (typeof image.imageUrl === "string") {
-          return image.imageUrl;
+        if (typeof imageUrl === "string") {
+          return imageUrl;
         }
       }
 
@@ -49,10 +87,10 @@ const normalizeImages = (images: any): string[] => {
     .filter((value): value is string => Boolean(value));
 };
 
-const normalizeProperty = (rawProperty: any): Property => {
+const normalizeProperty = (rawProperty: RawProperty): Property => {
   const images = normalizeImages(rawProperty.images);
 
-  const hostCandidate =
+  const hostCandidate: RawHostCandidate | undefined =
     rawProperty.host || rawProperty.realtor?.user || rawProperty.realtor;
 
   const host = {
@@ -78,7 +116,7 @@ const normalizeProperty = (rawProperty: any): Property => {
   const parsedPrice = Number(rawProperty.pricePerNight ?? 0);
 
   return {
-    id: rawProperty.id,
+    id: rawProperty.id ?? "property",
     title: rawProperty.title ?? "Property",
     description: rawProperty.description ?? "",
     type: rawProperty.type ?? "APARTMENT",
@@ -149,10 +187,6 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentRecord, setPaymentRecord] = useState<Payment | null>(null);
   const [isInitializingPayment, setIsInitializingPayment] = useState(false);
-  const [paystackDetails, setPaystackDetails] = useState<{
-    reference?: string;
-    paymentId?: string;
-  } | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useProperty(propertyId);
   const { isAuthenticated, user } = useAuthStore();
@@ -212,7 +246,6 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
     setPaymentStage("idle");
     setPaymentError(null);
     setPaymentRecord(null);
-    setPaystackDetails(null);
   };
 
   const prepareStripePayment = async () => {
@@ -321,11 +354,6 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
     paymentStatus?: Payment["status"];
   }) => {
     setActivePaymentId(details.paymentId);
-    setPaystackDetails({
-      reference: details.reference,
-      paymentId: details.paymentId,
-    });
-
     if (details.paymentStatus) {
       setPaymentStage(mapPaymentStatus(details.paymentStatus));
       if (details.paymentStatus === "COMPLETED") {
@@ -437,7 +465,7 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
       toast.success(
         "Booking created! Complete payment to finalize your reservation."
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message = serviceUtils.extractErrorMessage(err);
       setBookingMessage(message);
       toast.error(message);

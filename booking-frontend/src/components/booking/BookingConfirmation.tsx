@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Button, Card } from "../ui";
 import {
   CheckCircle,
@@ -10,8 +11,6 @@ import {
   CreditCard,
   Download,
   MessageCircle,
-  Phone,
-  Mail,
   Clock,
   Home,
 } from "lucide-react";
@@ -38,13 +37,6 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
       year: "numeric",
       month: "long",
       day: "numeric",
-    });
-  };
-
-  const formatTime = (dateString: string): string => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
     });
   };
 
@@ -144,10 +136,13 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 
           <div className="space-y-4">
             <div className="flex items-start space-x-4">
-              <img
+              <Image
                 src={booking.property.images[0] || "/placeholder-image.jpg"}
                 alt={booking.property.title}
+                width={64}
+                height={64}
                 className="w-16 h-16 object-cover rounded-lg"
+                unoptimized
               />
               <div>
                 <h3 className="font-medium text-gray-900">
@@ -190,10 +185,13 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-4">
-            <img
+            <Image
               src={booking.property.host.avatar || "/default-avatar.png"}
               alt={`${booking.property.host.firstName} ${booking.property.host.lastName}`}
+              width={64}
+              height={64}
               className="w-16 h-16 object-cover rounded-full"
+              unoptimized
             />
             <div>
               <h3 className="text-lg font-medium text-gray-900">

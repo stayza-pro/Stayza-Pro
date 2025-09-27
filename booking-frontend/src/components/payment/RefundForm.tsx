@@ -1,16 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Card, Loading } from "../ui";
+import { Button, Card } from "../ui";
 import {
   RefreshCw,
   AlertTriangle,
   CreditCard,
-  Calendar,
   DollarSign,
   FileText,
-  CheckCircle,
-  X,
 } from "lucide-react";
 import { Payment } from "../../types";
 
@@ -64,27 +61,26 @@ export const RefundForm: React.FC<RefundFormProps> = ({
     { value: "other", label: "Other" },
   ];
 
-  const handleInputChange = (field: keyof RefundFormData, value: any) => {
-    setRefundData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const handleInputChange = <K extends keyof RefundFormData>(
+    field: K,
+    value: RefundFormData[K]
+  ) => {
+    setRefundData((prev) => {
+      const updated = { ...prev, [field]: value };
+      if (field === "amount") {
+        const amountValue = value as RefundFormData["amount"];
+        updated.amount = amountValue;
+        updated.refundType =
+          amountValue >= availableForRefund ? "full" : "partial";
+      }
+      return updated;
+    });
 
     // Clear error for this field
     if (errors[field]) {
       setErrors((prev) => ({
         ...prev,
         [field]: "",
-      }));
-    }
-
-    // Auto-adjust refund type based on amount
-    if (field === "amount") {
-      const refundType = value >= availableForRefund ? "full" : "partial";
-      setRefundData((prev) => ({
-        ...prev,
-        amount: value,
-        refundType,
       }));
     }
   };

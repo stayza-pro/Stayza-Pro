@@ -11,6 +11,7 @@ import {
   SearchParams,
   PropertyFormData,
 } from "../types";
+import type { PaginatedResponse } from "../services";
 
 // Query keys
 export const propertyKeys = {
@@ -57,7 +58,7 @@ export const useInfiniteProperties = (
         page: pageParam,
       }),
     {
-      getNextPageParam: (lastPage: any) => {
+      getNextPageParam: (lastPage: PaginatedResponse<Property>) => {
         if (lastPage.pagination.hasNext) {
           return lastPage.pagination.currentPage + 1;
         }
@@ -164,54 +165,57 @@ export const useSearchProperties = (
 export const useCreateProperty = () => {
   const queryClient = useQueryClient();
 
-  return useMutation(propertyService.createProperty, {
-    onSuccess: (newProperty: any) => {
-      // Invalidate properties lists
-      queryClient.invalidateQueries(propertyKeys.lists());
-      queryClient.invalidateQueries(propertyKeys.host());
-
-      // Add the new property to the cache
-      queryClient.setQueryData(
-        propertyKeys.detail(newProperty.id),
-        newProperty
-      );
-    },
-    onError: (error: any) => {
-      console.error("Create property error:", error);
-    },
-  });
-};
-
-export const useUpdateProperty = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation(
-    ({ id, data }: { id: string; data: Partial<PropertyFormData> }) =>
-      propertyService.updateProperty(id, data),
+  return useMutation<Property, unknown, PropertyFormData>(
+    propertyService.createProperty,
     {
-      onSuccess: (updatedProperty: any) => {
-        // Update the property in cache
-        queryClient.setQueryData(
-          propertyKeys.detail(updatedProperty.id),
-          updatedProperty
-        );
-
-        // Invalidate lists to reflect changes
+      onSuccess: (newProperty) => {
+        // Invalidate properties lists
         queryClient.invalidateQueries(propertyKeys.lists());
         queryClient.invalidateQueries(propertyKeys.host());
+
+        // Add the new property to the cache
+        queryClient.setQueryData(
+          propertyKeys.detail(newProperty.id),
+          newProperty
+        );
       },
-      onError: (error: any) => {
-        console.error("Update property error:", error);
+      onError: (error) => {
+        console.error("Create property error:", error);
       },
     }
   );
 };
 
+export const useUpdateProperty = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    Property,
+    unknown,
+    { id: string; data: Partial<PropertyFormData> }
+  >(({ id, data }) => propertyService.updateProperty(id, data), {
+    onSuccess: (updatedProperty) => {
+      // Update the property in cache
+      queryClient.setQueryData(
+        propertyKeys.detail(updatedProperty.id),
+        updatedProperty
+      );
+
+      // Invalidate lists to reflect changes
+      queryClient.invalidateQueries(propertyKeys.lists());
+      queryClient.invalidateQueries(propertyKeys.host());
+    },
+    onError: (error) => {
+      console.error("Update property error:", error);
+    },
+  });
+};
+
 export const useDeleteProperty = () => {
   const queryClient = useQueryClient();
 
-  return useMutation(propertyService.deleteProperty, {
-    onSuccess: (_: any, deletedId: any) => {
+  return useMutation<void, unknown, string>(propertyService.deleteProperty, {
+    onSuccess: (_data, deletedId) => {
       // Remove from cache
       queryClient.removeQueries(propertyKeys.detail(deletedId));
 
@@ -219,7 +223,7 @@ export const useDeleteProperty = () => {
       queryClient.invalidateQueries(propertyKeys.lists());
       queryClient.invalidateQueries(propertyKeys.host());
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Delete property error:", error);
     },
   });
@@ -228,15 +232,14 @@ export const useDeleteProperty = () => {
 export const useUploadPropertyImages = () => {
   const queryClient = useQueryClient();
 
-  return useMutation(
-    ({ propertyId, files }: { propertyId: string; files: File[] }) =>
-      propertyService.uploadImages(propertyId, files),
+  return useMutation<string[], unknown, { propertyId: string; files: File[] }>(
+    ({ propertyId, files }) => propertyService.uploadImages(propertyId, files),
     {
-      onSuccess: (_: any, { propertyId }: any) => {
+      onSuccess: (_data, { propertyId }) => {
         // Invalidate property details to refetch with new images
         queryClient.invalidateQueries(propertyKeys.detail(propertyId));
       },
-      onError: (error: any) => {
+      onError: (error) => {
         console.error("Upload images error:", error);
       },
     }
@@ -246,15 +249,15 @@ export const useUploadPropertyImages = () => {
 export const useDeletePropertyImage = () => {
   const queryClient = useQueryClient();
 
-  return useMutation(
-    ({ propertyId, imageUrl }: { propertyId: string; imageUrl: string }) =>
+  return useMutation<void, unknown, { propertyId: string; imageUrl: string }>(
+    ({ propertyId, imageUrl }) =>
       propertyService.deleteImage(propertyId, imageUrl),
     {
-      onSuccess: (_: any, { propertyId }: any) => {
+      onSuccess: (_data, { propertyId }) => {
         // Invalidate property details to refetch without deleted image
         queryClient.invalidateQueries(propertyKeys.detail(propertyId));
       },
-      onError: (error: any) => {
+      onError: (error) => {
         console.error("Delete image error:", error);
       },
     }
@@ -264,25 +267,22 @@ export const useDeletePropertyImage = () => {
 export const useSetUnavailableDates = () => {
   const queryClient = useQueryClient();
 
-  return useMutation(
-    ({
-      propertyId,
-      dates,
-      reason,
-    }: {
-      propertyId: string;
-      dates: string[];
-      reason?: string;
-    }) => propertyService.setUnavailableDates(propertyId, dates, reason),
+  return useMutation<
+    void,
+    unknown,
+    { propertyId: string; dates: string[]; reason?: string }
+  >(
+    ({ propertyId, dates, reason }) =>
+      propertyService.setUnavailableDates(propertyId, dates, reason),
     {
-      onSuccess: (_: any, { propertyId }: any) => {
+      onSuccess: (_data, { propertyId }) => {
         // Invalidate availability queries
         queryClient.invalidateQueries([
           ...propertyKeys.detail(propertyId),
           "availability",
         ]);
       },
-      onError: (error: any) => {
+      onError: (error) => {
         console.error("Set unavailable dates error:", error);
       },
     }
@@ -292,18 +292,18 @@ export const useSetUnavailableDates = () => {
 export const useRemoveUnavailableDates = () => {
   const queryClient = useQueryClient();
 
-  return useMutation(
-    ({ propertyId, dates }: { propertyId: string; dates: string[] }) =>
+  return useMutation<void, unknown, { propertyId: string; dates: string[] }>(
+    ({ propertyId, dates }) =>
       propertyService.removeUnavailableDates(propertyId, dates),
     {
-      onSuccess: (_: any, { propertyId }: any) => {
+      onSuccess: (_data, { propertyId }) => {
         // Invalidate availability queries
         queryClient.invalidateQueries([
           ...propertyKeys.detail(propertyId),
           "availability",
         ]);
       },
-      onError: (error: any) => {
+      onError: (error) => {
         console.error("Remove unavailable dates error:", error);
       },
     }

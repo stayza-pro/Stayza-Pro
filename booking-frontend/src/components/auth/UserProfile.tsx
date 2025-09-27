@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Input, Card, Modal } from "../ui";
+import Image from "next/image";
+import { Button, Input, Card } from "../ui";
 import { useAuthStore } from "../../store/authStore";
-import { User } from "../../types";
 
 export const UserProfile: React.FC = () => {
   const { user, updateProfile, isLoading, error, clearError } = useAuthStore();
@@ -78,10 +78,13 @@ export const UserProfile: React.FC = () => {
         <div className="flex items-center space-x-4">
           <div className="relative">
             {user.avatar ? (
-              <img
+              <Image
                 src={user.avatar}
                 alt={`${user.firstName} ${user.lastName}`}
+                width={80}
+                height={80}
                 className="w-20 h-20 rounded-full object-cover"
+                unoptimized
               />
             ) : (
               <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">

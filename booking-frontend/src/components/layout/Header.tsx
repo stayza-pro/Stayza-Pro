@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui";
@@ -98,10 +99,13 @@ export const Header: React.FC = () => {
                 <div className="relative group">
                   <button className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100 transition-colors">
                     {user?.avatar ? (
-                      <img
+                      <Image
                         src={user.avatar}
                         alt={`${user.firstName} ${user.lastName}`}
+                        width={32}
+                        height={32}
                         className="w-8 h-8 rounded-full object-cover"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">

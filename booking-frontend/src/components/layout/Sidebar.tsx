@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "../../store/authStore";
@@ -260,10 +261,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
             {user?.avatar ? (
-              <img
+              <Image
                 src={user.avatar}
                 alt={`${user.firstName} ${user.lastName}`}
+                width={40}
+                height={40}
                 className="w-10 h-10 rounded-full object-cover"
+                unoptimized
               />
             ) : (
               <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">

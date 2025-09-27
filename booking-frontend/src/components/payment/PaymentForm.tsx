@@ -2,13 +2,7 @@
 
 import React, { useState } from "react";
 import { Button, Card, Loading } from "../ui";
-import {
-  CreditCard,
-  Shield,
-  Lock,
-  CheckCircle,
-  AlertCircle,
-} from "lucide-react";
+import { CreditCard, Shield, Lock } from "lucide-react";
 import { BookingFormData } from "../../types";
 
 interface PaymentFormProps {
@@ -17,10 +11,20 @@ interface PaymentFormProps {
     currency: string;
     propertyTitle: string;
   };
-  onPaymentSuccess: (paymentResult: any) => void;
+  onPaymentSuccess: (paymentResult: MockPaymentResult) => void;
   onPaymentError: (error: string) => void;
   isLoading?: boolean;
   className?: string;
+}
+
+interface MockPaymentResult {
+  id: string;
+  method: "stripe" | "paystack";
+  status: "completed" | "failed" | "pending";
+  amount: number;
+  currency: string;
+  cardLast4: string;
+  transactionId: string;
 }
 
 export const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -146,7 +150,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Mock payment result
-      const paymentResult = {
+      const paymentResult: MockPaymentResult = {
         id: `pay_${Date.now()}`,
         method: selectedMethod,
         status: "completed",

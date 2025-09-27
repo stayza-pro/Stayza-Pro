@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Button, Card, Loading } from "../ui";
 import {
   Calendar,
   MapPin,
   Users,
-  Clock,
   Star,
   MessageCircle,
   CreditCard,
@@ -17,8 +17,6 @@ import {
   Phone,
   Mail,
   Home,
-  Wifi,
-  Car,
 } from "lucide-react";
 import { Booking } from "../../types";
 
@@ -75,7 +73,6 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   const isOngoing =
     new Date(booking.checkInDate) <= new Date() &&
     new Date(booking.checkOutDate) > new Date();
-  const isPast = new Date(booking.checkOutDate) <= new Date();
   const canCancel =
     booking.status === "CONFIRMED" && isUpcoming && booking.isRefundable;
   const canReview =
@@ -157,10 +154,13 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       <Card className="p-6">
         <div className="flex items-start space-x-6">
           <div className="flex-shrink-0">
-            <img
+            <Image
               src={booking.property.images[0] || "/placeholder-image.jpg"}
               alt={booking.property.title}
+              width={128}
+              height={128}
               className="w-32 h-32 object-cover rounded-lg"
+              unoptimized
             />
           </div>
 
@@ -287,7 +287,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           </h3>
 
           <div className="flex items-start space-x-4">
-            <img
+            <Image
               src={
                 viewType === "guest"
                   ? booking.property.host.avatar || "/default-avatar.png"
@@ -298,7 +298,10 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                   ? `${booking.property.host.firstName} ${booking.property.host.lastName}`
                   : `${booking.guest.firstName} ${booking.guest.lastName}`
               }
+              width={64}
+              height={64}
               className="w-16 h-16 object-cover rounded-full"
+              unoptimized
             />
 
             <div className="flex-1">
@@ -448,10 +451,13 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Review</h3>
 
           <div className="flex items-start space-x-4">
-            <img
+            <Image
               src={booking.review.author.avatar || "/default-avatar.png"}
               alt={`${booking.review.author.firstName} ${booking.review.author.lastName}`}
+              width={48}
+              height={48}
               className="w-12 h-12 object-cover rounded-full"
+              unoptimized
             />
 
             <div className="flex-1">

@@ -1,14 +1,13 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Button, Card } from "../ui";
 import {
-  Calendar,
   MapPin,
   Users,
   Clock,
   Star,
-  MoreHorizontal,
   MessageCircle,
   CreditCard,
 } from "lucide-react";
@@ -53,7 +52,6 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   const isOngoing =
     new Date(booking.checkInDate) <= new Date() &&
     new Date(booking.checkOutDate) > new Date();
-  const isPast = new Date(booking.checkOutDate) <= new Date();
   const canCancel =
     booking.status === "CONFIRMED" && isUpcoming && booking.isRefundable;
   const canReview =
@@ -86,10 +84,13 @@ export const BookingCard: React.FC<BookingCardProps> = ({
       <div className="flex items-start justify-between mb-4">
         {/* Property Image and Basic Info */}
         <div className="flex items-start space-x-4 flex-1">
-          <img
+          <Image
             src={booking.property.images[0] || "/placeholder-image.jpg"}
             alt={booking.property.title}
+            width={80}
+            height={80}
             className="w-20 h-20 object-cover rounded-lg"
+            unoptimized
           />
 
           <div className="flex-1 min-w-0">
@@ -221,7 +222,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
           </div>
           {booking.review.comment && (
             <div className="text-sm text-gray-700 mt-2">
-              "{booking.review.comment}"
+              &ldquo;{booking.review.comment}&rdquo;
             </div>
           )}
         </div>

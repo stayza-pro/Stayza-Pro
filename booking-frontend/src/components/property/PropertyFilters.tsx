@@ -52,7 +52,10 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleInputChange = (field: keyof PropertyFiltersType, value: any) => {
+  const handleInputChange = <K extends keyof PropertyFiltersType>(
+    field: K,
+    value: PropertyFiltersType[K]
+  ) => {
     onFiltersChange({
       ...filters,
       [field]: value,
@@ -138,7 +141,12 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({
             <select
               value={filters.type || ""}
               onChange={(e) =>
-                handleInputChange("type", e.target.value || undefined)
+                handleInputChange(
+                  "type",
+                  e.target.value
+                    ? (e.target.value as Property["type"])
+                    : undefined
+                )
               }
               disabled={isLoading}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
