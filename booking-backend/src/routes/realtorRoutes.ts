@@ -99,6 +99,71 @@ const router = express.Router();
  *           type: string
  *           pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
  *           description: Brand color in hex format (e.g., #3B82F6)
+ *     StripeOnboardingResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *         message:
+ *           type: string
+ *         data:
+ *           type: object
+ *           properties:
+ *             url:
+ *               type: string
+ *               format: uri
+ *               description: Stripe onboarding url to redirect the realtor
+ *             expiresAt:
+ *               type: string
+ *               format: date-time
+ *               description: Expiration timestamp for the onboarding link
+ *     StripeStatusResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *         message:
+ *           type: string
+ *         data:
+ *           type: object
+ *           properties:
+ *             connected:
+ *               type: boolean
+ *             stripeAccountId:
+ *               type: string
+ *             chargesEnabled:
+ *               type: boolean
+ *             payoutsEnabled:
+ *               type: boolean
+ *             detailsSubmitted:
+ *               type: boolean
+ *             disabledReason:
+ *               type: string
+ *               nullable: true
+ *             outstandingRequirements:
+ *               type: array
+ *               items:
+ *                 type: string
+ *             releaseOffsetHours:
+ *               type: integer
+ *             requiresOnboarding:
+ *               type: boolean
+ *     StripeDashboardLinkResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *         message:
+ *           type: string
+ *         data:
+ *           type: object
+ *           properties:
+ *             url:
+ *               type: string
+ *               format: uri
+ *             expiresAt:
+ *               type: string
+ *               format: date-time
  */
 
 /**
@@ -196,6 +261,34 @@ router.post(
   uploadLogo
 );
 
+/**
+ * @swagger
+ * /api/realtors/stripe/onboarding:
+ *   post:
+ *     summary: Start or resume Stripe Connect onboarding
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Stripe onboarding link generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/StripeOnboardingResponse'
+ *       400:
+ *         description: Missing required business information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       404:
+ *         description: Realtor profile not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
 router.post(
   "/stripe/onboarding",
   authenticate,
@@ -203,6 +296,28 @@ router.post(
   startStripeOnboarding
 );
 
+/**
+ * @swagger
+ * /api/realtors/stripe/status:
+ *   get:
+ *     summary: Get Stripe Connect account status
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Stripe account status retrieved (connected or not)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/StripeStatusResponse'
+ *       404:
+ *         description: Realtor profile not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
 router.get(
   "/stripe/status",
   authenticate,
@@ -210,6 +325,34 @@ router.get(
   getStripeAccountStatusController
 );
 
+/**
+ * @swagger
+ * /api/realtors/stripe/dashboard-link:
+ *   post:
+ *     summary: Generate Stripe dashboard link
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Stripe dashboard link generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/StripeDashboardLinkResponse'
+ *       400:
+ *         description: Realtor has not completed onboarding
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       404:
+ *         description: Realtor profile not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
 router.post(
   "/stripe/dashboard-link",
   authenticate,

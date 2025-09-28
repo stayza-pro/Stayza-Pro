@@ -456,7 +456,74 @@ router.get("/:id", authenticate, getUserPayments);
 router.post("/:id/refund", authenticate, processRefund);
 
 // Additional payment endpoints
+/**
+ * @swagger
+ * /api/payments:
+ *   get:
+ *     summary: Get payments for current user
+ *     tags: [Payments]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Payment'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
 router.get("/", authenticate, getUserPayments);
+
+/**
+ * @swagger
+ * /api/payments/{id}/receipt:
+ *   get:
+ *     summary: Download payment receipt PDF
+ *     tags: [Payments]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Payment ID
+ *     responses:
+ *       200:
+ *         description: PDF receipt generated successfully
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       404:
+ *         description: Payment not found or receipt unavailable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
 router.get("/:id/receipt", authenticate, generatePaymentReceipt);
 
 export default router;

@@ -2,9 +2,13 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const toBoolean = (value: string | undefined, fallback: boolean): boolean => {
+  return (value ?? String(fallback)).toLowerCase() === "true";
+};
+
 export const config = {
   // Server
-  PORT: parseInt(process.env.PORT || "5000", 10),
+  PORT: parseInt(process.env.PORT || "5050", 10),
   NODE_ENV: process.env.NODE_ENV || "development",
 
   // Database
@@ -38,6 +42,10 @@ export const config = {
   SMTP_PORT: parseInt(process.env.SMTP_PORT || "587", 10),
   SMTP_USER: process.env.SMTP_USER!,
   SMTP_PASS: process.env.SMTP_PASS!,
+  SMTP_SECURE: toBoolean(
+    process.env.SMTP_SECURE,
+    (process.env.SMTP_PORT || "587") === "465"
+  ),
 
   // Frontend
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",

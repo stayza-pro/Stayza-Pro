@@ -1,5 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 
+// Force Prisma to use the binary query engine on Node 24+ when no explicit preference is
+// provided. The binary engine runs as a separate executable and avoids Node-API
+// compatibility issues introduced in newer Node.js releases.
+const nodeMajorVersion = Number(process.versions.node.split(".")[0] ?? "0");
+
+if (nodeMajorVersion >= 24 && !process.env.PRISMA_CLIENT_ENGINE_TYPE) {
+  process.env.PRISMA_CLIENT_ENGINE_TYPE = "binary";
+}
+
 // Global PrismaClient instance
 let prisma: PrismaClient;
 

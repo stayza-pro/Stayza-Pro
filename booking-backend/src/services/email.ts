@@ -5,22 +5,10 @@ import { config } from "@/config";
 const transporter = nodemailer.createTransport({
   host: config.SMTP_HOST,
   port: config.SMTP_PORT,
-  secure: false, // true for 465, false for other ports
+  secure: config.SMTP_SECURE,
   auth: {
     user: config.SMTP_USER,
     pass: config.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // For development
-  },
-});
-
-// Verify connection configuration
-transporter.verify((error: any, success: any) => {
-  if (error) {
-    console.error("SMTP connection error:", error);
-  } else {
-    console.log("SMTP server is ready to take our messages");
   }
 });
 

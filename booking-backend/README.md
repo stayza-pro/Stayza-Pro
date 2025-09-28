@@ -1,14 +1,15 @@
 # Booking System Backend
-
-A comprehensive RESTful API for a property booking system built with Node.js, Express, TypeScript, PostgreSQL, and Prisma.
-
-## Features
-
-- 🔐 **JWT Authentication** with role-based access (Guest, Host, Admin)
-- 🏠 **Property Management** with CRUD operations and image uploads
-- 📅 **Booking Engine** with conflict prevention and availability checks
-- 💳 **Payment Integration** with Stripe (foreign clients) and Paystack (Nigerian/African clients)
-- ⭐ **Review System** with rating calculations and moderation
+```
+DATABASE_URL=postgresql://username:password@localhost:5432/booking_db
+JWT_SECRET=your-jwt-secret
+JWT_REFRESH_SECRET=your-refresh-secret
+STRIPE_SECRET_KEY=sk_test_your_stripe_key
+PAYSTACK_SECRET_KEY=sk_test_your_paystack_key
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+PRISMA_CLIENT_ENGINE_TYPE=binary
+```
 - 🔄 **24-hour Refund Policy** implementation
 - 📚 **Swagger API Documentation**
 - 🌍 **Multi-currency Support**
@@ -16,7 +17,7 @@ A comprehensive RESTful API for a property booking system built with Node.js, Ex
 
 ## Tech Stack
 
-- **Runtime**: Node.js 18+
+- **Runtime**: Node.js 18+ (use the Prisma binary engine on Node 24+)
 - **Framework**: Express.js
 - **Language**: TypeScript
 - **Database**: PostgreSQL
@@ -32,7 +33,7 @@ A comprehensive RESTful API for a property booking system built with Node.js, Ex
 
 ### Prerequisites
 
-- Node.js 18+ installed
+- Node.js 18+ installed (Node 24+ works when the Prisma binary engine is enabled)
 - PostgreSQL database
 - Stripe and Paystack accounts
 - Cloudinary account for image uploads
@@ -79,7 +80,11 @@ npm run prisma:seed
 npm run dev
 \`\`\`
 
-The API will be available at \`http://localhost:5000\`
+The API will be available at `http://localhost:5000`
+
+### Troubleshooting
+
+- **TypeError: Cannot read properties of undefined (reading 'bind')** when importing `@prisma/client` indicates Prisma is trying to load the Node-API library engine on a newer Node release. Either set `PRISMA_CLIENT_ENGINE_TYPE=binary` (recommended for Node 24+) or upgrade/downgrade Node to a version supported by the library engine, then reinstall dependencies.
 
 ## API Documentation
 
