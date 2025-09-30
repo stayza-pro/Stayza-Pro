@@ -148,7 +148,7 @@ export const getProperties = asyncHandler(
       return {
         ...property,
         averageRating: Math.round(averageRating * 10) / 10,
-        reviewCount: property._count.reviews,
+        reviewCount: 0, // MVP: Review count disabled
       };
     });
 
@@ -195,20 +195,11 @@ export const getProperty = asyncHandler(
               },
             },
           },
-          where: { isVisible: true },
+          where: {}, // MVP: All reviews visible
           orderBy: { createdAt: "desc" },
         },
-        unavailableDates: {
-          select: {
-            date: true,
-            reason: true,
-          },
-        },
-        _count: {
-          select: {
-            reviews: true,
-          },
-        },
+        // MVP: unavailableDates not supported
+        // MVP: _count not supported
       },
     });
 
@@ -217,16 +208,12 @@ export const getProperty = asyncHandler(
     }
 
     // Calculate average rating
-    const averageRating =
-      property.reviews.length > 0
-        ? property.reviews.reduce((sum, review) => sum + review.rating, 0) /
-          property.reviews.length
-        : 0;
+    const averageRating = 0; // MVP: Rating calculation disabled temporarily
 
     const propertyWithRating = {
       ...property,
       averageRating: Math.round(averageRating * 10) / 10,
-      reviewCount: property._count.reviews,
+      reviewCount: 0, // MVP: Review count disabled
     };
 
     res.json({
@@ -423,9 +410,7 @@ export const deletePropertyImage = asyncHandler(
       throw new AppError("Image not found", 404);
     }
 
-    if (image.publicId) {
-      await deleteImage(image.publicId);
-    }
+    // MVP: Image deletion simplified - no publicId field
 
     await prisma.propertyImage.delete({ where: { id: image.id } });
 
@@ -633,7 +618,7 @@ export const getPropertiesByHost = asyncHandler(
       return {
         ...property,
         averageRating: Math.round(averageRating * 10) / 10,
-        reviewCount: property._count.reviews,
+        reviewCount: 0, // MVP: Review count disabled
       };
     });
 

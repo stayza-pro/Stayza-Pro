@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
    provider = "prisma-client-js"
 }
@@ -20,9 +17,7 @@ enum PropertyType {
    APARTMENT
    HOUSE
    VILLA
-   COTTAGE
    STUDIO
-   LOFT
    TOWNHOUSE
    OTHER
 }
@@ -31,9 +26,7 @@ enum BookingStatus {
    PENDING
    CONFIRMED
    CANCELLED
-   DISPUTED
    COMPLETED
-   REFUNDED
 }
 
 enum PaymentStatus {
@@ -41,354 +34,163 @@ enum PaymentStatus {
    COMPLETED
    FAILED
    REFUNDED
-   PARTIALLY_REFUNDED
 }
 
 enum PaymentMethod {
-   STRIPE
    PAYSTACK
-}
-
-enum RealtorStatus {
-   PENDING
-   APPROVED
-   REJECTED
-   SUSPENDED
-}
-
-enum PayoutStatus {
-   PENDING
-   RELEASED
-   ON_HOLD
-   FAILED
-}
-
-enum RefundPolicyType {
-   FULL_REFUND_24H
-   PARTIAL_REFUND_12_24H
-   NO_REFUND_UNDER_12H
-   CUSTOM
+   FLUTTERWAVE
 }
 
 model User {
-   id                     String    @id @default(cuid())
-   email                  String    @unique
-   password               String
-   firstName              String
-   lastName               String
-   phone                  String?
-   avatar                 String?
-   role                   UserRole  @default(GUEST)
-   isEmailVerified        Boolean   @default(false)
-   emailVerificationToken String?
-   resetPasswordToken     String?
-   resetPasswordExpires   DateTime?
-   country                String?
-   city                   String?
-   address                String?
-   dateOfBirth            DateTime?
-   createdAt              DateTime  @default(now())
-   updatedAt              DateTime  @updatedAt
+   id              String   @id @default(cuid())
+   email           String   @unique
+   businessEmail   String? // For realtors - their business email
+   password        String
+   fullName        String // Store full name as provided in registration
+   firstName       String // Derived from fullName for backward compatibility
+   lastName        String // Derived from fullName for backward compatibility
+   role            UserRole @default(GUEST)
+   phone           String?
+   businessAddress String? // For realtors - their business address
+   avatar          String?
+   createdAt       DateTime @default(now())
+   updatedAt       DateTime @updatedAt
 
    // Relations
-   realtor         Realtor?       @relation("RealtorUser")
-   bookings        Booking[]      @relation("BookingGuest")
-   reviews         Review[]       @relation("ReviewAuthor")
-   receivedReviews Review[]       @relation("ReviewTarget")
-   payments        Payment[]
-   refreshTokens   RefreshToken[]
-   auditLogs       AuditLog[]
+   realtor  Realtor?
+   bookings Booking[]
+   reviews  Review[]
+   payments Payment[]
 
    @@map("users")
 }
 
 model Realtor {
-   id                   String        @id @default(cuid())
-   userId               String        @unique
-   businessName         String
-   slug                 String        @unique
-   logoUrl              String?
-   brandColorHex        String        @default("#3B82F6")
-   status               RealtorStatus @default(PENDING)
-   description          String?
-   website              String?
-   businessPhone        String?
-   businessEmail        String?
-   businessAddress      String?
-   stripeAccountId      String?       @unique
-   paystackSubAccountId String?       @unique
-   commissionRate       Decimal       @default(0.05) @db.Decimal(5, 4) // 5% default
-   isActive             Boolean       @default(true)
-   createdAt            DateTime      @default(now())
-   updatedAt            DateTime      @updatedAt
+   id                 String  @id @default(cuid())
+   userId             String  @unique
+   businessName       String // Agency name from registration
+   tagline            String? // Business tagline/description
+   slug               String  @unique // Custom subdomain
+   corporateRegNumber String? // Business registration number
+   logoUrl            String? // Logo upload URL
+
+   // Branding colors from registration
+   primaryColor   String  @default("#3B82F6")
+   secondaryColor String? @default("#10B981")
+   accentColor    String? @default("#F59E0B")
+
+   // Social media profiles from registration
+   websiteUrl   String?
+   instagramUrl String?
+   twitterUrl   String?
+   linkedinUrl  String?
+   facebookUrl  String?
+   youtubeUrl   String?
+   whatsappType String? @default("business") // "personal" or "business"
+
+   isActive  Boolean  @default(true)
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
 
    // Relations
-   user               User                  @relation("RealtorUser", fields: [userId], references: [id], onDelete: Cascade)
-   properties         Property[]
-   refundPolicies     RealtorRefundPolicy[]
-   subscriptionPlan   String                @default("FREE") // FREE, PRO
-   subscriptionStatus String                @default("ACTIVE") // ACTIVE, CANCELLED, SUSPENDED
-   payouts            Payout[]
+   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+   properties Property[]
 
    @@map("realtors")
 }
 
-model RealtorRefundPolicy {
-   id                 String           @id @default(cuid())
-   realtorId          String
-   policyType         RefundPolicyType @default(FULL_REFUND_24H)
-   fullRefundHours    Int              @default(24) // Hours before checkin for full refund
-   partialRefundHours Int              @default(12) // Hours before checkin for partial refund  
-   partialRefundRate  Decimal          @default(0.50) @db.Decimal(5, 4) // 50% default
-   customDescription  String?
-   isActive           Boolean          @default(true)
-   createdAt          DateTime         @default(now())
-   updatedAt          DateTime         @updatedAt
-
-   // Relations
-   realtor Realtor @relation(fields: [realtorId], references: [id], onDelete: Cascade)
-
-   @@map("realtor_refund_policies")
-}
-
 model Property {
-   id              String          @id @default(cuid())
-   title           String
-   description     String
-   type            PropertyType
-   pricePerNight   Decimal         @db.Decimal(10, 2)
-   currency        String          @default("USD")
-   maxGuests       Int
-   bedrooms        Int
-   bathrooms       Int
-   amenities       String[]
-   images          PropertyImage[]
-   address         String
-   city            String
-   state           String
-   country         String
-   latitude        Decimal?        @db.Decimal(10, 8)
-   longitude       Decimal?        @db.Decimal(11, 8)
-   isActive        Boolean         @default(true)
-   isApproved      Boolean         @default(false) // Admin approval required
-   approvedBy      String? // Admin who approved
-   approvedAt      DateTime?
-   rejectionReason String?
-   createdAt       DateTime        @default(now())
-   updatedAt       DateTime        @updatedAt
+   id            String       @id @default(cuid())
+   realtorId     String
+   title         String
+   description   String
+   type          PropertyType
+   pricePerNight Decimal      @db.Decimal(10, 2)
+   currency      String       @default("NGN")
+   maxGuests     Int
+   bedrooms      Int
+   bathrooms     Int
+   address       String
+   city          String
+   country       String
+   isActive      Boolean      @default(true)
+   createdAt     DateTime     @default(now())
+   updatedAt     DateTime     @updatedAt
 
    // Relations
-   realtorId        String
-   realtor          Realtor           @relation(fields: [realtorId], references: [id], onDelete: Cascade)
-   bookings         Booking[]
-   reviews          Review[]
-   unavailableDates UnavailableDate[]
+   realtor  Realtor         @relation(fields: [realtorId], references: [id], onDelete: Cascade)
+   bookings Booking[]
+   reviews  Review[]
+   images   PropertyImage[]
 
    @@map("properties")
 }
 
 model PropertyImage {
-   id        String   @id @default(cuid())
-   url       String
-   width     Int?
-   height    Int?
-   order     Int      @default(0)
-   publicId  String?
-   createdAt DateTime @default(now())
-
-   // Relations
+   id         String @id @default(cuid())
    propertyId String
-   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+   url        String
+   order      Int    @default(0)
+
+   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
    @@map("property_images")
 }
 
-model UnavailableDate {
-   id        String   @id @default(cuid())
-   date      DateTime @db.Date
-   reason    String?
-   createdAt DateTime @default(now())
-
-   // Relations
-   propertyId String
-   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-   @@unique([propertyId, date])
-   @@map("unavailable_dates")
-}
-
 model Booking {
-   id                 String        @id @default(cuid())
-   checkInDate        DateTime      @db.Date
-   checkOutDate       DateTime      @db.Date
-   totalGuests        Int
-   propertyPrice      Decimal       @db.Decimal(10, 2) // Base property price
-   serviceFee         Decimal       @db.Decimal(10, 2) // Platform service fee (12% default)
-   totalPrice         Decimal       @db.Decimal(10, 2) // propertyPrice + serviceFee
-   platformCommission Decimal       @db.Decimal(10, 2) // Platform commission (5% of propertyPrice default)
-   realtorPayout      Decimal       @db.Decimal(10, 2) // propertyPrice - platformCommission
-   currency           String        @default("USD")
-   status             BookingStatus @default(PENDING)
-   specialRequests    String?
-   isRefundable       Boolean       @default(true)
-   refundDeadline     DateTime?
-   payoutReleaseDate  DateTime? // When funds are released to realtor
-   payoutStatus       PayoutStatus  @default(PENDING)
-   payoutHoldReason   String?
-   payoutHoldUntil    DateTime?
-   createdAt          DateTime      @default(now())
-   updatedAt          DateTime      @updatedAt
+   id           String        @id @default(cuid())
+   propertyId   String
+   guestId      String
+   checkInDate  DateTime
+   checkOutDate DateTime
+   totalGuests  Int
+   totalPrice   Decimal       @db.Decimal(10, 2)
+   currency     String        @default("NGN")
+   status       BookingStatus @default(PENDING)
+   createdAt    DateTime      @default(now())
+   updatedAt    DateTime      @updatedAt
 
    // Relations
-   guestId    String
-   guest      User     @relation("BookingGuest", fields: [guestId], references: [id])
-   propertyId String
-   property   Property @relation(fields: [propertyId], references: [id])
-   payment    Payment?
-   refunds    Refund[]
-   review     Review?
-   payouts    Payout[]
+   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+   guest    User     @relation(fields: [guestId], references: [id], onDelete: Cascade)
+   payment  Payment?
+   review   Review?
 
    @@map("bookings")
 }
 
 model Payment {
-   id                    String        @id @default(cuid())
-   amount                Decimal       @db.Decimal(10, 2) // Total amount paid by guest
-   propertyAmount        Decimal       @db.Decimal(10, 2) // Property price portion
-   serviceFeeAmount      Decimal       @db.Decimal(10, 2) // Service fee portion
-   platformCommission    Decimal       @db.Decimal(10, 2) // Platform commission
-   realtorPayout         Decimal       @db.Decimal(10, 2) // Amount due to realtor
-   gatewayFee            Decimal       @db.Decimal(10, 2) // Gateway processing fee
-   platformNet           Decimal       @db.Decimal(10, 2) // Platform net after all deductions
-   isDisputed            Boolean       @default(false)
-   disputeId             String?
-   disputeStatus         String?
-   refundedAmount        Decimal       @default(0) @db.Decimal(10, 2)
-   refundedCommission    Decimal       @default(0) @db.Decimal(10, 2)
-   refundedServiceFee    Decimal       @default(0) @db.Decimal(10, 2)
-   refundedRealtorAmount Decimal       @default(0) @db.Decimal(10, 2)
-   currency              String        @default("USD")
-   status                PaymentStatus @default(PENDING)
-   method                PaymentMethod
-   stripePaymentIntentId String?
-   stripeTransferId      String? // For Connect transfers
-   paystackReference     String?
-   paystackSplitCode     String? // For split payments
-   payoutReleased        Boolean       @default(false)
-   payoutReleasedAt      DateTime?
-   metadata              Json?
-   createdAt             DateTime      @default(now())
-   updatedAt             DateTime      @updatedAt
+   id        String        @id @default(cuid())
+   bookingId String        @unique
+   userId    String
+   amount    Decimal       @db.Decimal(10, 2)
+   currency  String        @default("NGN")
+   status    PaymentStatus @default(PENDING)
+   method    PaymentMethod
+   reference String? // paystack/flutterwave ref
+   createdAt DateTime      @default(now())
+   updatedAt DateTime      @updatedAt
 
    // Relations
-   bookingId String   @unique
-   booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   userId    String
-   user      User     @relation(fields: [userId], references: [id])
-   refunds   Refund[]
-   payouts   Payout[]
+   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
    @@map("payments")
 }
 
-model Refund {
-   id               String        @id @default(cuid())
-   amount           Decimal       @db.Decimal(10, 2)
-   currency         String        @default("USD")
-   reason           String
-   status           PaymentStatus @default(PENDING) // PENDING, COMPLETED, FAILED
-   method           PaymentMethod
-   stripeRefundId   String?
-   paystackRefundId String?
-   adminApproved    Boolean       @default(false)
-   adminApprovedBy  String?
-   adminApprovedAt  DateTime?
-   adminNotes       String?
-   processedAt      DateTime?
-   metadata         Json?
-   createdAt        DateTime      @default(now())
-   updatedAt        DateTime      @updatedAt
-
-   // Relations
-   bookingId String
-   booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   paymentId String
-   payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-
-   @@map("refunds")
-}
-
 model Review {
-   id        String   @id @default(cuid())
-   rating    Int // 1-5 stars
-   comment   String?
-   isVisible Boolean  @default(true)
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
+   id         String   @id @default(cuid())
+   bookingId  String   @unique
+   propertyId String
+   authorId   String
+   rating     Int
+   comment    String?
+   createdAt  DateTime @default(now())
 
    // Relations
-   bookingId  String   @unique
-   booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   authorId   String
-   author     User     @relation("ReviewAuthor", fields: [authorId], references: [id])
-   propertyId String
-   property   Property @relation(fields: [propertyId], references: [id])
-   targetId   String // Host being reviewed
-   target     User     @relation("ReviewTarget", fields: [targetId], references: [id])
+   booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+   author   User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
    @@map("reviews")
-}
-
-model RefreshToken {
-   id        String   @id @default(cuid())
-   token     String   @unique
-   userId    String
-   expiresAt DateTime
-   createdAt DateTime @default(now())
-
-   // Relations
-   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-   @@map("refresh_tokens")
-}
-
-model AuditLog {
-   id        String   @id @default(cuid())
-   userId    String? // Can be null for system actions
-   action    String // e.g., "USER_REGISTER", "PROPERTY_APPROVE", "BOOKING_CREATE", "REFUND_PROCESS"
-   entity    String // e.g., "User", "Property", "Booking", "Payment"
-   entityId  String? // ID of the affected entity
-   details   Json? // Additional details about the action
-   ipAddress String?
-   userAgent String?
-   createdAt DateTime @default(now())
-
-   // Relations
-   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-   @@map("audit_logs")
-}
-
-model Payout {
-   id                 String       @id @default(cuid())
-   bookingId          String
-   paymentId          String       @unique
-   realtorId          String
-   amount             Decimal      @db.Decimal(10, 2)
-   currency           String       @default("USD")
-   provider           String
-   status             PayoutStatus @default(PENDING)
-   providerTransferId String?
-   processedAt        DateTime?
-   metadata           Json?
-   createdAt          DateTime     @default(now())
-   updatedAt          DateTime     @updatedAt
-
-   // Relations
-   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-   realtor Realtor @relation(fields: [realtorId], references: [id], onDelete: Cascade)
-
-   @@map("payouts")
 }

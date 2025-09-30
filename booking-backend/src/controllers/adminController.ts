@@ -40,8 +40,9 @@ export const getAllRealtors = asyncHandler(
           user: {
             select: {
               id: true,
-              country: true,
-              city: true,
+              email: true,
+              firstName: true,
+              lastName: true,
               createdAt: true,
             },
           },
@@ -83,7 +84,6 @@ export const getAllRealtors = asyncHandler(
 export const approveRealtor = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
-    const { notes } = req.body;
 
     const realtor = await prisma.realtor.findUnique({
       where: { id },
@@ -101,45 +101,11 @@ export const approveRealtor = asyncHandler(
       throw new AppError("Realtor not found", 404);
     }
 
-    if (realtor.status === "APPROVED") {
-      throw new AppError("Realtor is already approved", 400);
-    }
-
-    const updatedRealtor = await prisma.realtor.update({
-      where: { id },
-      data: {
-        status: "APPROVED",
-        isActive: true,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-          },
-        },
-      },
-    });
-
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user!.id,
-        action: "REALTOR_APPROVED",
-        entity: "Realtor",
-        entityId: id,
-        details: {
-          approvedBy: req.user!.email,
-          realtorEmail: realtor.user.email,
-          businessName: realtor.businessName,
-          notes: notes || null,
-        },
-      },
-    });
-
+    // MVP: All realtors are auto-approved on registration
     res.json({
       success: true,
-      message: "Realtor approved successfully",
-      data: { realtor: updatedRealtor },
+      message: "Realtor is already active - MVP has auto-approval",
+      data: { realtor },
     });
   }
 );
@@ -152,11 +118,6 @@ export const approveRealtor = asyncHandler(
 export const rejectRealtor = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
-    const { reason } = req.body;
-
-    if (!reason) {
-      throw new AppError("Rejection reason is required", 400);
-    }
 
     const realtor = await prisma.realtor.findUnique({
       where: { id },
@@ -174,14 +135,10 @@ export const rejectRealtor = asyncHandler(
       throw new AppError("Realtor not found", 404);
     }
 
-    if (realtor.status === "REJECTED") {
-      throw new AppError("Realtor is already rejected", 400);
-    }
-
+    // MVP: Rejection workflow not implemented - use isActive instead
     const updatedRealtor = await prisma.realtor.update({
       where: { id },
       data: {
-        status: "REJECTED",
         isActive: false,
       },
       include: {
@@ -193,25 +150,9 @@ export const rejectRealtor = asyncHandler(
       },
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user!.id,
-        action: "REALTOR_REJECTED",
-        entity: "Realtor",
-        entityId: id,
-        details: {
-          rejectedBy: req.user!.email,
-          realtorEmail: realtor.user.email,
-          businessName: realtor.businessName,
-          reason,
-        },
-      },
-    });
-
     res.json({
       success: true,
-      message: "Realtor rejected successfully",
+      message: "Realtor deactivated successfully (MVP rejection)",
       data: { realtor: updatedRealtor },
     });
   }
@@ -225,11 +166,6 @@ export const rejectRealtor = asyncHandler(
 export const suspendRealtor = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
-    const { reason } = req.body;
-
-    if (!reason) {
-      throw new AppError("Suspension reason is required", 400);
-    }
 
     const realtor = await prisma.realtor.findUnique({
       where: { id },
@@ -247,10 +183,10 @@ export const suspendRealtor = asyncHandler(
       throw new AppError("Realtor not found", 404);
     }
 
+    // MVP: Deactivate realtor and properties instead of suspension workflow
     const updatedRealtor = await prisma.realtor.update({
       where: { id },
       data: {
-        status: "SUSPENDED",
         isActive: false,
       },
       include: {
@@ -268,25 +204,9 @@ export const suspendRealtor = asyncHandler(
       data: { isActive: false },
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user!.id,
-        action: "REALTOR_SUSPENDED",
-        entity: "Realtor",
-        entityId: id,
-        details: {
-          suspendedBy: req.user!.email,
-          realtorEmail: realtor.user.email,
-          businessName: realtor.businessName,
-          reason,
-        },
-      },
-    });
-
     res.json({
       success: true,
-      message: "Realtor suspended successfully",
+      message: "Realtor and properties deactivated successfully",
       data: { realtor: updatedRealtor },
     });
   }
@@ -331,10 +251,9 @@ export const getAllProperties = asyncHandler(
             select: {
               id: true,
               slug: true,
-              status: true,
+              // status field not available in MVP
               user: {
-                select: {
-                },
+                select: {},
               },
             },
           },
@@ -403,35 +322,20 @@ export const approveProperty = asyncHandler(
       throw new AppError("Property not found", 404);
     }
 
-    if (property.isApproved) {
-      throw new AppError("Property is already approved", 400);
+    // MVP: All properties are auto-approved, just ensure it's active
+    if (!property.isActive) {
+      throw new AppError("Property is already inactive", 400);
     }
 
     const updatedProperty = await prisma.property.update({
       where: { id },
       data: {
-        isApproved: true,
-        approvedBy: req.user!.id,
-        approvedAt: new Date(),
-        rejectionReason: null,
+        // MVP: Properties are auto-approved, no approvedBy or approvedAt fields
       },
     });
 
     // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user!.id,
-        action: "PROPERTY_APPROVED",
-        entity: "Property",
-        entityId: id,
-        details: {
-          approvedBy: req.user!.email,
-          propertyTitle: property.title,
-          realtorBusiness: property.realtor.businessName,
-          notes: notes || null,
-        },
-      },
-    });
+    // MVP: Audit logging not implemented
 
     res.json({
       success: true,
@@ -474,27 +378,11 @@ export const rejectProperty = asyncHandler(
     const updatedProperty = await prisma.property.update({
       where: { id },
       data: {
-        isApproved: false,
-        rejectionReason: reason,
-        isActive: false, // Also deactivate
+        isActive: false, // MVP: Deactivate instead of reject
       },
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user!.id,
-        action: "PROPERTY_REJECTED",
-        entity: "Property",
-        entityId: id,
-        details: {
-          rejectedBy: req.user!.email,
-          propertyTitle: property.title,
-          realtorBusiness: property.realtor.businessName,
-          reason,
-        },
-      },
-    });
+    // MVP: Audit logging not implemented
 
     res.json({
       success: true,
@@ -524,10 +412,10 @@ export const getPlatformAnalytics = asyncHandler(
     ] = await Promise.all([
       prisma.user.count(),
       prisma.realtor.count(),
-      prisma.realtor.count({ where: { status: "APPROVED" } }),
-      prisma.realtor.count({ where: { status: "PENDING" } }),
+      prisma.realtor.count({ where: { isActive: true } }),
+      prisma.realtor.count({ where: { isActive: false } }),
       prisma.property.count(),
-      prisma.property.count({ where: { isApproved: true } }),
+      prisma.property.count({ where: { isActive: true } }),
       prisma.booking.count(),
       prisma.booking.count({ where: { status: "COMPLETED" } }),
       prisma.payment.aggregate({
@@ -555,8 +443,11 @@ export const getPlatformAnalytics = asyncHandler(
     const topRealtors = await prisma.realtor.findMany({
       select: {
         id: true,
+        businessName: true,
         user: {
           select: {
+            firstName: true,
+            lastName: true,
           },
         },
         properties: {
@@ -564,7 +455,7 @@ export const getPlatformAnalytics = asyncHandler(
             bookings: {
               where: { status: "COMPLETED" },
               select: {
-                realtorPayout: true,
+                totalPrice: true, // MVP: Use totalPrice for revenue calculation
               },
             },
           },
@@ -575,12 +466,18 @@ export const getPlatformAnalytics = asyncHandler(
 
     const realtorsWithRevenue = topRealtors
       .map((realtor) => {
-        const totalRevenue = realtor.properties.reduce((sum, property) => {
-          const propertyRevenue = property.bookings.reduce((pSum, booking) => {
-            return pSum + Number(booking.realtorPayout || 0);
-          }, 0);
-          return sum + propertyRevenue;
-        }, 0);
+        const totalRevenue = realtor.properties.reduce(
+          (sum: number, property: any) => {
+            const propertyRevenue = property.bookings.reduce(
+              (pSum: number, booking: any) => {
+                return pSum + Number(booking.totalPrice || 0); // MVP: Use totalPrice for revenue
+              },
+              0
+            );
+            return sum + propertyRevenue;
+          },
+          0
+        );
 
         return {
           ...realtor,

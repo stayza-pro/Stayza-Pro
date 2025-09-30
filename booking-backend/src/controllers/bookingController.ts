@@ -86,15 +86,8 @@ export const checkAvailability = asyncHandler(
     });
 
     // Check for unavailable dates
-    const unavailableDates = await prisma.unavailableDate.findMany({
-      where: {
-        propertyId,
-        date: {
-          gte: checkInDate,
-          lt: checkOutDate,
-        },
-      },
-    });
+    // MVP: Simplified - no unavailableDate model
+    const unavailableDates: any[] = [];
 
     const isAvailable =
       conflictingBookings.length === 0 && unavailableDates.length === 0;
@@ -214,15 +207,8 @@ export const createBooking = asyncHandler(
       }
 
       // Check for unavailable dates
-      const unavailableDates = await tx.unavailableDate.findMany({
-        where: {
-          propertyId,
-          date: {
-            gte: checkIn,
-            lt: checkOut,
-          },
-        },
-      });
+      // MVP: Skip unavailable dates check
+      const unavailableDates: any[] = [];
 
       if (unavailableDates.length > 0) {
         throw new AppError("Property is not available for selected dates", 400);
@@ -266,15 +252,15 @@ export const createBooking = asyncHandler(
           checkOutDate: checkOut,
           totalGuests,
           totalPrice: new Prisma.Decimal(totalPrice.toFixed(2)),
-          propertyPrice: new Prisma.Decimal(propertyPrice.toFixed(2)),
-          serviceFee: new Prisma.Decimal(serviceFee.toFixed(2)),
-          platformCommission: new Prisma.Decimal(platformCommission.toFixed(2)),
-          realtorPayout: new Prisma.Decimal(realtorPayout.toFixed(2)),
+          // MVP: propertyPrice removed from simplified Booking model
+          // MVP: serviceFee removed from simplified Booking model
+          // MVP: platformCommission removed from simplified Booking model
+          // MVP: realtorPayout removed from simplified Booking model
           currency: property.currency,
-          specialRequests,
-          isRefundable: checkIn > refundDeadline,
-          refundDeadline: checkIn > refundDeadline ? refundDeadline : undefined,
-          payoutReleaseDate,
+          // MVP: specialRequests removed from simplified Booking model
+          // MVP: isRefundable removed from simplified Booking model
+          // MVP: refundDeadline removed from simplified Booking model
+          // MVP: payoutReleaseDate removed from simplified Booking model
           guestId: req.user!.id,
           propertyId,
         },
@@ -617,192 +603,191 @@ export const getBooking = asyncHandler(
  * @route   PUT /api/bookings/:id/cancel
  * @access  Private (Owner or ADMIN)
  */
-export const cancelBooking = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
-    const { reason } = req.body;
+// export const cancelBooking = asyncHandler(
+//   async (req: AuthenticatedRequest, res: Response) => {
+//     const { id } = req.params;
+//     const { reason } = req.body;
 
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        property: {
-          include: {
-            realtor: {
-              select: {},
-            },
-          },
-        },
-        payment: true,
-      },
-    });
+//     const booking = await prisma.booking.findUnique({
+//       where: { id },
+//       include: {
+//         property: {
+//           include: {
+//             realtor: {
+//               select: {},
+//             },
+//           },
+//         },
+//         payment: true,
+//       },
+//     });
 
-    if (!booking) {
-      throw new AppError("Booking not found", 404);
-    }
+//     if (!booking) {
+//       throw new AppError("Booking not found", 404);
+//     }
 
-    // Check authorization
-    const isOwner = booking.guestId === req.user!.id;
-    const isAdmin = req.user!.role === "ADMIN";
+//     // Check authorization
+//     const isOwner = booking.guestId === req.user!.id;
+//     const isAdmin = req.user!.role === "ADMIN";
 
-    if (!isOwner && !isAdmin) {
-      throw new AppError("Not authorized to cancel this booking", 403);
-    }
+//     if (!isOwner && !isAdmin) {
+//       throw new AppError("Not authorized to cancel this booking", 403);
+//     }
 
-    // Check if booking can be cancelled
-    if (booking.status === "CANCELLED") {
-      throw new AppError("Booking is already cancelled", 400);
-    }
+//     // Check if booking can be cancelled
+//     if (booking.status === "CANCELLED") {
+//       throw new AppError("Booking is already cancelled", 400);
+//     }
 
-    if (booking.status === "COMPLETED") {
-      throw new AppError("Cannot cancel completed booking", 400);
-    }
+//     if (booking.status === "COMPLETED") {
+//       throw new AppError("Cannot cancel completed booking", 400);
+//     }
 
-    const now = new Date();
+//     const now = new Date();
 
-    // Evaluate refund via policy service if payment exists & was completed
-    let refundEvaluation = null as any;
-    let executedRefund: any = null;
+//     // Evaluate refund via policy service if payment exists & was completed
+//     let refundEvaluation = null as any;
+//     let executedRefund: any = null;
 
-    if (booking.payment && booking.payment.status === PaymentStatus.COMPLETED) {
-      // Need property.realtorId for policy; re-fetch with property.realtorId select if minimal
-      refundEvaluation = await refundPolicyService.evaluateRefund({
-        booking: booking as any, // property includes realtorId due to earlier include path
-        now,
-      });
+//     if (booking.payment && booking.payment.status === PaymentStatus.COMPLETED) {
+//       // Need property.realtorId for policy; re-fetch with property.realtorId select if minimal
+//       refundEvaluation = await refundPolicyService.evaluateRefund({
+//         booking: booking as any, // property includes realtorId due to earlier include path
+//         now,
+//       });
 
-      if (refundEvaluation.eligible) {
-        const refundAmount = refundEvaluation.refundableAmount;
+//       if (refundEvaluation.eligible) {
+//         const refundAmount = refundEvaluation.refundableAmount;
 
-        // Provider specific refund (best-effort; errors won't block cancellation)
-        try {
-          if (
-            booking.payment.method === PaymentMethod.STRIPE &&
-            booking.payment.stripePaymentIntentId
-          ) {
-            executedRefund = await stripeService.processRefund(
-              booking.payment.stripePaymentIntentId,
-              refundAmount,
-              "requested_by_customer"
-            );
-          } else if (
-            booking.payment.method === PaymentMethod.PAYSTACK &&
-            booking.payment.paystackReference
-          ) {
-            executedRefund = await paystackService.processRefund(
-              booking.payment.paystackReference,
-              refundEvaluation.fullRefund ? undefined : refundAmount
-            );
-          }
-        } catch (err) {
-          console.error(
-            "Provider refund failed; proceeding with internal record",
-            err
-          );
-        }
+//         // Provider specific refund (best-effort; errors won't block cancellation)
+//         // try {
+//         //   if (
+//         //     false // MVP: Stripe not implemented yet
+//         //   ) {
+//         //     executedRefund = await stripeService.processRefund(
+//         //       booking.payment.stripePaymentIntentId,
+//         //       refundAmount,
+//         //       "requested_by_customer"
+//         //     );
+//         //   } else if (
+//         //     booking.payment.method === PaymentMethod.PAYSTACK &&
+//         //     booking.payment.paystackReference
+//         //   ) {
+//         //     executedRefund = await paystackService.processRefund(
+//         //       booking.payment.paystackReference,
+//         //       refundEvaluation.fullRefund ? undefined : refundAmount
+//         //     );
+//         //   }
+//         // } catch (err) {
+//         //   console.error(
+//         //     "Provider refund failed; proceeding with internal record",
+//         //     err
+//         //   );
+//         // }
 
-        await prisma.$transaction(async (tx) => {
-          // Update payment status
-          const newPaymentStatus = refundEvaluation.fullRefund
-            ? PaymentStatus.REFUNDED
-            : PaymentStatus.PARTIALLY_REFUNDED;
-          await tx.payment.update({
-            where: { id: booking.payment!.id },
-            data: { status: newPaymentStatus },
-          });
+//         await prisma.$transaction(async (tx) => {
+//           // Update payment status
+//           const newPaymentStatus = refundEvaluation.fullRefund
+//             ? PaymentStatus.REFUNDED
+//             : PaymentStatus.REFUNDED; // MVP: Simplified status
+//           await tx.payment.update({
+//             where: { id: booking.payment!.id },
+//             data: { status: newPaymentStatus },
+//           });
 
-          // Create refund record
-          await tx.refund.create({
-            data: {
-              amount: refundAmount,
-              currency: booking.currency,
-              reason: refundEvaluation.reason,
-              status: PaymentStatus.COMPLETED,
-              method: booking.payment!.method,
-              bookingId: booking.id,
-              paymentId: booking.payment!.id,
-              processedAt: new Date(),
-              adminApproved: true,
-            },
-          });
-        });
-      }
-    }
+//           // Create refund record
+//           await tx.refund.create({
+//             data: {
+//               amount: refundAmount,
+//               currency: booking.currency,
+//               reason: refundEvaluation.reason,
+//               status: PaymentStatus.COMPLETED,
+//               method: booking.payment!.method,
+//               bookingId: booking.id,
+//               paymentId: booking.payment!.id,
+//               processedAt: new Date(),
+//               adminApproved: true,
+//             },
+//           });
+//         });
+//       }
+//     }
 
-    let updatedBooking = null as any;
-    try {
-      await transitionBookingStatus(
-        id,
-        booking.status as any,
-        BookingStatus.CANCELLED,
-        {
-          specialRequests: reason
-            ? `${
-                booking.specialRequests || ""
-              }\n\nCancellation reason: ${reason}`
-            : booking.specialRequests,
-        }
-      );
-      updatedBooking = await prisma.booking.findUnique({
-        where: { id },
-        include: {
-          property: { select: { title: true, address: true, city: true } },
-          payment: true,
-          refunds: true,
-        },
-      });
-    } catch (e) {
-      if (e instanceof BookingStatusConflictError) {
-        throw new AppError("Booking status changed; cancellation aborted", 409);
-      }
-      throw e;
-    }
+//     let updatedBooking = null as any;
+//     try {
+//       await transitionBookingStatus(
+//         id,
+//         booking.status as any,
+//         BookingStatus.CANCELLED,
+//         {
+//           specialRequests: reason
+//             ? `${
+//                 "" // MVP: specialRequests removed
+//               }\n\nCancellation reason: ${reason}`
+//             : booking.specialRequests,
+//         }
+//       );
+//       updatedBooking = await prisma.booking.findUnique({
+//         where: { id },
+//         include: {
+//           property: { select: { title: true, address: true, city: true } },
+//           payment: true,
+//           // MVP: refunds model removed
+//         },
+//       });
+//     } catch (e) {
+//       if (e instanceof BookingStatusConflictError) {
+//         throw new AppError("Booking status changed; cancellation aborted", 409);
+//       }
+//       throw e;
+//     }
 
-    // Email notification (best effort)
-    try {
-      const guest = await prisma.user.findUnique({
-        where: { id: booking.guestId },
-        select: { email: true },
-      });
-      if (guest?.email) {
-        const totalRefunded = updatedBooking.refunds.reduce(
-          (s: number, r: { amount: any }) => s + Number(r.amount),
-          0 as number
-        );
-        await sendBookingCancellation(
-          guest.email,
-          updatedBooking,
-          { title: updatedBooking.property.title },
-          totalRefunded || undefined
-        );
-      }
-    } catch (e) {
-      console.error("Failed to send booking cancellation email", e);
-    }
+//     // Email notification (best effort)
+//     try {
+//       const guest = await prisma.user.findUnique({
+//         where: { id: booking.guestId },
+//         select: { email: true },
+//       });
+//       if (guest?.email) {
+//         const totalRefunded = updatedBooking.refunds.reduce(
+//           (s: number, r: { amount: any }) => s + Number(r.amount),
+//           0 as number
+//         );
+//         await sendBookingCancellation(
+//           guest.email,
+//           updatedBooking,
+//           { title: updatedBooking.property.title },
+//           totalRefunded || undefined
+//         );
+//       }
+//     } catch (e) {
+//       console.error("Failed to send booking cancellation email", e);
+//     }
 
-    res.json({
-      success: true,
-      message: "Booking cancelled successfully",
-      data: {
-        booking: updatedBooking,
-        refundEvaluation,
-        providerRefund: executedRefund || undefined,
-      },
-    });
+//     res.json({
+//       success: true,
+//       message: "Booking cancelled successfully",
+//       data: {
+//         booking: updatedBooking,
+//         refundEvaluation,
+//         providerRefund: executedRefund || undefined,
+//       },
+//     });
 
-    auditLogger
-      .log("BOOKING_CANCEL", "Booking", {
-        entityId: updatedBooking.id,
-        userId: req.user!.id,
-        details: {
-          refundApplied: refundEvaluation?.eligible || false,
-          refundAmount: refundEvaluation?.refundableAmount || 0,
-          reason: reason || undefined,
-        },
-        req,
-      })
-      .catch(() => {});
-  }
-);
+//     auditLogger
+//       .log("BOOKING_CANCEL", "Booking", {
+//         entityId: updatedBooking.id,
+//         userId: req.user!.id,
+//         details: {
+//           refundApplied: refundEvaluation?.eligible || false,
+//           refundAmount: refundEvaluation?.refundableAmount || 0,
+//           reason: reason || undefined,
+//         },
+//         req,
+//       })
+//       .catch(() => {});
+//   }
+// );
 
 /**
  * @desc    Update booking status (HOST/ADMIN only)

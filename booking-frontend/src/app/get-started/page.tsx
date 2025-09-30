@@ -16,7 +16,7 @@ const plans = [
     cadence: "per month",
     tagline: "Validate direct bookings with a polished microsite in minutes.",
     badge: "Best for new teams",
-    href: "/auth/register?plan=free",
+    href: "/register/realtor?plan=free",
     features: [
       "Branded ourapp.com/agency URL with your colours",
       "Up to 2 live listings with availability calendar",
@@ -31,7 +31,7 @@ const plans = [
     cadence: "per month",
     tagline: "Everything agencies need to automate revenue and compliance.",
     badge: "Most popular",
-    href: "/auth/register?plan=pro",
+    href: "/register/realtor?plan=pro",
     features: [
       "Unlimited listings, team seats, and seasonal pricing rules",
       "Advanced revenue analytics and cohort dashboards",

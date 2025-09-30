@@ -1,10 +1,11 @@
-import { SectionPageShell } from "@/app/(marketing)/components/SectionPageShell";
-import { SignalsSection } from "@/app/(marketing)/sections/SignalsSection";
+import { ComingSoonPage } from "@/components/ui/ComingSoonPage";
 
 export default function SignalsPage() {
   return (
-    <SectionPageShell>
-      <SignalsSection />
-    </SectionPageShell>
+    <ComingSoonPage
+      feature="Market Signals"
+      description="Advanced analytics and market insights to optimize your property listings and pricing strategies."
+      expectedDate="Q3 2024"
+    />
   );
 }

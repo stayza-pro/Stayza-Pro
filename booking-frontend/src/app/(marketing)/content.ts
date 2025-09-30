@@ -9,11 +9,11 @@ import {
   MonitorSmartphone,
   RotateCcw,
   ShieldCheck,
-  Sparkles,
   UploadCloud,
   Users,
   Wallet,
 } from "lucide-react";
+// import Image from "next/image";
 
 export const palette = {
   primary: "var(--marketing-primary, #1E3A8A)",
@@ -27,7 +27,12 @@ export const palette = {
 export const brand = {
   name: "Stayza Pro",
   tagline: "Your booking site. Branded. Live in minutes.",
-  logoIcon: Sparkles,
+  logoIcon: {
+    src: "/images/stayza.png",
+    alt: "Stayza Pro Logo",
+    width: 150,
+    height: 150,
+  },
 } as const;
 
 export const navLinks = [

@@ -1,56 +1,22 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
-import posthog from "posthog-js";
-import { PostHogProvider } from "posthog-js/react";
-
-const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-const apiHost =
-  process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://app.posthog.com";
 
 export type AnalyticsProviderProps = {
   children: ReactNode;
 };
 
+// MVP Version: Simple analytics provider without external tracking
+// Advanced analytics features will be added in post-MVP releases
 export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
-  const initialized = useRef(false);
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const hasKey = typeof apiKey === "string" && apiKey.length > 0;
+  // For MVP, we're just passing through children without analytics
+  // This can be enhanced with PostHog, Google Analytics, etc. in future releases
 
-  useEffect(() => {
-    if (!hasKey || initialized.current || typeof window === "undefined") {
-      return;
-    }
-
-    posthog.init(apiKey, {
-      api_host: apiHost,
-      capture_pageview: false,
-      disable_session_recording: true,
-      persistence: "memory",
-      autocapture: false,
-    });
-
-    initialized.current = true;
-  }, [hasKey]);
-
-  useEffect(() => {
-    if (!hasKey || !initialized.current || typeof window === "undefined") {
-      return;
-    }
-
-    const search = searchParams?.toString();
-    posthog.capture("$pageview", {
-      pathname,
-      search: search ? `?${search}` : undefined,
-    });
-  }, [hasKey, pathname, searchParams]);
-
-  if (!hasKey) {
-    return <>{children}</>;
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      "Analytics disabled for MVP - will be enabled in future releases"
+    );
   }
 
-  return <PostHogProvider client={posthog}>{children}</PostHogProvider>;
+  return <>{children}</>;
 }

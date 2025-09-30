@@ -1,6 +1,6 @@
 import { prisma } from "@/config/database";
 import { AppError } from "@/middleware/errorHandler";
-import { Booking, RealtorRefundPolicy, RefundPolicyType } from "@prisma/client";
+import { Booking } from "@prisma/client";
 
 export interface RefundEvaluationResult {
   eligible: boolean;
@@ -16,7 +16,7 @@ interface EvaluateParams {
   now?: Date;
 }
 
-// Baseline policy (hours before check-in)
+// Baseline policy (hours before check-in) - simplified MVP uses fixed policy
 const BASE_FULL_REFUND_HOURS = 24;
 const BASE_PARTIAL_REFUND_HOURS = 12;
 const BASE_PARTIAL_RATE = 0.5; // 50%
@@ -28,34 +28,10 @@ export async function evaluateRefund({
   const msUntilCheckIn = booking.checkInDate.getTime() - now.getTime();
   const hoursUntilCheckIn = msUntilCheckIn / (1000 * 60 * 60);
 
-  // Fetch active custom policy if any
-  const policy: RealtorRefundPolicy | null =
-    await prisma.realtorRefundPolicy.findFirst({
-      where: { realtorId: booking.property.realtorId, isActive: true },
-      orderBy: { createdAt: "desc" },
-    });
-
+  // MVP uses standard policy for all realtors
   let fullHours = BASE_FULL_REFUND_HOURS;
   let partialHours = BASE_PARTIAL_REFUND_HOURS;
   let partialRate = BASE_PARTIAL_RATE;
-
-  if (policy) {
-    // Apply realtor policy but enforce baseline floor (cannot weaken baseline)
-    fullHours = Math.max(policy.fullRefundHours, BASE_FULL_REFUND_HOURS);
-    partialHours = Math.max(
-      policy.partialRefundHours,
-      BASE_PARTIAL_REFUND_HOURS
-    );
-    // Partial hours must be < full hours logically; if realtor sets greater, clamp to fullHours - 1
-    if (partialHours >= fullHours) {
-      partialHours = fullHours - 1; // maintain logical ordering
-      if (partialHours < BASE_PARTIAL_REFUND_HOURS) {
-        partialHours = BASE_PARTIAL_REFUND_HOURS; // still keep baseline
-      }
-    }
-    const proposedRate = Number(policy.partialRefundRate);
-    partialRate = Math.max(proposedRate, BASE_PARTIAL_RATE);
-  }
 
   if (hoursUntilCheckIn >= fullHours) {
     return {

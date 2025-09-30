@@ -1,10 +1,11 @@
-import { SectionPageShell } from "@/app/(marketing)/components/SectionPageShell";
-import { WorkflowSection } from "@/app/(marketing)/sections/WorkflowSection";
+import { ComingSoonPage } from "@/components/ui/ComingSoonPage";
 
 export default function WorkflowPage() {
   return (
-    <SectionPageShell>
-      <WorkflowSection />
-    </SectionPageShell>
+    <ComingSoonPage
+      feature="Automated Workflows"
+      description="Set up automated booking confirmations, guest communications, and property management workflows."
+      expectedDate="Q3 2024"
+    />
   );
 }

@@ -1,15 +1,40 @@
 import express from "express";
-import {
-  createReview,
-  getPropertyReviews,
-  getMyReviews,
-  getHostReviews,
-  getReview,
-  updateReview,
-  deleteReview,
-  toggleReviewVisibility,
-} from "@/controllers/reviewController";
+import { Request, Response } from "express";
+import { AppError } from "@/middleware/errorHandler";
 import { authenticate, authorize, optionalAuth } from "@/middleware/auth";
+
+// MVP: Placeholder functions for review functionality
+const createReview = (req: Request, res: Response) => {
+  throw new AppError("Review functionality coming soon", 501);
+};
+
+const getPropertyReviews = (req: Request, res: Response) => {
+  throw new AppError("Review functionality coming soon", 501);
+};
+
+const getMyReviews = (req: Request, res: Response) => {
+  throw new AppError("Review functionality coming soon", 501);
+};
+
+const getHostReviews = (req: Request, res: Response) => {
+  throw new AppError("Review functionality coming soon", 501);
+};
+
+const getReview = (req: Request, res: Response) => {
+  throw new AppError("Review functionality coming soon", 501);
+};
+
+const updateReview = (req: Request, res: Response) => {
+  throw new AppError("Review functionality coming soon", 501);
+};
+
+const deleteReview = (req: Request, res: Response) => {
+  throw new AppError("Review functionality coming soon", 501);
+};
+
+const toggleReviewVisibility = (req: Request, res: Response) => {
+  throw new AppError("Review functionality coming soon", 501);
+};
 
 const router = express.Router();
 

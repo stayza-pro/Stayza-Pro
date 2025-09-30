@@ -83,7 +83,10 @@ api.interceptors.response.use(
 
     // Don't show toast for certain errors
     const silentErrors = [400, 401, 404];
-    if (!silentErrors.includes(error.response?.status)) {
+    if (
+      error.response?.status &&
+      !silentErrors.includes(error.response.status)
+    ) {
       toast.error(message);
     }
 

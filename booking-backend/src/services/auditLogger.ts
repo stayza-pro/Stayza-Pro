@@ -51,17 +51,12 @@ function extractUA(req?: Request): string | undefined {
 export const auditLogger = {
   async log(action: AuditAction, entity: AuditEntity, opts: LogOptions = {}) {
     try {
-      await prisma.auditLog.create({
-        data: {
-          action,
-          // ensure consistent entity naming
-          entity,
-          entityId: opts.entityId,
-          userId: opts.userId || undefined,
-          details: opts.details as any,
-          ipAddress: opts.ipAddressOverride || extractIp(opts.req),
-          userAgent: opts.userAgentOverride || extractUA(opts.req),
-        },
+      // Audit logging disabled in simplified schema
+      // TODO: Re-implement with external logging service if needed
+      console.log(`Audit: ${action} on ${entity}`, {
+        entityId: opts.entityId,
+        userId: opts.userId,
+        details: opts.details,
       });
     } catch (err) {
       // Silent fail to avoid impacting request lifecycle

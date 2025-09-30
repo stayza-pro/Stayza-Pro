@@ -1,125 +1,203 @@
-// User types
-export type UserRole = "GUEST" | "HOST" | "REALTOR" | "ADMIN";
+// ========================
+// Core Enums & Types
+// ========================
+
+export type UserRole = "GUEST" | "REALTOR" | "ADMIN";
+export type RealtorStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+export type PropertyType =
+  | "APARTMENT"
+  | "HOUSE"
+  | "VILLA"
+  | "COTTAGE"
+  | "STUDIO"
+  | "LOFT"
+  | "TOWNHOUSE"
+  | "OTHER";
+export type PropertyAmenity =
+  | "WIFI"
+  | "PARKING"
+  | "POOL"
+  | "GYM"
+  | "AC"
+  | "KITCHEN"
+  | "WASHING_MACHINE"
+  | "TV"
+  | "BALCONY"
+  | "PET_FRIENDLY"
+  | "SMOKING_ALLOWED"
+  | "WHEELCHAIR_ACCESSIBLE"
+  | "FIREPLACE"
+  | "HOT_TUB"
+  | "BBQ"
+  | "GARDEN"
+  | "SECURITY"
+  | "CONCIERGE"
+  | "ELEVATOR"
+  | "HEATING"
+  | "DISHWASHER"
+  | "MICROWAVE"
+  | "COFFEE_MAKER"
+  | "IRON"
+  | "HAIR_DRYER"
+  | "TOWELS"
+  | "LINENS"
+  | "SHAMPOO"
+  | "SOAP";
+export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+export type PaymentStatus =
+  | "PENDING"
+  | "COMPLETED"
+  | "FAILED"
+  | "REFUNDED"
+  | "PARTIALLY_REFUNDED";
+export type PaymentMethod = "PAYSTACK" | "FLUTTERWAVE" | "STRIPE";
+export type ReviewType =
+  | "GUEST_TO_PROPERTY"
+  | "GUEST_TO_REALTOR"
+  | "REALTOR_TO_GUEST";
+
+// ========================
+// Core Entity Interfaces
+// ========================
 
 export interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
   role: UserRole;
   isEmailVerified: boolean;
-  status?: "ACTIVE" | "SUSPENDED" | "BANNED";
   avatar?: string;
-  phone?: string;
   country?: string;
   city?: string;
   address?: string;
-  dateOfBirth?: string;
-  createdAt: string;
-  updatedAt: string;
+  dateOfBirth?: Date;
+  emailVerificationToken?: string;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// Property types
+export interface Realtor {
+  id: string;
+  userId: string;
+  businessName: string;
+  slug: string;
+  description?: string;
+  logoUrl?: string;
+  website?: string;
+  businessPhone?: string;
+  businessEmail?: string;
+  businessAddress?: string;
+  brandColorHex: string;
+  status: RealtorStatus;
+  isActive: boolean;
+  stripeAccountId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  user?: User;
+  properties?: Property[];
+}
+
 export interface Property {
   id: string;
+  realtorId: string;
   title: string;
   description: string;
-  type:
-    | "APARTMENT"
-    | "HOUSE"
-    | "VILLA"
-    | "COTTAGE"
-    | "STUDIO"
-    | "LOFT"
-    | "TOWNHOUSE"
-    | "OTHER";
+  type: PropertyType;
   pricePerNight: number;
   currency: string;
   maxGuests: number;
   bedrooms: number;
   bathrooms: number;
-  amenities: string[];
-  images: string[];
   address: string;
   city: string;
   state: string;
   country: string;
   latitude?: number;
   longitude?: number;
+  amenities: PropertyAmenity[];
+  houseRules: string[];
+  checkInTime: string;
+  checkOutTime: string;
   isActive: boolean;
-  status?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
-  createdAt: string;
-  updatedAt: string;
-  host: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    avatar?: string;
-  };
-  hostId?: string;
+  isApproved: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  realtor?: Realtor;
+  images?: PropertyImage[];
+  bookings?: Booking[];
+  reviews?: Review[];
+
+  // Computed fields
   averageRating?: number;
   reviewCount?: number;
 }
 
-// Booking types
-export type BookingStatus =
-  | "PENDING"
-  | "CONFIRMED"
-  | "CANCELLED"
-  | "COMPLETED"
-  | "REFUNDED"
-  | "DISPUTED";
+export interface PropertyImage {
+  id: string;
+  propertyId: string;
+  url: string;
+  order: number;
+  createdAt: Date;
 
-export type PayoutStatus = "PENDING" | "RELEASED" | "ON_HOLD" | "FAILED";
+  // Relations
+  property?: Property;
+}
 
 export interface Booking {
   id: string;
-  checkInDate: string;
-  checkOutDate: string;
-  totalGuests: number;
-  nights: number;
-  totalPrice: number;
+  propertyId: string;
+  guestId: string;
+  checkIn: Date;
+  checkOut: Date;
+  guests: number;
+  totalAmount: number;
   currency: string;
   status: BookingStatus;
+  paymentStatus: PaymentStatus;
   specialRequests?: string;
-  isRefundable: boolean;
-  refundDeadline?: string;
-  payoutStatus?: PayoutStatus;
-  payoutReleaseDate?: string | null;
-  payoutHoldReason?: string | null;
-  payoutHoldUntil?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  property: Property;
-  guest: User;
+  guestNotes?: string;
+  realtorNotes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  property?: Property;
+  guest?: User;
   payment?: Payment;
-  review?: Review;
+  reviews?: Review[];
+
+  // Computed fields
+  nights?: number;
+  isRefundable?: boolean;
+  refundDeadline?: Date;
 }
 
-// Payment types
 export interface Payment {
   id: string;
+  bookingId: string;
   amount: number;
   currency: string;
-  status:
-    | "PENDING"
-    | "COMPLETED"
-    | "FAILED"
-    | "REFUNDED"
-    | "PARTIALLY_REFUNDED";
-  method: "STRIPE" | "PAYSTACK";
-  stripePaymentIntentId?: string;
-  paystackReference?: string;
+  method: PaymentMethod;
+  providerId?: string;
+  providerTransactionId?: string;
+  status: PaymentStatus;
+  paidAt?: Date;
+  refundedAt?: Date;
   refundAmount?: number;
-  refundReason?: string;
-  isDisputed?: boolean;
-  disputeId?: string | null;
-  disputeStatus?: string | null;
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-  booking: Booking;
-  user: User;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  booking?: Booking;
 }
 
 export interface StripeOnboardingLink {
@@ -144,32 +222,43 @@ export interface StripeDashboardLink {
   expiresAt: string | null;
 }
 
-// Review types
+export interface RefreshToken {
+  id: string;
+  token: string;
+  userId: string;
+  expiresAt: Date;
+  createdAt: Date;
+
+  // Relations
+  user?: User;
+}
+
 export interface Review {
   id: string;
+  bookingId: string;
+  reviewerId: string;
+  revieweeId: string;
+  propertyId: string;
   rating: number;
   comment?: string;
-  isVisible: boolean;
+  type: ReviewType;
+  isPublic: boolean;
+  response?: string;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  booking?: Booking;
+  reviewer?: User;
+  reviewee?: User;
+  property?: Property;
+
+  // Computed fields
+  isVisible?: boolean;
   isVerified?: boolean;
   likesCount?: number;
-  dislikesCount?: number;
   helpfulCount?: number;
   userLiked?: boolean;
-  userDisliked?: boolean;
-  createdAt: string;
-  updatedAt: string;
-  booking: Booking;
-  bookingId: string;
-  author: User;
-  guest: User;
-  property: Property;
-  target: User;
-  hostResponse?: {
-    id: string;
-    comment: string;
-    createdAt: string;
-    updatedAt: string;
-  };
 }
 
 // API Response types
@@ -204,6 +293,44 @@ export interface RegisterFormData {
   city?: string;
 }
 
+export interface RealtorRegistrationFormData {
+  // Account Details
+  fullName: string;
+  businessEmail: string;
+  phoneNumber: string;
+  password: string;
+  confirmPassword: string;
+
+  // Business Details
+  agencyName: string;
+  tagline?: string;
+  customSubdomain: string;
+  corporateRegNumber?: string;
+  businessAddress: string;
+
+  // Branding
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor?: string;
+  customPrimaryColor?: string;
+  customSecondaryColor?: string;
+  customAccentColor?: string;
+  logo?: File | null;
+
+  // Social & Media
+  socials?: Record<string, string>;
+  whatsappType: "personal" | "business";
+
+  // Compliance
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
+  dataProcessingConsent: boolean;
+  marketingOptIn?: boolean;
+
+  // Metadata
+  referralCode?: string;
+}
+
 // Auth API types
 export interface LoginCredentials {
   email: string;
@@ -216,7 +343,9 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   phone?: string;
-  dateOfBirth?: string;
+  role?: Exclude<UserRole, "ADMIN">;
+  country?: string;
+  city?: string;
 }
 
 export interface AuthResponse {
@@ -232,46 +361,55 @@ export interface RefreshTokenResponse {
 export interface PropertyFormData {
   title: string;
   description: string;
-  type: Property["type"];
+  type: PropertyType;
   pricePerNight: number;
   currency: string;
   maxGuests: number;
   bedrooms: number;
   bathrooms: number;
-  amenities: string[];
+  amenities: PropertyAmenity[];
+  houseRules: string[];
   address: string;
   city: string;
   state: string;
   country: string;
   latitude?: number;
   longitude?: number;
+  checkInTime: string;
+  checkOutTime: string;
 }
 
 export interface BookingFormData {
   propertyId: string;
-  checkInDate: Date;
-  checkOutDate: Date;
-  totalGuests: number;
+  checkIn: Date;
+  checkOut: Date;
+  guests: number;
   specialRequests?: string;
 }
 
 export interface ReviewFormData {
   bookingId: string;
+  revieweeId: string;
+  propertyId: string;
   rating: number;
   comment?: string;
+  type: ReviewType;
 }
 
 // Filter and search types
 export interface PropertyFilters {
   city?: string;
+  state?: string;
   country?: string;
-  type?: Property["type"];
+  type?: PropertyType;
   minPrice?: number;
   maxPrice?: number;
   maxGuests?: number;
   checkIn?: Date;
   checkOut?: Date;
-  amenities?: string[];
+  amenities?: PropertyAmenity[];
+  isActive?: boolean;
+  isApproved?: boolean;
 }
 
 export interface SearchParams {
@@ -279,6 +417,31 @@ export interface SearchParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
+  query?: string;
+}
+
+export interface BookingFilters {
+  status?: BookingStatus;
+  paymentStatus?: PaymentStatus;
+  dateFrom?: Date;
+  dateTo?: Date;
+  propertyId?: string;
+  guestId?: string;
+}
+
+// ========================
+// Payment Integration Types
+// ========================
+
+export interface PaystackInitializeResponse {
+  authorization_url: string;
+  access_code: string;
+  reference: string;
+}
+
+export interface FlutterwaveInitializeResponse {
+  link: string;
+  reference: string;
 }
 
 // UI Component types
@@ -315,3 +478,73 @@ export interface BookingState {
   bookingData: Partial<BookingFormData>;
   currentStep: number;
 }
+
+export interface PropertyState {
+  properties: Property[];
+  selectedProperty: Property | null;
+  filters: PropertyFilters;
+  isLoading: boolean;
+  error: string | null;
+}
+
+// ========================
+// Feature-Specific Types
+// ========================
+
+export interface NotificationPreferences {
+  emailNotifications: boolean;
+  smsNotifications: boolean;
+  pushNotifications: boolean;
+  bookingUpdates: boolean;
+  promotions: boolean;
+  reviews: boolean;
+}
+
+export interface UserPreferences {
+  currency: string;
+  language: string;
+  timezone: string;
+  notifications: NotificationPreferences;
+}
+
+export interface RealtorDashboardStats {
+  totalProperties: number;
+  activeProperties: number;
+  totalBookings: number;
+  pendingBookings: number;
+  totalRevenue: number;
+  monthlyRevenue: number;
+  averageRating: number;
+  totalReviews: number;
+}
+
+export interface RealtorAnalytics {
+  bookingTrends: Array<{
+    date: string;
+    bookings: number;
+    revenue: number;
+  }>;
+  topProperties: Array<{
+    property: Property;
+    bookings: number;
+    revenue: number;
+    rating: number;
+  }>;
+  guestDemographics: Array<{
+    country: string;
+    count: number;
+    percentage: number;
+  }>;
+}
+
+// ========================
+// Utility Types
+// ========================
+
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+export type RequiredBy<T, K extends keyof T> = T & Required<Pick<T, K>>;
+
+export type OptionalBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;

@@ -6,7 +6,6 @@ import {
   getMyBookings,
   getHostBookings,
   getBooking,
-  cancelBooking,
   updateBookingStatus,
 } from "@/controllers/bookingController";
 import { authenticate, authorize } from "@/middleware/auth";
@@ -526,7 +525,8 @@ router.get("/:id", authenticate, getBooking);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.put("/:id/cancel", authenticate, cancelBooking);
+// MVP: Cancellation functionality coming soon
+// router.put("/:id/cancel", authenticate, cancelBooking);
 
 /**
  * @swagger

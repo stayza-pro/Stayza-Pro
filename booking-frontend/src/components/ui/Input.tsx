@@ -27,12 +27,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    const inputId =
-      props.id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const inputId = props.id; // Only use explicitly provided IDs
 
     return (
       <div className={cn("flex flex-col space-y-2", fullWidth && "w-full")}>
-        {label && (
+        {label && inputId && (
           <label
             htmlFor={inputId}
             className="text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -40,6 +39,13 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {label}
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
+        )}
+
+        {label && !inputId && (
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {label}
+            {props.required && <span className="text-red-500 ml-1">*</span>}
+          </div>
         )}
 
         <div className="relative">

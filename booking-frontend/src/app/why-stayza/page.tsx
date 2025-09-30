@@ -1,10 +1,11 @@
-import { SectionPageShell } from "@/app/(marketing)/components/SectionPageShell";
-import { WhySection } from "@/app/(marketing)/sections/WhySection";
+import { ComingSoonPage } from "@/components/ui/ComingSoonPage";
 
 export default function WhyStayzaPage() {
   return (
-    <SectionPageShell>
-      <WhySection />
-    </SectionPageShell>
+    <ComingSoonPage
+      feature="Why Stayza Pro"
+      description="Comprehensive platform comparison, success stories, and detailed feature breakdowns."
+      expectedDate="Q2 2024"
+    />
   );
 }

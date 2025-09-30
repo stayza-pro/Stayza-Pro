@@ -1,10 +1,11 @@
-import { SectionPageShell } from "@/app/(marketing)/components/SectionPageShell";
-import { CapabilitiesSection } from "@/app/(marketing)/sections/CapabilitiesSection";
+import { ComingSoonPage } from "@/components/ui/ComingSoonPage";
 
 export default function CapabilitiesPage() {
   return (
-    <SectionPageShell>
-      <CapabilitiesSection />
-    </SectionPageShell>
+    <ComingSoonPage
+      feature="Advanced Capabilities"
+      description="Explore advanced booking management capabilities, automated workflows, and enterprise features."
+      expectedDate="Q2 2024"
+    />
   );
 }

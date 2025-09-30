@@ -1,6 +1,7 @@
 import express from "express";
 import {
   registerRealtor,
+  createRealtorProfile,
   uploadLogo,
   uploadMiddleware,
   getRealtorProfile,
@@ -209,7 +210,13 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.post("/register", authenticate, requireRole("REALTOR"), registerRealtor);
+router.post("/register", registerRealtor);
+router.post(
+  "/profile/create",
+  authenticate,
+  requireRole("REALTOR"),
+  createRealtorProfile
+);
 
 /**
  * @swagger

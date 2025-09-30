@@ -1,16 +1,11 @@
 import express from "express";
 import {
-  createStripePaymentIntent,
-  initializePaystackPayment,
-  verifyPaystackPayment,
-  processRefund,
+  createPayment,
+  confirmPayment,
   getUserPayments,
-  generatePaymentReceipt,
+  getPayment,
 } from "@/controllers/paymentController";
-import {
-  handleStripeWebhook,
-  handlePaystackWebhook,
-} from "@/controllers/webhookController";
+// MVP: Webhooks handled in separate routes
 import { authenticate } from "@/middleware/auth";
 
 const router = express.Router();
@@ -177,11 +172,7 @@ const router = express.Router();
  *       400:
  *         description: Invalid webhook signature or payload
  */
-router.post(
-  "/stripe-webhook",
-  express.raw({ type: "application/json" }),
-  handleStripeWebhook
-);
+// MVP: Webhook routes moved to separate webhookRoutes.ts
 
 /**
  * @swagger
@@ -203,7 +194,7 @@ router.post(
  *       400:
  *         description: Invalid webhook signature or payload
  */
-router.post("/paystack-webhook", handlePaystackWebhook);
+// MVP: Paystack webhook route moved to separate webhookRoutes.ts
 
 /**
  * @swagger
@@ -245,7 +236,7 @@ router.post("/paystack-webhook", handlePaystackWebhook);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.post("/create-stripe-intent", authenticate, createStripePaymentIntent);
+router.post("/create-payment", authenticate, createPayment);
 
 /**
  * @swagger
@@ -287,7 +278,7 @@ router.post("/create-stripe-intent", authenticate, createStripePaymentIntent);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.post("/initialize-paystack", authenticate, initializePaystackPayment);
+router.post("/confirm-payment", authenticate, confirmPayment);
 
 /**
  * @swagger
@@ -338,7 +329,7 @@ router.post("/initialize-paystack", authenticate, initializePaystackPayment);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.post("/verify-paystack", authenticate, verifyPaystackPayment);
+router.get("/:id", authenticate, getPayment);
 
 /**
  * @swagger
@@ -453,7 +444,8 @@ router.get("/:id", authenticate, getUserPayments);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.post("/:id/refund", authenticate, processRefund);
+// MVP: Refund functionality coming soon
+// router.post("/:id/refund", authenticate, processRefund);
 
 // Additional payment endpoints
 /**
@@ -524,6 +516,7 @@ router.get("/", authenticate, getUserPayments);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.get("/:id/receipt", authenticate, generatePaymentReceipt);
+// MVP: Receipt generation coming soon
+// router.get("/:id/receipt", authenticate, generatePaymentReceipt);
 
 export default router;

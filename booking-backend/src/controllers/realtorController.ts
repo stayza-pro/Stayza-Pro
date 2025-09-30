@@ -5,12 +5,6 @@ import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
 import { config } from "@/config";
-import {
-  createAccountLink,
-  createConnectAccount,
-  createDashboardLink,
-  getAccountStatus,
-} from "@/services/stripe";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -43,14 +37,176 @@ const generateUniqueSlug = async (businessName: string): Promise<string> => {
 };
 
 /**
- * @desc    Register realtor account (complete onboarding)
+ * @desc    Complete realtor registration (User + Realtor profile)
  * @route   POST /api/realtors/register
- * @access  Private (USER with REALTOR role)
+ * @access  Public
  */
 export const registerRealtor = asyncHandler(
+  async (req: Request, res: Response) => {
+    const {
+      // User data
+      fullName,
+      businessEmail,
+      phoneNumber,
+      password,
+      // Business data
+      agencyName,
+      tagline,
+      customSubdomain,
+      corporateRegNumber,
+      businessAddress,
+      // Branding
+      primaryColor,
+      secondaryColor,
+      accentColor,
+      brandColorHex, // Legacy support
+      // Social media
+      socials,
+      whatsappType,
+    } = req.body;
+
+    if (
+      !fullName ||
+      !businessEmail ||
+      !password ||
+      !agencyName ||
+      !customSubdomain
+    ) {
+      throw new AppError("Required fields are missing", 400);
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: businessEmail },
+    });
+
+    if (existingUser) {
+      throw new AppError("User with this email already exists", 400);
+    }
+
+    // Generate unique slug from subdomain
+    const slug = customSubdomain.toLowerCase();
+
+    // Check if subdomain/slug is already taken
+    const existingRealtor = await prisma.realtor.findUnique({
+      where: { slug },
+    });
+
+    if (existingRealtor) {
+      throw new AppError("Subdomain is already taken", 400);
+    }
+
+    // Split fullName into firstName and lastName
+    const nameParts = fullName.trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    // Hash password
+    const { hashPassword } = await import("@/utils/auth");
+    const hashedPassword = await hashPassword(password);
+
+    // Create user and realtor profile in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create user with REALTOR role
+      const user = await tx.user.create({
+        data: {
+          email: businessEmail,
+          businessEmail,
+          password: hashedPassword,
+          fullName: fullName || `${firstName} ${lastName}`,
+          firstName,
+          lastName,
+          phone: phoneNumber,
+          businessAddress,
+          role: "REALTOR",
+        },
+      });
+
+      // Validate brand color hex
+      const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+      const validBrandColor = primaryColor || brandColorHex;
+      if (validBrandColor && !colorRegex.test(validBrandColor)) {
+        throw new AppError("Invalid brand color hex format", 400);
+      }
+
+      // Create realtor profile
+      const realtor = await tx.realtor.create({
+        data: {
+          userId: user.id,
+          businessName: agencyName,
+          slug,
+          tagline,
+          corporateRegNumber,
+          // Branding colors
+          primaryColor: primaryColor || brandColorHex || "#3B82F6",
+          secondaryColor: secondaryColor || "#1E40AF",
+          accentColor: accentColor || "#F59E0B",
+          // Social media URLs
+          websiteUrl: socials?.websiteUrl,
+          instagramUrl: socials?.instagramUrl,
+          twitterUrl: socials?.twitterUrl,
+          linkedinUrl: socials?.linkedinUrl,
+          facebookUrl: socials?.facebookUrl,
+          youtubeUrl: socials?.youtubeUrl,
+          whatsappType: whatsappType || "business",
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+              createdAt: true,
+            },
+          },
+        },
+      });
+
+      return { user, realtor };
+    });
+
+    // Generate tokens for the new user
+    const { generateTokens } = await import("@/utils/auth");
+    const { accessToken, refreshToken } = generateTokens({
+      id: result.user.id,
+      email: result.user.email,
+      role: result.user.role,
+    });
+
+    // Store refresh token
+    // MVP: refreshToken model not supported
+
+    res.status(201).json({
+      success: true,
+      message: "Realtor registration completed successfully",
+      data: {
+        id: result.realtor.id,
+        email: result.user.email,
+        subdomain: slug,
+        // MVP: status field not supported
+        createdAt: result.realtor.createdAt,
+        user: result.user,
+        realtor: result.realtor,
+        accessToken,
+        refreshToken,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Create realtor profile for existing user
+ * @route   POST /api/realtors/profile/create
+ * @access  Private (USER with REALTOR role)
+ */
+export const createRealtorProfile = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const {
       businessName,
+      tagline,
+      corporateRegNumber,
       description,
       website,
       businessPhone,
@@ -86,44 +242,28 @@ export const registerRealtor = asyncHandler(
       data: {
         userId: req.user!.id,
         businessName,
+        tagline,
         slug,
-        description,
-        website,
-        businessPhone,
-        businessEmail,
-        businessAddress,
-        brandColorHex: brandColorHex || "#3B82F6",
-        status: "PENDING", // Requires admin approval
+        corporateRegNumber,
+        primaryColor: brandColorHex || "#3B82F6",
+        // MVP: status field not supported - auto-approved in MVP
       },
       include: {
         user: {
           select: {
             id: true,
-
+            email: true,
+            firstName: true,
+            lastName: true,
             role: true,
           },
         },
       },
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user!.id,
-        action: "REALTOR_REGISTER",
-        entity: "Realtor",
-        entityId: realtor.id,
-        details: {
-          businessName,
-          slug,
-          status: "PENDING",
-        },
-      },
-    });
-
     res.status(201).json({
       success: true,
-      message: "Realtor registration submitted for approval",
+      message: "Realtor profile created successfully",
       data: { realtor },
     });
   }
@@ -183,20 +323,6 @@ export const uploadLogo = asyncHandler(
         },
       });
 
-      // Create audit log
-      await prisma.auditLog.create({
-        data: {
-          userId: req.user!.id,
-          action: "REALTOR_LOGO_UPDATE",
-          entity: "Realtor",
-          entityId: realtor.id,
-          details: {
-            logoUrl: result.secure_url,
-            publicId: result.public_id,
-          },
-        },
-      });
-
       res.json({
         success: true,
         message: "Logo uploaded successfully",
@@ -211,62 +337,13 @@ export const uploadLogo = asyncHandler(
 
 export const startStripeOnboarding = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const realtor = await prisma.realtor.findUnique({
-      where: { userId: req.user!.id },
-      include: {
-        user: {
-          select: {
-            email: true,
-            country: true,
-          },
-        },
-      },
-    });
-
-    if (!realtor) {
-      throw new AppError("Realtor profile not found", 404);
-    }
-
-    if (!realtor.businessEmail && !realtor.user?.email) {
-      throw new AppError(
-        "Realtor must have a business or account email before onboarding",
-        400
-      );
-    }
-
-    let stripeAccountId = realtor.stripeAccountId;
-
-    if (!stripeAccountId) {
-      const account = await createConnectAccount({
-        id: realtor.id,
-        businessName: realtor.businessName,
-        businessEmail: realtor.businessEmail || realtor.user!.email!,
-        country: realtor.user?.country || "US",
-      });
-
-      stripeAccountId = account.id;
-
-      await prisma.realtor.update({
-        where: { id: realtor.id },
-        data: { stripeAccountId },
-      });
-    }
-
-    const refreshUrl = `${config.FRONTEND_URL}/dashboard/payments/stripe/onboarding?refresh=true`;
-    const returnUrl = `${config.FRONTEND_URL}/dashboard/payments/stripe/onboarding?completed=true`;
-
-    const link = await createAccountLink(
-      stripeAccountId,
-      refreshUrl,
-      returnUrl
-    );
-
-    return res.json({
-      success: true,
-      message: "Stripe onboarding link generated",
+    // MVP: Stripe integration not available
+    return res.status(501).json({
+      success: false,
+      message: "Payment integration not available in MVP",
       data: {
-        url: link.url,
-        expiresAt: link.expiresAt,
+        available: false,
+        reason: "MVP version does not include payment processing",
       },
     });
   }
@@ -274,59 +351,13 @@ export const startStripeOnboarding = asyncHandler(
 
 export const getStripeAccountStatusController = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const realtor = await prisma.realtor.findUnique({
-      where: { userId: req.user!.id },
-      include: {
-        user: {
-          select: {
-            country: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    if (!realtor) {
-      throw new AppError("Realtor profile not found", 404);
-    }
-
-    if (!realtor.stripeAccountId) {
-      return res.json({
-        success: true,
-        message: "Stripe account not connected",
-        data: {
-          connected: false,
-          requiresOnboarding: true,
-          detailsSubmitted: false,
-          payoutsEnabled: false,
-          chargesEnabled: false,
-          outstandingRequirements: [],
-          releaseOffsetHours: config.ESCROW_RELEASE_OFFSET_HOURS,
-        },
-      });
-    }
-
-    const status = await getAccountStatus(realtor.stripeAccountId);
-    const requirements = status.requirements;
-    const outstandingRequirements = [
-      ...(requirements?.currently_due || []),
-      ...(requirements?.past_due || []),
-      ...(requirements?.pending_verification || []),
-    ];
-
-    return res.json({
-      success: true,
-      message: "Stripe account status retrieved",
+    // MVP: Stripe integration not available
+    return res.status(501).json({
+      success: false,
+      message: "Payment integration not available in MVP",
       data: {
-        connected: true,
-        stripeAccountId: status.id,
-        chargesEnabled: status.chargesEnabled,
-        payoutsEnabled: status.payoutsEnabled,
-        detailsSubmitted: status.detailsSubmitted,
-        disabledReason: requirements?.disabled_reason || null,
-        outstandingRequirements,
-        releaseOffsetHours: config.ESCROW_RELEASE_OFFSET_HOURS,
-        requiresOnboarding: !status.detailsSubmitted,
+        available: false,
+        reason: "MVP version does not include payment processing",
       },
     });
   }
@@ -334,26 +365,13 @@ export const getStripeAccountStatusController = asyncHandler(
 
 export const getStripeDashboardLinkController = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const realtor = await prisma.realtor.findUnique({
-      where: { userId: req.user!.id },
-    });
-
-    if (!realtor) {
-      throw new AppError("Realtor profile not found", 404);
-    }
-
-    if (!realtor.stripeAccountId) {
-      throw new AppError("Realtor has not started Stripe onboarding", 400);
-    }
-
-    const link = await createDashboardLink(realtor.stripeAccountId);
-
-    return res.json({
-      success: true,
-      message: "Stripe dashboard link generated",
+    // MVP: Stripe integration not available
+    return res.status(501).json({
+      success: false,
+      message: "Payment integration not available in MVP",
       data: {
-        url: link.url,
-        expiresAt: link.expiresAt,
+        available: false,
+        reason: "MVP version does not include payment processing",
       },
     });
   }
@@ -372,9 +390,10 @@ export const getRealtorProfile = asyncHandler(
         user: {
           select: {
             id: true,
-
-            country: true,
-            city: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
             createdAt: true,
           },
         },
@@ -386,11 +405,10 @@ export const getRealtorProfile = asyncHandler(
             pricePerNight: true,
             currency: true,
             isActive: true,
-            isApproved: true,
+            // MVP: isApproved field not supported - all active properties visible
             createdAt: true,
           },
         },
-        refundPolicies: true,
         _count: {
           select: {
             properties: true,
@@ -466,22 +484,12 @@ export const updateRealtorProfile = asyncHandler(
         user: {
           select: {
             id: true,
-
-            country: true,
-            city: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
           },
         },
-      },
-    });
-
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user!.id,
-        action: "REALTOR_PROFILE_UPDATE",
-        entity: "Realtor",
-        entityId: realtor.id,
-        details: updateData,
       },
     });
 
@@ -503,16 +511,17 @@ export const getPublicRealtorProfile = asyncHandler(
     const { slug } = req.params;
 
     const realtor = await prisma.realtor.findUnique({
-      where: { slug, status: "APPROVED", isActive: true },
+      where: { slug, isActive: true }, // MVP: status field removed
       include: {
         user: {
           select: {
-            city: true,
-            country: true,
+            id: true,
+            firstName: true,
+            lastName: true,
           },
         },
         properties: {
-          where: { isActive: true, isApproved: true },
+          where: { isActive: true },
           include: {
             images: {
               select: {
@@ -537,7 +546,7 @@ export const getPublicRealtorProfile = asyncHandler(
         _count: {
           select: {
             properties: {
-              where: { isActive: true, isApproved: true },
+              where: { isActive: true },
             },
           },
         },
