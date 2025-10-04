@@ -5,6 +5,15 @@ import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
 import { config } from "@/config";
+import {
+  hashPassword,
+  generateTokens,
+  generateRandomToken,
+} from "@/utils/auth";
+import {
+  sendEmailVerification,
+  sendRealtorWelcomeEmail,
+} from "@/services/email";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -35,6 +44,135 @@ const generateUniqueSlug = async (businessName: string): Promise<string> => {
 
   return slug;
 };
+
+/**
+ * @desc    Upload temporary logo during registration
+ * @route   POST /api/realtors/upload-temp-logo
+ * @access  Public
+ */
+export const uploadTempLogo = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      throw new AppError("Please upload a logo image", 400);
+    }
+
+    try {
+      // Upload to Cloudinary with temporary prefix
+      const base64Data = `data:${
+        req.file.mimetype
+      };base64,${req.file.buffer.toString("base64")}`;
+      const result = await cloudinary.uploader.upload(base64Data, {
+        resource_type: "image",
+        folder: "temp-logos",
+        public_id: `temp-${Date.now()}-logo`,
+        format: "webp",
+        transformation: [
+          { width: 200, height: 200, crop: "limit" },
+          { quality: "auto" },
+        ],
+      });
+
+      res.json({
+        success: true,
+        message: "Temporary logo uploaded successfully",
+        data: {
+          url: result.secure_url,
+          id: result.public_id,
+        },
+      });
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      throw new AppError("Failed to upload logo", 500);
+    }
+  }
+);
+
+/**
+ * @desc    Check subdomain availability
+ * @route   GET /api/realtors/subdomain/check
+ * @access  Public
+ */
+export const checkSubdomainAvailability = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { subdomain } = req.query;
+
+    if (!subdomain || typeof subdomain !== "string") {
+      throw new AppError("Subdomain is required", 400);
+    }
+
+    // Normalize subdomain
+    const normalizedSubdomain = subdomain.toLowerCase().trim();
+
+    // Check format - only letters, numbers, and hyphens
+    const subdomainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+    if (!subdomainRegex.test(normalizedSubdomain)) {
+      return res.json({
+        success: true,
+        data: {
+          available: false,
+          reason: "Invalid format. Use only letters, numbers, and hyphens.",
+        },
+      });
+    }
+
+    // Check if subdomain is reserved
+    const reserved = [
+      "admin",
+      "api",
+      "www",
+      "stayza",
+      "app",
+      "mail",
+      "support",
+      "help",
+      "blog",
+      "news",
+      "docs",
+      "status",
+      "dev",
+      "test",
+      "staging",
+      "prod",
+      "production",
+      "dashboard",
+      "portal",
+    ];
+
+    if (reserved.includes(normalizedSubdomain)) {
+      return res.json({
+        success: true,
+        data: {
+          available: false,
+          reason: "This subdomain is reserved and cannot be used.",
+        },
+      });
+    }
+
+    // Check if subdomain is already taken
+    const existingRealtor = await prisma.realtor.findUnique({
+      where: { slug: normalizedSubdomain },
+    });
+
+    if (existingRealtor) {
+      return res.json({
+        success: true,
+        data: {
+          available: false,
+          reason: "This subdomain is already taken.",
+        },
+      });
+    }
+
+    // Subdomain is available
+    return res.json({
+      success: true,
+      data: {
+        available: true,
+        subdomain: normalizedSubdomain,
+      },
+    });
+  }
+);
 
 /**
  * @desc    Complete realtor registration (User + Realtor profile)
@@ -102,12 +240,15 @@ export const registerRealtor = asyncHandler(
     const lastName = nameParts.slice(1).join(" ") || "";
 
     // Hash password
-    const { hashPassword } = await import("@/utils/auth");
     const hashedPassword = await hashPassword(password);
+
+    // Generate email verification token
+    const emailVerificationToken = generateRandomToken();
+    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Create user and realtor profile in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create user with REALTOR role
+      // Create user with REALTOR role and email verification
       const user = await tx.user.create({
         data: {
           email: businessEmail,
@@ -119,6 +260,9 @@ export const registerRealtor = asyncHandler(
           phone: phoneNumber,
           businessAddress,
           role: "REALTOR",
+          isEmailVerified: false,
+          emailVerificationToken,
+          emailVerificationExpires,
         },
       });
 
@@ -136,7 +280,10 @@ export const registerRealtor = asyncHandler(
           businessName: agencyName,
           slug,
           tagline,
+          description: tagline, // Use tagline as initial description
           corporateRegNumber,
+          businessPhone: phoneNumber, // Map phone to businessPhone
+          status: "PENDING", // All new realtors start as pending
           // Branding colors
           primaryColor: primaryColor || brandColorHex || "#3B82F6",
           secondaryColor: secondaryColor || "#1E40AF",
@@ -168,24 +315,41 @@ export const registerRealtor = asyncHandler(
     });
 
     // Generate tokens for the new user
-    const { generateTokens } = await import("@/utils/auth");
     const { accessToken, refreshToken } = generateTokens({
       id: result.user.id,
       email: result.user.email,
       role: result.user.role,
     });
 
+    // Send email verification and realtor welcome email
+    const verificationUrl = `${
+      config.FRONTEND_URL
+    }/verify-email?token=${emailVerificationToken}&email=${encodeURIComponent(
+      result.user.email
+    )}`;
+    const dashboardUrl = `${config.FRONTEND_URL}/dashboard`;
+
+    // Send realtor welcome email with verification link
+    sendRealtorWelcomeEmail(
+      result.user.email,
+      firstName,
+      agencyName,
+      dashboardUrl,
+      verificationUrl
+    ).catch((err) => console.error("Realtor welcome email failed", err));
+
     // Store refresh token
     // MVP: refreshToken model not supported
 
     res.status(201).json({
       success: true,
-      message: "Realtor registration completed successfully",
+      message:
+        "Realtor registration completed successfully. Your application is pending admin approval.",
       data: {
         id: result.realtor.id,
         email: result.user.email,
         subdomain: slug,
-        // MVP: status field not supported
+        status: result.realtor.status,
         createdAt: result.realtor.createdAt,
         user: result.user,
         realtor: result.realtor,

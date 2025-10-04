@@ -245,12 +245,7 @@ export function ConditionalLogic({
       if (domainInfo?.potentialCompanyName) {
         // Suggest agency name based on email domain
         setValue("agencyName", domainInfo.potentialCompanyName);
-        // Set website in socials object
-        const currentSocials = getValues("socials") || {};
-        setValue("socials", {
-          ...currentSocials,
-          website: domainInfo.websiteDomain,
-        });
+        // Website domain is generated from subdomain, not stored in socials
       }
     }
   }, [businessEmail, agencyName, extractDomainInfo, setValue, getValues]);
@@ -314,14 +309,7 @@ export function ConditionalLogic({
         );
         setBusinessSuggestion(suggestions);
 
-        // Auto-apply website domain if not set
-        const currentSocials = getValues("socials") || {};
-        if (!currentSocials.website && suggestions.websiteDomain) {
-          setValue("socials", {
-            ...currentSocials,
-            website: suggestions.websiteDomain,
-          });
-        }
+        // Website domain is generated from subdomain, not stored in socials
       }
     }
   }, [

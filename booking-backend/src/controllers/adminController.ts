@@ -92,6 +92,8 @@ export const approveRealtor = asyncHandler(
           select: {
             id: true,
             email: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
@@ -101,11 +103,34 @@ export const approveRealtor = asyncHandler(
       throw new AppError("Realtor not found", 404);
     }
 
-    // MVP: All realtors are auto-approved on registration
+    if (realtor.status === "APPROVED") {
+      throw new AppError("Realtor is already approved", 400);
+    }
+
+    // Update status to APPROVED
+    const updatedRealtor = await prisma.realtor.update({
+      where: { id },
+      data: {
+        status: "APPROVED",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // TODO: Send approval email notification
+
     res.json({
       success: true,
-      message: "Realtor is already active - MVP has auto-approval",
-      data: { realtor },
+      message: "Realtor approved successfully",
+      data: { realtor: updatedRealtor },
     });
   }
 );
@@ -118,6 +143,7 @@ export const approveRealtor = asyncHandler(
 export const rejectRealtor = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
+    const { reason } = req.body;
 
     const realtor = await prisma.realtor.findUnique({
       where: { id },
@@ -126,6 +152,8 @@ export const rejectRealtor = asyncHandler(
           select: {
             id: true,
             email: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
@@ -135,24 +163,33 @@ export const rejectRealtor = asyncHandler(
       throw new AppError("Realtor not found", 404);
     }
 
-    // MVP: Rejection workflow not implemented - use isActive instead
+    if (realtor.status === "REJECTED") {
+      throw new AppError("Realtor is already rejected", 400);
+    }
+
+    // Update status to REJECTED
     const updatedRealtor = await prisma.realtor.update({
       where: { id },
       data: {
-        isActive: false,
+        status: "REJECTED",
       },
       include: {
         user: {
           select: {
             id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
     });
 
+    // TODO: Send rejection email notification with reason
+
     res.json({
       success: true,
-      message: "Realtor deactivated successfully (MVP rejection)",
+      message: "Realtor application rejected",
       data: { realtor: updatedRealtor },
     });
   }

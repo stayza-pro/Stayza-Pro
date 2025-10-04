@@ -38,19 +38,19 @@ import { palette } from "@/app/(marketing)/content";
 import {
   realtorRegistrationSchema,
   type RealtorRegistrationFormData,
+  validatePhoneNumber,
 } from "./schema";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { GuidedTipsCarousel } from "./GuidedTipsCarousel";
 import PreviewComponent from "./PreviewComponent";
 
 import { MobileStickyAction } from "./MobileStickyAction";
-import { ErrorSummary } from "./ErrorSummary";
+
 import { ColorPaletteGenerator } from "./ColorPaletteGenerator";
 import { PhoneNumberFormatter } from "./PhoneNumberFormatter";
 import { SocialMediaValidator } from "./SocialMediaValidator";
 
 import { AccessibilityEnhancer } from "./AccessibilityEnhancer";
-import { BusinessEmailValidator } from "./BusinessEmailValidator";
 import { EnhancedErrorHandler } from "./EnhancedErrorHandler";
 import ConditionalLogic from "./ConditionalLogic";
 import SmartInput from "./SmartInput";
@@ -119,12 +119,9 @@ function RealtorRegistrationContent() {
 
       // Social Media (Step 4)
       socials: {
-        website: "",
         instagram: "",
         twitter: "",
-        linkedin: "",
         facebook: "",
-        youtube: "",
       },
       whatsappType: "personal",
 
@@ -309,36 +306,229 @@ function RealtorRegistrationContent() {
     }
   }, [watchedData.customSubdomain]);
 
-  // Step validation and navigation
+  // Error notification handler with toast (only show on form submission attempts)
+  const showErrorToasts = () => {
+    const errorEntries = Object.entries(errors);
+
+    if (errorEntries.length > 0) {
+      if (errorEntries.length === 1) {
+        // Single error - show specific message
+        const [field, error] = errorEntries[0];
+        let message = "Invalid input";
+        if (typeof error === "string") {
+          message = error;
+        } else if (error && typeof error === "object" && "message" in error) {
+          message = String(error.message) || "Invalid input";
+        }
+
+        const fieldName = field
+          .replace(/([A-Z])/g, " $1")
+          .replace(/\./g, " > ")
+          .replace(/^./, (str) => str.toUpperCase())
+          .trim();
+
+        toast.error(`${fieldName}: ${message}`, {
+          duration: 4000,
+          position: "top-right",
+        });
+      } else {
+        // Multiple errors - show summary
+        toast.error(`Please fix ${errorEntries.length} validation errors`, {
+          duration: 4000,
+          position: "top-right",
+        });
+      }
+    }
+  };
+
+  const showSocialValidationToasts = () => {
+    if (
+      !socialValidation.isValid &&
+      Object.keys(socialValidation.errors).length > 0
+    ) {
+      Object.entries(socialValidation.errors).forEach(([platform, message]) => {
+        const platformName =
+          platform.charAt(0).toUpperCase() + platform.slice(1);
+        toast.error(`${platformName}: ${message}`, {
+          duration: 5000,
+          position: "top-right",
+        });
+      });
+    }
+  };
+
+  // Function to show individual field validation errors via toast
+  const showFieldErrorToast = (fieldName: string, errorMessage: string) => {
+    const displayName = fieldName
+      .replace(/([A-Z])/g, " $1")
+      .replace(/\./g, " > ")
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
+
+    toast.error(`${displayName}: ${errorMessage}`, {
+      duration: 3000,
+      position: "top-right",
+    });
+  };
+
+  // Enhanced step validation with comprehensive error checking
   const isStepValid = async (stepIndex: number) => {
     const stepFields = formSteps[stepIndex]?.fields || [];
     const result = await trigger(stepFields as any);
 
-    // Special validation for account setup step (includes email validation)
-    if (stepIndex === 0) {
-      return result && emailValidation.isValid;
+    // Get current form data and form errors
+    const currentData = getValues();
+    const formErrors = Object.keys(errors).length > 0;
+    let isValid = result && !formErrors;
+    let validationErrors: string[] = [];
+
+    // Check for any existing form errors first and specifically check step fields
+    const stepFieldErrors = stepFields.filter(
+      (field) => errors[field as keyof typeof errors]
+    );
+    if (stepFieldErrors.length > 0) {
+      isValid = false;
+      stepFieldErrors.forEach((field) => {
+        const error = errors[field as keyof typeof errors];
+        if (error?.message) {
+          validationErrors.push(`${field}: ${error.message}`);
+        }
+      });
+    } // Step-specific validation
+    switch (stepIndex) {
+      case 0: // Account Setup
+        if (!emailValidation.isValid) {
+          validationErrors.push(
+            "Please provide a valid business email address"
+          );
+          isValid = false;
+        }
+
+        // Check for required fields
+        if (!currentData.fullName?.trim()) {
+          validationErrors.push("Full name is required");
+          isValid = false;
+        }
+        if (!currentData.businessEmail?.trim()) {
+          validationErrors.push("Business email is required");
+          isValid = false;
+        }
+        if (!currentData.phoneNumber?.trim()) {
+          validationErrors.push("Phone number is required");
+          isValid = false;
+        } else {
+          // Validate phone number format using international validation
+          const phoneValidation = validatePhoneNumber(
+            currentData.phoneNumber,
+            "NG"
+          );
+          if (!phoneValidation.isValid) {
+            validationErrors.push(
+              phoneValidation.errorMessage ||
+                "Invalid phone number format. Please enter a valid international number (e.g. +234 807 123 4567, +1 555 123 4567)"
+            );
+            isValid = false;
+          }
+        }
+        if (!currentData.password) {
+          validationErrors.push("Password is required");
+          isValid = false;
+        }
+        if (!currentData.confirmPassword) {
+          validationErrors.push("Password confirmation is required");
+          isValid = false;
+        }
+        if (currentData.password !== currentData.confirmPassword) {
+          validationErrors.push("Passwords must match");
+          isValid = false;
+        }
+        break;
+
+      case 1: // Business Info
+        if (!currentData.agencyName?.trim()) {
+          validationErrors.push("Agency name is required");
+          isValid = false;
+        }
+        if (!currentData.customSubdomain?.trim()) {
+          validationErrors.push("Custom subdomain is required");
+          isValid = false;
+        }
+        if (!currentData.businessAddress?.trim()) {
+          validationErrors.push("Business address is required");
+          isValid = false;
+        }
+        break;
+
+      case 2: // Branding
+        if (!currentData.primaryColor) {
+          validationErrors.push("Primary color selection is required");
+          isValid = false;
+        }
+        if (!currentData.secondaryColor) {
+          validationErrors.push("Secondary color selection is required");
+          isValid = false;
+        }
+        if (!currentData.accentColor) {
+          validationErrors.push("Accent color selection is required");
+          isValid = false;
+        }
+        break;
+
+      case 3: // Social & Contact
+        if (!socialValidation.isValid) {
+          validationErrors.push("Please fix social media URL errors");
+          isValid = false;
+        }
+        break;
     }
 
-    // Special validation for social media step
-    if (stepIndex === 3) {
-      return result && socialValidation.isValid;
+    // Show validation error toasts
+    if (validationErrors.length > 0) {
+      validationErrors.forEach((error) => {
+        toast.error(error, {
+          duration: 4000,
+          position: "top-right",
+        });
+      });
+      isValid = false;
     }
 
-    return result;
+    return isValid && result;
   };
 
   const nextStep = async () => {
     const valid = await isStepValid(currentStep);
+    console.log(`Step ${currentStep} validation result:`, valid);
+    console.log("Current errors:", errors);
+    console.log("Form data:", getValues());
+
     if (valid && currentStep < formSteps.length - 1) {
       // Mark current step as completed
       if (!completedSteps.includes(currentStep)) {
         setCompletedSteps((prev) => [...prev, currentStep]);
       }
 
+      // Show success toast for completed step
+      const stepName =
+        formSteps[currentStep]?.title || `Step ${currentStep + 1}`;
+      toast.success(`${stepName} completed successfully!`, {
+        duration: 2000,
+        position: "top-right",
+      });
+
       setCurrentStep(currentStep + 1);
       clearErrors();
     } else if (!valid) {
-      toast.error("Please fix the errors before continuing");
+      // Additional form-level error toast if needed
+      toast.error(
+        `Please complete all required fields in ${
+          formSteps[currentStep]?.title || "this step"
+        }`,
+        {
+          duration: 3000,
+          position: "top-right",
+        }
+      );
 
       // Animate form to show errors
       const firstErrorField = document.querySelector(".border-red-500");
@@ -414,6 +604,16 @@ function RealtorRegistrationContent() {
   // Enhanced form submission with API integration
   const onSubmit = async (formData: RealtorRegistrationFormData) => {
     setSubmitError(null);
+
+    // Final validation check before submission
+    const finalValid = await isStepValid(currentStep);
+    if (!finalValid) {
+      toast.error("Please complete all required fields before submitting", {
+        duration: 4000,
+        position: "top-right",
+      });
+      return;
+    }
 
     // Register realtor via API
     const registrationResult = await registrationApi.execute(
@@ -586,46 +786,18 @@ function RealtorRegistrationContent() {
                   *
                 </span>
               </label>
-              <BusinessEmailValidator
+              <input
+                type="email"
+                id="businessEmail"
                 value={watchedData.businessEmail || ""}
-                onChange={(value) => {
-                  setValue("businessEmail", value);
-                  if (emailValidation.isValid) {
-                    clearErrors("businessEmail");
-                  }
-                }}
-                onValidationChange={(result) => {
-                  setEmailValidation({
-                    isValid: result.isValid,
-                    type: result.type,
-                    confidence: result.confidence,
-                  });
-
-                  // Set form errors based on validation
-                  if (!result.isValid) {
-                    // We need to trigger validation to set the error
-                    trigger("businessEmail");
-                  } else {
-                    clearErrors("businessEmail");
-                  }
-                }}
+                onChange={(e) => setValue("businessEmail", e.target.value)}
                 placeholder="your.email@domain.com"
-                required={true}
-                className="w-full"
+                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
               />
               <p className="text-xs text-gray-500 mt-1">
-                Enter a valid email address for account verification.
+                Enter your email address.
               </p>
-              {errors.businessEmail && (
-                <p
-                  id="businessEmail-error"
-                  className="text-red-500 text-sm mt-1"
-                  role="alert"
-                  aria-live="polite"
-                >
-                  {errors.businessEmail.message}
-                </p>
-              )}
             </div>
 
             <div>
@@ -643,6 +815,9 @@ function RealtorRegistrationContent() {
                     clearErrors("phoneNumber");
                   }
                 }}
+                defaultCountry="NG"
+                preferredCountries={["NG", "US", "GB", "CA", "AU"]}
+                showCountrySelector={true}
                 error={errors.phoneNumber?.message}
                 placeholder="Enter your phone number"
               />
@@ -674,11 +849,6 @@ function RealtorRegistrationContent() {
                   )}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.password.message}
-                </p>
-              )}
               <PasswordStrengthMeter password={watchedData.password || ""} />
             </div>
 
@@ -710,11 +880,6 @@ function RealtorRegistrationContent() {
                   )}
                 </button>
               </div>
-              {errors.confirmPassword && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
             </div>
           </div>
         );
@@ -735,14 +900,8 @@ function RealtorRegistrationContent() {
                   );
                 }
 
-                // Auto-suggest website domain if not set
-                if (metadata?.websiteDomain && !watchedData.socials?.website) {
-                  const currentSocials = watchedData.socials || {};
-                  setValue("socials", {
-                    ...currentSocials,
-                    website: metadata.websiteDomain,
-                  });
-                }
+                // Website domain is auto-generated from subdomain
+                // No longer including it in social media profiles
               }}
               placeholder="Enter your company name (e.g., Premium Properties LLC)"
               suggestionType="business"
@@ -767,11 +926,6 @@ function RealtorRegistrationContent() {
                 placeholder="Luxury stays, unforgettable experiences"
                 className={errors.tagline ? "border-red-500" : ""}
               />
-              {errors.tagline && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.tagline.message}
-                </p>
-              )}
             </div>
 
             <div>
@@ -786,6 +940,11 @@ function RealtorRegistrationContent() {
                   {...register("customSubdomain")}
                   type="text"
                   placeholder="yourcompany"
+                  onChange={(e) => {
+                    // Normalize to lowercase as user types
+                    const normalized = e.target.value.toLowerCase();
+                    setValue("customSubdomain", normalized);
+                  }}
                   className={
                     errors.customSubdomain
                       ? "border-red-500 rounded-r-none"
@@ -847,12 +1006,6 @@ function RealtorRegistrationContent() {
                     </div>
                   </div>
                 )}
-
-              {errors.customSubdomain && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.customSubdomain.message}
-                </p>
-              )}
             </div>
 
             <div>
@@ -868,11 +1021,6 @@ function RealtorRegistrationContent() {
                 placeholder="RC 123456"
                 className={errors.corporateRegNumber ? "border-red-500" : ""}
               />
-              {errors.corporateRegNumber && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.corporateRegNumber.message}
-                </p>
-              )}
             </div>
 
             <SmartInput
@@ -971,12 +1119,15 @@ function RealtorRegistrationContent() {
                 currentColors={{
                   primary: watchedData.primaryColor,
                   secondary: watchedData.secondaryColor,
+                  accent: watchedData.accentColor,
                 }}
                 onColorsChange={(colors) => {
                   setValue("primaryColor", colors.primary);
                   setValue("secondaryColor", colors.secondary);
+                  setValue("accentColor", colors.accent);
                   clearErrors("primaryColor");
                   clearErrors("secondaryColor");
+                  clearErrors("accentColor");
                 }}
               />
             </div>
@@ -994,11 +1145,6 @@ function RealtorRegistrationContent() {
                 placeholder="Your business tagline..."
                 className={errors.tagline ? "border-red-500" : ""}
               />
-              {errors.tagline && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.tagline.message}
-                </p>
-              )}
             </div>
           </div>
         );
@@ -1006,34 +1152,7 @@ function RealtorRegistrationContent() {
       case 3: // Social Media
         return (
           <div className="space-y-6">
-            <div>
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ color: palette.neutralDark }}
-              >
-                WhatsApp Type
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    {...register("whatsappType")}
-                    value="personal"
-                    className="text-blue-600"
-                  />
-                  <span>Personal</span>
-                </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    {...register("whatsappType")}
-                    value="business"
-                    className="text-blue-600"
-                  />
-                  <span>Business</span>
-                </label>
-              </div>
-            </div>
+            {/* WhatsApp type selection is now handled within SocialMediaValidator */}
 
             <SocialMediaValidator
               profiles={
@@ -1046,6 +1165,11 @@ function RealtorRegistrationContent() {
               onChange={(updatedProfiles) => {
                 setValue("socials", updatedProfiles);
                 clearErrors("socials");
+              }}
+              whatsappType={watchedData.whatsappType}
+              onWhatsappTypeChange={(type) => {
+                setValue("whatsappType", type);
+                clearErrors("whatsappType");
               }}
               onValidationChange={(isValid, errors) => {
                 setSocialValidation({ isValid, errors });
@@ -1064,32 +1188,9 @@ function RealtorRegistrationContent() {
                 }
               }}
               maxProfiles={6}
-              required={["website"]} // Make website required
+              required={[]} // No social media platforms are required
               className="mt-4"
             />
-
-            {/* Display social validation errors */}
-            {!socialValidation.isValid &&
-              Object.keys(socialValidation.errors).length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-red-800 mb-2">
-                    Please fix the following social media URLs:
-                  </h4>
-                  <ul className="text-sm text-red-700 space-y-1">
-                    {Object.entries(socialValidation.errors).map(
-                      ([platform, message]) => (
-                        <li key={platform} className="flex items-center">
-                          <span className="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
-                          <strong className="capitalize mr-1">
-                            {platform}:
-                          </strong>
-                          {message}
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
           </div>
         );
 
@@ -1154,11 +1255,6 @@ function RealtorRegistrationContent() {
                   </a>
                 </span>
               </label>
-              {errors.termsAccepted && (
-                <p className="text-red-500 text-sm">
-                  {errors.termsAccepted.message}
-                </p>
-              )}
 
               <label className="flex items-start space-x-3 cursor-pointer">
                 <input
@@ -1171,11 +1267,6 @@ function RealtorRegistrationContent() {
                   in the Privacy Policy
                 </span>
               </label>
-              {errors.privacyAccepted && (
-                <p className="text-red-500 text-sm">
-                  {errors.privacyAccepted.message}
-                </p>
-              )}
 
               <label className="flex items-start space-x-3 cursor-pointer">
                 <input
@@ -1188,11 +1279,6 @@ function RealtorRegistrationContent() {
                   and service provision
                 </span>
               </label>
-              {errors.dataProcessingConsent && (
-                <p className="text-red-500 text-sm">
-                  {errors.dataProcessingConsent.message}
-                </p>
-              )}
 
               <label className="flex items-start space-x-3 cursor-pointer">
                 <input
@@ -1233,48 +1319,6 @@ function RealtorRegistrationContent() {
             retryOn: ["network", "server", "timeout"],
           }}
         />
-
-        {/* Error Summary */}
-        {Object.keys(errors).length > 0 && (
-          <ErrorSummary
-            errors={Object.entries(errors).reduce((acc, [key, error]) => {
-              // Safely extract string message from any error type
-              let message = "Invalid input";
-              if (typeof error === "string") {
-                message = error;
-              } else if (
-                error &&
-                typeof error === "object" &&
-                "message" in error
-              ) {
-                message = String(error.message) || "Invalid input";
-              } else if (
-                error &&
-                typeof error === "object" &&
-                "type" in error
-              ) {
-                message = `Validation error: ${error.type}`;
-              }
-              acc[key] = message;
-              return acc;
-            }, {} as Record<string, string>)}
-            currentStep={currentStep}
-            stepNames={formSteps.map((step) => step.title)}
-            onFieldFocus={(fieldName, step) => {
-              if (step !== undefined && step !== currentStep) {
-                setCurrentStep(step);
-              }
-              // Focus field after step change
-              setTimeout(() => {
-                const element = document.querySelector(
-                  `[name="${fieldName}"]`
-                ) as HTMLElement;
-                element?.focus?.();
-              }, 300);
-            }}
-            onStepChange={setCurrentStep}
-          />
-        )}
 
         {/* Guided Tips Carousel for first-time users */}
         {isFirstVisit && showGuidedTips && (

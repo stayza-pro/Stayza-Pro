@@ -1,172 +1,361 @@
-import { CTAButton } from "@/app/(marketing)/components/CTAButton";
-import {
-  lightOnDarkCTAStyles,
-  outlineOnDarkCTAStyles,
-} from "@/app/(marketing)/components/buttonStyles";
-import { SectionHero } from "@/app/(marketing)/components/SectionHero";
-import { SectionPageShell } from "@/app/(marketing)/components/SectionPageShell";
+"use client";
 
-const contactChannels = [
-  {
-    title: "Sales & onboarding",
-    description: "Talk through pricing, rollout timelines, and integrations.",
-    action: {
-      label: "Book a discovery call",
-      href: "https://cal.com/stayza-pro/discovery",
-    },
-  },
-  {
-    title: "Support",
-    description:
-      "Existing customers can open a ticket for configuration help or incident response.",
-    action: {
-      label: "Open support portal",
-      href: "https://support.stayza.pro",
-    },
-  },
-  {
-    title: "Partnerships",
-    description:
-      "Explore co-marketing, integrations, or reseller opportunities.",
-    action: {
-      label: "Email partnerships",
-      href: "mailto:partnerships@stayza.pro",
-    },
-  },
-];
+import { motion, useReducedMotion } from "framer-motion";
+import { CTAButton } from "@/app/(marketing)/components/CTAButton";
+import { SectionTitle } from "@/app/(marketing)/components/SectionTitle";
+import { Navigation } from "@/app/(marketing)/sections/Navigation";
+import { FooterSection } from "@/app/(marketing)/sections/FooterSection";
+import {
+  MessageCircle,
+  Phone,
+  Mail,
+  Calendar,
+  MapPin,
+  Clock,
+} from "lucide-react";
 
 export default function ContactPage() {
+  const shouldReduceMotion = useReducedMotion();
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: shouldReduceMotion ? 0 : 0.6, ease: "easeOut" },
+    },
+  };
+
+  const orbVariants = {
+    animate: shouldReduceMotion
+      ? {}
+      : {
+          scale: [1, 1.1, 1],
+          opacity: [0.3, 0.6, 0.3],
+          transition: {
+            duration: 6,
+            repeat: Infinity,
+            repeatType: "reverse" as const,
+            ease: "easeInOut",
+          },
+        },
+  };
+
+  const contactChannels = [
+    {
+      icon: Mail,
+      title: "General Inquiries",
+      description: "Have questions about Stayza or need general information?",
+      contact: "hello@stayza.com",
+      action: "Send Email",
+    },
+    {
+      icon: Phone,
+      title: "Support",
+      description: "Need help with your account or technical assistance?",
+      contact: "support@stayza.com",
+      action: "Get Support",
+    },
+    {
+      icon: Calendar,
+      title: "Sales & Partnerships",
+      description: "Interested in partnerships or enterprise solutions?",
+      contact: "sales@stayza.com",
+      action: "Schedule Call",
+    },
+  ];
+
   return (
-    <SectionPageShell>
-      <SectionHero
-        kicker="We reply within one business day"
-        title="Contact the Stayza Pro team"
-        description="We&rsquo;re here to help you launch and scale branded booking microsites for every realtor on your roster."
-        actions={
-          <>
-            <CTAButton
-              label="Book a discovery call"
-              href="https://cal.com/stayza-pro/discovery"
-              styleOverrides={lightOnDarkCTAStyles}
-            />
-            <CTAButton
-              label="Email hello@stayza.pro"
-              variant="outline"
-              href="mailto:hello@stayza.pro"
-              styleOverrides={outlineOnDarkCTAStyles}
-              icon={null}
-            />
-          </>
-        }
-      />
-      <div className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-12 sm:px-6 lg:px-8">
-        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-[rgba(255,255,255,0.98)] via-[rgba(248,250,252,0.92)] to-[rgba(226,232,240,0.86)] p-10 shadow-[0_28px_90px_rgba(15,23,42,0.18)]">
-          <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="space-y-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-marketing-muted">
-                How can we help?
-              </p>
-              <h2 className="text-3xl font-semibold text-marketing-foreground">
-                Tap the crew focused on your next milestone
-              </h2>
-              <p className="text-sm text-marketing-muted">
-                Pick the lane that matches your goals. We connect you with
-                specialists who can move from first call to rollout planning in
-                days, not weeks.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <CTAButton
-                  label="Book a 15-minute consult"
-                  href="https://cal.com/stayza-pro/discovery"
+    <div className="min-h-screen marketing-theme">
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex flex-col bg-marketing-primary">
+        {/* Animated Background Orbs */}
+        <motion.div
+          className="absolute inset-0 overflow-hidden pointer-events-none"
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
+          <motion.div
+            className="absolute top-20 right-20 w-64 h-64 bg-marketing-secondary/20 rounded-full blur-3xl"
+            variants={orbVariants}
+            animate="animate"
+          />
+          <motion.div
+            className="absolute bottom-40 left-20 w-96 h-96 bg-marketing-accent/20 rounded-full blur-3xl"
+            variants={orbVariants}
+            animate="animate"
+            transition={{ delay: 1 }}
+          />
+          <motion.div
+            className="absolute top-1/2 right-1/3 w-48 h-48 bg-marketing-primary-soft/30 rounded-full blur-2xl"
+            variants={orbVariants}
+            animate="animate"
+            transition={{ delay: 2 }}
+          />
+        </motion.div>
+
+        <Navigation />
+
+        <div className="flex-1 flex items-center justify-center px-6 relative z-10">
+          <motion.div
+            className="text-center max-w-4xl mx-auto"
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+          >
+            {/* Badge */}
+            <motion.div
+              className="inline-flex items-center px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm font-medium mb-8"
+              variants={itemVariants}
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Let's Connect
+            </motion.div>
+
+            <motion.h1
+              className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white mb-6"
+              variants={itemVariants}
+            >
+              Contact <span className="text-marketing-accent">Stayza</span>
+            </motion.h1>
+
+            <motion.p
+              className="text-xl md:text-2xl text-white/80 leading-relaxed mb-12 max-w-3xl mx-auto"
+              variants={itemVariants}
+            >
+              We're here to help. Reach out to our team for questions, support,
+              or to learn more about how Stayza can transform your business.
+            </motion.p>
+
+            <motion.div
+              className="flex flex-col sm:flex-row gap-6 justify-center"
+              variants={itemVariants}
+            >
+              <CTAButton
+                variant="solid"
+                href="/register"
+                label="Get Started Today"
+              />
+              <CTAButton variant="ghost" href="/demo" label="Schedule Demo" />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Contact Information Section */}
+      <main className="bg-marketing-surface">
+        <section className="py-32">
+          <div className="container mx-auto px-6 max-w-7xl">
+            <motion.div
+              className="text-center mb-20"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={containerVariants}
+            >
+              <motion.div variants={itemVariants}>
+                <SectionTitle
+                  title="Get In Touch"
+                  description="Multiple ways to reach our team"
                 />
-                <CTAButton
-                  label="Download enablement deck"
-                  variant="outline"
-                  href="/workflow"
-                />
-              </div>
-            </div>
-            <div className="grid gap-5">
-              {contactChannels.map((channel) => (
-                <article
-                  key={channel.title}
-                  className="rounded-3xl border border-marketing-subtle/70 bg-white/95 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(15,23,42,0.16)]"
-                >
-                  <h3 className="text-lg font-semibold text-marketing-foreground">
-                    {channel.title}
+              </motion.div>
+            </motion.div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+              {/* Contact Methods */}
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-100px" }}
+                variants={containerVariants}
+                className="space-y-8"
+              >
+                {contactChannels.map((channel, index) => {
+                  const Icon = channel.icon;
+                  return (
+                    <motion.div
+                      key={channel.title}
+                      className="marketing-card p-8 hover:shadow-xl transition-all duration-300"
+                      variants={itemVariants}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <div className="flex items-start">
+                        <div className="w-12 h-12 bg-marketing-primary rounded-xl flex items-center justify-center mr-6 flex-shrink-0">
+                          <Icon className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-semibold text-marketing-text mb-3">
+                            {channel.title}
+                          </h3>
+                          <p className="text-marketing-text-muted mb-4 leading-relaxed">
+                            {channel.description}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-marketing-primary font-medium">
+                              {channel.contact}
+                            </p>
+                            <CTAButton
+                              variant="outline"
+                              label={channel.action}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+
+              {/* Contact Form */}
+              <motion.div
+                className="marketing-card p-12"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-100px" }}
+                variants={itemVariants}
+              >
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold text-marketing-text mb-3">
+                    Send us a message
                   </h3>
-                  <p className="mt-2 text-sm text-marketing-muted">
-                    {channel.description}
+                  <p className="text-marketing-text-muted">
+                    Fill out the form below and we'll get back to you within 24
+                    hours
                   </p>
-                  <div className="mt-4">
-                    <CTAButton
-                      label={channel.action.label}
-                      href={channel.action.href}
+                </div>
+
+                <form className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-marketing-text mb-3">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-6 py-4 marketing-input"
+                        placeholder="Enter your first name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-marketing-text mb-3">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-6 py-4 marketing-input"
+                        placeholder="Enter your last name"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-marketing-text mb-3">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      className="w-full px-6 py-4 marketing-input"
+                      placeholder="Enter your email address"
                     />
                   </div>
-                </article>
-              ))}
+                  <div>
+                    <label className="block text-sm font-medium text-marketing-text mb-3">
+                      Subject *
+                    </label>
+                    <select
+                      className="w-full px-6 py-4 marketing-input"
+                      required
+                    >
+                      <option value="">Select a subject</option>
+                      <option value="general">General Inquiry</option>
+                      <option value="support">Technical Support</option>
+                      <option value="sales">Sales Question</option>
+                      <option value="partnership">
+                        Partnership Opportunity
+                      </option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-marketing-text mb-3">
+                      Message *
+                    </label>
+                    <textarea
+                      rows={5}
+                      required
+                      className="w-full px-6 py-4 marketing-input resize-vertical"
+                      placeholder="Tell us how we can help you..."
+                    />
+                  </div>
+                  <CTAButton
+                    variant="solid"
+                    className="w-full"
+                    label="Send Message"
+                  />
+                </form>
+              </motion.div>
             </div>
-          </div>
-        </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-3xl border border-white/25 bg-gradient-to-br from-[rgba(17,24,39,0.95)] via-[rgba(30,64,175,0.88)] to-[rgba(8,47,73,0.9)] p-8 text-white shadow-[0_26px_82px_rgba(15,23,42,0.4)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">
-              Prefer a guided session?
-            </p>
-            <h3 className="mt-4 text-2xl font-semibold">
-              Join a live product walkthrough every Thursday
-            </h3>
-            <p className="mt-3 text-sm text-white/80">
-              See booking flows, payouts, audit logs, and guest messaging in a
-              20-minute interactive demo. Bring your stakeholders—there&rsquo;s
-              time for Q&amp;A at the end.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <CTAButton
-                label="Reserve a seat"
-                variant="outline"
-                href="https://cal.com/stayza-pro/discovery"
-                styleOverrides={outlineOnDarkCTAStyles}
-              />
-              <CTAButton
-                label="Share with your team"
-                variant="ghost"
-                href="/contact"
-              />
-            </div>
-          </div>
-          <div className="rounded-3xl border border-dashed border-marketing-subtle/70 bg-white/95 p-8 text-sm text-marketing-muted shadow-[0_20px_66px_rgba(15,23,42,0.14)]">
-            <p>
-              Prefer email? Reach us directly at
-              <a
-                className="ml-1 font-semibold text-marketing-foreground underline"
-                href="mailto:hello@stayza.pro"
+            {/* Additional Contact Info */}
+            <motion.div
+              className="mt-24 grid grid-cols-1 md:grid-cols-2 gap-8"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={containerVariants}
+            >
+              <motion.div
+                className="marketing-card p-8 text-center"
+                variants={itemVariants}
               >
-                hello@stayza.pro
-              </a>
-              — we respond within one business day.
-            </p>
-            <p className="mt-3">
-              If you&rsquo;re already a customer, log into the support portal
-              for faster triage or reply inside the app chat to reach your
-              success manager.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <CTAButton
-                label="Open support portal"
-                href="https://support.stayza.pro"
-              />
-              <CTAButton
-                label="Ping success manager"
-                variant="outline"
-                href="mailto:success@stayza.pro"
-              />
-            </div>
+                <div className="w-16 h-16 bg-marketing-secondary rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Clock className="w-8 h-8 text-white" />
+                </div>
+                <h4 className="text-lg font-semibold text-marketing-text mb-3">
+                  Business Hours
+                </h4>
+                <div className="space-y-2 text-marketing-text-muted">
+                  <p>Monday - Friday: 9:00 AM - 6:00 PM</p>
+                  <p>Saturday: 10:00 AM - 4:00 PM</p>
+                  <p>Sunday: Closed</p>
+                </div>
+              </motion.div>
+
+              <motion.div
+                className="marketing-card p-8 text-center"
+                variants={itemVariants}
+              >
+                <div className="w-16 h-16 bg-marketing-accent rounded-full flex items-center justify-center mx-auto mb-6">
+                  <MapPin className="w-8 h-8 text-white" />
+                </div>
+                <h4 className="text-lg font-semibold text-marketing-text mb-3">
+                  Global Presence
+                </h4>
+                <div className="space-y-2 text-marketing-text-muted">
+                  <p>Headquarters: San Francisco, CA</p>
+                  <p>Available in 50+ countries</p>
+                  <p>24/7 support worldwide</p>
+                </div>
+              </motion.div>
+            </motion.div>
           </div>
         </section>
-      </div>
-    </SectionPageShell>
+      </main>
+
+      <FooterSection />
+    </div>
   );
 }

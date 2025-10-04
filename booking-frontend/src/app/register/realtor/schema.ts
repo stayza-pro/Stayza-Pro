@@ -1,23 +1,106 @@
 import { z } from "zod";
 
+// Import libphonenumber-js for international phone validation
+import {
+  parsePhoneNumber,
+  isValidPhoneNumber,
+  CountryCode,
+} from "libphonenumber-js";
+
 // Validation utilities
-const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-const subdomainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+// Nigerian phone regex for fallback validation
+const nigerianPhoneRegex = /^(\+?2340?|2340?|0)?[789]\d{9}$/;
+// Allow mixed case in subdomain input - will be normalized to lowercase
+const subdomainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
 const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+
+// Subdomain normalization helper
+export const normalizeSubdomain = (subdomain: string): string => {
+  return subdomain.toLowerCase().trim();
+};
+
+// Enhanced phone number validation and normalization helper
+export const validatePhoneNumber = (
+  phone: string,
+  defaultCountry: CountryCode = "NG"
+): {
+  isValid: boolean;
+  formatted: string;
+  country: string;
+  errorMessage?: string;
+} => {
+  if (!phone || !phone.trim()) {
+    return {
+      isValid: false,
+      formatted: "",
+      country: defaultCountry,
+      errorMessage: "Phone number is required",
+    };
+  }
+
+  try {
+    // Try to parse with libphonenumber-js (supports international formats)
+    const phoneNumber = parsePhoneNumber(phone, defaultCountry);
+
+    if (phoneNumber && isValidPhoneNumber(phone, defaultCountry)) {
+      return {
+        isValid: true,
+        formatted: phoneNumber.format("INTERNATIONAL"),
+        country: phoneNumber.country || defaultCountry,
+      };
+    }
+  } catch (error) {
+    // Fall back to basic validation if parsing fails
+  }
+
+  // Fallback: Check if it matches Nigerian format specifically
+  const cleanPhone = phone.replace(/[^\d+]/g, "");
+  if (nigerianPhoneRegex.test(cleanPhone)) {
+    return {
+      isValid: true,
+      formatted: phone,
+      country: "NG",
+    };
+  }
+
+  // Check if it looks like an international number
+  if (
+    cleanPhone.startsWith("+") &&
+    cleanPhone.length >= 8 &&
+    cleanPhone.length <= 15
+  ) {
+    try {
+      const parsed = parsePhoneNumber(phone);
+      if (parsed && parsed.isValid()) {
+        return {
+          isValid: true,
+          formatted: parsed.format("INTERNATIONAL"),
+          country: parsed.country || "Unknown",
+        };
+      }
+    } catch {
+      // Continue to error case
+    }
+  }
+
+  return {
+    isValid: false,
+    formatted: phone,
+    country: defaultCountry,
+    errorMessage:
+      "Please enter a valid phone number (e.g. +234 807 123 4567, +1 555 123 4567)",
+  };
+};
+
+// Legacy normalization helper for backward compatibility
+export const normalizePhoneNumber = (phone: string): string => {
+  const result = validatePhoneNumber(phone);
+  return result.formatted || phone;
+};
 const urlRegex =
   /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
 
 // Business authorization validation
-const businessEmailDomains = [
-  "gmail.com",
-  "yahoo.com",
-  "hotmail.com",
-  "outlook.com",
-];
-const isBusinessEmail = (email: string) => {
-  const domain = email.split("@")[1];
-  return !businessEmailDomains.includes(domain?.toLowerCase());
-};
 
 export const realtorRegistrationSchema = z
   .object({
@@ -28,16 +111,24 @@ export const realtorRegistrationSchema = z
       .max(100, "Full name must be less than 100 characters")
       .regex(/^[a-zA-Z\s'-\.]+$/, "Invalid name format"),
 
-    businessEmail: z
-      .string()
-      .email("Invalid email format")
-      .refine(isBusinessEmail, "Please use a business email address"),
+    businessEmail: z.string().email("Invalid email format"),
 
     phoneNumber: z
       .string()
-      .regex(phoneRegex, "Invalid phone number format")
-      .min(8, "Phone number too short")
-      .max(20, "Phone number too long"),
+      .refine(
+        (val) => {
+          const validation = validatePhoneNumber(val, "NG");
+          return validation.isValid;
+        },
+        {
+          message:
+            "Please enter a valid phone number (e.g. +234 807 123 4567, +1 555 123 4567)",
+        }
+      )
+      .transform((val) => {
+        const validation = validatePhoneNumber(val, "NG");
+        return validation.formatted;
+      }),
 
     password: z
       .string()
@@ -45,7 +136,10 @@ export const realtorRegistrationSchema = z
       .regex(/(?=.*[a-z])/, "Password must contain a lowercase letter")
       .regex(/(?=.*[A-Z])/, "Password must contain an uppercase letter")
       .regex(/(?=.*\d)/, "Password must contain a number")
-      .regex(/(?=.*[@$!%*?&])/, "Password must contain a special character"),
+      .regex(
+        /(?=.*[!@#$%^&*()_+={}|[\]\\:";'<>?,./])/,
+        "Password must contain a special character"
+      ),
 
     confirmPassword: z.string(),
 
@@ -64,9 +158,13 @@ export const realtorRegistrationSchema = z
       .string()
       .min(3, "Subdomain must be at least 3 characters")
       .max(63, "Subdomain must be less than 63 characters")
-      .regex(subdomainRegex, "Invalid subdomain format")
+      .regex(
+        subdomainRegex,
+        "Use only letters, numbers, and hyphens. Must start and end with a letter or number."
+      )
       .refine(async (subdomain) => {
-        // Simulate API check - replace with actual API call
+        // Normalize subdomain for validation
+        const normalized = normalizeSubdomain(subdomain);
         const forbidden = [
           "admin",
           "api",
@@ -76,7 +174,7 @@ export const realtorRegistrationSchema = z
           "mail",
           "support",
         ];
-        return !forbidden.includes(subdomain.toLowerCase());
+        return !forbidden.includes(normalized);
       }, "Subdomain not available"),
 
     corporateRegNumber: z
@@ -98,16 +196,25 @@ export const realtorRegistrationSchema = z
       .optional(),
     customPrimaryColor: z
       .string()
-      .regex(hexColorRegex, "Invalid color format")
-      .optional(),
+      .optional()
+      .refine(
+        (val) => !val || val === "" || hexColorRegex.test(val),
+        "Invalid color format - use hex format like #FF0000"
+      ),
     customSecondaryColor: z
       .string()
-      .regex(hexColorRegex, "Invalid color format")
-      .optional(),
+      .optional()
+      .refine(
+        (val) => !val || val === "" || hexColorRegex.test(val),
+        "Invalid color format - use hex format like #FF0000"
+      ),
     customAccentColor: z
       .string()
-      .regex(hexColorRegex, "Invalid color format")
-      .optional(),
+      .optional()
+      .refine(
+        (val) => !val || val === "" || hexColorRegex.test(val),
+        "Invalid color format - use hex format like #FF0000"
+      ),
 
     logo: z
       .instanceof(File)
@@ -201,9 +308,9 @@ export const formSteps = [
     fields: [
       "termsAccepted",
       "privacyAccepted",
-      "businessAuthorized",
+      "dataProcessingConsent",
+      "marketingOptIn",
       "referralCode",
-      "demoDataRequested",
     ],
   },
 ] as const;

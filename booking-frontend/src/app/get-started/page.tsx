@@ -1,226 +1,389 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-
+import { motion, useReducedMotion } from "framer-motion";
 import { CTAButton } from "@/app/(marketing)/components/CTAButton";
-import { lightOnDarkCTAStyles } from "@/app/(marketing)/components/buttonStyles";
-import { SectionHero } from "@/app/(marketing)/components/SectionHero";
-import { SectionPageShell } from "@/app/(marketing)/components/SectionPageShell";
-
-const plans = [
-  {
-    id: "launch",
-    name: "Launch Plan",
-    price: "$0",
-    cadence: "per month",
-    tagline: "Validate direct bookings with a polished microsite in minutes.",
-    badge: "Best for new teams",
-    href: "/register/realtor?plan=free",
-    features: [
-      "Branded ourapp.com/agency URL with your colours",
-      "Up to 2 live listings with availability calendar",
-      "Automated split payouts and PDF receipts",
-      "Guest wishlists, reviews, and basic analytics",
-    ],
-  },
-  {
-    id: "scale",
-    name: "Scale Plan",
-    price: "$79",
-    cadence: "per month",
-    tagline: "Everything agencies need to automate revenue and compliance.",
-    badge: "Most popular",
-    href: "/register/realtor?plan=pro",
-    features: [
-      "Unlimited listings, team seats, and seasonal pricing rules",
-      "Advanced revenue analytics and cohort dashboards",
-      "Dispute workflows with full audit trails",
-      "Priority onboarding with migration concierge",
-    ],
-  },
-];
-
-const epiphanyStatements = [
-  "Your brand stays front and centre on every booking.",
-  "Payouts land instantly without spreadsheets or emails.",
-  "Every admin action is logged, so trust scales with you.",
-];
+import { SectionTitle } from "@/app/(marketing)/components/SectionTitle";
+import { Navigation } from "@/app/(marketing)/sections/Navigation";
+import { FooterSection } from "@/app/(marketing)/sections/FooterSection";
+import {
+  Rocket,
+  Check,
+  Star,
+  Users,
+  TrendingUp,
+  Shield,
+  Zap,
+  Target,
+} from "lucide-react";
 
 export default function GetStartedPage() {
-  const router = useRouter();
-  const [selectedPlan, setSelectedPlan] = useState(plans[1]);
-  const [isPending, startTransition] = useTransition();
+  const shouldReduceMotion = useReducedMotion();
 
-  const handleContinue = () => {
-    startTransition(() => {
-      router.push(selectedPlan.href);
-    });
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.1,
+      },
+    },
   };
 
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: shouldReduceMotion ? 0 : 0.6, ease: "easeOut" },
+    },
+  };
+
+  const orbVariants = {
+    animate: shouldReduceMotion
+      ? {}
+      : {
+          scale: [1, 1.1, 1],
+          opacity: [0.3, 0.6, 0.3],
+          transition: {
+            duration: 6,
+            repeat: Infinity,
+            repeatType: "reverse" as const,
+            ease: "easeInOut",
+          },
+        },
+  };
+
+  const plans = [
+    {
+      id: "starter",
+      name: "Starter Plan",
+      price: "$0",
+      period: "Free Forever",
+      description:
+        "Perfect for individual realtors getting started with digital bookings",
+      features: [
+        "Up to 5 property listings",
+        "Basic booking calendar",
+        "Email notifications",
+        "Client contact management",
+        "Mobile-responsive booking page",
+      ],
+      cta: "Start Free",
+      href: "/register/realtor?plan=starter",
+      popular: false,
+    },
+    {
+      id: "professional",
+      name: "Professional Plan",
+      price: "$29",
+      period: "per month",
+      description: "Enhanced features for growing real estate professionals",
+      features: [
+        "Unlimited property listings",
+        "Advanced calendar management",
+        "Automated email campaigns",
+        "Analytics and reporting",
+        "Custom branding",
+        "Payment processing integration",
+        "Priority support",
+      ],
+      cta: "Start Trial",
+      href: "/register/realtor?plan=professional",
+      popular: true,
+    },
+    {
+      id: "enterprise",
+      name: "Enterprise Plan",
+      price: "$99",
+      period: "per month",
+      description: "Complete solution for real estate agencies and teams",
+      features: [
+        "Everything in Professional",
+        "Multi-agent dashboard",
+        "Team collaboration tools",
+        "Advanced analytics",
+        "API access",
+        "White-label solutions",
+        "Dedicated account manager",
+        "Custom integrations",
+      ],
+      cta: "Contact Sales",
+      href: "/contact",
+      popular: false,
+    },
+  ];
+
+  const steps = [
+    {
+      icon: Target,
+      title: "Choose Your Plan",
+      description: "Select the plan that matches your business needs and goals",
+    },
+    {
+      icon: Rocket,
+      title: "Quick Setup",
+      description:
+        "Create your account and customize your booking experience in minutes",
+    },
+    {
+      icon: Users,
+      title: "Start Booking",
+      description:
+        "Share your personalized booking link and start receiving client appointments",
+    },
+  ];
+
   return (
-    <SectionPageShell>
-      <SectionHero
-        kicker="Stayza Pro Platform"
-        title="Choose your Stayza Pro launch path"
-        description="Every plan launches a fully branded booking experience. Pick the momentum you need today—upgrade as your portfolio grows."
-        actions={
-          <>
-            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
-              Instant setup
-            </span>
-            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
-              Automated payouts
-            </span>
-            <CTAButton
-              label="Prefer white-glove onboarding?"
-              variant="outline"
-              href="https://cal.com/stayza-pro/discovery"
-              styleOverrides={lightOnDarkCTAStyles}
-            />
-          </>
-        }
-      />
-      <div className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-12 sm:px-6 lg:px-8">
-        <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="space-y-8">
-            <div className="rounded-3xl border border-marketing-subtle/60 bg-gradient-to-br from-white to-[rgba(243,244,246,0.85)] p-8 shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-marketing-muted">
-                Pick a plan
-              </p>
-              <h2 className="mt-4 text-3xl font-semibold text-marketing-foreground">
-                Stayza Pro pricing
-              </h2>
-              <p className="mt-3 text-sm text-marketing-muted">
-                Select the plan that mirrors your team&rsquo;s stage. We route
-                you to a tailored signup that pre-loads the right onboarding
-                checklist.
-              </p>
-              <div className="mt-6 grid gap-6">
-                {plans.map((plan) => {
-                  const isActive = plan.id === selectedPlan.id;
+    <div className="min-h-screen marketing-theme">
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex flex-col bg-marketing-primary">
+        {/* Animated Background Orbs */}
+        <motion.div
+          className="absolute inset-0 overflow-hidden pointer-events-none"
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
+          <motion.div
+            className="absolute top-20 right-20 w-64 h-64 bg-marketing-secondary/20 rounded-full blur-3xl"
+            variants={orbVariants}
+            animate="animate"
+          />
+          <motion.div
+            className="absolute bottom-40 left-20 w-96 h-96 bg-marketing-accent/20 rounded-full blur-3xl"
+            variants={orbVariants}
+            animate="animate"
+            transition={{ delay: 1 }}
+          />
+          <motion.div
+            className="absolute top-1/2 right-1/3 w-48 h-48 bg-marketing-primary-soft/30 rounded-full blur-2xl"
+            variants={orbVariants}
+            animate="animate"
+            transition={{ delay: 2 }}
+          />
+        </motion.div>
 
-                  return (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      onClick={() => setSelectedPlan(plan)}
-                      className={`group rounded-2xl border p-6 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--marketing-focus)] focus-visible:ring-offset-2 ${
-                        isActive
-                          ? "border-[var(--marketing-accent)] bg-gradient-to-br from-[rgba(249,115,22,0.12)] to-white shadow-[0_20px_60px_rgba(249,115,22,0.18)]"
-                          : "border-marketing-subtle/70 bg-white/90 hover:border-[var(--marketing-accent)]/70 hover:shadow-[0_12px_50px_rgba(15,23,42,0.08)]"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <h3 className="text-xl font-semibold text-marketing-foreground">
-                              {plan.name}
-                            </h3>
-                            {plan.badge ? (
-                              <span className="rounded-full bg-[var(--marketing-accent)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--marketing-accent)]">
-                                {plan.badge}
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="mt-2 text-sm text-marketing-muted">
-                            {plan.tagline}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-3xl font-semibold text-[var(--marketing-primary)]">
-                            {plan.price}
-                          </p>
-                          <p className="text-xs uppercase tracking-[0.2em] text-marketing-muted">
-                            {plan.cadence}
-                          </p>
-                        </div>
-                      </div>
-                      <ul className="mt-6 grid gap-2 sm:grid-cols-2">
-                        {plan.features.map((feature) => (
-                          <li
-                            key={feature}
-                            className="flex items-start gap-2 text-sm text-marketing-foreground/90"
-                          >
-                            <span className="mt-1 h-2 w-2 rounded-full bg-[var(--marketing-accent)]" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-[rgba(255,255,255,0.3)] bg-gradient-to-br from-[rgba(17,24,39,0.92)] to-[rgba(30,64,175,0.9)] p-8 text-white shadow-[0_28px_90px_rgba(15,23,42,0.45)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">
-                Next steps
-              </p>
-              <h2 className="mt-4 text-2xl font-semibold">
-                {selectedPlan.name}: what happens after you choose
-              </h2>
-              <p className="mt-3 text-sm text-white/75">
-                We route you to a plan-specific signup flow. Once you confirm
-                your agency details, we spin up your microsite, connect payouts,
-                and guide you through your first property in under 15 minutes.
-              </p>
-              <div className="mt-6 space-y-3 text-sm text-white/80">
-                {epiphanyStatements.map((statement) => (
-                  <div
-                    key={statement}
-                    className="flex items-start gap-3 rounded-2xl bg-white/5 p-3"
+        <Navigation />
+
+        <div className="flex-1 flex items-center justify-center px-6 relative z-10">
+          <motion.div
+            className="text-center max-w-4xl mx-auto"
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+          >
+            {/* Badge */}
+            <motion.div
+              className="inline-flex items-center px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm font-medium mb-8"
+              variants={itemVariants}
+            >
+              <Rocket className="w-4 h-4 mr-2" />
+              Start Your Journey
+            </motion.div>
+
+            <motion.h1
+              className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white mb-6"
+              variants={itemVariants}
+            >
+              Get Started with{" "}
+              <span className="text-marketing-accent">Stayza</span>
+            </motion.h1>
+
+            <motion.p
+              className="text-xl md:text-2xl text-white/80 leading-relaxed mb-12 max-w-3xl mx-auto"
+              variants={itemVariants}
+            >
+              Transform your real estate business today. Choose the perfect plan
+              and start accepting bookings in minutes, not weeks.
+            </motion.p>
+
+            <motion.div
+              className="flex flex-col sm:flex-row gap-6 justify-center"
+              variants={itemVariants}
+            >
+              <CTAButton variant="solid" href="#pricing" label="View Pricing" />
+              <CTAButton variant="ghost" href="/demo" label="Watch Demo" />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <main className="bg-marketing-surface">
+        <section className="py-32">
+          <div className="container mx-auto px-6 max-w-7xl">
+            <motion.div
+              className="text-center mb-20"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={containerVariants}
+            >
+              <motion.div variants={itemVariants}>
+                <SectionTitle
+                  title="How It Works"
+                  description="Three simple steps to transform your business"
+                />
+              </motion.div>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <motion.div
+                    key={step.title}
+                    className="marketing-card p-8 text-center hover:shadow-xl transition-all duration-300"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: "-100px" }}
+                    variants={itemVariants}
+                    transition={{ delay: index * 0.2 }}
                   >
-                    <span className="mt-0.5 h-2.5 w-2.5 rounded-full bg-white/60" />
-                    <span>{statement}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 flex flex-wrap items-center gap-4">
-                <CTAButton
-                  label={isPending ? "Redirecting..." : "Continue to signup"}
-                  href={selectedPlan.href}
-                  styleOverrides={lightOnDarkCTAStyles}
-                />
-                <CTAButton
-                  label={
-                    isPending
-                      ? "Launching flow..."
-                      : "Continue with selected plan"
-                  }
-                  variant="ghost"
-                  onClick={handleContinue}
-                  disabled={isPending}
-                  icon={null}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-marketing-subtle/70 bg-white/95 p-8 shadow-[0_18px_70px_rgba(15,23,42,0.12)]">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-marketing-muted">
-                Want a guided tour first?
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-4">
-                <CTAButton
-                  label="Preview a Realtor Site"
-                  variant="ghost"
-                  href="/demo/realtor"
-                />
-                <CTAButton
-                  label="Chat with onboarding"
-                  variant="outline"
-                  href="/contact"
-                />
-              </div>
-              <p className="mt-4 text-xs text-marketing-muted">
-                We respond to onboarding questions within one business day and
-                can have your microsite production-ready in under a week.
-              </p>
+                    <div className="relative mb-8">
+                      <div className="w-20 h-20 bg-marketing-primary rounded-2xl flex items-center justify-center mx-auto">
+                        <Icon className="w-10 h-10 text-white" />
+                      </div>
+                      <div className="absolute -top-2 -right-2 w-8 h-8 bg-marketing-accent rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        {index + 1}
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-semibold text-marketing-text mb-4">
+                      {step.title}
+                    </h3>
+                    <p className="text-marketing-text-muted leading-relaxed">
+                      {step.description}
+                    </p>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </section>
-      </div>
-    </SectionPageShell>
+
+        {/* Pricing Section */}
+        <section id="pricing" className="py-32">
+          <div className="container mx-auto px-6 max-w-7xl">
+            <motion.div
+              className="text-center mb-20"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={containerVariants}
+            >
+              <motion.div variants={itemVariants}>
+                <SectionTitle
+                  title="Choose Your Plan"
+                  description="Flexible pricing that grows with your business"
+                />
+              </motion.div>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {plans.map((plan, index) => (
+                <motion.div
+                  key={plan.id}
+                  className={`marketing-card p-8 hover:shadow-xl transition-all duration-300 ${
+                    plan.popular ? "ring-2 ring-marketing-accent relative" : ""
+                  }`}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: "-100px" }}
+                  variants={itemVariants}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <span className="bg-marketing-accent text-white px-6 py-2 rounded-full text-sm font-semibold flex items-center">
+                        <Star className="w-4 h-4 mr-2" />
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold text-marketing-text mb-3">
+                      {plan.name}
+                    </h3>
+                    <div className="mb-4">
+                      <span className="text-4xl font-bold text-marketing-primary">
+                        {plan.price}
+                      </span>
+                      <span className="text-marketing-text-muted ml-2">
+                        {plan.period}
+                      </span>
+                    </div>
+                    <p className="text-marketing-text-muted">
+                      {plan.description}
+                    </p>
+                  </div>
+
+                  <ul className="space-y-4 mb-8">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start">
+                        <Check className="w-5 h-5 text-marketing-secondary mr-3 mt-0.5 flex-shrink-0" />
+                        <span className="text-marketing-text-muted">
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <CTAButton
+                    variant={plan.popular ? "solid" : "outline"}
+                    href={plan.href}
+                    className="w-full"
+                    label={plan.cta}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-32">
+          <div className="container mx-auto px-6 max-w-4xl">
+            <motion.div
+              className="marketing-card p-12 text-center bg-gradient-to-br from-marketing-primary to-marketing-secondary text-white"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={itemVariants}
+            >
+              <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-8">
+                <TrendingUp className="w-10 h-10 text-white" />
+              </div>
+
+              <h3 className="text-3xl font-bold mb-6">
+                Ready to Transform Your Real Estate Business?
+              </h3>
+
+              <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+                Join thousands of successful realtors who've streamlined their
+                booking process and increased their revenue with Stayza.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                <CTAButton
+                  variant="ghost"
+                  href="/register"
+                  className="bg-white text-marketing-primary hover:bg-white/90"
+                  label="Start Free Today"
+                />
+                <CTAButton
+                  variant="outline"
+                  href="/contact"
+                  className="border-white text-white hover:bg-white hover:text-marketing-primary"
+                  label="Talk to Sales"
+                />
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      </main>
+
+      <FooterSection />
+    </div>
   );
 }

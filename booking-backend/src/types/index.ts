@@ -3,6 +3,11 @@ import { User, UserRole } from "@prisma/client";
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
+  realtor?: {
+    id: string;
+    status: string;
+    businessName: string;
+  };
 }
 
 export interface JWTPayload {

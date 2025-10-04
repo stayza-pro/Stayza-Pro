@@ -3,6 +3,7 @@ import {
   registerRealtor,
   createRealtorProfile,
   uploadLogo,
+  uploadTempLogo,
   uploadMiddleware,
   getRealtorProfile,
   updateRealtorProfile,
@@ -10,8 +11,13 @@ import {
   startStripeOnboarding,
   getStripeAccountStatusController,
   getStripeDashboardLinkController,
+  checkSubdomainAvailability,
 } from "@/controllers/realtorController";
-import { authenticate, requireRole } from "@/middleware/auth";
+import {
+  authenticate,
+  requireRole,
+  requireApprovedRealtor,
+} from "@/middleware/auth";
 
 const router = express.Router();
 
@@ -169,6 +175,91 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /api/realtors/subdomain/check:
+ *   get:
+ *     summary: Check subdomain availability
+ *     description: Check if a custom subdomain is available for registration
+ *     tags: [Realtors]
+ *     parameters:
+ *       - in: query
+ *         name: subdomain
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
+ *         description: Subdomain to check
+ *     responses:
+ *       200:
+ *         description: Subdomain availability checked
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         available:
+ *                           type: boolean
+ *                         subdomain:
+ *                           type: string
+ *                         reason:
+ *                           type: string
+ *       400:
+ *         description: Invalid subdomain format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+router.get("/subdomain/check", checkSubdomainAvailability);
+
+/**
+ * @swagger
+ * /api/realtors/upload-temp-logo:
+ *   post:
+ *     summary: Upload temporary logo during registration
+ *     description: Upload a logo file temporarily during registration process
+ *     tags: [Realtors]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               logo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Logo image file (JPG, PNG, JPEG, WebP)
+ *     responses:
+ *       200:
+ *         description: Logo uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         url:
+ *                           type: string
+ *                         id:
+ *                           type: string
+ *       400:
+ *         description: Bad request (no file or invalid format)
+ *       500:
+ *         description: Upload failed
+ */
+router.post("/upload-temp-logo", uploadMiddleware, uploadTempLogo);
+
+/**
+ * @swagger
  * /api/realtors/register:
  *   post:
  *     summary: Register as a realtor
@@ -264,6 +355,7 @@ router.post(
   "/upload-logo",
   authenticate,
   requireRole("REALTOR"),
+  requireApprovedRealtor,
   uploadMiddleware,
   uploadLogo
 );
@@ -300,6 +392,7 @@ router.post(
   "/stripe/onboarding",
   authenticate,
   requireRole("REALTOR"),
+  requireApprovedRealtor,
   startStripeOnboarding
 );
 
@@ -329,6 +422,7 @@ router.get(
   "/stripe/status",
   authenticate,
   requireRole("REALTOR"),
+  requireApprovedRealtor,
   getStripeAccountStatusController
 );
 
@@ -364,6 +458,7 @@ router.post(
   "/stripe/dashboard-link",
   authenticate,
   requireRole("REALTOR"),
+  requireApprovedRealtor,
   getStripeDashboardLinkController
 );
 
@@ -428,6 +523,7 @@ router.put(
   "/profile",
   authenticate,
   requireRole("REALTOR"),
+  requireApprovedRealtor,
   updateRealtorProfile
 );
 

@@ -61,7 +61,11 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   // Hash password
   const hashedPassword = await hashPassword(password);
 
-  // Create user - MVP: Auto-verified, no email verification
+  // Generate email verification token
+  const emailVerificationToken = generateRandomToken();
+  const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  // Create user with email verification fields
   const user = await prisma.user.create({
     data: {
       email,
@@ -71,6 +75,9 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       fullName: `${firstName} ${lastName}`,
       phone,
       role,
+      isEmailVerified: false,
+      emailVerificationToken,
+      emailVerificationExpires,
     },
     select: {
       id: true,
@@ -79,6 +86,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       lastName: true,
       role: true,
       phone: true,
+      isEmailVerified: true,
       createdAt: true,
     },
   });
@@ -90,11 +98,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     role: user.role,
   });
 
-  // MVP: RefreshToken model not implemented, tokens are stateless
-
-  // MVP: Send welcome email only (no email verification required)
-  sendWelcomeEmail(user.email, firstName || "User").catch((err) =>
-    console.error("Welcome email failed", err)
+  // Send email verification
+  const verificationUrl = `${
+    config.FRONTEND_URL
+  }/verify-email?token=${emailVerificationToken}&email=${encodeURIComponent(
+    user.email
+  )}`;
+  sendEmailVerification(user.email, firstName || "User", verificationUrl).catch(
+    (err) => console.error("Email verification failed", err)
   );
 
   res.status(201).json({
@@ -122,9 +133,19 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
   const { email, password } = value;
 
-  // Find user with password
+  // Find user with password and include realtor data for role-based routing
   const user = await prisma.user.findUnique({
     where: { email },
+    include: {
+      realtor: {
+        select: {
+          id: true,
+          businessName: true,
+          slug: true,
+          status: true,
+        },
+      },
+    },
   });
 
   if (!user || !(await comparePassword(password, user.password))) {
@@ -280,11 +301,54 @@ export const refreshToken = asyncHandler(
  * @access  Public
  */
 export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
-  // MVP: Auto-verification enabled, no email verification required
+  const { token, email } = req.query;
+
+  if (!token || !email) {
+    throw new AppError("Verification token and email are required", 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: email as string },
+  });
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  if (user.isEmailVerified) {
+    return res.json({
+      success: true,
+      message: "Email is already verified",
+    });
+  }
+
+  if (
+    !user.emailVerificationToken ||
+    user.emailVerificationToken !== token ||
+    !user.emailVerificationExpires ||
+    user.emailVerificationExpires < new Date()
+  ) {
+    throw new AppError("Invalid or expired verification token", 400);
+  }
+
+  // Update user as verified
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      isEmailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationExpires: null,
+    },
+  });
+
+  // Send welcome email after successful verification
+  sendWelcomeEmail(user.email, user.firstName || "User").catch((err) =>
+    console.error("Welcome email failed", err)
+  );
+
   res.json({
     success: true,
-    message:
-      "Email verification not required in MVP - all emails are auto-verified",
+    message: "Email verified successfully",
   });
 });
 
@@ -295,11 +359,52 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
  */
 export const resendVerification = asyncHandler(
   async (req: Request, res: Response) => {
-    // MVP: Auto-verification enabled, no email verification required
+    const { email } = req.body;
+
+    if (!email) {
+      throw new AppError("Email is required", 400);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    if (user.isEmailVerified) {
+      throw new AppError("Email is already verified", 400);
+    }
+
+    // Generate new verification token
+    const emailVerificationToken = generateRandomToken();
+    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Update user with new token
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken,
+        emailVerificationExpires,
+      },
+    });
+
+    // Send verification email
+    const verificationUrl = `${
+      config.FRONTEND_URL
+    }/verify-email?token=${emailVerificationToken}&email=${encodeURIComponent(
+      user.email
+    )}`;
+    await sendEmailVerification(
+      user.email,
+      user.firstName || "User",
+      verificationUrl
+    );
+
     res.json({
       success: true,
-      message:
-        "Email verification not required in MVP - all emails are auto-verified",
+      message: "Verification email sent successfully",
     });
   }
 );

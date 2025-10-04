@@ -5,7 +5,8 @@ import { useMutation, useQuery } from "react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { ModernDashboardLayout } from "@/components/layout/ModernDashboardLayout";
+import { useAuthStore } from "@/store/authStore";
 import { Button, Card, Loading } from "@/components/ui";
 import { realtorService } from "@/services";
 import { StripeAccountStatus } from "@/types";
@@ -67,9 +68,28 @@ const formatErrorMessage = (error: unknown): string => {
 };
 
 const StripePayoutsPage = () => {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsString = searchParams.toString();
+
+  // Redirect if not authenticated or not a REAlTOR
+  useEffect(() => {
+    if (
+      !authLoading &&
+      (!isAuthenticated || !user || user.role !== "REALTOR")
+    ) {
+      router.push("/auth/login");
+    }
+  }, [isAuthenticated, authLoading, user, router]);
+
+  if (authLoading) {
+    return <Loading />;
+  }
+
+  if (!isAuthenticated || !user || user.role !== "REALTOR") {
+    return null;
+  }
 
   const statusQuery = useQuery<StripeAccountStatus>(
     ["realtor-stripe-status"],
@@ -187,7 +207,11 @@ const StripePayoutsPage = () => {
   );
 
   return (
-    <DashboardLayout requiredRole="HOST">
+    <ModernDashboardLayout
+      currentUser={user}
+      activeRoute="payments"
+      onRouteChange={() => {}}
+    >
       <div className="px-4 py-6 lg:px-8">
         <div className="mx-auto flex max-w-5xl flex-col gap-6">
           <div className="space-y-2">
@@ -378,7 +402,7 @@ const StripePayoutsPage = () => {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </ModernDashboardLayout>
   );
 };
 

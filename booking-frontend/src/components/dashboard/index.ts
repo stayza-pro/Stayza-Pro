@@ -1,3 +1,4 @@
-export { GuestDashboard } from "./GuestDashboard";
-export { HostDashboard } from "./HostDashboard";
-export { AdminDashboard } from "./AdminDashboard";
+// Modern Dashboard Components
+export { ModernAdminDashboard } from "./ModernAdminDashboard";
+export { ModernPropertyManagement } from "./ModernPropertyManagement";
+export { AnalyticsDashboard } from "./AnalyticsDashboard";

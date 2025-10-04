@@ -1,10 +1,10 @@
 "use client";
 
 import { useAuthStore } from "../../store/authStore";
-import { GuestDashboard } from "../../components/dashboard/GuestDashboard";
-import { HostDashboard } from "../../components/dashboard/HostDashboard";
-import { AdminDashboard } from "../../components/dashboard/AdminDashboard";
-import { DashboardLayout } from "../../components/layout/DashboardLayout";
+import { ModernAdminDashboard } from "../../components/dashboard/ModernAdminDashboard";
+import { ModernPropertyManagement } from "../../components/dashboard/ModernPropertyManagement";
+import { AnalyticsDashboard } from "../../components/dashboard/AnalyticsDashboard";
+import { ModernDashboardLayout } from "../../components/layout/ModernDashboardLayout";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -36,14 +36,22 @@ export default function DashboardPage() {
   const renderDashboard = () => {
     switch (user.role) {
       case "ADMIN":
-        return <AdminDashboard currentUser={user} />;
-      case "HOST":
-        return <HostDashboard user={user} />;
+        return <ModernAdminDashboard currentUser={user} />;
+      case "REALTOR":
+        return <ModernPropertyManagement currentUser={user} />;
       case "GUEST":
       default:
-        return <GuestDashboard user={user} />;
+        return <ModernAdminDashboard currentUser={user} />;
     }
   };
 
-  return <DashboardLayout>{renderDashboard()}</DashboardLayout>;
+  return (
+    <ModernDashboardLayout
+      currentUser={user}
+      activeRoute="overview"
+      onRouteChange={() => {}}
+    >
+      {renderDashboard()}
+    </ModernDashboardLayout>
+  );
 }

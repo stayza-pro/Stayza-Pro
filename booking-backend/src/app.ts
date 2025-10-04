@@ -17,6 +17,7 @@ import bookingRoutes from "@/routes/bookingRoutes";
 import paymentRoutes from "@/routes/paymentRoutes";
 import reviewRoutes from "@/routes/reviewRoutes";
 import webhookRoutes from "@/routes/webhookRoutes";
+import emailRoutes from "@/routes/emailRoutes";
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use("/api/properties", propertyRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/email", emailRoutes);
 
 // 404 handler
 app.use(notFound);

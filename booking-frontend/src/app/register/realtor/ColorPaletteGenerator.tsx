@@ -37,8 +37,13 @@ interface ColorPaletteGeneratorProps {
   currentColors?: {
     primary?: string;
     secondary?: string;
+    accent?: string;
   };
-  onColorsChange: (colors: { primary: string; secondary: string }) => void;
+  onColorsChange: (colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  }) => void;
   className?: string;
 }
 
@@ -344,6 +349,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
     onColorsChange({
       primary: palette.colors.primary,
       secondary: palette.colors.secondary,
+      accent: palette.colors.accent,
     });
   };
 
@@ -423,30 +429,89 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.1 }}
               >
-                {/* Color Swatches */}
-                <div className="flex gap-1 mb-3">
-                  {Object.entries(palette.colors).map(([key, color]) => (
+                {/* Color Preview - Website Style Gradient */}
+                <div className="mb-3 space-y-3">
+                  {/* Main Gradient Preview */}
+                  <div className="relative h-16 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-gray-300 transition-colors">
                     <div
-                      key={key}
-                      className="relative flex-1 h-8 rounded-md overflow-hidden"
-                      style={{ backgroundColor: color }}
+                      className="absolute inset-0"
+                      style={{
+                        background: `linear-gradient(135deg, ${palette.colors.primary} 0%, ${palette.colors.secondary} 100%)`,
+                      }}
+                    />
+                    {/* Accent Color Highlight */}
+                    <div
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full border-2 border-white shadow-md"
+                      style={{ backgroundColor: palette.colors.accent }}
+                    />
+                    <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded">
+                        Click to select
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Individual Color Swatches */}
+                  <div className="flex gap-1">
+                    <div
+                      className="flex-1 h-6 rounded cursor-pointer border border-gray-200 hover:border-gray-300 transition-colors relative overflow-hidden"
+                      style={{ backgroundColor: palette.colors.primary }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyColor(palette.colors.primary);
+                      }}
+                      title={`Primary: ${palette.colors.primary}`}
                     >
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyColor(color);
-                        }}
-                        className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
-                      >
-                        {copiedColor === color ? (
+                      <span className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                        {copiedColor === palette.colors.primary ? (
                           <Check className="h-3 w-3 text-white" />
                         ) : (
                           <Copy className="h-3 w-3 text-white" />
                         )}
-                      </button>
+                      </span>
                     </div>
-                  ))}
+                    <div
+                      className="flex-1 h-6 rounded cursor-pointer border border-gray-200 hover:border-gray-300 transition-colors relative overflow-hidden"
+                      style={{ backgroundColor: palette.colors.secondary }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyColor(palette.colors.secondary);
+                      }}
+                      title={`Secondary: ${palette.colors.secondary}`}
+                    >
+                      <span className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                        {copiedColor === palette.colors.secondary ? (
+                          <Check className="h-3 w-3 text-white" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-white" />
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className="flex-1 h-6 rounded cursor-pointer border border-gray-200 hover:border-gray-300 transition-colors relative overflow-hidden"
+                      style={{ backgroundColor: palette.colors.accent }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyColor(palette.colors.accent);
+                      }}
+                      title={`Accent: ${palette.colors.accent}`}
+                    >
+                      <span className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                        {copiedColor === palette.colors.accent ? (
+                          <Check className="h-3 w-3 text-white" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-white" />
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Color Labels */}
+                  <div className="flex justify-between text-xs text-gray-500 px-1">
+                    <span className="font-medium">Primary</span>
+                    <span className="font-medium">Secondary</span>
+                    <span className="font-medium">Accent</span>
+                  </div>
                 </div>
 
                 {/* Palette Info */}
@@ -521,6 +586,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                       onColorsChange({
                         primary: e.target.value,
                         secondary: currentColors?.secondary || "#10B981",
+                        accent: currentColors?.accent || "#F59E0B",
                       })
                     }
                     className="w-12 h-8 rounded border border-gray-300"
@@ -532,6 +598,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                       onColorsChange({
                         primary: e.target.value,
                         secondary: currentColors?.secondary || "#10B981",
+                        accent: currentColors?.accent || "#F59E0B",
                       })
                     }
                     className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
@@ -552,6 +619,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                       onColorsChange({
                         primary: currentColors?.primary || "#3B82F6",
                         secondary: e.target.value,
+                        accent: currentColors?.accent || "#F59E0B",
                       })
                     }
                     className="w-12 h-8 rounded border border-gray-300"
@@ -563,10 +631,44 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                       onColorsChange({
                         primary: currentColors?.primary || "#3B82F6",
                         secondary: e.target.value,
+                        accent: currentColors?.accent || "#F59E0B",
                       })
                     }
                     className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
                     placeholder="#10B981"
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Accent Color
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={currentColors?.accent || "#F59E0B"}
+                    onChange={(e) =>
+                      onColorsChange({
+                        primary: currentColors?.primary || "#3B82F6",
+                        secondary: currentColors?.secondary || "#10B981",
+                        accent: e.target.value,
+                      })
+                    }
+                    className="w-12 h-8 rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={currentColors?.accent || "#F59E0B"}
+                    onChange={(e) =>
+                      onColorsChange({
+                        primary: currentColors?.primary || "#3B82F6",
+                        secondary: currentColors?.secondary || "#10B981",
+                        accent: e.target.value,
+                      })
+                    }
+                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                    placeholder="#F59E0B"
                   />
                 </div>
               </div>

@@ -10,7 +10,11 @@ import {
   deletePropertyImage,
   reorderPropertyImages,
 } from "@/controllers/propertyController";
-import { authenticate, authorize } from "@/middleware/auth";
+import {
+  authenticate,
+  authorize,
+  requireApprovedRealtor,
+} from "@/middleware/auth";
 import { upload } from "@/utils/upload";
 
 const router = express.Router();
@@ -475,7 +479,19 @@ router.get("/:id", getProperty);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.post("/", authenticate, authorize("REALTOR", "ADMIN"), createProperty);
+router.post(
+  "/",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users, admins bypass this check
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
+  createProperty
+);
 
 /**
  * @swagger
@@ -577,11 +593,30 @@ router.get("/:id", getProperty);
  *       404:
  *         description: Property not found
  */
-router.put("/:id", authenticate, authorize("REALTOR", "ADMIN"), updateProperty);
+router.put(
+  "/:id",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users, admins bypass this check
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
+  updateProperty
+);
 router.delete(
   "/:id",
   authenticate,
   authorize("REALTOR", "ADMIN"),
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users, admins bypass this check
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
   deleteProperty
 );
 

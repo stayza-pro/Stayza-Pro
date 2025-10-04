@@ -41,6 +41,12 @@ enum PaymentMethod {
    FLUTTERWAVE
 }
 
+enum RealtorStatus {
+   PENDING
+   APPROVED
+   REJECTED
+}
+
 model User {
    id              String   @id @default(cuid())
    email           String   @unique
@@ -53,8 +59,14 @@ model User {
    phone           String?
    businessAddress String? // For realtors - their business address
    avatar          String?
-   createdAt       DateTime @default(now())
-   updatedAt       DateTime @updatedAt
+
+   // Email verification fields
+   isEmailVerified          Boolean   @default(false)
+   emailVerificationToken   String?
+   emailVerificationExpires DateTime?
+
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
 
    // Relations
    realtor  Realtor?
@@ -66,16 +78,20 @@ model User {
 }
 
 model Realtor {
-   id                 String  @id @default(cuid())
-   userId             String  @unique
+   id                 String        @id @default(cuid())
+   userId             String        @unique
    businessName       String // Agency name from registration
    tagline            String? // Business tagline/description
-   slug               String  @unique // Custom subdomain
-   corporateRegNumber String? // Business registration number
+   description        String? // Business description (optional)
+   slug               String        @unique // Custom subdomain
+   corporateRegNumber String? // Business registration number (CAC)
+   cacDocumentUrl     String? // CAC Document upload URL (optional)
    logoUrl            String? // Logo upload URL
+   businessPhone      String? // Business phone number
+   status             RealtorStatus @default(PENDING) // Approval status
 
    // Branding colors from registration
-   primaryColor   String  @default("#3B82F6")
+   primaryColor   String  @default("#000000") // Default to black as per requirements
    secondaryColor String? @default("#10B981")
    accentColor    String? @default("#F59E0B")
 

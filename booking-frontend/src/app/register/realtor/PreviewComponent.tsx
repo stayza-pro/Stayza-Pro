@@ -36,7 +36,7 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
   highlightRegion,
   isLoading = false,
 }) => {
-  const [zoomLevel, setZoomLevel] = useState(0.50); // Default zoom for better fit
+  const [zoomLevel, setZoomLevel] = useState(0.5); // Default zoom for better fit
   const [isFullscreen, setIsFullscreen] = useState(false);
   // Memoized color set to prevent unnecessary recalculations
   const colorSet = useMemo(() => {
@@ -199,18 +199,18 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
     { code: "pt", label: "Português", flag: "🇵🇹" },
   ];
 
-  // Enhanced currency formatting with Intl
+  // Nigerian-focused currency options
   const currencyOptions = [
-    "NGN",
+    "NGN", // Nigerian Naira first
     "USD",
-    "EUR",
     "GBP",
+    "EUR",
+    "ZAR", // South African Rand
+    "GHS", // Ghanaian Cedi
+    "KES", // Kenyan Shilling
     "CAD",
     "AUD",
     "AED",
-    "ZAR",
-    "KES",
-    "GHS",
     "JPY",
     "CNY",
     "INR",
@@ -222,13 +222,13 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
         USD: 1,
         EUR: 0.93,
         GBP: 0.78,
-        NGN: 1600,
+        NGN: 1650, // Updated Nigerian Naira rate
         CAD: 1.34,
         AUD: 1.5,
         AED: 3.67,
-        ZAR: 18.3,
-        KES: 129,
-        GHS: 15.4,
+        ZAR: 18.5, // Updated South African Rand
+        KES: 130, // Updated Kenyan Shilling
+        GHS: 15.8, // Updated Ghanaian Cedi
         JPY: 147,
         CNY: 7.2,
         INR: 83,
@@ -266,38 +266,38 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
     }
   };
 
-  // Sample properties with USD base prices
+  // Sample Nigeria-focused properties with USD base prices
   const sampleProperties = [
     {
-      name: "Oceanview Penthouse",
-      location: "Miami Beach",
+      name: "Executive Penthouse Suite",
+      location: "Victoria Island, Lagos",
       usd: 450,
       rating: "4.9",
-      features: "3 bed • 3 bath • Ocean view",
+      features: "3 bed • 3 bath • Lagos Lagoon view",
       badge: "Luxury",
     },
     {
-      name: "Modern Loft Downtown",
-      location: "City Center",
+      name: "Modern Business Apartment",
+      location: "Ikeja GRA, Lagos",
       usd: 280,
       rating: "4.8",
-      features: "2 bed • 2 bath • City view",
+      features: "2 bed • 2 bath • Business district",
       badge: "Popular",
     },
     {
-      name: "Cozy Garden Apartment",
-      location: "Quiet Neighborhood",
+      name: "Serene Family Duplex",
+      location: "Lekki Phase 2, Lagos",
       usd: 195,
       rating: "4.7",
-      features: "1 bed • 1 bath • Garden",
+      features: "3 bed • 2 bath • Gated estate",
       badge: "Great Value",
     },
     {
-      name: "Executive Suite",
-      location: "Business District",
+      name: "Premium Executive Suite",
+      location: "Abuja CBD",
       usd: 380,
       rating: "4.9",
-      features: "2 bed • 2 bath • Office space",
+      features: "2 bed • 2 bath • Capital city",
       badge: "Business",
     },
   ];
@@ -402,10 +402,7 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
                     id="home"
                     className="p-8 text-white relative overflow-hidden"
                     style={{
-                      background:
-                        colorSet[1] && colorSet[1] !== colorSet[0]
-                          ? `linear-gradient(135deg, ${colorSet[0]}, ${colorSet[1]})`
-                          : colorSet[0],
+                      backgroundColor: colorSet[0] || "#374151",
                     }}
                   >
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
@@ -634,10 +631,7 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
                           href="#properties"
                           className="px-4 py-2 text-xs sm:text-sm font-semibold text-white rounded-lg shadow-md hover:shadow-lg transition-all"
                           style={{
-                            background:
-                              colorSet[2] && colorSet[2] !== colorSet[0]
-                                ? `linear-gradient(135deg, ${colorSet[0]}, ${colorSet[2]})`
-                                : colorSet[0],
+                            backgroundColor: colorSet[0] || "#374151",
                           }}
                         >
                           {t("bookNow")}
@@ -649,12 +643,7 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
 
                 {/* Search Section */}
                 <HighlightRegion regionId="search">
-                  <div
-                    className="p-8"
-                    style={{
-                      backgroundColor: (colorSet[0] || palette.primary) + "12",
-                    }}
-                  >
+                  <div className="p-8 bg-gray-50">
                     <div className="max-w-4xl mx-auto">
                       <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -809,10 +798,7 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
                               <button
                                 className="px-4 py-2 text-sm font-semibold text-white rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all"
                                 style={{
-                                  background:
-                                    colorSet[2] && colorSet[2] !== colorSet[0]
-                                      ? `linear-gradient(135deg, ${colorSet[0]}, ${colorSet[2]})`
-                                      : colorSet[0],
+                                  backgroundColor: colorSet[0] || "#374151",
                                 }}
                               >
                                 {t("bookNow")}
@@ -887,12 +873,11 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
                           {t("replyTime")}
                         </p>
                         <div className="flex flex-wrap gap-3 text-xs">
-                          {data.phoneNumber && (
+                          {(data.phoneNumber || "+234 901 234 5678") && (
                             <a
-                              href={`https://wa.me/${data.phoneNumber.replace(
-                                /[^0-9]/g,
-                                ""
-                              )}`}
+                              href={`https://wa.me/${(
+                                data.phoneNumber || "+234 901 234 5678"
+                              ).replace(/[^0-9]/g, "")}`}
                               target="_blank"
                               className="px-3 py-2 rounded-md border border-gray-200 bg-white hover:border-gray-300 transition"
                             >
@@ -902,9 +887,11 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
                                 : ""}
                             </a>
                           )}
-                          {data.phoneNumber && (
+                          {(data.phoneNumber || "+234 901 234 5678") && (
                             <a
-                              href={`tel:${data.phoneNumber}`}
+                              href={`tel:${
+                                data.phoneNumber || "+234 901 234 5678"
+                              }`}
                               className="px-3 py-2 rounded-md border border-gray-200 bg-white hover:border-gray-300 transition"
                             >
                               Call
@@ -947,10 +934,7 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
                           href="#properties"
                           className="inline-block w-full text-center px-4 py-2 text-xs font-semibold text-white rounded-lg shadow-md hover:shadow-lg transition"
                           style={{
-                            background:
-                              colorSet[2] && colorSet[2] !== colorSet[0]
-                                ? `linear-gradient(135deg, ${colorSet[0]}, ${colorSet[2]})`
-                                : colorSet[0],
+                            backgroundColor: colorSet[0] || "#374151",
                           }}
                         >
                           {t("browseStays")} →
@@ -965,10 +949,7 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
                   <footer
                     className="pt-12 pb-8 px-8 text-white"
                     style={{
-                      background:
-                        colorSet[1] && colorSet[1] !== colorSet[0]
-                          ? `linear-gradient(135deg, ${colorSet[1]}, ${colorSet[0]})`
-                          : colorSet[0],
+                      backgroundColor: colorSet[0] || "#374151",
                     }}
                   >
                     <div className="max-w-6xl mx-auto grid gap-10 md:grid-cols-4">
@@ -1054,7 +1035,7 @@ const PreviewComponent: React.FC<PreviewComponentProps> = ({
                   {/* Sidebar */}
                   <div
                     className="w-72 text-white relative overflow-hidden"
-                    style={{ background: buildGradient("160deg") }}
+                    style={{ backgroundColor: colorSet[0] || "#374151" }}
                   >
                     {/* Background Pattern */}
                     <div className="absolute inset-0 opacity-10">

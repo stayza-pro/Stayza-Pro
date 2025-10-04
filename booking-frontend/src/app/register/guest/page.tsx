@@ -2,10 +2,13 @@
 
 import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Input, Card } from "@/components/ui";
+// UI components replaced with marketing theme classes
 import { User, Mail, Lock, ArrowLeft, Shield, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { palette } from "@/app/(marketing)/content";
+import toast from "react-hot-toast";
+import { validatePhoneNumber } from "../realtor/schema";
+import PhoneNumberFormatter from "@/components/ui/PhoneNumberFormatter";
 
 interface GuestRegistrationData {
   fullName: string;
@@ -44,20 +47,138 @@ function GuestRegistrationContent() {
     }
   };
 
+  // Function to show individual field validation errors via toast
+  const showFieldErrorToast = (fieldName: string, errorMessage: string) => {
+    const displayName = fieldName
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
+
+    toast.error(`${displayName}: ${errorMessage}`, {
+      duration: 3000,
+      position: "top-right",
+    });
+  };
+
+  // Enhanced individual field validation functions
+  const validateField = (
+    fieldName: keyof GuestRegistrationData,
+    value: string
+  ) => {
+    let error = "";
+
+    switch (fieldName) {
+      case "fullName":
+        if (!value.trim()) {
+          error = "Full name is required";
+        } else if (value.trim().length < 2) {
+          error = "Full name must be at least 2 characters";
+        }
+        break;
+      case "email":
+        if (!value.trim()) {
+          error = "Email is required";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          error = "Please enter a valid email address";
+        }
+        break;
+      case "password":
+        if (!value) {
+          error = "Password is required";
+        } else if (value.length < 6) {
+          error = "Password must be at least 6 characters";
+        } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(value)) {
+          error = "Password must contain at least one letter and one number";
+        }
+        break;
+      case "confirmPassword":
+        if (!value) {
+          error = "Please confirm your password";
+        } else if (value !== data.password) {
+          error = "Passwords don't match";
+        }
+        break;
+      case "phoneNumber":
+        // Optional field, but if provided should be valid
+        if (value && value.trim()) {
+          const phoneValidation = validatePhoneNumber(value, "NG");
+          if (!phoneValidation.isValid) {
+            error =
+              phoneValidation.errorMessage ||
+              "Please enter a valid phone number (e.g. +234 807 123 4567, +1 555 123 4567)";
+          }
+        }
+        break;
+    }
+
+    if (error) {
+      showFieldErrorToast(fieldName, error);
+      return false;
+    }
+    return true;
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!data.fullName.trim()) newErrors.fullName = "Full name is required";
-    if (!data.email.trim()) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(data.email))
-      newErrors.email = "Invalid email format";
+    // Comprehensive validation with detailed error messages
+    if (!data.fullName.trim()) {
+      newErrors.fullName = "Full name is required";
+    } else if (data.fullName.trim().length < 2) {
+      newErrors.fullName = "Full name must be at least 2 characters";
+    }
 
-    if (!data.password) newErrors.password = "Password is required";
-    else if (data.password.length < 6)
+    if (!data.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!data.password) {
+      newErrors.password = "Password is required";
+    } else if (data.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
+    } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(data.password)) {
+      newErrors.password =
+        "Password must contain at least one letter and one number";
+    }
 
-    if (data.password !== data.confirmPassword)
+    if (!data.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+    } else if (data.password !== data.confirmPassword) {
       newErrors.confirmPassword = "Passwords don't match";
+    }
+
+    // Validate phone number if provided (optional field)
+    if (data.phoneNumber && data.phoneNumber.trim()) {
+      const phoneValidation = validatePhoneNumber(data.phoneNumber, "NG");
+      if (!phoneValidation.isValid) {
+        newErrors.phoneNumber =
+          phoneValidation.errorMessage ||
+          "Please enter a valid phone number (e.g. +234 807 123 4567, +1 555 123 4567)";
+      }
+    }
+
+    // Show toast notifications for all validation errors
+    if (Object.keys(newErrors).length > 0) {
+      // Show a summary toast first
+      toast.error(
+        `Please fix ${Object.keys(newErrors).length} validation error${
+          Object.keys(newErrors).length > 1 ? "s" : ""
+        }`,
+        {
+          duration: 3000,
+          position: "top-right",
+        }
+      );
+
+      // Then show individual field errors
+      Object.entries(newErrors).forEach(([field, message]) => {
+        setTimeout(() => {
+          showFieldErrorToast(field, message);
+        }, 500);
+      });
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -66,22 +187,60 @@ function GuestRegistrationContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      toast.error("Please fix all validation errors before submitting", {
+        duration: 4000,
+        position: "top-right",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
-      // TODO: Submit registration data to backend
-      console.log("Registering guest:", data);
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          firstName: data.fullName.split(" ")[0] || data.fullName,
+          lastName: data.fullName.split(" ").slice(1).join(" ") || "",
+          phone: data.phoneNumber || null,
+          role: "GUEST",
+        }),
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Registration failed");
+      }
+
+      // Store auth tokens
+      if (result.data?.accessToken) {
+        localStorage.setItem("accessToken", result.data.accessToken);
+        localStorage.setItem("refreshToken", result.data.refreshToken);
+      }
+
+      // Show success message
+      console.log("Registration successful:", result.data.user);
 
       // Redirect back to booking flow or dashboard
-      router.push(returnTo);
+      router.push(returnTo === "/dashboard" ? "/dashboard/guest" : returnTo);
     } catch (error) {
       console.error("Registration failed:", error);
-      setErrors({ general: "Registration failed. Please try again." });
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Registration failed. Please try again.";
+
+      toast.error(errorMessage, {
+        duration: 5000,
+        position: "top-right",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -98,9 +257,9 @@ function GuestRegistrationContent() {
 
   return (
     <div
-      className="min-h-screen py-12 px-4 sm:px-6 lg:px-8"
+      className="marketing-theme min-h-screen py-12 px-4 sm:px-6 lg:px-8"
       style={{
-        background: `linear-gradient(135deg, ${palette.primary}08 0%, ${palette.secondary}05 100%)`,
+        background: `linear-gradient(135deg, var(--marketing-primary) 0%, var(--marketing-secondary) 100%)`,
       }}
     >
       <div className="max-w-lg mx-auto">
@@ -108,7 +267,7 @@ function GuestRegistrationContent() {
         <div className="mb-8">
           <Link
             href="/auth/login"
-            className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors group"
+            className="inline-flex items-center text-sm font-medium text-white/80 hover:text-white transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-0.5 transition-transform" />
             Back to Login
@@ -120,14 +279,13 @@ function GuestRegistrationContent() {
           <div
             className="mx-auto h-20 w-20 flex items-center justify-center rounded-3xl shadow-lg mb-6"
             style={{
-              backgroundColor: palette.primary,
-              background: `linear-gradient(135deg, ${palette.primary}, ${palette.secondary})`,
+              background: `linear-gradient(135deg, var(--marketing-accent), var(--marketing-secondary))`,
             }}
           >
             <User className="h-10 w-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">Join Stayza</h1>
-          <p className="text-lg text-gray-600 max-w-md mx-auto">
+          <h1 className="text-4xl font-bold text-white mb-3">Join Stayza</h1>
+          <p className="text-lg text-white/80 max-w-md mx-auto">
             {propertyId
               ? "Create your account to complete this booking securely"
               : "Discover and book amazing properties with personalized recommendations"}
@@ -136,20 +294,24 @@ function GuestRegistrationContent() {
 
         {/* Benefits Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          <div className="flex items-center p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/20">
-            <Shield className="w-5 h-5 text-green-600 mr-3" />
+          <div className="marketing-card flex items-center p-5 bg-white/80 backdrop-blur-sm border-white/30">
+            <Shield className="w-6 h-6 text-green-600 mr-4" />
             <div>
-              <p className="font-medium text-gray-900 text-sm">
+              <p className="font-semibold text-gray-900 text-sm">
                 Secure Bookings
               </p>
-              <p className="text-xs text-gray-600">Protected payments & data</p>
+              <p className="text-xs text-gray-700 mt-0.5">
+                Protected payments & data
+              </p>
             </div>
           </div>
-          <div className="flex items-center p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/20">
-            <CheckCircle className="w-5 h-5 text-blue-600 mr-3" />
+          <div className="marketing-card flex items-center p-5 bg-white/80 backdrop-blur-sm border-white/30">
+            <CheckCircle className="w-6 h-6 text-blue-600 mr-4" />
             <div>
-              <p className="font-medium text-gray-900 text-sm">Quick Access</p>
-              <p className="text-xs text-gray-600">
+              <p className="font-semibold text-gray-900 text-sm">
+                Quick Access
+              </p>
+              <p className="text-xs text-gray-700 mt-0.5">
                 Instant booking confirmations
               </p>
             </div>
@@ -157,145 +319,133 @@ function GuestRegistrationContent() {
         </div>
 
         {/* Registration Form */}
-        <Card className="p-8 shadow-2xl border-0 bg-white/70 backdrop-blur-md">
+        <div className="marketing-card-elevated p-8 bg-white/95 backdrop-blur-md">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-5">
               <div>
-                <Input
-                  label="Full Name"
-                  type="text"
-                  value={data.fullName}
-                  onChange={(e) =>
-                    handleInputChange("fullName", e.target.value)
-                  }
-                  placeholder="Enter your full name"
-                  error={errors.fullName}
-                  leftIcon={
-                    <User
-                      className="w-5 h-5"
-                      style={{ color: palette.primary }}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={data.fullName}
+                      onChange={(e) =>
+                        handleInputChange("fullName", e.target.value)
+                      }
+                      onBlur={(e) => validateField("fullName", e.target.value)}
+                      placeholder="Enter your full name"
+                      className={`marketing-input ${
+                        errors.fullName ? "!border-red-500 !ring-red-500" : ""
+                      }`}
+                      required
                     />
-                  }
-                  required
-                  className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                  style={
-                    { "--focus-ring-color": palette.primary + "20" } as any
-                  }
-                />
+                    <User className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
               </div>
 
               <div>
-                <Input
-                  label="Email Address"
-                  type="email"
-                  value={data.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  placeholder="Enter your email address"
-                  error={errors.email}
-                  leftIcon={
-                    <Mail
-                      className="w-5 h-5"
-                      style={{ color: palette.primary }}
-                    />
-                  }
-                  required
-                  className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                  style={
-                    { "--focus-ring-color": palette.primary + "20" } as any
-                  }
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={data.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    onBlur={(e) => validateField("email", e.target.value)}
+                    placeholder="Enter your email address"
+                    className={`marketing-input ${
+                      errors.email ? "!border-red-500 !ring-red-500" : ""
+                    }`}
+                    required
+                  />
+                  <Mail className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                </div>
               </div>
 
               <div>
-                <Input
-                  label="Phone Number (Optional)"
-                  type="tel"
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number (Optional)
+                </label>
+                <PhoneNumberFormatter
                   value={data.phoneNumber}
-                  onChange={(e) =>
-                    handleInputChange("phoneNumber", e.target.value)
+                  onChange={(value: string) =>
+                    handleInputChange("phoneNumber", value)
+                  }
+                  onBlur={(value: string) =>
+                    validateField("phoneNumber", value)
                   }
                   placeholder="+234 801 234 5678"
-                  helperText="For booking updates and support"
-                  className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                  style={
-                    { "--focus-ring-color": palette.primary + "20" } as any
-                  }
+                  className="marketing-input"
+                  defaultCountry="NG"
+                  showCountrySelector={true}
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  For booking updates and support
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Input
-                    label="Password"
-                    type="password"
-                    value={data.password}
-                    onChange={(e) =>
-                      handleInputChange("password", e.target.value)
-                    }
-                    placeholder="Create password"
-                    error={errors.password}
-                    leftIcon={
-                      <Lock
-                        className="w-5 h-5"
-                        style={{ color: palette.primary }}
-                      />
-                    }
-                    helperText="Min. 6 characters"
-                    required
-                    className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                    style={
-                      { "--focus-ring-color": palette.primary + "20" } as any
-                    }
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={data.password}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
+                      onBlur={(e) => validateField("password", e.target.value)}
+                      placeholder="Create password"
+                      className={`marketing-input ${
+                        errors.password ? "!border-red-500 !ring-red-500" : ""
+                      }`}
+                      required
+                    />
+                    <Lock className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Min. 6 characters
+                  </p>
                 </div>
                 <div>
-                  <Input
-                    label="Confirm Password"
-                    type="password"
-                    value={data.confirmPassword}
-                    onChange={(e) =>
-                      handleInputChange("confirmPassword", e.target.value)
-                    }
-                    placeholder="Repeat password"
-                    error={errors.confirmPassword}
-                    leftIcon={
-                      <Lock
-                        className="w-5 h-5"
-                        style={{ color: palette.primary }}
-                      />
-                    }
-                    required
-                    className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                    style={
-                      { "--focus-ring-color": palette.primary + "20" } as any
-                    }
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={data.confirmPassword}
+                      onChange={(e) =>
+                        handleInputChange("confirmPassword", e.target.value)
+                      }
+                      onBlur={(e) =>
+                        validateField("confirmPassword", e.target.value)
+                      }
+                      placeholder="Repeat password"
+                      className={`marketing-input ${
+                        errors.confirmPassword
+                          ? "!border-red-500 !ring-red-500"
+                          : ""
+                      }`}
+                      required
+                    />
+                    <Lock className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {errors.general && (
-              <div
-                className="p-4 rounded-xl border-l-4"
-                style={{
-                  backgroundColor: "#FEF2F2",
-                  borderColor: "#F87171",
-                  color: "#DC2626",
-                }}
-              >
-                <p className="text-sm font-medium">{errors.general}</p>
-              </div>
-            )}
-
             <div className="space-y-4 pt-2">
-              <Button
+              <button
                 type="submit"
-                loading={isSubmitting}
-                className="w-full h-14 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-                style={{
-                  backgroundColor: palette.primary,
-                  borderColor: palette.primary,
-                }}
+                disabled={isSubmitting}
+                className="marketing-button-primary w-full h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
               >
                 {isSubmitting ? (
                   <div className="flex items-center">
@@ -305,7 +455,7 @@ function GuestRegistrationContent() {
                 ) : (
                   "Create Account"
                 )}
-              </Button>
+              </button>
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -318,23 +468,17 @@ function GuestRegistrationContent() {
                 </div>
               </div>
 
-              <Button
-                variant="outline"
+              <button
                 onClick={handleContinueAsGuest}
-                className="w-full h-12 text-base font-semibold rounded-xl border-2 hover:shadow-md transition-all duration-200 group"
-                style={{
-                  borderColor: palette.secondary,
-                  color: palette.secondary,
-                  backgroundColor: "white",
-                }}
+                className="marketing-button-secondary w-full h-12 text-base font-semibold rounded-xl border-2 hover:shadow-md transition-all duration-200 group"
               >
                 <span className="group-hover:translate-x-0.5 transition-transform">
                   Continue as Guest →
                 </span>
-              </Button>
+              </button>
             </div>
           </form>
-        </Card>
+        </div>
 
         {/* Footer Links */}
         <div className="text-center mt-8 space-y-4">
@@ -342,8 +486,7 @@ function GuestRegistrationContent() {
             Already have an account?{" "}
             <Link
               href={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`}
-              className="font-semibold hover:underline transition-colors"
-              style={{ color: palette.primary }}
+              className="font-semibold hover:underline transition-colors text-[var(--marketing-primary)] hover:text-[var(--marketing-secondary)]"
             >
               Sign in instead
             </Link>
@@ -352,16 +495,14 @@ function GuestRegistrationContent() {
             By creating an account, you agree to our{" "}
             <Link
               href="/legal/terms"
-              className="hover:underline"
-              style={{ color: palette.primary }}
+              className="hover:underline text-[var(--marketing-primary)] hover:text-[var(--marketing-secondary)]"
             >
               Terms of Service
             </Link>{" "}
             and{" "}
             <Link
               href="/legal/privacy"
-              className="hover:underline"
-              style={{ color: palette.primary }}
+              className="hover:underline text-[var(--marketing-primary)] hover:text-[var(--marketing-secondary)]"
             >
               Privacy Policy
             </Link>

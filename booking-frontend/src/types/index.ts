@@ -4,6 +4,7 @@
 
 export type UserRole = "GUEST" | "REALTOR" | "ADMIN";
 export type RealtorStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+export type PropertyStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
 export type PropertyType =
   | "APARTMENT"
   | "HOUSE"
@@ -126,6 +127,7 @@ export interface Property {
   checkOutTime: string;
   isActive: boolean;
   isApproved: boolean;
+  status: PropertyStatus;
   createdAt: Date;
   updatedAt: Date;
 
@@ -378,6 +380,8 @@ export interface PropertyFormData {
   checkInTime: string;
   checkOutTime: string;
 }
+
+export type CreatePropertyData = PropertyFormData;
 
 export interface BookingFormData {
   propertyId: string;

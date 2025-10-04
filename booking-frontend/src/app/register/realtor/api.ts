@@ -1,6 +1,7 @@
 // API Integration Service for Realtor Registration
 import React from "react";
 import { toast } from "react-hot-toast";
+import { normalizeSubdomain } from "./schema";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -38,7 +39,8 @@ export interface EmailVerificationResponse {
 }
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 const API_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 
@@ -64,14 +66,18 @@ async function fetchWithRetry(
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
 
   try {
+    // Don't set Content-Type for FormData requests (let browser handle it)
+    const isFormData = options.body instanceof FormData;
+    const headers: HeadersInit = {
+      Accept: "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...options.headers,
+    };
+
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...options.headers,
-      },
+      headers,
     });
 
     clearTimeout(timeoutId);
@@ -134,11 +140,14 @@ export class RealtorRegistrationApi {
     subdomain: string
   ): Promise<ApiResponse<SubdomainCheckResponse>> {
     try {
+      // Normalize subdomain before sending to API
+      const normalizedSubdomain = normalizeSubdomain(subdomain);
       const response = await fetchWithRetry(
-        `${API_BASE_URL}/realtors/subdomain/check`,
+        `${API_BASE_URL}/realtors/subdomain/check?subdomain=${encodeURIComponent(
+          normalizedSubdomain
+        )}`,
         {
-          method: "POST",
-          body: JSON.stringify({ subdomain }),
+          method: "GET",
         }
       );
 
@@ -184,13 +193,15 @@ export class RealtorRegistrationApi {
     try {
       const formData = new FormData();
       formData.append("logo", file);
-      formData.append("type", "realtor-logo");
 
-      const response = await fetchWithRetry(`${API_BASE_URL}/upload/logo`, {
-        method: "POST",
-        body: formData,
-        headers: {}, // Don't set Content-Type for FormData
-      });
+      const response = await fetchWithRetry(
+        `${API_BASE_URL}/realtors/upload-temp-logo`,
+        {
+          method: "POST",
+          body: formData,
+          headers: {}, // Don't set Content-Type for FormData
+        }
+      );
 
       return handleApiResponse<{ url: string; id: string }>(response);
     } catch (error) {
@@ -244,7 +255,7 @@ export class RealtorRegistrationApi {
   ): Promise<ApiResponse<{ sent: boolean }>> {
     try {
       const response = await fetchWithRetry(
-        `${API_BASE_URL}/auth/send-verification`,
+        `${API_BASE_URL}/auth/resend-verification`,
         {
           method: "POST",
           body: JSON.stringify({ email, type: "realtor" }),

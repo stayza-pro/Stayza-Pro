@@ -96,10 +96,8 @@ export const propertyService = {
   },
 
   // Delete property image
-  deleteImage: async (propertyId: string, imageUrl: string): Promise<void> => {
-    await apiClient.delete(`/properties/${propertyId}/images`, {
-      data: { imageUrl },
-    });
+  deleteImage: async (propertyId: string, imageId: string): Promise<void> => {
+    await apiClient.delete(`/properties/${propertyId}/images/${imageId}`);
   },
 
   // Get host's properties
