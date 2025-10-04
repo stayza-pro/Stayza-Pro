@@ -32,7 +32,7 @@ const NewProperty: React.FC = () => {
     async (data: CreatePropertyData & { images?: File[] }) => {
       // First create the property
       const property = await propertyService.createProperty(data);
-      
+
       // Then upload images if any
       if (data.images && data.images.length > 0) {
         setIsUploadingImages(true);
@@ -46,7 +46,7 @@ const NewProperty: React.FC = () => {
           setIsUploadingImages(false);
         }
       }
-      
+
       return property;
     },
     {
@@ -55,15 +55,15 @@ const NewProperty: React.FC = () => {
         router.push(`/dashboard/properties/${property.id}/edit`);
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || "Failed to create property");
+        toast.error(
+          error.response?.data?.message || "Failed to create property"
+        );
       },
     }
   );
 
   const handleSubmit = async (data: CreatePropertyData) => {
-    const imageFiles = images
-      .filter(img => img.file)
-      .map(img => img.file!);
+    const imageFiles = images.filter((img) => img.file).map((img) => img.file!);
 
     createPropertyMutation.mutate({
       ...data,
@@ -80,7 +80,11 @@ const NewProperty: React.FC = () => {
   const isLoading = createPropertyMutation.isLoading || isUploadingImages;
 
   return (
-    <ModernDashboardLayout currentUser={user} activeRoute="properties" onRouteChange={() => {}}>
+    <ModernDashboardLayout
+      currentUser={user}
+      activeRoute="properties"
+      onRouteChange={() => {}}
+    >
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -89,7 +93,9 @@ const NewProperty: React.FC = () => {
             Back to Properties
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Add New Property</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Add New Property
+            </h1>
             <p className="text-gray-600">Create a new property listing</p>
           </div>
         </div>
@@ -119,9 +125,16 @@ const NewProperty: React.FC = () => {
               <p className="font-medium mb-2">Photo Guidelines:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Upload high-quality photos (at least 1024x768 pixels)</li>
-                <li>Include photos of all main areas (living room, bedrooms, kitchen, bathroom)</li>
-                <li>Show the property's best features and unique selling points</li>
-                <li>Ensure photos are well-lit and accurately represent the space</li>
+                <li>
+                  Include photos of all main areas (living room, bedrooms,
+                  kitchen, bathroom)
+                </li>
+                <li>
+                  Show the property's best features and unique selling points
+                </li>
+                <li>
+                  Ensure photos are well-lit and accurately represent the space
+                </li>
                 <li>The first photo will be used as the main listing image</li>
               </ul>
             </div>

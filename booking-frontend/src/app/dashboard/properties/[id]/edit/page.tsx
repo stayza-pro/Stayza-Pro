@@ -59,8 +59,11 @@ const EditProperty: React.FC = () => {
   const updatePropertyMutation = useMutation(
     async (data: PropertyFormData & { imagesToUpload?: File[] }) => {
       // Update property data
-      const updatedProperty = await propertyService.updateProperty(propertyId, data);
-      
+      const updatedProperty = await propertyService.updateProperty(
+        propertyId,
+        data
+      );
+
       // Handle image uploads if any
       if (data.imagesToUpload && data.imagesToUpload.length > 0) {
         setIsUploadingImages(true);
@@ -75,7 +78,7 @@ const EditProperty: React.FC = () => {
           setIsUploadingImages(false);
         }
       }
-      
+
       return updatedProperty;
     },
     {
@@ -84,7 +87,9 @@ const EditProperty: React.FC = () => {
         queryClient.invalidateQueries("host-properties");
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || "Failed to update property");
+        toast.error(
+          error.response?.data?.message || "Failed to update property"
+        );
       },
     }
   );
@@ -105,8 +110,8 @@ const EditProperty: React.FC = () => {
 
   const handleSubmit = async (data: PropertyFormData) => {
     const newImageFiles = images
-      .filter(img => img.file && !img.id)
-      .map(img => img.file!);
+      .filter((img) => img.file && !img.id)
+      .map((img) => img.file!);
 
     updatePropertyMutation.mutate({
       ...data,
@@ -132,7 +137,11 @@ const EditProperty: React.FC = () => {
 
   if (isLoadingProperty) {
     return (
-      <ModernDashboardLayout currentUser={user} activeRoute="properties" onRouteChange={() => {}}>
+      <ModernDashboardLayout
+        currentUser={user}
+        activeRoute="properties"
+        onRouteChange={() => {}}
+      >
         <div className="flex justify-center items-center min-h-[400px]">
           <Loading size="lg" />
         </div>
@@ -142,13 +151,18 @@ const EditProperty: React.FC = () => {
 
   if (error || !property) {
     return (
-      <ModernDashboardLayout currentUser={user} activeRoute="properties" onRouteChange={() => {}}>
+      <ModernDashboardLayout
+        currentUser={user}
+        activeRoute="properties"
+        onRouteChange={() => {}}
+      >
         <Card className="p-12 text-center">
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Property Not Found
           </h3>
           <p className="text-gray-600 mb-6">
-            The property you're looking for doesn't exist or you don't have access to it.
+            The property you're looking for doesn't exist or you don't have
+            access to it.
           </p>
           <Button onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -159,10 +173,17 @@ const EditProperty: React.FC = () => {
     );
   }
 
-  const isLoading = updatePropertyMutation.isLoading || isUploadingImages || deleteImageMutation.isLoading;
+  const isLoading =
+    updatePropertyMutation.isLoading ||
+    isUploadingImages ||
+    deleteImageMutation.isLoading;
 
   return (
-    <ModernDashboardLayout currentUser={user} activeRoute="properties" onRouteChange={() => {}}>
+    <ModernDashboardLayout
+      currentUser={user}
+      activeRoute="properties"
+      onRouteChange={() => {}}
+    >
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -183,10 +204,10 @@ const EditProperty: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 mb-6">
               Property Details
             </h2>
-            <PropertyForm 
+            <PropertyForm
               property={property}
-              onSubmit={handleSubmit} 
-              isLoading={isLoading} 
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
             />
           </Card>
 
@@ -234,7 +255,7 @@ const EditProperty: React.FC = () => {
                 Add New Images
               </h2>
               <PropertyImageUpload
-                images={images.filter(img => !img.id)} // Only show new images
+                images={images.filter((img) => !img.id)} // Only show new images
                 onImagesChange={handleImageChange}
                 maxImages={8 - (property.images?.length || 0)}
                 isLoading={isUploadingImages}
@@ -246,7 +267,10 @@ const EditProperty: React.FC = () => {
                   <li>Include photos of all main areas</li>
                   <li>Show the property's best features</li>
                   <li>Ensure photos are well-lit and accurate</li>
-                  <li>Maximum {8 - (property.images?.length || 0)} new images can be added</li>
+                  <li>
+                    Maximum {8 - (property.images?.length || 0)} new images can
+                    be added
+                  </li>
                 </ul>
               </div>
             </Card>

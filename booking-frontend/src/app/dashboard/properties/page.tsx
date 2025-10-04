@@ -41,7 +41,9 @@ const PropertyManagement: React.FC = () => {
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | PropertyStatus>("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | PropertyStatus>(
+    "all"
+  );
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Fetch user's properties
@@ -49,13 +51,9 @@ const PropertyManagement: React.FC = () => {
     data: properties = [],
     isLoading,
     error,
-  } = useQuery(
-    "host-properties",
-    () => propertyService.getHostProperties(),
-    {
-      enabled: !!user,
-    }
-  );
+  } = useQuery("host-properties", () => propertyService.getHostProperties(), {
+    enabled: !!user,
+  });
 
   // Delete property mutation
   const deletePropertyMutation = useMutation(
@@ -66,7 +64,9 @@ const PropertyManagement: React.FC = () => {
         queryClient.invalidateQueries("host-properties");
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || "Failed to delete property");
+        toast.error(
+          error.response?.data?.message || "Failed to delete property"
+        );
       },
     }
   );
@@ -76,7 +76,8 @@ const PropertyManagement: React.FC = () => {
     const matchesSearch = property.title
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === "all" || property.status === filterStatus;
+    const matchesStatus =
+      filterStatus === "all" || property.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -101,13 +102,16 @@ const PropertyManagement: React.FC = () => {
   const getStatusBadge = (status: PropertyStatus) => {
     const statusConfig = {
       DRAFT: { color: "bg-gray-100 text-gray-800", label: "Draft" },
-      PENDING: { color: "bg-yellow-100 text-yellow-800", label: "Pending Review" },
+      PENDING: {
+        color: "bg-yellow-100 text-yellow-800",
+        label: "Pending Review",
+      },
       APPROVED: { color: "bg-green-100 text-green-800", label: "Live" },
       REJECTED: { color: "bg-red-100 text-red-800", label: "Rejected" },
     };
 
     const config = statusConfig[status] || statusConfig.DRAFT;
-    
+
     return (
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}
@@ -139,7 +143,7 @@ const PropertyManagement: React.FC = () => {
               <ImageIcon className="h-16 w-16 text-gray-400" />
             </div>
           )}
-          
+
           <div className="absolute top-4 right-4">
             {getStatusBadge(property.status)}
           </div>
@@ -207,7 +211,11 @@ const PropertyManagement: React.FC = () => {
   if (!user) return null;
 
   return (
-    <ModernDashboardLayout currentUser={user} activeRoute="properties" onRouteChange={() => {}}>
+    <ModernDashboardLayout
+      currentUser={user}
+      activeRoute="properties"
+      onRouteChange={() => {}}
+    >
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -239,7 +247,9 @@ const PropertyManagement: React.FC = () => {
 
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as "all" | PropertyStatus)}
+              onChange={(e) =>
+                setFilterStatus(e.target.value as "all" | PropertyStatus)
+              }
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Status</option>
@@ -294,16 +304,14 @@ const PropertyManagement: React.FC = () => {
             <div className="text-center">
               <ImageIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchQuery || filterStatus !== "all" 
+                {searchQuery || filterStatus !== "all"
                   ? "No properties found"
-                  : "No properties yet"
-                }
+                  : "No properties yet"}
               </h3>
               <p className="text-gray-600 mb-6">
                 {searchQuery || filterStatus !== "all"
                   ? "Try adjusting your search or filters"
-                  : "Start by adding your first property to get bookings"
-                }
+                  : "Start by adding your first property to get bookings"}
               </p>
               <Button onClick={handleCreateProperty}>
                 <Plus className="h-4 w-4 mr-2" />
