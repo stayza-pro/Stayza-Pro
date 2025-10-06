@@ -7,6 +7,7 @@ import {
   getHostBookings,
   getBooking,
   updateBookingStatus,
+  cancelBooking,
 } from "@/controllers/bookingController";
 import { authenticate, authorize } from "@/middleware/auth";
 import { bookingLimiter } from "@/middleware/rateLimiter";
@@ -596,5 +597,8 @@ router.put(
   authorize("REALTOR", "ADMIN"),
   updateBookingStatus
 );
+
+// Cancel booking route
+router.put("/:id/cancel", authenticate, cancelBooking);
 
 export default router;

@@ -9,6 +9,7 @@ import {
   NotificationService,
   notificationHelpers,
 } from "@/services/notificationService";
+import { updatePaymentCommission } from "@/services/commission";
 import axios from "axios";
 import crypto from "crypto";
 
@@ -207,7 +208,7 @@ export const verifyFlutterwavePayment = asyncHandler(
         ? PaymentStatus.COMPLETED
         : PaymentStatus.FAILED;
 
-      await prisma.payment.update({
+      const updatedPayment = await prisma.payment.update({
         where: { id: payment.id },
         data: {
           status: newStatus,
@@ -216,6 +217,16 @@ export const verifyFlutterwavePayment = asyncHandler(
           metadata: transaction as any,
         },
       });
+
+      // Calculate and store commission breakdown if payment successful
+      if (isSuccessful) {
+        try {
+          await updatePaymentCommission(updatedPayment.id);
+        } catch (commissionError) {
+          console.error("Error calculating commission:", commissionError);
+          // Don't fail payment verification if commission calculation fails
+        }
+      }
 
       // Send failure notification if payment failed
       if (!isSuccessful) {

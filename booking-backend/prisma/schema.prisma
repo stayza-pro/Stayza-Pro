@@ -83,6 +83,8 @@ model User {
    payments               Payment[]
    notifications          Notification[]
    notificationPreference NotificationPreference?
+   auditLogs              AuditLog[]
+   adminAuditLogs         AuditLog[]              @relation("AdminAuditLogs")
 
    @@map("users")
 }
@@ -210,8 +212,17 @@ model Payment {
    refundAmount          Decimal?      @db.Decimal(10, 2) // amount refunded if any
    refundedAt            DateTime? // when refund was processed
    metadata              Json? // store additional payment provider data
-   createdAt             DateTime      @default(now())
-   updatedAt             DateTime      @updatedAt
+
+   // Commission tracking
+   platformCommission Decimal?  @db.Decimal(10, 2) // Platform fee (e.g., 5%)
+   commissionRate     Decimal?  @db.Decimal(5, 4) // Commission rate as decimal (0.05 = 5%)
+   realtorEarnings    Decimal?  @db.Decimal(10, 2) // Amount realtor receives after commission
+   commissionPaidOut  Boolean   @default(false) // Whether commission has been settled
+   payoutDate         DateTime? // When realtor was paid
+   payoutReference    String? // Payout transaction reference
+
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
 
    // Relations
    booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -342,6 +353,32 @@ model Notification {
    review   Review?   @relation(fields: [reviewId], references: [id], onDelete: SetNull)
 
    @@map("notifications")
+}
+
+model AuditLog {
+   id         String   @id @default(cuid())
+   action     String // Action performed (e.g., "REALTOR_APPROVED", "PAYMENT_PROCESSED")
+   entityType String // Entity type (e.g., "REALTOR", "PAYMENT", "BOOKING")
+   entityId   String // ID of the affected entity
+   userId     String? // ID of the user who performed the action (null for system actions)
+   adminId    String? // ID of admin who performed the action
+   ipAddress  String? // IP address of the user
+   userAgent  String? // User agent string
+   details    Json? // Additional details about the action
+   timestamp  DateTime @default(now())
+   createdAt  DateTime @default(now())
+
+   // Relations
+   user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+   admin User? @relation("AdminAuditLogs", fields: [adminId], references: [id], onDelete: SetNull)
+
+   @@index([action])
+   @@index([entityType])
+   @@index([entityId])
+   @@index([userId])
+   @@index([adminId])
+   @@index([timestamp])
+   @@map("audit_logs")
 }
 
 model NotificationPreference {

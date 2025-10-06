@@ -8,7 +8,18 @@ import {
   approveProperty,
   rejectProperty,
   getPlatformAnalytics,
+  getPlatformCommissionReport,
+  getRealtorCommissionReport,
+  processRealtorPayout,
+  getPendingPayouts,
 } from "@/controllers/adminController";
+import { getAuditLogs } from "@/controllers/auditController";
+import {
+  updateBookingStatus,
+  batchUpdateBookingStatuses,
+  getBookingStatusInfo,
+  getBookingStatusStats,
+} from "@/controllers/bookingStatusController";
 import { authenticate, requireRole } from "@/middleware/auth";
 
 const router = express.Router();
@@ -418,5 +429,337 @@ router.post("/properties/:id/reject", rejectProperty);
  *         description: Admin access required
  */
 router.get("/analytics", getPlatformAnalytics);
+
+// Commission management routes
+/**
+ * @swagger
+ * /admin/commission/platform-report:
+ *   get:
+ *     summary: Get platform commission report
+ *     tags: [Admin Commission]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date for report period
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date for report period
+ *     responses:
+ *       200:
+ *         description: Platform commission report retrieved successfully
+ *       403:
+ *         description: Admin access required
+ */
+router.get("/commission/platform-report", getPlatformCommissionReport);
+
+/**
+ * @swagger
+ * /admin/commission/realtor/{realtorId}:
+ *   get:
+ *     summary: Get realtor commission report
+ *     tags: [Admin Commission]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: realtorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Realtor ID
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date for report period
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date for report period
+ *     responses:
+ *       200:
+ *         description: Realtor commission report retrieved successfully
+ *       404:
+ *         description: Realtor not found
+ *       403:
+ *         description: Admin access required
+ */
+router.get("/commission/realtor/:realtorId", getRealtorCommissionReport);
+
+/**
+ * @swagger
+ * /admin/commission/pending-payouts:
+ *   get:
+ *     summary: Get pending payouts
+ *     tags: [Admin Commission]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Items per page
+ *       - in: query
+ *         name: realtorId
+ *         schema:
+ *           type: string
+ *         description: Filter by realtor ID
+ *     responses:
+ *       200:
+ *         description: Pending payouts retrieved successfully
+ *       403:
+ *         description: Admin access required
+ */
+router.get("/commission/pending-payouts", getPendingPayouts);
+
+/**
+ * @swagger
+ * /admin/commission/payout/{paymentId}:
+ *   post:
+ *     summary: Process payout to realtor
+ *     tags: [Admin Commission]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Payment ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               payoutReference:
+ *                 type: string
+ *                 description: Optional payout reference
+ *     responses:
+ *       200:
+ *         description: Payout processed successfully
+ *       404:
+ *         description: Payment not found
+ *       400:
+ *         description: Invalid payout request
+ *       403:
+ *         description: Admin access required
+ */
+router.post("/commission/payout/:paymentId", processRealtorPayout);
+
+/**
+ * @swagger
+ * /admin/audit-logs:
+ *   get:
+ *     summary: Get audit logs
+ *     tags: [Admin Audit]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Items per page
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *         description: Filter by action type
+ *       - in: query
+ *         name: entityType
+ *         schema:
+ *           type: string
+ *         description: Filter by entity type
+ *       - in: query
+ *         name: adminId
+ *         schema:
+ *           type: string
+ *         description: Filter by admin ID
+ *     responses:
+ *       200:
+ *         description: Audit logs retrieved successfully
+ *       403:
+ *         description: Admin access required
+ */
+router.get("/audit-logs", getAuditLogs);
+
+// Booking status management routes
+/**
+ * @swagger
+ * /admin/bookings/{id}/status:
+ *   put:
+ *     summary: Update booking status (Admin only)
+ *     tags: [Admin Booking Status]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Booking ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
+ *               reason:
+ *                 type: string
+ *                 description: Reason for status change
+ *               skipValidation:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Skip business rule validation (admin override)
+ *     responses:
+ *       200:
+ *         description: Booking status updated successfully
+ *       400:
+ *         description: Invalid status or transition not allowed
+ *       404:
+ *         description: Booking not found
+ *       403:
+ *         description: Admin access required
+ */
+router.put("/bookings/:id/status", updateBookingStatus);
+
+/**
+ * @swagger
+ * /admin/bookings/batch-status:
+ *   put:
+ *     summary: Batch update booking statuses (Admin only)
+ *     tags: [Admin Booking Status]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - bookingIds
+ *               - status
+ *               - reason
+ *             properties:
+ *               bookingIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of booking IDs
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
+ *               reason:
+ *                 type: string
+ *                 description: Reason for batch status change
+ *               skipValidation:
+ *                 type: boolean
+ *                 default: false
+ *     responses:
+ *       200:
+ *         description: Batch status update completed
+ *       400:
+ *         description: Invalid request
+ *       403:
+ *         description: Admin access required
+ */
+router.put("/bookings/batch-status", batchUpdateBookingStatuses);
+
+/**
+ * @swagger
+ * /admin/bookings/{id}/status-info:
+ *   get:
+ *     summary: Get booking status workflow information
+ *     tags: [Admin Booking Status]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Booking ID
+ *     responses:
+ *       200:
+ *         description: Booking status information retrieved
+ *       404:
+ *         description: Booking not found
+ *       403:
+ *         description: Admin access required
+ */
+router.get("/bookings/:id/status-info", getBookingStatusInfo);
+
+/**
+ * @swagger
+ * /admin/bookings/status-stats:
+ *   get:
+ *     summary: Get booking status statistics
+ *     tags: [Admin Booking Status]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: realtorId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: propertyId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Booking status statistics retrieved
+ *       403:
+ *         description: Admin access required
+ */
+router.get("/bookings/status-stats", getBookingStatusStats);
 
 export default router;

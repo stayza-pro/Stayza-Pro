@@ -2,6 +2,15 @@ import { Request, Response } from "express";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
+import * as emailService from "@/services/email";
+import {
+  logRealtorApproval,
+  logRealtorRejection,
+  logRealtorSuspension,
+  logPropertyApproval,
+  logPropertyRejection,
+  logPayoutProcessed,
+} from "@/services/auditLogger";
 
 /**
  * @desc    Get all realtors (admin view)
@@ -125,7 +134,30 @@ export const approveRealtor = asyncHandler(
       },
     });
 
-    // TODO: Send approval email notification
+    try {
+      // Send approval email notification
+      const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard`;
+      await emailService.sendRealtorApproval(
+        updatedRealtor.user.email,
+        updatedRealtor.businessName,
+        dashboardUrl
+      );
+    } catch (emailError) {
+      console.error("Failed to send approval email:", emailError);
+      // Don't fail the approval process if email fails
+    }
+
+    // Log admin action
+    try {
+      await logRealtorApproval(
+        req.user!.id,
+        updatedRealtor.id,
+        updatedRealtor.businessName,
+        req
+      );
+    } catch (auditError) {
+      console.error("Failed to log realtor approval:", auditError);
+    }
 
     res.json({
       success: true,
@@ -185,7 +217,30 @@ export const rejectRealtor = asyncHandler(
       },
     });
 
-    // TODO: Send rejection email notification with reason
+    try {
+      // Send rejection email notification
+      await emailService.sendRealtorRejection(
+        updatedRealtor.user.email,
+        updatedRealtor.businessName,
+        reason || "Application does not meet our requirements"
+      );
+    } catch (emailError) {
+      console.error("Failed to send rejection email:", emailError);
+      // Don't fail the rejection process if email fails
+    }
+
+    // Log admin action
+    try {
+      await logRealtorRejection(
+        req.user!.id,
+        updatedRealtor.id,
+        updatedRealtor.businessName,
+        reason || "Application does not meet our requirements",
+        req
+      );
+    } catch (auditError) {
+      console.error("Failed to log realtor rejection:", auditError);
+    }
 
     res.json({
       success: true,
@@ -741,6 +796,235 @@ export const getPlatformAnalytics = asyncHandler(
             percentage:
               totalBookings > 0 ? (status._count / totalBookings) * 100 : 0,
           })),
+        },
+      },
+    });
+  }
+);
+
+// COMMISSION MANAGEMENT ENDPOINTS
+
+/**
+ * @desc    Get platform commission report
+ * @route   GET /api/admin/commission/platform-report
+ * @access  Private (Admin only)
+ */
+export const getPlatformCommissionReport = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { startDate, endDate } = req.query;
+
+    const { getPlatformCommissionReport: generateReport } = await import(
+      "@/services/commission"
+    );
+
+    const start = startDate ? new Date(startDate as string) : undefined;
+    const end = endDate ? new Date(endDate as string) : undefined;
+
+    const report = await generateReport(start, end);
+
+    res.json({
+      success: true,
+      data: {
+        report: {
+          ...report,
+          totalRevenue: report.totalRevenue.toString(),
+          totalCommissions: report.totalCommissions.toString(),
+          totalPayouts: report.totalPayouts.toString(),
+          pendingPayouts: report.pendingPayouts.toString(),
+        },
+        period: {
+          startDate: start?.toISOString() || "All time",
+          endDate: end?.toISOString() || "Present",
+        },
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Get realtor commission report
+ * @route   GET /api/admin/commission/realtor/:realtorId
+ * @access  Private (Admin only)
+ */
+export const getRealtorCommissionReport = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { realtorId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const { getRealtorCommissionReport: generateReport } = await import(
+      "@/services/commission"
+    );
+
+    const start = startDate ? new Date(startDate as string) : undefined;
+    const end = endDate ? new Date(endDate as string) : undefined;
+
+    const report = await generateReport(realtorId, start, end);
+
+    res.json({
+      success: true,
+      data: {
+        report: {
+          ...report,
+          totalEarnings: report.totalEarnings.toString(),
+          totalCommissionPaid: report.totalCommissionPaid.toString(),
+          pendingPayouts: report.pendingPayouts.toString(),
+          completedPayouts: report.completedPayouts.toString(),
+        },
+        period: {
+          startDate: start?.toISOString() || "All time",
+          endDate: end?.toISOString() || "Present",
+        },
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Process payout to realtor
+ * @route   POST /api/admin/commission/payout/:paymentId
+ * @access  Private (Admin only)
+ */
+export const processRealtorPayout = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { paymentId } = req.params;
+    const { payoutReference } = req.body;
+
+    // Get payment details for audit logging
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        booking: {
+          include: {
+            property: {
+              include: { realtor: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new AppError("Payment not found", 404);
+    }
+
+    const { processRealtorPayout: processPayout } = await import(
+      "@/services/commission"
+    );
+
+    await processPayout(paymentId, payoutReference);
+
+    // Log admin action
+    try {
+      await logPayoutProcessed(
+        req.user!.id,
+        paymentId,
+        payment.booking.property.realtorId,
+        payment.realtorEarnings?.toString() || "0",
+        payment.currency,
+        req
+      );
+    } catch (auditError) {
+      console.error("Failed to log payout processing:", auditError);
+    }
+
+    res.json({
+      success: true,
+      message: "Payout processed successfully",
+      data: {
+        paymentId,
+        payoutReference,
+        processedAt: new Date().toISOString(),
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Get pending payouts
+ * @route   GET /api/admin/commission/pending-payouts
+ * @access  Private (Admin only)
+ */
+export const getPendingPayouts = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { page = 1, limit = 20, realtorId } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {
+      status: "COMPLETED",
+      commissionPaidOut: false,
+      realtorEarnings: { not: null },
+    };
+
+    if (realtorId) {
+      where.booking = {
+        property: {
+          realtorId: realtorId as string,
+        },
+      };
+    }
+
+    const [payments, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        include: {
+          booking: {
+            include: {
+              property: {
+                include: {
+                  realtor: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          email: true,
+                          firstName: true,
+                          lastName: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limitNum,
+      }),
+      prisma.payment.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    res.json({
+      success: true,
+      data: {
+        payments: payments.map((payment) => ({
+          id: payment.id,
+          bookingId: payment.bookingId,
+          amount: payment.amount.toString(),
+          realtorEarnings: payment.realtorEarnings?.toString(),
+          currency: payment.currency,
+          paidAt: payment.paidAt,
+          realtor: {
+            id: payment.booking.property.realtor.id,
+            businessName: payment.booking.property.realtor.businessName,
+            user: payment.booking.property.realtor.user,
+          },
+          property: {
+            id: payment.booking.property.id,
+            title: payment.booking.property.title,
+          },
+        })),
+        pagination: {
+          page: pageNum,
+          pages: totalPages,
+          total,
+          hasMore: pageNum < totalPages,
         },
       },
     });

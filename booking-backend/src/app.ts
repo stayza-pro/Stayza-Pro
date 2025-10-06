@@ -4,7 +4,11 @@ import helmet from "helmet";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
 import { config } from "@/config";
-import { errorHandler, notFound } from "@/middleware/errorHandler";
+import {
+  errorHandler,
+  notFound,
+  setupGlobalErrorHandlers,
+} from "@/middleware/errorHandler";
 import { apiLimiter } from "@/middleware/rateLimiter";
 import { swaggerSpec, swaggerUiOptions } from "@/config/swagger";
 
@@ -43,15 +47,18 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // Rate limiting
 app.use("/api/", apiLimiter);
 
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Server is healthy",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
-});
+// Health check endpoints
+import {
+  healthCheck,
+  detailedHealthCheck,
+  readinessProbe,
+  livenessProbe,
+} from "@/controllers/healthController";
+
+app.get("/health", healthCheck);
+app.get("/health/detailed", detailedHealthCheck);
+app.get("/ready", readinessProbe);
+app.get("/live", livenessProbe);
 
 app.use(
   "/api-docs",
@@ -80,6 +87,9 @@ app.use(errorHandler);
 const PORT = config.PORT;
 
 if (require.main === module) {
+  // Setup global error handlers
+  setupGlobalErrorHandlers();
+
   const server = app.listen(PORT, () => {
     console.log(`🚀 Server running in ${config.NODE_ENV} mode on port ${PORT}`);
     console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);

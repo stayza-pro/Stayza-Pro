@@ -11,8 +11,10 @@ import { config } from "@/config";
 import { sendBookingCancellation } from "@/services/email";
 import { auditLogger } from "@/services/auditLogger";
 import {
-  transitionBookingStatus,
+  safeTransitionBookingStatus,
+  canCancelBooking,
   BookingStatusConflictError,
+  InvalidStatusTransitionError,
 } from "@/services/bookingStatus";
 import {
   NotificationService,
@@ -338,7 +340,7 @@ export const createBooking = asyncHandler(
     });
 
     auditLogger
-      .log("BOOKING_CREATE", "Booking", {
+      .log("BOOKING_CREATE", "BOOKING", {
         entityId: result.id,
         userId: req.user!.id,
         details: {
@@ -932,12 +934,190 @@ export const updateBookingStatus = asyncHandler(
     });
 
     auditLogger
-      .log("BOOKING_STATUS_UPDATE", "Booking", {
+      .log("BOOKING_STATUS_UPDATE", "BOOKING", {
         entityId: updatedBooking.id,
         userId: req.user!.id,
         details: { status },
         req,
       })
       .catch(() => {});
+  }
+);
+
+/**
+ * @desc    Cancel booking with enhanced status workflow
+ * @route   PUT /api/bookings/:id/cancel
+ * @access  Private (Owner or ADMIN)
+ */
+export const cancelBooking = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        property: {
+          include: {
+            realtor: {
+              select: {
+                id: true,
+                businessName: true,
+                user: {
+                  select: {
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        payment: true,
+        guest: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    // Check authorization
+    const isOwner = booking.guestId === req.user!.id;
+    const isAdmin = req.user!.role === "ADMIN";
+
+    if (!isOwner && !isAdmin) {
+      throw new AppError("Not authorized to cancel this booking", 403);
+    }
+
+    // Check if booking can be cancelled using enhanced workflow
+    const cancellationCheck = await canCancelBooking(id);
+    if (!cancellationCheck.canCancel) {
+      throw new AppError(
+        cancellationCheck.reason || "Booking cannot be cancelled at this time",
+        400
+      );
+    }
+
+    // Attempt status transition
+    const transitionResult = await safeTransitionBookingStatus(
+      id,
+      BookingStatus.CANCELLED,
+      {
+        userId: isOwner ? req.user!.id : undefined,
+        adminId: isAdmin ? req.user!.id : undefined,
+        reason: reason || "Booking cancelled by user",
+      }
+    );
+
+    if (!transitionResult.success) {
+      throw new AppError(
+        transitionResult.error || "Failed to cancel booking",
+        400
+      );
+    }
+
+    // Calculate and process refund if eligible
+    let refundInfo: any = null;
+    if (
+      cancellationCheck.refundEligible &&
+      booking.payment?.status === "COMPLETED"
+    ) {
+      try {
+        // Calculate refund based on cancellation policy
+        const refundAmount = booking.payment.amount; // Simple: full refund if eligible
+
+        // Process refund through payment service
+        const refundResult = await paystackService.processRefund(
+          booking.payment.reference ||
+            booking.payment.providerTransactionId ||
+            "",
+          refundAmount.toNumber()
+        );
+
+        refundInfo = {
+          eligible: true,
+          amount: refundAmount,
+          currency: booking.payment.currency,
+          status: "processing",
+          reference: refundResult.reference,
+        };
+      } catch (refundError) {
+        console.error("Refund processing failed:", refundError);
+        refundInfo = {
+          eligible: true,
+          error: "Refund processing failed - please contact support",
+        };
+      }
+    } else {
+      refundInfo = {
+        eligible: false,
+        reason: cancellationCheck.reason,
+      };
+    }
+
+    // Send cancellation notification emails
+    try {
+      await sendBookingCancellation(
+        booking.guest.email,
+        booking,
+        booking.property,
+        refundInfo?.amount
+      );
+    } catch (emailError) {
+      console.error("Failed to send cancellation email:", emailError);
+    }
+
+    // Send real-time notifications
+    try {
+      const notificationService = NotificationService.getInstance();
+
+      // Notify guest
+      const guestNotification = notificationHelpers.bookingCancelled(
+        booking.guestId,
+        booking.id,
+        booking.property.title
+      );
+      await notificationService.createAndSendNotification(guestNotification);
+
+      // Notify realtor
+      const realtorNotification = {
+        userId: booking.property.realtorId,
+        type: "BOOKING_CANCELLED" as const,
+        title: "Booking Cancelled",
+        message: `Booking for "${booking.property.title}" has been cancelled${
+          reason ? `. Reason: ${reason}` : ""
+        }`,
+        bookingId: booking.id,
+        propertyId: booking.property.id,
+      };
+      await notificationService.createAndSendNotification(realtorNotification);
+    } catch (notificationError) {
+      console.error(
+        "Failed to send cancellation notifications:",
+        notificationError
+      );
+    }
+
+    res.json({
+      success: true,
+      message: "Booking cancelled successfully",
+      data: {
+        booking: transitionResult.booking,
+        refund: refundInfo,
+        cancellation: {
+          reason: reason || "Booking cancelled by user",
+          cancelledBy: isAdmin ? "admin" : "guest",
+          cancelledAt: new Date(),
+          refundEligible: cancellationCheck.refundEligible,
+        },
+      },
+    });
   }
 );
