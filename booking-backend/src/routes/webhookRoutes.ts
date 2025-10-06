@@ -1,20 +1,20 @@
 import express from "express";
 import { Request, Response } from "express";
+import {
+  handleFlutterwaveWebhook,
+  handleBookingCompletion,
+} from "@/controllers/webhookController";
 
 const router = express.Router();
 
-// MVP: Simplified webhook endpoints - placeholder for future implementation
-router.post(
-  "/stripe",
-  express.raw({ type: "application/json" }),
-  (req: Request, res: Response) => {
-    console.log("Stripe webhook received (placeholder)");
-    res.status(200).json({ received: true });
-  }
-);
+// Flutterwave webhook endpoint (primary payment processor)
+router.post("/flutterwave", express.json(), handleFlutterwaveWebhook);
+
+// Booking completion webhook (internal)
+router.post("/booking-completion", handleBookingCompletion);
 
 router.post("/paystack", (req: Request, res: Response) => {
-  console.log("Paystack webhook received (placeholder)");
+  console.log("Paystack webhook received (placeholder - deprecated in MVP)");
   res.status(200).json({ status: true });
 });
 

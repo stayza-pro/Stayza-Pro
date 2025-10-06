@@ -4,6 +4,7 @@
 
 export type UserRole = "GUEST" | "REALTOR" | "ADMIN";
 export type RealtorStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+export type CacStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 export type PropertyStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
 export type PropertyType =
   | "APARTMENT"
@@ -51,7 +52,7 @@ export type PaymentStatus =
   | "FAILED"
   | "REFUNDED"
   | "PARTIALLY_REFUNDED";
-export type PaymentMethod = "PAYSTACK" | "FLUTTERWAVE" | "STRIPE";
+export type PaymentMethod = "FLUTTERWAVE";
 export type ReviewType =
   | "GUEST_TO_PROPERTY"
   | "GUEST_TO_REALTOR"
@@ -94,8 +95,15 @@ export interface Realtor {
   businessAddress?: string;
   brandColorHex: string;
   status: RealtorStatus;
+  corporateRegNumber?: string;
+  cacStatus: CacStatus;
+  cacVerifiedAt?: Date;
+  cacRejectedAt?: Date;
+  cacRejectionReason?: string;
+  suspendedAt?: Date;
+  suspensionExpiresAt?: Date;
+  canAppeal: boolean;
   isActive: boolean;
-  stripeAccountId?: string;
   createdAt: Date;
   updatedAt: Date;
 
@@ -160,7 +168,7 @@ export interface Booking {
   checkIn: Date;
   checkOut: Date;
   guests: number;
-  totalAmount: number;
+  totalPrice: number;
   currency: string;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
@@ -202,28 +210,6 @@ export interface Payment {
   booking?: Booking;
 }
 
-export interface StripeOnboardingLink {
-  url: string;
-  expiresAt: string | null;
-}
-
-export interface StripeAccountStatus {
-  connected: boolean;
-  requiresOnboarding: boolean;
-  detailsSubmitted: boolean;
-  payoutsEnabled: boolean;
-  chargesEnabled: boolean;
-  disabledReason?: string | null;
-  outstandingRequirements: string[];
-  releaseOffsetHours?: number;
-  stripeAccountId?: string;
-}
-
-export interface StripeDashboardLink {
-  url: string;
-  expiresAt: string | null;
-}
-
 export interface RefreshToken {
   id: string;
   token: string;
@@ -238,29 +224,64 @@ export interface RefreshToken {
 export interface Review {
   id: string;
   bookingId: string;
-  reviewerId: string;
-  revieweeId: string;
   propertyId: string;
+  authorId: string;
   rating: number;
   comment?: string;
-  type: ReviewType;
-  isPublic: boolean;
-  response?: string;
+
+  // Detailed rating breakdowns
+  cleanlinessRating?: number;
+  communicationRating?: number;
+  checkInRating?: number;
+  accuracyRating?: number;
+  locationRating?: number;
+  valueRating?: number;
+
+  // Photo uploads
+  photos?: ReviewPhoto[];
+
+  // Review management
+  isVisible: boolean;
+  isVerified: boolean;
+
+  // Engagement metrics
+  helpfulCount: number;
+  likesCount: number;
+  dislikesCount: number;
+
+  // Timestamps
   createdAt: Date;
   updatedAt: Date;
 
+  // Host response
+  hostResponse?: ReviewResponse;
+
   // Relations
   booking?: Booking;
-  reviewer?: User;
-  reviewee?: User;
+  author?: User;
   property?: Property;
 
   // Computed fields
-  isVisible?: boolean;
-  isVerified?: boolean;
-  likesCount?: number;
-  helpfulCount?: number;
   userLiked?: boolean;
+  userDisliked?: boolean;
+}
+
+export interface ReviewPhoto {
+  id: string;
+  reviewId: string;
+  url: string;
+  caption?: string;
+  order: number;
+}
+
+export interface ReviewResponse {
+  id: string;
+  reviewId: string;
+  authorId: string;
+  comment: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author?: User;
 }
 
 // API Response types
@@ -393,11 +414,18 @@ export interface BookingFormData {
 
 export interface ReviewFormData {
   bookingId: string;
-  revieweeId: string;
-  propertyId: string;
   rating: number;
   comment?: string;
-  type: ReviewType;
+  cleanlinessRating?: number;
+  communicationRating?: number;
+  checkInRating?: number;
+  accuracyRating?: number;
+  locationRating?: number;
+  valueRating?: number;
+  photos?: Array<{
+    url: string;
+    caption?: string;
+  }>;
 }
 
 // Filter and search types

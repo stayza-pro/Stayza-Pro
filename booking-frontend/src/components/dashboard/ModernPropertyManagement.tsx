@@ -27,9 +27,10 @@ import {
   SortDesc,
   Bed,
   Bath,
-  Home
+  Home,
 } from "lucide-react";
 import Image from "next/image";
+import { CacStatusCard } from "./CacStatusCard";
 
 interface Property {
   id: string;
@@ -469,6 +470,9 @@ export const ModernPropertyManagement: React.FC<
 
   return (
     <div className="space-y-6">
+      {/* CAC Status Card - Only show if user is realtor */}
+      {currentUser?.realtor && <CacStatusCard realtor={currentUser.realtor} />}
+
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>

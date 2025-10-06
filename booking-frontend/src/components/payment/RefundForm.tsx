@@ -144,12 +144,12 @@ export const RefundForm: React.FC<RefundFormProps> = ({
 
   const getRefundTimeframe = (): string => {
     switch (payment.method) {
-      case "STRIPE":
-        return "5-10 business days";
       case "PAYSTACK":
         return "3-5 business days";
+      case "FLUTTERWAVE":
+        return "3-7 business days";
       default:
-        return "3-10 business days";
+        return "3-7 business days";
     }
   };
 

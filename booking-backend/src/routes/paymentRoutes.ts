@@ -1,9 +1,11 @@
 import express from "express";
 import {
   createPayment,
-  confirmPayment,
-  getUserPayments,
   getPayment,
+  getUserPayments,
+  initializeFlutterwavePayment,
+  verifyFlutterwavePayment,
+  processRefund,
 } from "@/controllers/paymentController";
 // MVP: Webhooks handled in separate routes
 import { authenticate } from "@/middleware/auth";
@@ -31,7 +33,7 @@ const router = express.Router();
  *           description: Payment currency (e.g., USD, NGN)
  *         provider:
  *           type: string
- *           enum: [STRIPE, PAYSTACK]
+ *           enum: [FLUTTERWAVE, PAYSTACK]
  *           description: Payment provider
  *         providerPaymentId:
  *           type: string
@@ -62,40 +64,6 @@ const router = express.Router();
  *           format: date-time
  *         booking:
  *           $ref: '#/components/schemas/Booking'
- *     CreateStripePaymentRequest:
- *       type: object
- *       required:
- *         - bookingId
- *       properties:
- *         bookingId:
- *           type: string
- *           description: Booking ID to create payment for
- *         returnUrl:
- *           type: string
- *           format: uri
- *           description: Return URL after payment completion
- *     StripePaymentIntentResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *         message:
- *           type: string
- *         data:
- *           type: object
- *           properties:
- *             clientSecret:
- *               type: string
- *               description: Stripe client secret for frontend
- *             paymentIntentId:
- *               type: string
- *               description: Stripe payment intent ID
- *             amount:
- *               type: number
- *               description: Payment amount in cents
- *             currency:
- *               type: string
- *               description: Payment currency
  *     InitializePaystackRequest:
  *       type: object
  *       required:
@@ -196,46 +164,6 @@ const router = express.Router();
  */
 // MVP: Paystack webhook route moved to separate webhookRoutes.ts
 
-/**
- * @swagger
- * /api/payments/create-stripe-intent:
- *   post:
- *     summary: Create Stripe payment intent
- *     tags: [Payments]
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CreateStripePaymentRequest'
- *     responses:
- *       200:
- *         description: Payment intent created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/StripePaymentIntentResponse'
- *       400:
- *         description: Bad request - Invalid booking or payment data
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiError'
- *       401:
- *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiError'
- *       404:
- *         description: Booking not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiError'
- */
 router.post("/create-payment", authenticate, createPayment);
 
 /**
@@ -278,7 +206,13 @@ router.post("/create-payment", authenticate, createPayment);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.post("/confirm-payment", authenticate, confirmPayment);
+// Flutterwave payment endpoints
+router.post(
+  "/initialize-flutterwave",
+  authenticate,
+  initializeFlutterwavePayment
+);
+router.post("/verify-flutterwave", authenticate, verifyFlutterwavePayment);
 
 /**
  * @swagger
@@ -516,6 +450,20 @@ router.get("/", authenticate, getUserPayments);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
+// Flutterwave payment endpoints
+router.post(
+  "/initialize-flutterwave",
+  authenticate,
+  initializeFlutterwavePayment
+);
+router.post("/verify-flutterwave", authenticate, verifyFlutterwavePayment);
+
+// Payment management
+router.post("/create-payment", authenticate, createPayment);
+router.get("/", authenticate, getUserPayments);
+router.get("/:id", authenticate, getPayment);
+router.post("/:id/refund", authenticate, processRefund);
+
 // MVP: Receipt generation coming soon
 // router.get("/:id/receipt", authenticate, generatePaymentReceipt);
 

@@ -346,7 +346,7 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
     console.error("Welcome email failed", err)
   );
 
-  res.json({
+  return res.json({
     success: true,
     message: "Email verified successfully",
   });

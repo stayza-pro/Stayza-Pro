@@ -11,6 +11,8 @@ interface PropertyCardProps {
   onFavorite?: (propertyId: string) => void;
   isFavorited?: boolean;
   className?: string;
+  layout?: "vertical" | "horizontal";
+  onHover?: (hovered: boolean) => void;
 }
 
 export const PropertyCard: React.FC<PropertyCardProps> = ({
@@ -18,6 +20,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   onFavorite,
   isFavorited = false,
   className = "",
+  layout = "vertical",
+  onHover,
 }) => {
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,20 +61,36 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   return (
     <Link href={`/properties/${property.id}`}>
       <Card
-        className={`group hover:shadow-lg transition-shadow duration-200 overflow-hidden ${className}`}
+        className={`group hover:shadow-lg transition-shadow duration-200 overflow-hidden ${
+          layout === "horizontal" ? "flex" : ""
+        } ${className}`}
+        onMouseEnter={() => onHover?.(true)}
+        onMouseLeave={() => onHover?.(false)}
       >
-        <div className="relative">
+        <div
+          className={`relative ${
+            layout === "horizontal" ? "flex-shrink-0 w-64" : ""
+          }`}
+        >
           {/* Image */}
-          <div className="aspect-w-16 aspect-h-10 relative overflow-hidden">
+          <div
+            className={`relative overflow-hidden ${
+              layout === "horizontal" ? "h-full" : "aspect-w-16 aspect-h-10"
+            }`}
+          >
             {property.images && property.images.length > 0 ? (
               <Image
-                src={property.images[0]}
+                src={property.images[0].url}
                 alt={property.title}
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-200"
               />
             ) : (
-              <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+              <div
+                className={`bg-gray-200 flex items-center justify-center ${
+                  layout === "horizontal" ? "w-full h-full" : "w-full h-48"
+                }`}
+              >
                 <svg
                   className="w-12 h-12 text-gray-400"
                   fill="none"
@@ -140,98 +160,120 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           )}
         </div>
 
-        <div className="p-4">
-          {/* Location */}
-          <div className="flex items-center text-sm text-gray-600 mb-2">
-            <svg
-              className="w-4 h-4 mr-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        <div
+          className={`p-4 ${
+            layout === "horizontal"
+              ? "flex-1 flex flex-col justify-between"
+              : ""
+          }`}
+        >
+          <div>
+            {/* Location */}
+            <div className="flex items-center text-sm text-gray-600 mb-2">
+              <svg
+                className="w-4 h-4 mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <span className="truncate">
+                {property.city}, {property.state}, {property.country}
+              </span>
+            </div>
+
+            {/* Title */}
+            <h3
+              className={`font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors ${
+                layout === "horizontal" ? "text-lg mb-2" : "text-lg mb-2"
+              }`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-            <span className="truncate">
-              {property.city}, {property.state}, {property.country}
-            </span>
-          </div>
+              {property.title}
+            </h3>
 
-          {/* Title */}
-          <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-            {property.title}
-          </h3>
-
-          {/* Property Details */}
-          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-            <div className="flex items-center">
-              <svg
-                className="w-4 h-4 mr-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-              <span>{property.maxGuests} guests</span>
-            </div>
-            <div className="flex items-center">
-              <svg
-                className="w-4 h-4 mr-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M8 5a2 2 0 012-2h4a2 2 0 012 2v6a2 2 0 01-2 2H10a2 2 0 01-2-2V5z"
-                />
-              </svg>
-              <span>{property.bedrooms} bed</span>
-            </div>
-            <div className="flex items-center">
-              <svg
-                className="w-4 h-4 mr-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"
-                />
-              </svg>
-              <span>{property.bathrooms} bath</span>
+            {/* Property Details */}
+            <div
+              className={`flex items-center text-sm text-gray-600 ${
+                layout === "horizontal" ? "space-x-4 mb-2" : "space-x-4 mb-3"
+              }`}
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+                <span>{property.maxGuests} guests</span>
+              </div>
+              <div className="flex items-center">
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M8 5a2 2 0 012-2h4a2 2 0 012 2v6a2 2 0 01-2 2H10a2 2 0 01-2-2V5z"
+                  />
+                </svg>
+                <span>{property.bedrooms} bed</span>
+              </div>
+              <div className="flex items-center">
+                <svg
+                  className="w-4 h-4 mr-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"
+                  />
+                </svg>
+                <span>{property.bathrooms} bath</span>
+              </div>
             </div>
           </div>
 
           {/* Rating and Price */}
-          <div className="flex items-center justify-between">
+          <div
+            className={`flex items-center ${
+              layout === "horizontal"
+                ? "justify-between mt-2"
+                : "justify-between"
+            }`}
+          >
             {getRatingDisplay()}
             <div className="text-right">
               <div className="text-xl font-bold text-gray-900">
@@ -241,27 +283,23 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             </div>
           </div>
 
-          {/* Host Info */}
-          <div className="flex items-center mt-3 pt-3 border-t border-gray-100">
-            {property.host.avatar ? (
-              <Image
-                src={property.host.avatar}
-                alt={`${property.host.firstName} ${property.host.lastName}`}
-                width={24}
-                height={24}
-                className="rounded-full"
-              />
-            ) : (
+          {/* Realtor Info */}
+          {property.realtor && (
+            <div
+              className={`flex items-center border-t border-gray-100 ${
+                layout === "horizontal" ? "mt-2 pt-2" : "mt-3 pt-3"
+              }`}
+            >
               <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
                 <span className="text-white text-xs font-medium">
-                  {property.host.firstName.charAt(0)}
+                  {property.realtor.businessName.charAt(0)}
                 </span>
               </div>
-            )}
-            <span className="ml-2 text-sm text-gray-600">
-              Hosted by {property.host.firstName}
-            </span>
-          </div>
+              <span className="ml-2 text-sm text-gray-600">
+                By {property.realtor.businessName}
+              </span>
+            </div>
+          )}
         </div>
       </Card>
     </Link>

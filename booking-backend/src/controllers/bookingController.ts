@@ -5,7 +5,6 @@ import { AuthenticatedRequest, BookingSearchQuery } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { createBookingSchema, updateBookingSchema } from "@/utils/validation";
 import { refundPolicyService } from "@/services/refundPolicy";
-import { stripeService } from "@/services/stripe";
 import { paystackService } from "@/services/paystack";
 import { PaymentStatus, PaymentMethod } from "@prisma/client";
 import { config } from "@/config";
@@ -15,6 +14,10 @@ import {
   transitionBookingStatus,
   BookingStatusConflictError,
 } from "@/services/bookingStatus";
+import {
+  NotificationService,
+  notificationHelpers,
+} from "@/services/notificationService";
 
 /**
  * @desc    Check property availability for given dates
@@ -290,6 +293,43 @@ export const createBooking = asyncHandler(
 
       return booking;
     });
+
+    // Send notifications for booking creation
+    try {
+      const notificationService = NotificationService.getInstance();
+
+      // Create notification for booking creation (PENDING status)
+      const guestNotification = {
+        userId: result.guestId,
+        type: "BOOKING_CONFIRMED" as const,
+        title: "Booking Created",
+        message: `Your booking for "${result.property.title}" is pending confirmation.`,
+        bookingId: result.id,
+        priority: "normal" as const,
+      };
+
+      await notificationService.createAndSendNotification(guestNotification);
+
+      // Notify realtor about new booking
+      const realtorNotification = {
+        userId: result.property.realtor.id,
+        type: "BOOKING_CONFIRMED" as const,
+        title: "New Booking Request",
+        message: `${req.user!.firstName || "A guest"} has requested to book "${
+          result.property.title
+        }".`,
+        bookingId: result.id,
+        priority: "high" as const,
+      };
+
+      await notificationService.createAndSendNotification(realtorNotification);
+    } catch (notificationError) {
+      console.error(
+        "Failed to send booking creation notifications:",
+        notificationError
+      );
+      // Don't fail the booking creation if notifications fail
+    }
 
     res.status(201).json({
       success: true,
@@ -835,13 +875,55 @@ export const updateBookingStatus = asyncHandler(
             title: true,
             address: true,
             city: true,
+            realtorId: true,
           },
         },
         guest: {
-          select: {},
+          select: {
+            id: true,
+          },
         },
       },
     });
+
+    // Send status update notifications
+    try {
+      const notificationService = NotificationService.getInstance();
+      let notification = null;
+
+      if (status === BookingStatus.CONFIRMED) {
+        notification = notificationHelpers.bookingConfirmed(
+          updatedBooking.guestId,
+          updatedBooking.id,
+          updatedBooking.property.title
+        );
+      } else if (status === BookingStatus.CANCELLED) {
+        notification = notificationHelpers.bookingCancelled(
+          updatedBooking.guestId,
+          updatedBooking.id,
+          updatedBooking.property.title
+        );
+      } else if (status === BookingStatus.COMPLETED) {
+        notification = {
+          userId: updatedBooking.guestId,
+          type: "BOOKING_COMPLETED" as const,
+          title: "Booking Completed",
+          message: `Your stay at "${updatedBooking.property.title}" is now complete. Don't forget to leave a review!`,
+          bookingId: updatedBooking.id,
+          priority: "normal" as const,
+        };
+      }
+
+      if (notification) {
+        await notificationService.createAndSendNotification(notification);
+      }
+    } catch (notificationError) {
+      console.error(
+        "Failed to send booking status update notifications:",
+        notificationError
+      );
+      // Don't fail the status update if notifications fail
+    }
 
     res.json({
       success: true,

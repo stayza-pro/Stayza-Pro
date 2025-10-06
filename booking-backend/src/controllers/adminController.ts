@@ -436,45 +436,196 @@ export const rejectProperty = asyncHandler(
  */
 export const getPlatformAnalytics = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
+    const { timeRange = "30d" } = req.query;
+
+    // Calculate date range
+    const now = new Date();
+    const startDate = new Date();
+
+    switch (timeRange) {
+      case "7d":
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case "30d":
+        startDate.setDate(now.getDate() - 30);
+        break;
+      case "90d":
+        startDate.setDate(now.getDate() - 90);
+        break;
+      case "1y":
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        startDate.setDate(now.getDate() - 30);
+    }
+
+    const previousPeriodStart = new Date(startDate);
+    const daysDifference = Math.ceil(
+      (now.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)
+    );
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - daysDifference);
+
     const [
+      // Current period metrics
       totalUsers,
       totalRealtors,
-      approvedRealtors,
+      activeRealtors,
       pendingRealtors,
       totalProperties,
-      approvedProperties,
+      activeProperties,
       totalBookings,
       completedBookings,
+      pendingBookings,
+      cancelledBookings,
       totalRevenue,
+
+      // Previous period metrics for growth calculation
+      previousUsers,
+      previousRealtors,
+      previousProperties,
+      previousBookings,
+      previousRevenue,
+
+      // Reviews and ratings
+      totalReviews,
+      averageRating,
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.realtor.count(),
-      prisma.realtor.count({ where: { isActive: true } }),
-      prisma.realtor.count({ where: { isActive: false } }),
-      prisma.property.count(),
-      prisma.property.count({ where: { isActive: true } }),
-      prisma.booking.count(),
-      prisma.booking.count({ where: { status: "COMPLETED" } }),
+      // Current period
+      prisma.user.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.realtor.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.realtor.count({
+        where: { isActive: true, createdAt: { gte: startDate } },
+      }),
+      prisma.realtor.count({
+        where: { isActive: false, createdAt: { gte: startDate } },
+      }),
+      prisma.property.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.property.count({
+        where: { isActive: true, createdAt: { gte: startDate } },
+      }),
+      prisma.booking.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.booking.count({
+        where: { status: "COMPLETED", createdAt: { gte: startDate } },
+      }),
+      prisma.booking.count({
+        where: { status: "PENDING", createdAt: { gte: startDate } },
+      }),
+      prisma.booking.count({
+        where: { status: "CANCELLED", createdAt: { gte: startDate } },
+      }),
       prisma.payment.aggregate({
-        where: { status: "COMPLETED" },
+        where: { status: "COMPLETED", createdAt: { gte: startDate } },
         _sum: { amount: true },
+      }),
+
+      // Previous period
+      prisma.user.count({
+        where: { createdAt: { gte: previousPeriodStart, lt: startDate } },
+      }),
+      prisma.realtor.count({
+        where: { createdAt: { gte: previousPeriodStart, lt: startDate } },
+      }),
+      prisma.property.count({
+        where: { createdAt: { gte: previousPeriodStart, lt: startDate } },
+      }),
+      prisma.booking.count({
+        where: { createdAt: { gte: previousPeriodStart, lt: startDate } },
+      }),
+      prisma.payment.aggregate({
+        where: {
+          status: "COMPLETED",
+          createdAt: { gte: previousPeriodStart, lt: startDate },
+        },
+        _sum: { amount: true },
+      }),
+
+      // Reviews and ratings
+      prisma.review.count({ where: { createdAt: { gte: startDate } } }),
+      prisma.review.aggregate({
+        where: { createdAt: { gte: startDate } },
+        _avg: { rating: true },
       }),
     ]);
 
-    // Get monthly booking trends
-    const currentDate = new Date();
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setMonth(currentDate.getMonth() - 12);
+    // Calculate growth rates
+    const calculateGrowth = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous) * 100;
+    };
 
-    const monthlyBookings = await prisma.booking.groupBy({
-      by: ["createdAt"],
-      where: {
-        createdAt: {
-          gte: twelveMonthsAgo,
-        },
-      },
+    // Get property type distribution
+    const propertyTypes = await prisma.property.groupBy({
+      by: ["type"],
+      where: { createdAt: { gte: startDate } },
       _count: true,
     });
+
+    // Get location performance
+    const locationData = await prisma.property.groupBy({
+      by: ["city"],
+      where: {
+        createdAt: { gte: startDate },
+        isActive: true,
+      },
+      _count: true,
+      orderBy: {
+        _count: {
+          city: "desc",
+        },
+      },
+      take: 10,
+    });
+
+    // Get booking status distribution
+    const bookingStatusData = await prisma.booking.groupBy({
+      by: ["status"],
+      where: { createdAt: { gte: startDate } },
+      _count: true,
+    });
+
+    // Get monthly trends
+    const monthsBack = timeRange === "1y" ? 12 : timeRange === "90d" ? 3 : 1;
+    const monthlyTrendsStart = new Date();
+    monthlyTrendsStart.setMonth(monthlyTrendsStart.getMonth() - monthsBack);
+
+    const monthlyBookings = await prisma.booking.findMany({
+      where: { createdAt: { gte: monthlyTrendsStart } },
+      select: { createdAt: true, totalPrice: true, status: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const monthlyRevenue = await prisma.payment.findMany({
+      where: {
+        status: "COMPLETED",
+        createdAt: { gte: monthlyTrendsStart },
+      },
+      select: { createdAt: true, amount: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // Process monthly data
+    const monthlyData = [];
+    for (let i = monthsBack; i >= 0; i--) {
+      const monthStart = new Date();
+      monthStart.setMonth(monthStart.getMonth() - i);
+      monthStart.setDate(1);
+      const monthEnd = new Date(monthStart);
+      monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+      const monthBookings = monthlyBookings.filter(
+        (b) => b.createdAt >= monthStart && b.createdAt < monthEnd
+      );
+      const monthRev = monthlyRevenue.filter(
+        (r) => r.createdAt >= monthStart && r.createdAt < monthEnd
+      );
+
+      monthlyData.push({
+        month: monthStart.toLocaleString("default", { month: "short" }),
+        bookings: monthBookings.length,
+        revenue: monthRev.reduce((sum, r) => sum + Number(r.amount), 0),
+        completed: monthBookings.filter((b) => b.status === "COMPLETED").length,
+      });
+    }
 
     // Get top realtors by revenue
     const topRealtors = await prisma.realtor.findMany({
@@ -528,19 +679,69 @@ export const getPlatformAnalytics = asyncHandler(
       success: true,
       message: "Platform analytics retrieved successfully",
       data: {
+        timeRange,
         overview: {
-          totalUsers,
-          totalRealtors,
-          approvedRealtors,
-          pendingRealtors,
-          totalProperties,
-          approvedProperties,
-          totalBookings,
-          completedBookings,
-          totalRevenue: totalRevenue._sum.amount || 0,
+          users: {
+            total: totalUsers,
+            growth: calculateGrowth(totalUsers, previousUsers),
+          },
+          realtors: {
+            total: totalRealtors,
+            active: activeRealtors,
+            pending: pendingRealtors,
+            growth: calculateGrowth(totalRealtors, previousRealtors),
+          },
+          properties: {
+            total: totalProperties,
+            active: activeProperties,
+            growth: calculateGrowth(totalProperties, previousProperties),
+          },
+          bookings: {
+            total: totalBookings,
+            completed: completedBookings,
+            pending: pendingBookings,
+            cancelled: cancelledBookings,
+            growth: calculateGrowth(totalBookings, previousBookings),
+          },
+          revenue: {
+            total: Number(totalRevenue._sum.amount || 0),
+            growth: calculateGrowth(
+              Number(totalRevenue._sum.amount || 0),
+              Number(previousRevenue._sum.amount || 0)
+            ),
+          },
+          performance: {
+            averageRating: averageRating._avg.rating || 0,
+            totalReviews,
+            occupancyRate:
+              activeProperties > 0
+                ? (completedBookings / activeProperties) * 100
+                : 0,
+            conversionRate:
+              totalBookings > 0 ? (completedBookings / totalBookings) * 100 : 0,
+          },
         },
-        monthlyTrends: monthlyBookings,
-        topRealtors: realtorsWithRevenue,
+        trends: {
+          monthly: monthlyData,
+        },
+        breakdowns: {
+          propertyTypes: propertyTypes.map((type) => ({
+            type: type.type,
+            count: type._count,
+            percentage:
+              totalProperties > 0 ? (type._count / totalProperties) * 100 : 0,
+          })),
+          locations: locationData.map((location) => ({
+            city: location.city,
+            count: location._count,
+          })),
+          bookingStatus: bookingStatusData.map((status) => ({
+            status: status.status,
+            count: status._count,
+            percentage:
+              totalBookings > 0 ? (status._count / totalBookings) * 100 : 0,
+          })),
+        },
       },
     });
   }

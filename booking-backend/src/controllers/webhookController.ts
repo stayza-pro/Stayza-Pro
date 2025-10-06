@@ -1,1331 +1,225 @@
 import { Request, Response } from "express";
-
 import { prisma } from "@/config/database";
-
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { BookingStatus, PaymentStatus } from "@prisma/client";
-
 import { sendPaymentReceipt } from "@/services/email";
 
-
-// MVP: Simplified webhook controller without enterprise featuresimport { BookingStatus, PaymentStatus } from "@prisma/client";import { config } from "@/config";
-
-
-
-// Helper: Simple in-memory idempotency guard for MVPimport { sendPaymentReceipt } from "@/services/email";import { BookingStatus, PaymentStatus } from "@prisma/client";
-
-let processedEvents: Set<string> = new Set();
-
-async function alreadyProcessed(eventId: string) {
-
-  return processedEvents.has(eventId);// MVP: Simplified webhook controller without enterprise features
-
-}
-
-// No Stripe/Paystack integration, audit logging, or complex payout logic// MVP: Simplified webhook controller without enterprise features
-
-async function markProcessed(eventId: string) {
-
-  processedEvents.add(eventId);// No Stripe/Paystack integration, audit logging, or complex payout logic
-
-}
+// MVP: Simplified webhook controller for Flutterwave integration
+// Removed Stripe, complex audit logging, and enterprise features
 
 // Helper: Simple in-memory idempotency guard for MVP
+let processedEvents: Set<string> = new Set();
 
-// MVP: Simple payment confirmation webhook
+async function alreadyProcessed(eventId: string): Promise<boolean> {
+  return processedEvents.has(eventId);
+}
 
-export const handlePaymentWebhook = asyncHandler(let processedEvents: Set<string> = new Set();// Helper: Simple in-memory idempotency guard for MVP
+async function markProcessed(eventId: string): Promise<void> {
+  processedEvents.add(eventId);
+}
 
+// MVP: Flutterwave webhook handler
+export const handleFlutterwaveWebhook = asyncHandler(
   async (req: Request, res: Response) => {
+    const { event, data } = req.body;
+    const eventId = data?.id || req.body.id;
 
-    const { eventId, paymentId, status } = req.body;let processedEvents: Set<string> = new Set();
+    if (!eventId) {
+      throw new AppError("Invalid webhook payload - missing event ID", 400);
+    }
 
-
-
-    if (!eventId || !paymentId) {async function alreadyProcessed(eventId: string) {
-
-      throw new AppError("Invalid webhook payload", 400);
-
-    }  return processedEvents.has(eventId);async function alreadyProcessed(eventId: string) {
-
-
-
-    // Check idempotency}  return processedEvents.has(eventId);
-
+    // Check if already processed
     if (await alreadyProcessed(eventId)) {
-
-      return res.json({ success: true, message: "Event already processed" });}
-
+      return res.json({ success: true, message: "Event already processed" });
     }
 
-async function markProcessed(eventId: string) {
-
     try {
+      // Handle different Flutterwave events
+      switch (event) {
+        case "charge.completed":
+          await handleChargeCompleted(data);
+          break;
 
-      // Find payment  processedEvents.add(eventId);async function markProcessed(eventId: string) {
+        case "charge.failed":
+          await handleChargeFailed(data);
+          break;
 
-      const payment = await prisma.payment.findUnique({
-
-        where: { id: paymentId },}  processedEvents.add(eventId);
-
-        include: {
-
-          booking: {}
-
-            include: {
-
-              guest: true,// MVP: Simple payment confirmation webhook
-
-              property: true,
-
-            },export const handlePaymentWebhook = asyncHandler(// Compute gateway fee & platform net for Stripe using balance transaction
-
-          },
-
-        },  async (req: Request, res: Response) => {async function updateStripeGatewayFee(
-
-      });
-
-    const { eventId, paymentId, status } = req.body;  bookingId: string,
-
-      if (!payment) {
-
-        throw new AppError("Payment not found", 404);  paymentIntentId: string
-
+        default:
+          console.log(`Unhandled Flutterwave event type: ${event}`);
       }
 
-    if (!eventId || !paymentId) {) {
-
-      // Update payment status
-
-      if (status === "successful" && payment.status === PaymentStatus.PENDING) {      throw new AppError("Invalid webhook payload", 400);  try {
-
-        await prisma.payment.update({
-
-          where: { id: paymentId },    }    // Retrieve payment intent with expanded charge
-
-          data: { status: PaymentStatus.COMPLETED },
-
-        });    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
-
-
-
-        // Update booking status to confirmed    // Check idempotency      expand: ["latest_charge"],
-
-        await prisma.booking.update({
-
-          where: { id: payment.bookingId },    if (await alreadyProcessed(eventId)) {    });
-
-          data: { status: BookingStatus.CONFIRMED },
-
-        });      return res.json({ success: true, message: "Event already processed" });    const latestCharge: any = (pi as any).latest_charge;
-
-
-
-        // Send payment receipt (fire-and-forget)    }    if (!latestCharge || !latestCharge.balance_transaction) return;
-
-        if (payment.booking?.guest?.email) {
-
-          sendPaymentReceipt(    const bt = await stripe.balanceTransactions.retrieve(
-
-            payment.booking.guest.email,
-
-            payment.booking.guest.firstName || "Guest",    try {      latestCharge.balance_transaction as string
-
-            {
-
-              bookingId: payment.booking.id,      // Find payment    );
-
-              amount: payment.amount.toString(),
-
-              currency: payment.currency,      const payment = await prisma.payment.findUnique({    const gatewayFee = (bt.fee || 0) / 100; // convert from cents
-
-              propertyName: payment.booking.property?.name || "Property",
-
-            }        where: { id: paymentId },    const payment = await prisma.payment.findUnique({
-
-          ).catch((err) => console.error("Receipt email failed", err));
-
-        }        include: {      where: { bookingId },
-
-      } else if (status === "failed") {
-
-        await prisma.payment.update({          booking: {      select: {
-
-          where: { id: paymentId },
-
-          data: { status: PaymentStatus.FAILED },            include: {        serviceFeeAmount: true,
-
-        });
-
-              guest: true,        platformCommission: true,
-
-        await prisma.booking.update({
-
-          where: { id: payment.bookingId },              property: true,      },
-
-          data: { status: BookingStatus.CANCELLED },
-
-        });            },    });
-
-      }
-
-          },    if (!payment) return;
-
-      // Mark event as processed
-
-      await markProcessed(eventId);        },    const platformNet =
-
-
-
-      res.json({ success: true });      });      Number(payment.serviceFeeAmount) +
-
+      await markProcessed(eventId);
+      return res.json({ success: true });
     } catch (error) {
-
-      console.error("Webhook processing error:", error);      Number(payment.platformCommission) -
-
+      console.error("Flutterwave webhook error:", error);
       throw new AppError("Webhook processing failed", 500);
-
-    }      if (!payment) {      gatewayFee;
-
-  }
-
-);        throw new AppError("Payment not found", 404);    await prisma.payment.update({
-
-
-
-// MVP: Simplified Stripe webhook (no actual Stripe integration)      }      where: { bookingId },
-
-export const stripeWebhook = asyncHandler(
-
-  async (req: Request, res: Response) => {      data: {
-
-    // MVP: Placeholder - no actual Stripe integration
-
-    res.json({       // Update payment status        gatewayFee: gatewayFee.toFixed(2),
-
-      success: true, 
-
-      message: "Stripe webhooks not implemented in MVP"       if (status === "successful" && payment.status === PaymentStatus.PENDING) {        platformNet: platformNet.toFixed(2),
-
-    });
-
-  }        await prisma.payment.update({      },
-
-);
-
-          where: { id: paymentId },    });
-
-// MVP: Simplified Paystack webhook (no actual Paystack integration)  
-
-export const paystackWebhook = asyncHandler(          data: { status: PaymentStatus.COMPLETED },  } catch (err) {
-
-  async (req: Request, res: Response) => {
-
-    // MVP: Placeholder - no actual Paystack integration        });    console.error("Failed to update Stripe gateway fee", err);
-
-    res.json({ 
-
-      success: true,   }
-
-      message: "Paystack webhooks not implemented in MVP" 
-
-    });        // Update booking status to confirmed}
-
-  }
-
-);        await prisma.booking.update({
-
-
-
-// MVP: Simple booking completion handler          where: { id: payment.bookingId },// Compute gateway fee & platform net for Paystack
-
-export const handleBookingCompletion = asyncHandler(
-
-  async (req: Request, res: Response) => {          data: { status: BookingStatus.CONFIRMED },async function updatePaystackGatewayFee(bookingId: string, feesKobo?: number) {
-
-    const { bookingId } = req.body;
-
-        });  try {
-
-    if (!bookingId) {
-
-      throw new AppError("Booking ID is required", 400);    if (feesKobo == null) return;
-
     }
-
-        // Send payment receipt (fire-and-forget)    const gatewayFee = feesKobo / 100 / 100; // kobo -> naira (assumes 2 decimals)
-
-    try {
-
-      const booking = await prisma.booking.findUnique({        if (payment.booking?.guest?.email) {    const payment = await prisma.payment.findUnique({
-
-        where: { id: bookingId },
-
-      });          sendPaymentReceipt(      where: { bookingId },
-
-
-
-      if (!booking) {            payment.booking.guest.email,      select: { serviceFeeAmount: true, platformCommission: true },
-
-        throw new AppError("Booking not found", 404);
-
-      }            payment.booking.guest.firstName || "Guest",    });
-
-
-
-      // Check if booking should be completed (past checkout date)            {    if (!payment) return;
-
-      const now = new Date();
-
-      if (booking.checkOutDate <= now && booking.status === BookingStatus.CONFIRMED) {              bookingId: payment.booking.id,    const platformNet =
-
-        await prisma.booking.update({
-
-          where: { id: bookingId },              amount: payment.amount.toString(),      Number(payment.serviceFeeAmount) +
-
-          data: { status: BookingStatus.COMPLETED },
-
-        });              currency: payment.currency,      Number(payment.platformCommission) -
-
-
-
-        res.json({               propertyName: payment.booking.property?.name || "Property",      gatewayFee;
-
-          success: true, 
-
-          message: "Booking marked as completed"             }    await prisma.payment.update({
-
-        });
-
-      } else {          ).catch((err) => console.error("Receipt email failed", err));      where: { bookingId },
-
-        res.json({ 
-
-          success: true,         }      data: {
-
-          message: "Booking not ready for completion" 
-
-        });      } else if (status === "failed") {        gatewayFee: gatewayFee.toFixed(2),
-
-      }
-
-    } catch (error) {        await prisma.payment.update({        platformNet: platformNet.toFixed(2),
-
-      console.error("Booking completion error:", error);
-
-      throw new AppError("Failed to process booking completion", 500);          where: { id: paymentId },      },
-
-    }
-
-  }          data: { status: PaymentStatus.FAILED },    });
-
-);
-
-        });  } catch (err) {
-
-export default {
-
-  handlePaymentWebhook,    console.error("Failed to update Paystack gateway fee", err);
-
-  stripeWebhook,
-
-  paystackWebhook,        await prisma.booking.update({  }
-
-  handleBookingCompletion,
-
-};          where: { id: payment.bookingId },}
-
-          data: { status: BookingStatus.CANCELLED },
-
-        });/**
-
-      } * @desc    Handle Stripe webhooks
-
- * @route   POST /api/webhooks/stripe
-
-      // Mark event as processed * @access  Public (webhook)
-
-      await markProcessed(eventId); */
-
-export const handleStripeWebhook = asyncHandler(
-
-      res.json({ success: true });  async (req: Request, res: Response) => {
-
-    } catch (error) {    const signature = req.headers["stripe-signature"] as string;
-
-      console.error("Webhook processing error:", error);
-
-      throw new AppError("Webhook processing failed", 500);    if (!signature) {
-
-    }      throw new AppError("No Stripe signature header", 400);
-
-  }    }
-
-);
-
-    let event;
-
-// MVP: Simplified Stripe webhook (no actual Stripe integration)    try {
-
-export const stripeWebhook = asyncHandler(      event = verifyStripeSignature(
-
-  async (req: Request, res: Response) => {        req.body,
-
-    // MVP: Placeholder - no actual Stripe integration        signature,
-
-    res.json({         config.STRIPE_WEBHOOK_SECRET
-
-      success: true,       );
-
-      message: "Stripe webhooks not implemented in MVP"     } catch (error) {
-
-    });      console.error("Stripe webhook signature verification failed:", error);
-
-  }      throw new AppError("Invalid signature", 400);
-
-);    }
-
-
-
-// MVP: Simplified Paystack webhook (no actual Paystack integration)      console.log("Stripe webhook event:", event.type);
-
-export const paystackWebhook = asyncHandler(
-
-  async (req: Request, res: Response) => {    switch (event.type) {
-
-    // MVP: Placeholder - no actual Paystack integration      case "payment_intent.succeeded":
-
-    res.json({         await handlePaymentIntentSucceeded(event.data.object, event.id);
-
-      success: true,         break;
-
-      message: "Paystack webhooks not implemented in MVP" 
-
-    });      case "payment_intent.payment_failed":
-
-  }        await handlePaymentIntentFailed(event.data.object, event.id);
-
-);        break;
-
-
-
-// MVP: Simple booking completion handler      case "transfer.created":
-
-export const handleBookingCompletion = asyncHandler(        await handleTransferCreated(event.data.object, event.id);
-
-  async (req: Request, res: Response) => {        break;
-
-    const { bookingId } = req.body;
-
-      // Note: transfer.paid event will be handled when we confirm the transfer
-
-    if (!bookingId) {      // case "transfer.paid":
-
-      throw new AppError("Booking ID is required", 400);      //   await handleTransferPaid(event.data.object);
-
-    }      //   break;
-
-
-
-    try {      case "charge.dispute.created":
-
-      const booking = await prisma.booking.findUnique({        await handleChargeDispute(event.data.object, event.id);
-
-        where: { id: bookingId },        break;
-
-      });
-
-      case "charge.dispute.closed":
-
-      if (!booking) {        await handleChargeDisputeClosed(event.data.object, event.id);
-
-        throw new AppError("Booking not found", 404);        break;
-
-      }
-
-      case "account.updated":
-
-      // Check if booking should be completed (past checkout date)        await handleAccountUpdated(event.data.object, event.id);
-
-      const now = new Date();        break;
-
-      if (booking.checkOutDate <= now && booking.status === BookingStatus.CONFIRMED) {
-
-        await prisma.booking.update({      default:
-
-          where: { id: bookingId },        console.log(`Unhandled Stripe event type: ${event.type}`);
-
-          data: { status: BookingStatus.COMPLETED },    }
-
-        });
-
-    res.json({ received: true });
-
-        res.json({   }
-
-          success: true, );
-
-          message: "Booking marked as completed" 
-
-        });/**
-
-      } else { * @desc    Handle Paystack webhooks
-
-        res.json({  * @route   POST /api/webhooks/paystack
-
-          success: true,  * @access  Public (webhook)
-
-          message: "Booking not ready for completion"  */
-
-        });export const handlePaystackWebhook = asyncHandler(
-
-      }  async (req: Request, res: Response) => {
-
-    } catch (error) {    const signature = req.headers["x-paystack-signature"] as string;
-
-      console.error("Booking completion error:", error);
-
-      throw new AppError("Failed to process booking completion", 500);    if (!signature) {
-
-    }      throw new AppError("No Paystack signature header", 400);
-
-  }    }
-
-);
-
-    const payload = JSON.stringify(req.body);
-
-export default {
-
-  handlePaymentWebhook,    if (!verifyPaystackSignature(payload, signature)) {
-
-  stripeWebhook,      throw new AppError("Invalid signature", 400);
-
-  paystackWebhook,    }
-
-  handleBookingCompletion,
-
-};    const event = req.body;
-    console.log("Paystack webhook event:", event.event);
-
-    switch (event.event) {
-      case "charge.success":
-        await handlePaystackChargeSuccess(
-          event.data,
-          event.event,
-          event.data.id
-        );
-        break;
-
-      case "charge.failed":
-        await handlePaystackChargeFailed(
-          event.data,
-          event.event,
-          event.data.id
-        );
-        break;
-
-      case "transfer.success":
-        await handlePaystackTransferSuccess(
-          event.data,
-          event.event,
-          event.data.id
-        );
-        break;
-
-      case "transfer.failed":
-        await handlePaystackTransferFailed(
-          event.data,
-          event.event,
-          event.data.id
-        );
-        break;
-
-      default:
-        console.log(`Unhandled Paystack event type: ${event.event}`);
-    }
-
-    res.json({ status: true });
   }
 );
 
-// Stripe webhook handlers
-async function handlePaymentIntentSucceeded(
-  paymentIntent: any,
-  eventId: string
-) {
-  const bookingId = paymentIntent.metadata?.booking_id;
+// Handle successful payment
+async function handleChargeCompleted(data: any): Promise<void> {
+  const { tx_ref, amount, currency, status } = data;
 
-  if (!bookingId) {
-    console.error("No booking ID in payment intent metadata");
+  if (status !== "successful") {
     return;
   }
 
-  if (await alreadyProcessed(eventId, bookingId)) {
-    console.log("Stripe PI succeeded already processed", eventId);
-    return;
-  }
-
-  try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      select: {
-        payoutReleaseDate: true,
-        checkInDate: true,
-        payoutStatus: true,
-      },
-    });
-
-    const offsetHours = config.ESCROW_RELEASE_OFFSET_HOURS || 0;
-    const offsetMs = offsetHours * 60 * 60 * 1000;
-    let computedRelease: Date | undefined;
-
-    if (booking?.checkInDate) {
-      computedRelease = new Date(booking.checkInDate.getTime() + offsetMs);
-    } else {
-      computedRelease = new Date(Date.now() + offsetMs);
-    }
-
-    let payoutReleaseDate = booking?.payoutReleaseDate || computedRelease;
-
-    if (
-      computedRelease &&
-      (!payoutReleaseDate || computedRelease > payoutReleaseDate)
-    ) {
-      payoutReleaseDate = computedRelease;
-    }
-
-    const transitionData: Record<string, unknown> = {
-      payoutStatus: PayoutStatus.PENDING,
-    };
-
-    if (payoutReleaseDate) {
-      transitionData.payoutReleaseDate = payoutReleaseDate;
-    }
-
-    // Attempt transition only if currently PENDING
-    await transitionBookingStatus(
-      bookingId,
-      "PENDING" as any,
-      "CONFIRMED" as any,
-      transitionData
-    );
-  } catch (e) {
-    if (e instanceof BookingStatusConflictError) {
-      console.warn(
-        "Booking already transitioned; skipping status set",
-        bookingId
-      );
-    } else throw e;
-  }
-
-  await prisma.payment.update({
-    where: { bookingId },
-    data: {
-      status: PaymentStatus.COMPLETED,
-      stripePaymentIntentId: paymentIntent.id,
-    },
-  });
-
-  console.log(`Payment succeeded for booking ${bookingId}`);
-
-  await updateStripeGatewayFee(bookingId, paymentIntent.id);
-  await markProcessed(eventId, bookingId);
-
-  auditLogger
-    .log("PAYMENT_COMPLETED", "Payment", {
-      entityId: bookingId,
-      details: { provider: "STRIPE", paymentIntentId: paymentIntent.id },
-    })
-    .catch(() => {});
-
-  // Send receipt email (best effort)
-  try {
-    const payment = await prisma.payment.findUnique({
-      where: { bookingId },
-      include: { booking: { include: { property: true } }, user: true },
-    });
-    if (payment?.user.email && payment.booking && payment.booking.property) {
-      await sendPaymentReceipt(
-        payment.user.email,
-        payment.booking,
-        payment,
-        payment.booking.property
-      );
-    }
-  } catch (e) {
-    console.error("Failed to send payment receipt email", e);
-  }
-}
-
-async function handlePaymentIntentFailed(paymentIntent: any, eventId: string) {
-  const bookingId = paymentIntent.metadata?.booking_id;
-
-  if (!bookingId) {
-    console.error("No booking ID in payment intent metadata");
-    return;
-  }
-
-  if (await alreadyProcessed(eventId, bookingId)) {
-    console.log("Stripe PI failed already processed", eventId);
-    return;
-  }
-
-  try {
-    await transitionBookingStatus(
-      bookingId,
-      "PENDING" as any,
-      "CANCELLED" as any
-    );
-  } catch (e) {
-    if (e instanceof BookingStatusConflictError) {
-      console.warn("Booking status changed before failure handling", bookingId);
-    } else throw e;
-  }
-  await prisma.payment.update({
-    where: { bookingId },
-    data: { status: PaymentStatus.FAILED },
-  });
-  console.log(`Payment failed for booking ${bookingId}`);
-  await markProcessed(eventId, bookingId);
-  auditLogger
-    .log("PAYMENT_FAILED", "Payment", {
-      entityId: bookingId,
-      details: { provider: "STRIPE", paymentIntentId: paymentIntent.id },
-    })
-    .catch(() => {});
-}
-
-async function handleTransferCreated(transfer: any, eventId: string) {
-  const bookingId = transfer.metadata?.booking_id;
-
-  if (!bookingId) {
-    console.error("No booking ID in transfer metadata");
-    return;
-  }
-
-  if (await alreadyProcessed(eventId, bookingId)) {
-    console.log("Transfer created already processed", eventId);
-    return;
-  }
-  await prisma.payment.update({
-    where: { bookingId },
-    data: {
-      stripeTransferId: transfer.id,
-    },
-  });
-
-  console.log(`Transfer created for booking ${bookingId}`);
-  await markProcessed(eventId, bookingId);
-}
-
-async function handleTransferPaid(transfer: any) {
-  const bookingId = transfer.metadata?.booking_id;
-
-  if (!bookingId) {
-    console.error("No booking ID in transfer metadata");
-    return;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    // Update booking payout status
-    await tx.booking.update({
-      where: { id: bookingId },
-      data: { payoutStatus: PayoutStatus.RELEASED },
-    });
-
-    // Update payment payout status
-    await tx.payment.update({
-      where: { bookingId },
-      data: {
-        payoutReleased: true,
-        payoutReleasedAt: new Date(),
-      },
-    });
-
-    console.log(`Transfer paid for booking ${bookingId}`);
-  });
-}
-
-async function handleChargeDispute(dispute: any, eventId: string) {
-  // Handle chargeback/dispute
-  const chargeId = dispute.charge;
-
-  // Find payment by Stripe charge ID
-  const payment = await prisma.payment.findFirst({
-    where: {
-      OR: [{ stripePaymentIntentId: chargeId }, { disputeId: dispute.id }],
-    },
+  // Find payment by reference
+  const payment = await prisma.payment.findUnique({
+    where: { reference: tx_ref },
     include: {
       booking: {
         include: {
           property: {
             select: {
-              realtorId: true,
+              id: true,
+              title: true,
+            },
+          },
+          guest: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
             },
           },
         },
       },
     },
   });
-
-  if (payment) {
-    console.log(`Dispute created for booking ${payment.bookingId}`);
-
-    await prisma.$transaction(async (tx) => {
-      await tx.booking.update({
-        where: { id: payment.bookingId },
-        data: {
-          status: BookingStatus.DISPUTED,
-          payoutStatus: PayoutStatus.ON_HOLD,
-          payoutHoldReason: `STRIPE_DISPUTE_${dispute.id}`,
-          payoutHoldUntil: dispute.evidence_due_by
-            ? new Date(dispute.evidence_due_by * 1000)
-            : null,
-        },
-      });
-
-      await tx.payment.update({
-        where: { id: payment.id },
-        data: {
-          isDisputed: true,
-          disputeId: dispute.id,
-          disputeStatus: dispute.status,
-        },
-      });
-
-      if (payment.booking?.property?.realtorId) {
-        await (tx as any).payout.upsert({
-          where: { paymentId: payment.id },
-          update: {
-            status: PayoutStatus.ON_HOLD,
-            metadata: {
-              ...(payment.metadata as Record<string, any>),
-              disputeId: dispute.id,
-              disputeStatus: dispute.status,
-              disputeCreatedAt: new Date().toISOString(),
-            },
-          },
-          create: {
-            bookingId: payment.bookingId,
-            paymentId: payment.id,
-            realtorId: payment.booking.property.realtorId,
-            amount: payment.realtorPayout,
-            currency: payment.currency,
-            provider: payment.method,
-            status: PayoutStatus.ON_HOLD,
-            metadata: {
-              ...(payment.metadata as Record<string, any>),
-              disputeId: dispute.id,
-              disputeStatus: dispute.status,
-              disputeCreatedAt: new Date().toISOString(),
-            },
-          },
-        });
-      }
-    });
-  }
-  // Idempotency not strictly necessary here unless dispute events repeat
-  await markProcessed(eventId, payment?.bookingId);
-}
-
-async function handleChargeDisputeClosed(dispute: any, eventId: string) {
-  const disputeId = dispute.id;
-  let payment = await prisma.payment.findFirst({
-    where: { disputeId },
-    include: { booking: true },
-  });
-
-  if (!payment && dispute.charge) {
-    payment = await prisma.payment.findFirst({
-      where: { stripePaymentIntentId: dispute.charge },
-      include: { booking: true },
-    });
-  }
 
   if (!payment) {
-    console.warn("Dispute closed but payment not found", disputeId);
-    await markProcessed(eventId, undefined);
+    console.error(`Payment not found for reference: ${tx_ref}`);
     return;
   }
 
-  const booking = payment.booking;
-
-  await prisma.$transaction(async (tx) => {
-    // Update payment dispute tracking
-    await tx.payment.update({
-      where: { id: payment!.id },
-      data: {
-        disputeStatus: dispute.status,
-        isDisputed: false,
-      },
-    });
-
-    if (!booking) {
-      return;
-    }
-
-    if (dispute.status === "won") {
-      const offsetHours = config.ESCROW_RELEASE_OFFSET_HOURS || 0;
-      const offsetMs = offsetHours * 60 * 60 * 1000;
-      let payoutReleaseDate = booking.payoutReleaseDate || new Date();
-
-      if (booking.checkInDate) {
-        const computed = new Date(booking.checkInDate.getTime() + offsetMs);
-        if (computed > payoutReleaseDate) {
-          payoutReleaseDate = computed;
-        }
-      }
-
-      if (payoutReleaseDate < new Date()) {
-        payoutReleaseDate = new Date();
-      }
-
-      await tx.booking.update({
-        where: { id: booking.id },
-        data: {
-          status:
-            booking.status === BookingStatus.REFUNDED
-              ? BookingStatus.REFUNDED
-              : booking.checkOutDate < new Date()
-              ? BookingStatus.COMPLETED
-              : BookingStatus.CONFIRMED,
-          payoutStatus: PayoutStatus.PENDING,
-          payoutHoldReason: null,
-          payoutHoldUntil: null,
-          payoutReleaseDate,
-        },
-      });
-    } else {
-      // Lost dispute or warning closed against us
-      await tx.booking.update({
-        where: { id: booking.id },
-        data: {
-          status: BookingStatus.REFUNDED,
-          payoutStatus: PayoutStatus.FAILED,
-          payoutHoldReason: `DISPUTE_${disputeId}_LOST`,
-          payoutHoldUntil: null,
-        },
-      });
-
-      await tx.payment.update({
-        where: { id: payment!.id },
-        data: {
-          status: PaymentStatus.REFUNDED,
-        },
-      });
-    }
-  });
-
-  await markProcessed(eventId, payment.bookingId);
-}
-
-async function handleAccountUpdated(account: any, eventId: string) {
-  // Update realtor's Stripe account status
-  const realtorId = account.metadata?.realtor_id;
-
-  if (!realtorId) {
-    console.error("No realtor ID in account metadata");
-    return;
+  if (payment.status === PaymentStatus.COMPLETED) {
+    return; // Already processed
   }
 
-  await prisma.realtor.update({
-    where: { id: realtorId },
-    data: {
-      stripeAccountId: account.id,
-      // Could add more fields for account status tracking
-    },
-  });
-
-  console.log(`Account updated for realtor ${realtorId}`);
-  await markProcessed(eventId, undefined);
-}
-
-// Paystack webhook handlers
-async function handlePaystackChargeSuccess(
-  charge: any,
-  eventName: string,
-  eventId: string
-) {
-  const bookingId = charge.metadata?.booking_id;
-
-  if (!bookingId) {
-    console.error("No booking ID in charge metadata");
-    return;
-  }
-
-  if (await alreadyProcessed(eventId, bookingId)) {
-    console.log("Paystack charge success already processed", eventId);
-    return;
-  }
-  try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      select: {
-        payoutReleaseDate: true,
-        checkInDate: true,
-      },
-    });
-
-    const offsetHours = config.ESCROW_RELEASE_OFFSET_HOURS || 0;
-    const offsetMs = offsetHours * 60 * 60 * 1000;
-    let computedRelease: Date | undefined;
-
-    if (booking?.checkInDate) {
-      computedRelease = new Date(booking.checkInDate.getTime() + offsetMs);
-    } else {
-      computedRelease = new Date(Date.now() + offsetMs);
-    }
-
-    let payoutReleaseDate = booking?.payoutReleaseDate || computedRelease;
-
-    if (
-      computedRelease &&
-      (!payoutReleaseDate || computedRelease > payoutReleaseDate)
-    ) {
-      payoutReleaseDate = computedRelease;
-    }
-
-    const transitionData: Record<string, unknown> = {
-      payoutStatus: PayoutStatus.PENDING,
-    };
-
-    if (payoutReleaseDate) {
-      transitionData.payoutReleaseDate = payoutReleaseDate;
-    }
-
-    await transitionBookingStatus(
-      bookingId,
-      "PENDING" as any,
-      "CONFIRMED" as any,
-      transitionData
-    );
-  } catch (e) {
-    if (e instanceof BookingStatusConflictError) {
-      console.warn("Booking already confirmed elsewhere", bookingId);
-    } else throw e;
-  }
+  // Update payment status
   await prisma.payment.update({
-    where: { bookingId },
+    where: { id: payment.id },
     data: {
       status: PaymentStatus.COMPLETED,
-      paystackReference: charge.reference,
+      updatedAt: new Date(),
     },
   });
-  console.log(`Paystack payment succeeded for booking ${bookingId}`);
-  await updatePaystackGatewayFee(bookingId, charge.fees);
-  await markProcessed(eventId, bookingId);
 
-  auditLogger
-    .log("PAYMENT_COMPLETED", "Payment", {
-      entityId: bookingId,
-      details: { provider: "PAYSTACK", reference: charge.reference },
-    })
-    .catch(() => {});
-
-  // Send receipt email (best effort)
-  try {
-    const payment = await prisma.payment.findUnique({
-      where: { bookingId },
-      include: { booking: { include: { property: true } }, user: true },
-    });
-    if (payment?.user.email && payment.booking && payment.booking.property) {
-      await sendPaymentReceipt(
-        payment.user.email,
-        payment.booking,
-        payment,
-        payment.booking.property
-      );
-    }
-  } catch (e) {
-    console.error("Failed to send paystack payment receipt email", e);
-  }
-}
-
-async function handlePaystackChargeFailed(
-  charge: any,
-  eventName: string,
-  eventId: string
-) {
-  const bookingId = charge.metadata?.booking_id;
-
-  if (!bookingId) {
-    console.error("No booking ID in charge metadata");
-    return;
-  }
-
-  if (await alreadyProcessed(eventId, bookingId)) {
-    console.log("Paystack charge failed already processed", eventId);
-    return;
-  }
-  try {
-    await transitionBookingStatus(
-      bookingId,
-      "PENDING" as any,
-      "CANCELLED" as any
-    );
-  } catch (e) {
-    if (e instanceof BookingStatusConflictError) {
-      console.warn("Booking status changed before marking failed", bookingId);
-    } else throw e;
-  }
-  await prisma.payment.update({
-    where: { bookingId },
-    data: { status: PaymentStatus.FAILED },
+  // Update booking status
+  await prisma.booking.update({
+    where: { id: payment.bookingId },
+    data: {
+      status: BookingStatus.CONFIRMED,
+      updatedAt: new Date(),
+    },
   });
-  console.log(`Paystack payment failed for booking ${bookingId}`);
-  await markProcessed(eventId, bookingId);
-  auditLogger
-    .log("PAYMENT_FAILED", "Payment", {
-      entityId: bookingId,
-      details: { provider: "PAYSTACK", reference: charge.reference },
-    })
-    .catch(() => {});
-}
 
-async function handlePaystackTransferSuccess(
-  transfer: any,
-  eventName: string,
-  eventId: string
-) {
-  // Handle successful payout to realtor
-  console.log("Paystack transfer successful:", transfer);
-  await markProcessed(eventId, undefined);
-
-  // Note: Paystack Split handles this automatically
-  // We might just need to log or send notifications
-}
-
-async function handlePaystackTransferFailed(
-  transfer: any,
-  eventName: string,
-  eventId: string
-) {
-  // Handle failed payout
-  console.log("Paystack transfer failed:", transfer);
-  await markProcessed(eventId, undefined);
-
-  // Mark payout as failed and notify admin
-}
-
-/**
- * Release pending payouts (cron job function)
- * Call this from a scheduled task to automatically release escrow funds
- */
-export const releasePendingPayouts = async () => {
+  // Send confirmation email (simplified for MVP)
   try {
-    console.log("Starting payout release job...");
+    console.log(
+      `Payment confirmation completed for booking ${payment.bookingId}`
+    );
+    // TODO: Implement actual email notification in next iteration
+  } catch (err) {
+    console.error("Email notification failed", err);
+  }
+}
 
-    // Find bookings ready for payout release
-    const now = new Date();
+// Handle failed payment
+async function handleChargeFailed(data: any): Promise<void> {
+  const { tx_ref, status } = data;
 
-    const readyBookings = await prisma.booking.findMany({
-      where: {
-        status: {
-          in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED],
-        },
-        payoutReleaseDate: {
-          lte: now, // Release date has passed
-        },
-        OR: [
-          {
-            payoutStatus: PayoutStatus.PENDING,
-            OR: [
-              { payoutHoldUntil: null },
-              {
-                payoutHoldUntil: {
-                  lte: now,
-                },
-              },
-            ],
+  if (status !== "failed") {
+    return;
+  }
+
+  // Find payment by reference
+  const payment = await prisma.payment.findFirst({
+    where: { reference: tx_ref },
+    include: {
+      booking: true,
+    },
+  });
+
+  if (!payment) {
+    console.error(`Payment not found for reference: ${tx_ref}`);
+    return;
+  }
+
+  // Update payment status
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: PaymentStatus.FAILED,
+      updatedAt: new Date(),
+    },
+  });
+
+  // Update booking status
+  await prisma.booking.update({
+    where: { id: payment.bookingId },
+    data: {
+      status: BookingStatus.CANCELLED,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+// MVP: Simple booking completion handler
+export const handleBookingCompletion = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { bookingId } = req.body;
+
+    if (!bookingId) {
+      throw new AppError("Booking ID is required", 400);
+    }
+
+    try {
+      const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
+      });
+
+      if (!booking) {
+        throw new AppError("Booking not found", 404);
+      }
+
+      const now = new Date();
+
+      // Check if booking should be marked as completed (past checkout date)
+      if (
+        booking.checkOutDate <= now &&
+        booking.status === BookingStatus.CONFIRMED
+      ) {
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            status: BookingStatus.COMPLETED,
+            updatedAt: now,
           },
-          {
-            payoutStatus: PayoutStatus.ON_HOLD,
-            payoutHoldUntil: {
-              not: null,
-              lte: now,
-            },
-          },
-        ],
-      },
-      include: {
-        property: {
-          include: {
-            realtor: true,
-          },
-        },
-        payment: true,
-      },
-    });
-
-    console.log(`Found ${readyBookings.length} bookings ready for payout`);
-
-    for (const booking of readyBookings) {
-      const payment = booking.payment;
-      const paymentMetadata = (payment?.metadata as Record<string, any>) || {};
-      try {
-        if (!payment) {
-          console.warn(
-            "Booking ready for payout but missing payment",
-            booking.id
-          );
-          continue;
-        }
-
-        if (payment.payoutReleased) {
-          console.log("Payout already released for booking", booking.id);
-          continue;
-        }
-
-        if (payment.isDisputed) {
-          console.log(
-            `Skipping payout for booking ${booking.id} due to active dispute`
-          );
-          continue;
-        }
-
-        let providerTransferId: string | undefined;
-
-        if (
-          payment.method === "STRIPE" &&
-          booking.property.realtor.stripeAccountId &&
-          payment.stripePaymentIntentId
-        ) {
-          // Process Stripe capture + transfer
-          const result = await captureAndTransfer(
-            payment.stripePaymentIntentId,
-            booking.property.realtor.stripeAccountId,
-            Number(booking.realtorPayout),
-            booking.currency,
-            booking.id
-          );
-          providerTransferId = result.transfer?.id;
-        }
-
-        await prisma.$transaction(async (tx) => {
-          const processedAt = new Date();
-
-          await (tx as any).payout.upsert({
-            where: { paymentId: payment.id },
-            update: {
-              status: PayoutStatus.RELEASED,
-              providerTransferId:
-                providerTransferId ??
-                payment.paystackReference ??
-                payment.stripeTransferId ??
-                undefined,
-              processedAt,
-              metadata: {
-                ...paymentMetadata,
-                releasedBy: "system",
-              },
-            },
-            create: {
-              bookingId: booking.id,
-              paymentId: payment.id,
-              realtorId: booking.property.realtorId,
-              amount: booking.realtorPayout,
-              currency: booking.currency,
-              provider: payment.method,
-              status: PayoutStatus.RELEASED,
-              providerTransferId:
-                providerTransferId ??
-                payment.paystackReference ??
-                payment.stripeTransferId ??
-                undefined,
-              processedAt,
-              metadata: {
-                ...paymentMetadata,
-                releasedBy: "system",
-              },
-            },
-          });
-
-          await tx.booking.update({
-            where: { id: booking.id },
-            data: {
-              payoutStatus: PayoutStatus.RELEASED,
-              payoutHoldReason: null,
-              payoutHoldUntil: null,
-            },
-          });
-
-          await tx.payment.update({
-            where: { id: payment.id },
-            data: {
-              payoutReleased: true,
-              payoutReleasedAt: processedAt,
-              stripeTransferId: providerTransferId ?? payment.stripeTransferId,
-            },
-          });
         });
 
-        console.log(`Released payout for booking ${booking.id}`);
-        auditLogger
-          .log("PAYOUT_RELEASED", "Payout", {
-            entityId: booking.id,
-            details: { method: payment.method },
-          })
-          .catch(() => {});
-
-        if (booking.property.realtor.businessEmail) {
-          try {
-            await sendRealtorPayout(
-              booking.property.realtor.businessEmail,
-              booking.property.realtor,
-              Number(booking.realtorPayout),
-              booking.currency,
-              booking.id
-            );
-          } catch (e) {
-            console.error("Failed to send payout email", e);
-          }
-        }
-      } catch (error) {
-        console.error(
-          `Failed to release payout for booking ${booking.id}:`,
-          error
-        );
-
-        await prisma.$transaction(async (tx) => {
-          await tx.booking.update({
-            where: { id: booking.id },
-            data: { payoutStatus: PayoutStatus.FAILED },
-          });
-
-          if (payment) {
-            await (tx as any).payout.upsert({
-              where: { paymentId: payment.id },
-              update: {
-                status: PayoutStatus.FAILED,
-                processedAt: new Date(),
-                metadata: {
-                  ...paymentMetadata,
-                  error: (error as Error).message,
-                },
-              },
-              create: {
-                bookingId: booking.id,
-                paymentId: payment.id,
-                realtorId: booking.property.realtorId,
-                amount: booking.realtorPayout,
-                currency: booking.currency,
-                provider: payment.method,
-                status: PayoutStatus.FAILED,
-                metadata: {
-                  ...paymentMetadata,
-                  error: (error as Error).message,
-                },
-              },
-            });
-          }
+        res.json({
+          success: true,
+          message: "Booking marked as completed",
+        });
+      } else {
+        res.json({
+          success: true,
+          message: "Booking completion conditions not met",
         });
       }
+    } catch (error) {
+      console.error("Booking completion error:", error);
+      throw new AppError("Failed to process booking completion", 500);
     }
-
-    console.log("Payout release job completed");
-  } catch (error) {
-    console.error("Error in payout release job:", error);
   }
+);
+
+// Export all webhook handlers
+export default {
+  handleFlutterwaveWebhook,
+  handleBookingCompletion,
 };

@@ -13,7 +13,6 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-// import Image from "next/image";
 
 export const palette = {
   primary: "var(--marketing-primary, #1E3A8A)",
@@ -111,7 +110,7 @@ export const featurePillars: Array<{
   },
   {
     title: "Hands-free payouts & refunds",
-    copy: "Stripe Connect and Paystack Split move money instantly, track fees, and issue refunds without you touching a calculator.",
+    copy: "Flutterwave and Paystack integration move money instantly, track fees, and issue refunds without you touching a calculator.",
     Icon: Wallet,
   },
   {
@@ -146,7 +145,7 @@ export const workflowSteps: Array<{
   {
     title: "Switch on payments & go live",
     description:
-      "Connect Stripe or Paystack once. From that moment, payouts, receipts, and refunds just run automatically.",
+      "Connect Flutterwave or Paystack once. From that moment, payouts, receipts, and refunds just run automatically.",
     Icon: ShieldCheck,
   },
 ];
@@ -215,7 +214,7 @@ export const operationsMetrics = [
 ] as const;
 
 export const integrationBadges = [
-  { name: "Stripe Connect", colour: palette.neutralDark },
+  { name: "Flutterwave", colour: palette.neutralDark },
   { name: "Paystack Split", colour: palette.secondary },
   { name: "Google Maps", colour: palette.primary },
   { name: "Zapier", colour: palette.accent },
@@ -250,7 +249,7 @@ export const waitlistDetails = {
     "We open a limited number of white-glove engagements each month to keep migrations fast, personal, and hands-on.",
   bulletPoints: [
     "Your logo, colours, and listings live in week one",
-    "Stripe Connect or Paystack Split configured with compliance built in",
+    "Flutterwave or Paystack integration configured with compliance built in",
     "Custom reporting and automation playbooks tailored to your team",
   ],
   buttonLabel: "Book a discovery call",
@@ -270,7 +269,7 @@ export const faqItems = [
   {
     question: "How are payouts and fees handled?",
     answer:
-      "Stripe Connect or Paystack Split handle everything: commissions, refunds, receipts. Money flows automatically — no spreadsheets.",
+      "Flutterwave or Paystack handle everything: commissions, refunds, receipts. Money flows automatically — no spreadsheets.",
   },
   {
     question: "What if I’m already using Airbnb or a marketplace?",

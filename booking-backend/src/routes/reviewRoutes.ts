@@ -2,38 +2,27 @@ import express from "express";
 import { Request, Response } from "express";
 import { AppError } from "@/middleware/errorHandler";
 import { authenticate, authorize, optionalAuth } from "@/middleware/auth";
-
-// MVP: Placeholder functions for review functionality
-const createReview = (req: Request, res: Response) => {
-  throw new AppError("Review functionality coming soon", 501);
-};
-
-const getPropertyReviews = (req: Request, res: Response) => {
-  throw new AppError("Review functionality coming soon", 501);
-};
-
-const getMyReviews = (req: Request, res: Response) => {
-  throw new AppError("Review functionality coming soon", 501);
-};
-
-const getHostReviews = (req: Request, res: Response) => {
-  throw new AppError("Review functionality coming soon", 501);
-};
+import {
+  createReview,
+  getPropertyReviews,
+  getMyReviews,
+  getHostReviews,
+  updateReview,
+  deleteReview,
+  respondToReview,
+  getReviewAnalytics,
+} from "@/controllers/reviewController";
+import {
+  uploadReviewPhotos,
+  processReviewPhotos,
+} from "@/services/photoUpload";
 
 const getReview = (req: Request, res: Response) => {
-  throw new AppError("Review functionality coming soon", 501);
-};
-
-const updateReview = (req: Request, res: Response) => {
-  throw new AppError("Review functionality coming soon", 501);
-};
-
-const deleteReview = (req: Request, res: Response) => {
-  throw new AppError("Review functionality coming soon", 501);
+  throw new AppError("Individual review retrieval coming soon", 501);
 };
 
 const toggleReviewVisibility = (req: Request, res: Response) => {
-  throw new AppError("Review functionality coming soon", 501);
+  throw new AppError("Review moderation coming soon", 501);
 };
 
 const router = express.Router();
@@ -644,5 +633,248 @@ router.patch(
   authorize("ADMIN"),
   toggleReviewVisibility
 );
+
+/**
+ * @swagger
+ * /api/reviews/{id}/respond:
+ *   post:
+ *     summary: Respond to a review (REALTOR only)
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Review ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - comment
+ *             properties:
+ *               comment:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 1000
+ *                 description: Response comment
+ *     responses:
+ *       201:
+ *         description: Review response created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Review response created successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     comment:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Forbidden - Realtor access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       404:
+ *         description: Review not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       409:
+ *         description: Response already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+router.post(
+  "/:id/respond",
+  authenticate,
+  authorize("REALTOR"),
+  respondToReview
+);
+
+/**
+ * @swagger
+ * /api/reviews/analytics:
+ *   get:
+ *     summary: Get review analytics for realtor (REALTOR only)
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Review analytics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Review analytics retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalReviews:
+ *                       type: integer
+ *                     averageRating:
+ *                       type: number
+ *                     ratingDistribution:
+ *                       type: object
+ *                       properties:
+ *                         5:
+ *                           type: integer
+ *                         4:
+ *                           type: integer
+ *                         3:
+ *                           type: integer
+ *                         2:
+ *                           type: integer
+ *                         1:
+ *                           type: integer
+ *                     recentReviews:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Review'
+ *                     responseRate:
+ *                       type: integer
+ *                       description: Percentage of reviews with responses
+ *                     responsesGiven:
+ *                       type: integer
+ *                       description: Total number of responses given
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Forbidden - Realtor access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+router.get(
+  "/analytics",
+  authenticate,
+  authorize("REALTOR"),
+  getReviewAnalytics
+);
+
+/**
+ * @swagger
+ * /api/reviews/upload-photos:
+ *   post:
+ *     summary: Upload photos for review
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               photos:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Up to 5 photos (max 5MB each)
+ *     responses:
+ *       200:
+ *         description: Photos uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Photos uploaded successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     photos:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           url:
+ *                             type: string
+ *                           caption:
+ *                             type: string
+ *       400:
+ *         description: Bad request - Invalid file type or size
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+router.post("/upload-photos", authenticate, (req: Request, res: Response) => {
+  uploadReviewPhotos(req, res, (err: any) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Failed to upload photos",
+      });
+    }
+
+    const files = req.files as Express.Multer.File[];
+    const photos = processReviewPhotos(files);
+
+    return res.json({
+      success: true,
+      message: "Photos uploaded successfully",
+      data: { photos },
+    });
+  });
+});
 
 export default router;

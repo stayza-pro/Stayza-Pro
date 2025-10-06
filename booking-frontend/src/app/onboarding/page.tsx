@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { OnboardingProgress } from "@/components/onboarding/OnboardingProgress";
 import { BusinessInfoStep } from "@/components/onboarding/BusinessInfoStep";
 import { BrandingStep } from "@/components/onboarding/BrandingStep";
-import { StripeOnboardingStep } from "@/components/onboarding/StripeOnboardingStep";
+
 import { CompletionStep } from "@/components/onboarding/CompletionStep";
 import { Card } from "@/components/ui";
 
@@ -27,9 +27,6 @@ export interface OnboardingData {
   customDomain: string;
   customMessage: string;
   logo?: File;
-
-  // Stripe
-  stripeAccountId?: string;
 }
 
 const STEPS = [
@@ -39,8 +36,7 @@ const STEPS = [
     description: "Tell us about your business",
   },
   { id: 2, title: "Branding", description: "Customize your booking site" },
-  { id: 3, title: "Payment Setup", description: "Connect your Stripe account" },
-  { id: 4, title: "Complete", description: "You're all set!" },
+  { id: 3, title: "Complete", description: "You're all set!" },
 ];
 
 export default function OnboardingPage() {
@@ -120,16 +116,6 @@ export default function OnboardingPage() {
           />
         );
       case 3:
-        return (
-          <StripeOnboardingStep
-            data={data}
-            onUpdate={updateData}
-            onNext={nextStep}
-            onBack={prevStep}
-            isSubmitting={isSubmitting}
-          />
-        );
-      case 4:
         return (
           <CompletionStep
             data={data}

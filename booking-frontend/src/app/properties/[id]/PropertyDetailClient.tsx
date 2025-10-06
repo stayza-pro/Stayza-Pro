@@ -8,11 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { PropertyDetails } from "@/components/property/PropertyDetails";
 import { BookingForm } from "@/components/booking/BookingForm";
-import {
-  StripeCheckout,
-  PaystackCheckout,
-  PaymentStatus,
-} from "@/components/payment";
+import { FlutterwaveCheckout, PaymentStatus } from "@/components/payment";
 import { Button, Card, Loading } from "@/components/ui";
 import { useProperty } from "@/hooks/useProperties";
 import { useAuthStore } from "@/store/authStore";
@@ -28,7 +24,7 @@ type RawImage =
   | null
   | undefined;
 
-type RawHostCandidate = {
+type RawRealtorCandidate = {
   id?: string;
   userId?: string;
   firstName?: string;
@@ -42,16 +38,16 @@ type RawHostCandidate = {
 };
 
 type RawProperty = Partial<
-  Omit<Property, "images" | "pricePerNight" | "host"> & {
-    host: Property["host"];
+  Omit<Property, "images" | "pricePerNight" | "realtor"> & {
+    realtor: Property["realtor"];
   }
 > & {
   images?: unknown;
   pricePerNight?: unknown;
-  host?: RawHostCandidate;
+  realtor?: RawRealtorCandidate;
   hostId?: string;
   realtorId?: string;
-  realtor?: RawHostCandidate & { user?: RawHostCandidate };
+  realtor?: RawRealtorCandidate & { user?: RawRealtorCandidate };
 };
 
 interface PropertyDetailClientProps {
@@ -90,21 +86,21 @@ const normalizeImages = (images: RawProperty["images"]): string[] => {
 const normalizeProperty = (rawProperty: RawProperty): Property => {
   const images = normalizeImages(rawProperty.images);
 
-  const hostCandidate: RawHostCandidate | undefined =
-    rawProperty.host || rawProperty.realtor?.user || rawProperty.realtor;
+  const hostCandidate: RawRealtorCandidate | undefined =
+    rawProperty.realtor || rawProperty.realtor?.user || rawProperty.realtor;
 
-  const host = {
+  const realtor = {
     id:
       hostCandidate?.id ||
       hostCandidate?.userId ||
       rawProperty.hostId ||
       rawProperty.realtorId ||
-      "host",
+      "Realtor",
     firstName:
       hostCandidate?.firstName ||
       hostCandidate?.name ||
       hostCandidate?.businessName ||
-      "Host",
+      "Realtor",
     lastName: hostCandidate?.lastName || hostCandidate?.surname || "",
     avatar:
       hostCandidate?.avatar ||
@@ -139,8 +135,8 @@ const normalizeProperty = (rawProperty: RawProperty): Property => {
     status: rawProperty.status ?? undefined,
     createdAt: rawProperty.createdAt ?? new Date().toISOString(),
     updatedAt: rawProperty.updatedAt ?? new Date().toISOString(),
-    host,
-    hostId: rawProperty.hostId ?? rawProperty.realtorId ?? host.id,
+    realtor,
+    hostId: rawProperty.hostId ?? rawProperty.realtorId ?? realtor.id,
     averageRating: rawProperty.averageRating ?? undefined,
     reviewCount: rawProperty.reviewCount ?? undefined,
   };
@@ -173,11 +169,12 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingMessage, setBookingMessage] = useState<string | null>(null);
-  const [selectedGateway, setSelectedGateway] = useState<
-    "stripe" | "paystack" | null
-  >(null);
-  const [stripeSession, setStripeSession] = useState<{
-    clientSecret: string;
+  const [selectedGateway, setSelectedGateway] = useState<"flutterwave" | null>(
+    null
+  );
+  const [flutterwaveSession, setFlutterwaveSession] = useState<{
+    authorizationUrl: string;
+    reference: string;
     paymentId: string;
   } | null>(null);
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null);
@@ -241,61 +238,14 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
 
   const resetPaymentSelection = () => {
     setSelectedGateway(null);
-    setStripeSession(null);
+    setFlutterwaveSession(null);
     setActivePaymentId(null);
     setPaymentStage("idle");
     setPaymentError(null);
     setPaymentRecord(null);
   };
 
-  const prepareStripePayment = async () => {
-    if (!activeBooking) return;
-    setIsInitializingPayment(true);
-    setPaymentError(null);
-
-    try {
-      const response = await paymentService.createStripePaymentIntent({
-        bookingId: activeBooking.id,
-      });
-
-      setActivePaymentId(response.paymentId);
-
-      if (response.paymentStatus && response.paymentStatus !== "FAILED") {
-        const payment = await hydratePaymentRecord(response.paymentId);
-        if (!payment) {
-          setPaymentStage(mapPaymentStatus(response.paymentStatus));
-        } else {
-          await refreshBooking(payment.booking?.id || activeBooking.id);
-        }
-
-        if (response.paymentStatus === "COMPLETED") {
-          toast.success("This booking is already paid.");
-        }
-        return;
-      }
-
-      if (!response.clientSecret) {
-        throw new Error(
-          "Unable to load Stripe checkout. Please contact support."
-        );
-      }
-
-      setStripeSession({
-        clientSecret: response.clientSecret,
-        paymentId: response.paymentId,
-      });
-      setPaymentStage("idle");
-    } catch (err) {
-      const message = serviceUtils.extractErrorMessage(err);
-      setPaymentError(message);
-      setPaymentStage("failed");
-      toast.error(message);
-    } finally {
-      setIsInitializingPayment(false);
-    }
-  };
-
-  const handleSelectGateway = async (gateway: "stripe" | "paystack") => {
+  const handleSelectGateway = async (gateway: "flutterwave") => {
     if (!activeBooking) {
       toast.error("Create a reservation before choosing a payment method.");
       return;
@@ -303,14 +253,6 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
 
     setSelectedGateway(gateway);
     setPaymentError(null);
-
-    if (gateway === "stripe") {
-      if (!stripeSession || paymentStage === "failed") {
-        await prepareStripePayment();
-      }
-    } else {
-      setStripeSession(null);
-    }
   };
 
   const finalizePayment = async (paymentId: string) => {
@@ -326,7 +268,7 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
       } else {
         setPaymentStage("pending");
       }
-      setStripeSession(null);
+      setFlutterwaveSession(null);
     } catch (err) {
       const message = serviceUtils.extractErrorMessage(err);
       setPaymentError(message);
@@ -334,21 +276,13 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
     }
   };
 
-  const handleStripeSuccess = async () => {
-    const paymentId = stripeSession?.paymentId || activePaymentId;
-    if (!paymentId) return;
-
-    toast.success("Payment authorized successfully.");
-    await finalizePayment(paymentId);
-  };
-
-  const handleStripeError = (message: string) => {
+  const handleFlutterwaveError = (message: string) => {
     setPaymentError(message);
     setPaymentStage("failed");
     toast.error(message);
   };
 
-  const handlePaystackInitialized = async (details: {
+  const handleFlutterwaveInitialized = async (details: {
     paymentId: string;
     reference?: string;
     paymentStatus?: Payment["status"];
@@ -357,7 +291,7 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
     if (details.paymentStatus) {
       setPaymentStage(mapPaymentStatus(details.paymentStatus));
       if (details.paymentStatus === "COMPLETED") {
-        toast.success("This booking is already paid via Paystack.");
+        toast.success("This booking is already paid via Flutterwave.");
         const payment = await hydratePaymentRecord(details.paymentId);
         if (payment) {
           await refreshBooking(payment.booking?.id || activeBooking?.id || "");
@@ -392,7 +326,7 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
   const handlePaymentRetry = async () => {
     setPaymentStage("idle");
     setPaymentError(null);
-    await prepareStripePayment();
+    resetPaymentSelection();
   };
 
   const handlePaymentGoBack = () => {
@@ -605,25 +539,19 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       variant={
-                        selectedGateway === "stripe" ? "primary" : "outline"
+                        selectedGateway === "flutterwave"
+                          ? "primary"
+                          : "outline"
                       }
-                      onClick={() => handleSelectGateway("stripe")}
+                      onClick={() => handleSelectGateway("flutterwave")}
                       disabled={paymentSettled}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
                     >
-                      Pay with card (Stripe)
-                    </Button>
-                    <Button
-                      variant={
-                        selectedGateway === "paystack" ? "primary" : "outline"
-                      }
-                      onClick={() => handleSelectGateway("paystack")}
-                      disabled={paymentSettled}
-                    >
-                      Pay with Paystack
+                      Pay with Flutterwave (Cards, Bank Transfer, USSD)
                     </Button>
                   </div>
 
-                  {selectedGateway === "stripe" && !paymentSettled && (
+                  {selectedGateway === "flutterwave" && !paymentSettled && (
                     <div className="space-y-4">
                       {isInitializingPayment && (
                         <div className="flex items-center space-x-3 text-sm text-gray-600">
@@ -640,36 +568,24 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
                       )}
 
                       {stripeSession && (
-                        <StripeCheckout
-                          clientSecret={stripeSession.clientSecret}
+                        <FlutterwaveCheckout
+                          bookingId={activeBooking!.id}
                           amount={Number(activeBooking!.totalPrice)}
                           currency={activeBooking!.currency}
+                          email={user?.email || ""}
+                          customerName={
+                            user
+                              ? `${user.firstName} ${user.lastName}`.trim()
+                              : undefined
+                          }
+                          customerPhone={user?.phone}
                           description={`Booking payment for ${property.title}`}
-                          onSuccess={handleStripeSuccess}
-                          onError={handleStripeError}
+                          onInitialized={handleFlutterwaveInitialized}
+                          onError={handleFlutterwaveError}
                           onCancel={handlePaymentGoBack}
                         />
                       )}
                     </div>
-                  )}
-
-                  {selectedGateway === "paystack" && !paymentSettled && (
-                    <PaystackCheckout
-                      bookingId={activeBooking!.id}
-                      amount={Number(activeBooking!.totalPrice)}
-                      currency={activeBooking!.currency}
-                      email={user?.email || ""}
-                      customerName={
-                        user
-                          ? `${user.firstName} ${user.lastName}`.trim()
-                          : undefined
-                      }
-                      customerPhone={user?.phone}
-                      description={`Booking payment for ${property.title}`}
-                      onInitialized={handlePaystackInitialized}
-                      onError={handleStripeError}
-                      onCancel={handlePaymentGoBack}
-                    />
                   )}
 
                   {(effectivePaymentStage !== "idle" || resolvedPayment) && (

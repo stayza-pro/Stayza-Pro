@@ -1,16 +1,6 @@
 import { apiClient } from "./api";
 import { Payment } from "../types";
 
-export interface StripePaymentIntentRequest {
-  bookingId: string;
-}
-
-export interface StripePaymentIntentResponse {
-  clientSecret?: string;
-  paymentId: string;
-  paymentStatus?: Payment["status"];
-}
-
 export interface PaystackInitializationRequest {
   bookingId: string;
 }
@@ -31,24 +21,27 @@ export interface PaystackVerificationResponse {
   message: string;
 }
 
+export interface FlutterwaveInitializationRequest {
+  bookingId: string;
+}
+
+export interface FlutterwaveInitializationResponse {
+  authorizationUrl?: string;
+  reference?: string;
+  paymentId: string;
+  paymentStatus?: Payment["status"];
+}
+
+export interface FlutterwaveVerificationRequest {
+  reference: string;
+}
+
+export interface FlutterwaveVerificationResponse {
+  success: boolean;
+  message: string;
+}
+
 export const paymentService = {
-  // Create Stripe payment intent for a booking
-  createStripePaymentIntent: async (
-    data: StripePaymentIntentRequest
-  ): Promise<StripePaymentIntentResponse> => {
-    const response = await apiClient.post<{
-      clientSecret?: string;
-      paymentId: string;
-      paymentStatus?: Payment["status"];
-    }>("/payments/create-stripe-intent", data);
-
-    return {
-      clientSecret: response.data.clientSecret,
-      paymentId: response.data.paymentId,
-      paymentStatus: response.data.paymentStatus,
-    };
-  },
-
   // Initialize Paystack split payment for a booking
   initializePaystackPayment: async (
     data: PaystackInitializationRequest
@@ -76,6 +69,40 @@ export const paymentService = {
       success: boolean;
       message: string;
     }>("/payments/verify-paystack", data);
+
+    return {
+      success: response.data.success,
+      message: response.data.message,
+    };
+  },
+
+  // Initialize Flutterwave payment for a booking (primary payment method)
+  initializeFlutterwavePayment: async (
+    data: FlutterwaveInitializationRequest
+  ): Promise<FlutterwaveInitializationResponse> => {
+    const response = await apiClient.post<{
+      authorizationUrl?: string;
+      reference?: string;
+      paymentId: string;
+      paymentStatus?: Payment["status"];
+    }>("/payments/initialize-flutterwave", data);
+
+    return {
+      authorizationUrl: response.data.authorizationUrl,
+      reference: response.data.reference,
+      paymentId: response.data.paymentId,
+      paymentStatus: response.data.paymentStatus,
+    };
+  },
+
+  // Verify Flutterwave payment manually (fallback if webhook missed)
+  verifyFlutterwavePayment: async (
+    data: FlutterwaveVerificationRequest
+  ): Promise<FlutterwaveVerificationResponse> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+    }>("/payments/verify-flutterwave", data);
 
     return {
       success: response.data.success,

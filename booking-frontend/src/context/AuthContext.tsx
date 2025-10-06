@@ -5,7 +5,10 @@ import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "../store/authStore";
 
 interface AuthContextType {
-  // This context will use the Zustand store
+  user: any;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -15,7 +18,14 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { checkAuth, setLoading } = useAuthStore();
+  const {
+    checkAuth,
+    setLoading,
+    user,
+    accessToken,
+    isAuthenticated,
+    isLoading,
+  } = useAuthStore();
 
   useEffect(() => {
     // Initialize auth state
@@ -34,15 +44,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initAuth();
   }, [checkAuth, setLoading]);
 
+  const contextValue: AuthContextType = {
+    user,
+    token: accessToken,
+    isAuthenticated,
+    isLoading,
+  };
+
   return (
-    <AuthContext.Provider value={{}}>
+    <AuthContext.Provider value={contextValue}>
       {children}
       <Toaster position="top-center" reverseOrder={false} />
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");

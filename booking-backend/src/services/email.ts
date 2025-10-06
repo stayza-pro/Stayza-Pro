@@ -711,6 +711,37 @@ export const emailTemplates = {
       </div>
     `,
   }),
+
+  // CAC verification templates
+  cacApproved: (businessName: string, dashboardUrl: string) => ({
+    subject: "✅ CAC Verification Approved - Start Uploading Properties!",
+    html: getEmailContainer(
+      `<h2 style="color: ${brandColors.success}; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">🎉 CAC Verification Approved!</h2>` +
+        `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Great news! Your Corporate Affairs Commission (CAC) number has been successfully verified for <strong>${businessName}</strong>.</p>` +
+        getInfoBox(
+          "What This Means",
+          "You can now upload and manage properties on Stayza Pro. Your business credentials have been verified and you're ready to start earning!",
+          "success"
+        ) +
+        getButton(dashboardUrl, "Access Your Dashboard", "success") +
+        `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;"><p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Help?</strong> Contact us at <a href="mailto:support@stayza.com" style="color: ${brandColors.primary};">support@stayza.com</a></p></div>`
+    ),
+  }),
+
+  cacRejected: (businessName: string, reason: string) => ({
+    subject: "❌ CAC Verification Requires Attention",
+    html: getEmailContainer(
+      `<h2 style="color: ${brandColors.error}; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">CAC Verification Update Required</h2>` +
+        `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">We've reviewed the CAC information for <strong>${businessName}</strong> and need additional documentation to complete verification.</p>` +
+        getInfoBox(
+          "Verification Issue",
+          reason ||
+            "The provided CAC information requires clarification or additional documentation.",
+          "warning"
+        ) +
+        `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;"><p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Assistance?</strong> Contact us at <a href="mailto:verification@stayza.com" style="color: ${brandColors.primary};">verification@stayza.com</a></p></div>`
+    ),
+  }),
 };
 
 // Send email function
@@ -875,5 +906,25 @@ export const sendRefundProcessed = async (
     remaining,
     reason
   );
+  return sendEmail(to, template);
+};
+
+// Send CAC approval email
+export const sendCacApproval = async (
+  to: string,
+  businessName: string,
+  dashboardUrl: string
+) => {
+  const template = emailTemplates.cacApproved(businessName, dashboardUrl);
+  return sendEmail(to, template);
+};
+
+// Send CAC rejection email
+export const sendCacRejection = async (
+  to: string,
+  businessName: string,
+  reason: string
+) => {
+  const template = emailTemplates.cacRejected(businessName, reason);
   return sendEmail(to, template);
 };

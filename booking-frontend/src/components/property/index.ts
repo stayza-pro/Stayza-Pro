@@ -7,3 +7,5 @@ export { PropertyForm } from "./PropertyForm";
 export { PropertyImageUpload } from "./PropertyImageUpload";
 export { PropertyAvailability } from "./PropertyAvailability";
 export { SearchFilters } from "./SearchFilters";
+export { AdvancedSearchFilters } from "./AdvancedSearchFilters";
+export { PropertyMapView } from "./PropertyMapView";

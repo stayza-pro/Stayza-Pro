@@ -47,6 +47,13 @@ enum RealtorStatus {
    REJECTED
 }
 
+enum CacStatus {
+   PENDING
+   APPROVED
+   REJECTED
+   SUSPENDED
+}
+
 model User {
    id              String   @id @default(cuid())
    email           String   @unique
@@ -69,10 +76,13 @@ model User {
    updatedAt DateTime @updatedAt
 
    // Relations
-   realtor  Realtor?
-   bookings Booking[]
-   reviews  Review[]
-   payments Payment[]
+   realtor                Realtor?
+   bookings               Booking[]
+   reviews                Review[]
+   reviewResponses        ReviewResponse[]
+   payments               Payment[]
+   notifications          Notification[]
+   notificationPreference NotificationPreference?
 
    @@map("users")
 }
@@ -89,6 +99,15 @@ model Realtor {
    logoUrl            String? // Logo upload URL
    businessPhone      String? // Business phone number
    status             RealtorStatus @default(PENDING) // Approval status
+
+   // CAC verification fields
+   cacStatus           CacStatus @default(PENDING) // CAC verification status
+   cacVerifiedAt       DateTime? // When CAC was approved
+   cacRejectedAt       DateTime? // When CAC was rejected
+   cacRejectionReason  String? // Reason for CAC rejection
+   suspendedAt         DateTime? // When account was suspended
+   suspensionExpiresAt DateTime? // When account will be deleted if no appeal
+   canAppeal           Boolean   @default(true) // Can appeal CAC rejection
 
    // Branding colors from registration
    primaryColor   String  @default("#000000") // Default to black as per requirements
@@ -134,10 +153,11 @@ model Property {
    updatedAt     DateTime     @updatedAt
 
    // Relations
-   realtor  Realtor         @relation(fields: [realtorId], references: [id], onDelete: Cascade)
-   bookings Booking[]
-   reviews  Review[]
-   images   PropertyImage[]
+   realtor       Realtor         @relation(fields: [realtorId], references: [id], onDelete: Cascade)
+   bookings      Booking[]
+   reviews       Review[]
+   images        PropertyImage[]
+   notifications Notification[]
 
    @@map("properties")
 }
@@ -167,46 +187,198 @@ model Booking {
    updatedAt    DateTime      @updatedAt
 
    // Relations
-   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-   guest    User     @relation(fields: [guestId], references: [id], onDelete: Cascade)
-   payment  Payment?
-   review   Review?
+   property      Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+   guest         User           @relation(fields: [guestId], references: [id], onDelete: Cascade)
+   payment       Payment?
+   review        Review?
+   notifications Notification[]
 
    @@map("bookings")
 }
 
 model Payment {
-   id        String        @id @default(cuid())
-   bookingId String        @unique
-   userId    String
-   amount    Decimal       @db.Decimal(10, 2)
-   currency  String        @default("NGN")
-   status    PaymentStatus @default(PENDING)
-   method    PaymentMethod
-   reference String? // paystack/flutterwave ref
-   createdAt DateTime      @default(now())
-   updatedAt DateTime      @updatedAt
+   id                    String        @id @default(cuid())
+   bookingId             String        @unique
+   userId                String
+   amount                Decimal       @db.Decimal(10, 2)
+   currency              String        @default("NGN")
+   status                PaymentStatus @default(PENDING)
+   method                PaymentMethod
+   reference             String?       @unique // paystack/flutterwave ref
+   providerTransactionId String? // transaction ID from payment provider
+   paidAt                DateTime? // when payment was completed
+   refundAmount          Decimal?      @db.Decimal(10, 2) // amount refunded if any
+   refundedAt            DateTime? // when refund was processed
+   metadata              Json? // store additional payment provider data
+   createdAt             DateTime      @default(now())
+   updatedAt             DateTime      @updatedAt
 
    // Relations
-   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+   booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+   notifications Notification[]
 
    @@map("payments")
 }
 
 model Review {
-   id         String   @id @default(cuid())
-   bookingId  String   @unique
+   id         String  @id @default(cuid())
+   bookingId  String  @unique
    propertyId String
    authorId   String
    rating     Int
    comment    String?
-   createdAt  DateTime @default(now())
+
+   // Detailed rating breakdowns
+   cleanlinessRating   Int?
+   communicationRating Int?
+   checkInRating       Int?
+   accuracyRating      Int?
+   locationRating      Int?
+   valueRating         Int?
+
+   // Photo uploads
+   photos ReviewPhoto[]
+
+   // Review management
+   isVisible  Boolean @default(true)
+   isVerified Boolean @default(false) // Verified if booking was completed
+
+   // Engagement metrics
+   helpfulCount  Int @default(0)
+   likesCount    Int @default(0)
+   dislikesCount Int @default(0)
+
+   // Timestamps
+   createdAt DateTime @default(now())
+   updatedAt DateTime @default(now()) @updatedAt
+
+   // Host response
+   hostResponse ReviewResponse?
 
    // Relations
-   booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-   author   User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+   booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   property      Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+   author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+   notifications Notification[]
 
    @@map("reviews")
+}
+
+model ReviewPhoto {
+   id       String  @id @default(cuid())
+   reviewId String
+   url      String
+   caption  String?
+   order    Int     @default(0)
+
+   review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+   @@map("review_photos")
+}
+
+model ReviewResponse {
+   id        String   @id @default(cuid())
+   reviewId  String   @unique
+   authorId  String // Realtor who responded
+   comment   String
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+
+   review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+   author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+   @@map("review_responses")
+}
+
+enum NotificationType {
+   BOOKING_CONFIRMED
+   BOOKING_CANCELLED
+   PAYMENT_COMPLETED
+   PAYMENT_FAILED
+   REVIEW_RECEIVED
+   REVIEW_RESPONSE
+   SYSTEM_ALERT
+   PROPERTY_STATUS_CHANGE
+   MESSAGE_RECEIVED
+   CAC_STATUS_UPDATE
+   BOOKING_REMINDER
+   PAYMENT_REMINDER
+}
+
+model Notification {
+   id      String           @id @default(cuid())
+   userId  String
+   type    NotificationType
+   title   String
+   message String
+   data    Json? // Additional metadata
+
+   // Status
+   isRead   Boolean @default(false)
+   priority String  @default("normal") // "low", "normal", "high", "urgent"
+
+   // Optional references
+   bookingId  String?
+   propertyId String?
+   paymentId  String?
+   reviewId   String?
+
+   // Delivery settings
+   emailSent  Boolean @default(false)
+   pushSent   Boolean @default(false)
+   smsEnabled Boolean @default(false)
+   smsSent    Boolean @default(false)
+
+   createdAt DateTime  @default(now())
+   updatedAt DateTime  @updatedAt
+   expiresAt DateTime? // Optional expiration for temporary notifications
+
+   // Relations
+   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+   booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+   property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+   payment  Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+   review   Review?   @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+
+   @@map("notifications")
+}
+
+model NotificationPreference {
+   id     String @id @default(cuid())
+   userId String @unique
+
+   // Email preferences
+   emailEnabled        Boolean @default(true)
+   emailBookingUpdates Boolean @default(true)
+   emailPaymentUpdates Boolean @default(true)
+   emailReviews        Boolean @default(true)
+   emailMarketing      Boolean @default(false)
+   emailSystemAlerts   Boolean @default(true)
+
+   // Push notification preferences
+   pushEnabled        Boolean @default(true)
+   pushBookingUpdates Boolean @default(true)
+   pushPaymentUpdates Boolean @default(true)
+   pushReviews        Boolean @default(true)
+   pushSystemAlerts   Boolean @default(true)
+
+   // SMS preferences
+   smsEnabled        Boolean @default(false)
+   smsBookingUpdates Boolean @default(false)
+   smsPaymentUpdates Boolean @default(true)
+   smsSystemAlerts   Boolean @default(false)
+
+   // Frequency settings
+   digestFrequency String  @default("daily") // "immediate", "hourly", "daily", "weekly"
+   quietHoursStart String? @default("22:00")
+   quietHoursEnd   String? @default("08:00")
+   timezone        String  @default("UTC")
+
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+
+   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+   @@map("notification_preferences")
 }

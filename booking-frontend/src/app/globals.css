@@ -1,0 +1,279 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  /* Ensure marketing theme can be applied to any container */
+  .apply-marketing-theme {
+    background-color: var(--marketing-background);
+    color: var(--marketing-foreground);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .apply-marketing-theme .marketing-surface {
+    background-color: var(--marketing-surface);
+  }
+
+  .btn-primary {
+    @apply btn bg-blue-600 text-white hover:bg-blue-700 focus:bg-blue-700;
+  }
+
+  .btn-secondary {
+    @apply btn bg-gray-100 text-gray-900 hover:bg-gray-200 focus:bg-gray-200;
+  }
+
+  .btn-outline {
+    @apply btn border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white focus:bg-blue-600 focus:text-white;
+  }
+
+  .btn-ghost {
+    @apply btn text-gray-700 hover:bg-gray-100 focus:bg-gray-100;
+  }
+
+  .card {
+    @apply rounded-lg border border-gray-200 bg-white text-gray-900 shadow-sm;
+  }
+
+  .input {
+    @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .marketing-card {
+    @apply rounded-3xl border shadow-sm transition-transform;
+    background-color: var(--marketing-elevated);
+    border-color: var(--marketing-border);
+  }
+
+  .marketing-pill {
+    @apply rounded-2xl border px-5 py-4 shadow-sm;
+    background-color: var(--marketing-elevated);
+    border-color: var(--marketing-border);
+  }
+
+  .marketing-chip {
+    @apply inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em];
+    background-color: var(--marketing-chip-bg);
+    color: var(--marketing-chip-fg);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .text-marketing-muted {
+    color: var(--marketing-muted);
+  }
+
+  .text-marketing-subtle {
+    color: var(--marketing-subtle);
+  }
+
+  .text-marketing-accent {
+    color: var(--marketing-accent);
+  }
+
+  .text-marketing-foreground {
+    color: var(--marketing-foreground);
+  }
+
+  .bg-marketing-surface {
+    background-color: var(--marketing-surface);
+  }
+
+  .bg-marketing-elevated {
+    background-color: var(--marketing-elevated);
+  }
+
+  .bg-marketing-primary {
+    background-color: var(--marketing-primary);
+  }
+
+  .bg-marketing-secondary {
+    background-color: var(--marketing-secondary);
+  }
+
+  .border-marketing-subtle {
+    border-color: var(--marketing-border);
+  }
+
+  .ring-marketing-focus {
+    --tw-ring-color: var(--marketing-focus);
+    --tw-ring-offset-color: var(--marketing-ring-offset);
+  }
+
+  /* Marketing Button Utilities */
+  .marketing-button-primary {
+    @apply inline-flex items-center justify-center rounded-xl border px-6 py-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+    background-color: var(--marketing-accent);
+    color: var(--marketing-primary-foreground);
+    border-color: var(--marketing-accent);
+    box-shadow: 0 24px 60px rgba(249, 115, 22, 0.28);
+  }
+
+  .marketing-button-primary:hover {
+    background-color: color-mix(in srgb, var(--marketing-accent) 92%, white 8%);
+    transform: translateY(-2px);
+  }
+
+  .marketing-button-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border px-6 py-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+    background-color: transparent;
+    color: var(--marketing-secondary);
+    border-color: var(--marketing-secondary);
+  }
+
+  .marketing-button-secondary:hover {
+    background-color: var(--marketing-secondary-soft);
+  }
+
+  .marketing-button-ghost {
+    @apply inline-flex items-center justify-center rounded-xl border px-6 py-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+    background-color: color-mix(
+      in srgb,
+      var(--marketing-primary) 18%,
+      transparent
+    );
+    color: var(--marketing-primary-foreground);
+    border-color: color-mix(in srgb, var(--marketing-primary) 35%, transparent);
+  }
+
+  .marketing-button-ghost:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--marketing-primary) 28%,
+      transparent
+    );
+  }
+
+  /* Marketing Input Utilities */
+  .marketing-input {
+    @apply flex h-12 w-full rounded-xl border px-4 py-3 text-sm transition-all placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    background-color: var(--marketing-elevated);
+    border-color: var(--marketing-border);
+    color: var(--marketing-foreground);
+    --tw-ring-color: var(--marketing-focus);
+    --tw-ring-offset-color: var(--marketing-ring-offset);
+  }
+
+  .marketing-input:focus {
+    border-color: var(--marketing-accent);
+  }
+
+  /* Marketing Card Utilities */
+  .marketing-card-elevated {
+    @apply rounded-3xl border shadow-lg transition-all;
+    background-color: var(--marketing-elevated);
+    border-color: var(--marketing-border);
+  }
+
+  .marketing-card-elevated:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.marketing-theme {
+  --marketing-primary: #1e3a8a;
+  --marketing-primary-foreground: #f1f5f9;
+  --marketing-secondary: #047857;
+  --marketing-secondary-foreground: #ecfdf5;
+  --marketing-accent: #f97316;
+  --marketing-background: #ffffff;
+  --marketing-foreground: #111827;
+  --marketing-muted: #4b5563;
+  --marketing-subtle: #6b7280;
+  --marketing-surface: #f8fafc;
+  --marketing-elevated: rgba(255, 255, 255, 0.9);
+  --marketing-border: rgba(17, 24, 39, 0.12);
+  --marketing-glass: rgba(255, 255, 255, 0.08);
+  --marketing-chip-bg: rgba(4, 120, 87, 0.14);
+  --marketing-chip-fg: #036244;
+  --marketing-focus: rgba(249, 115, 22, 0.45);
+  --marketing-ring-offset: rgba(255, 255, 255, 0.95);
+  --marketing-hero-highlight: rgba(255, 255, 255, 0.12);
+  --marketing-divider: rgba(148, 163, 184, 0.4);
+  --marketing-primary-soft: rgba(30, 58, 138, 0.14);
+  --marketing-primary-mist: rgba(30, 58, 138, 0.08);
+  --marketing-secondary-soft: rgba(4, 120, 87, 0.18);
+  --marketing-secondary-mist: rgba(4, 120, 87, 0.1);
+  --marketing-secondary-line: rgba(4, 120, 87, 0.28);
+  --marketing-accent-soft: rgba(249, 115, 22, 0.12);
+  --marketing-footer-bg: #111827;
+  --marketing-footer-fg: #e2e8f0;
+  --marketing-footer-muted: #94a3b8;
+
+  background-color: var(--marketing-background);
+  color: var(--marketing-foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.marketing-theme strong {
+  color: var(--marketing-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-theme * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .marketing-theme {
+    --marketing-primary: #3b82f6;
+    --marketing-primary-foreground: #0b1120;
+    --marketing-secondary: #34d399;
+    --marketing-secondary-foreground: #022c22;
+    --marketing-accent: #fb923c;
+    --marketing-background: #020617;
+    --marketing-foreground: #e2e8f0;
+    --marketing-muted: #94a3b8;
+    --marketing-subtle: #cbd5f5;
+    --marketing-surface: rgba(15, 23, 42, 0.55);
+    --marketing-elevated: rgba(15, 23, 42, 0.85);
+    --marketing-border: rgba(148, 163, 184, 0.35);
+    --marketing-glass: rgba(148, 163, 184, 0.14);
+    --marketing-chip-bg: rgba(59, 130, 246, 0.18);
+    --marketing-chip-fg: #bfdbfe;
+    --marketing-focus: rgba(59, 130, 246, 0.5);
+    --marketing-ring-offset: rgba(2, 6, 23, 0.95);
+    --marketing-hero-highlight: rgba(15, 23, 42, 0.65);
+    --marketing-divider: rgba(51, 65, 85, 0.6);
+    --marketing-primary-soft: rgba(59, 130, 246, 0.24);
+    --marketing-primary-mist: rgba(59, 130, 246, 0.14);
+    --marketing-secondary-soft: rgba(52, 211, 153, 0.24);
+    --marketing-secondary-mist: rgba(52, 211, 153, 0.14);
+    --marketing-secondary-line: rgba(52, 211, 153, 0.32);
+    --marketing-accent-soft: rgba(251, 146, 60, 0.22);
+    --marketing-footer-bg: #010516;
+    --marketing-footer-fg: #cbd5f5;
+    --marketing-footer-muted: #7a8bb7;
+  }
+}

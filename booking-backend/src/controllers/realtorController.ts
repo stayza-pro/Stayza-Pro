@@ -5,6 +5,7 @@ import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
 import { config } from "@/config";
+import { sendCacApproval, sendCacRejection } from "@/services/email";
 import {
   hashPassword,
   generateTokens,
@@ -764,3 +765,320 @@ export const uploadMiddleware = multer({
     }
   },
 }).single("logo");
+
+/**
+ * @desc    Approve realtor CAC number (Admin only)
+ * @route   POST /api/realtors/:id/approve-cac
+ * @access  Private (Admin only)
+ */
+export const approveCac = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor not found", 404);
+    }
+
+    if (realtor.cacStatus === "APPROVED") {
+      throw new AppError("CAC number is already approved", 400);
+    }
+
+    // Update CAC status to approved
+    const updatedRealtor = await prisma.realtor.update({
+      where: { id },
+      data: {
+        cacStatus: "APPROVED",
+        cacVerifiedAt: new Date(),
+        cacRejectedAt: null,
+        cacRejectionReason: null,
+        suspendedAt: null,
+        suspensionExpiresAt: null,
+        canAppeal: true,
+        status: "APPROVED", // Also approve the realtor for property uploads
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    // Send CAC approval email notification
+    try {
+      await sendCacApproval(
+        updatedRealtor.user.email,
+        updatedRealtor.businessName,
+        `${config.FRONTEND_URL}/dashboard`
+      );
+    } catch (emailError) {
+      console.error("Error sending CAC approval email:", emailError);
+      // Don't fail the approval if email fails
+    }
+
+    res.json({
+      success: true,
+      message: "CAC number approved successfully",
+      data: {
+        realtor: updatedRealtor,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Reject realtor CAC number (Admin only)
+ * @route   POST /api/realtors/:id/reject-cac
+ * @access  Private (Admin only)
+ */
+export const rejectCac = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      throw new AppError("Rejection reason is required", 400);
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor not found", 404);
+    }
+
+    if (realtor.cacStatus === "REJECTED") {
+      throw new AppError("CAC number is already rejected", 400);
+    }
+
+    // Set suspension expiry to 5 days from now
+    const suspensionExpires = new Date();
+    suspensionExpires.setDate(suspensionExpires.getDate() + 5);
+
+    // Update CAC status to rejected and suspend account
+    const updatedRealtor = await prisma.realtor.update({
+      where: { id },
+      data: {
+        cacStatus: "REJECTED",
+        cacRejectedAt: new Date(),
+        cacRejectionReason: reason,
+        suspendedAt: new Date(),
+        suspensionExpiresAt: suspensionExpires,
+        canAppeal: true,
+        status: "REJECTED", // Block property uploads
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    // Send CAC rejection email notification with appeal process
+    try {
+      await sendCacRejection(
+        updatedRealtor.user.email,
+        updatedRealtor.businessName,
+        reason
+      );
+    } catch (emailError) {
+      console.error("Error sending CAC rejection email:", emailError);
+      // Don't fail the rejection if email fails
+    }
+
+    res.json({
+      success: true,
+      message: "CAC number rejected and account suspended",
+      data: {
+        realtor: updatedRealtor,
+        suspensionExpiresAt: suspensionExpires,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Appeal CAC rejection
+ * @route   POST /api/realtors/appeal-cac
+ * @access  Private (Realtor only)
+ */
+export const appealCacRejection = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { corporateRegNumber, appealMessage } = req.body;
+
+    if (!corporateRegNumber) {
+      throw new AppError("New CAC number is required for appeal", 400);
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user!.id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    if (realtor.cacStatus !== "REJECTED") {
+      throw new AppError("No CAC rejection to appeal", 400);
+    }
+
+    if (!realtor.canAppeal) {
+      throw new AppError("Appeal period has expired", 400);
+    }
+
+    // Update CAC details and reset to pending
+    const updatedRealtor = await prisma.realtor.update({
+      where: { id: realtor.id },
+      data: {
+        corporateRegNumber,
+        cacStatus: "PENDING",
+        cacRejectedAt: null,
+        cacRejectionReason: null,
+        suspendedAt: null,
+        suspensionExpiresAt: null,
+        canAppeal: true,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    // TODO: Send appeal submitted email notification
+    // await sendCacAppealSubmittedEmail(
+    //   realtor.user.email,
+    //   realtor.user.fullName,
+    //   corporateRegNumber
+    // );
+
+    res.json({
+      success: true,
+      message:
+        "CAC appeal submitted successfully. Your account is under review again.",
+      data: {
+        realtor: updatedRealtor,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Get all realtors for admin review (Admin only)
+ * @route   GET /api/realtors/admin/all
+ * @access  Private (Admin only)
+ */
+export const getAllRealtorsForAdmin = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { page = "1", limit = "10", status, cacStatus } = req.query;
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (cacStatus) {
+      where.cacStatus = cacStatus;
+    }
+
+    const [realtors, total] = await Promise.all([
+      prisma.realtor.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              fullName: true,
+              isEmailVerified: true,
+              createdAt: true,
+            },
+          },
+          properties: {
+            select: {
+              id: true,
+              title: true,
+              isActive: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limitNum,
+      }),
+      prisma.realtor.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: realtors,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
+  }
+);

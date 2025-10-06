@@ -20,17 +20,15 @@ export const config = {
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
 
-  // Stripe
-  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY!,
-  STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY!,
-  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET!,
-  STRIPE_MANUAL_CAPTURE:
-    (process.env.STRIPE_MANUAL_CAPTURE || "true").toLowerCase() === "true", // Control manual vs automatic capture
-
   // Paystack
   PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY!,
   PAYSTACK_PUBLIC_KEY: process.env.PAYSTACK_PUBLIC_KEY!,
   PAYSTACK_WEBHOOK_SECRET: process.env.PAYSTACK_WEBHOOK_SECRET!,
+
+  // Flutterwave (primary Nigerian payment processor)
+  FLUTTERWAVE_SECRET_KEY: process.env.FLUTTERWAVE_SECRET_KEY!,
+  FLUTTERWAVE_PUBLIC_KEY: process.env.FLUTTERWAVE_PUBLIC_KEY!,
+  FLUTTERWAVE_WEBHOOK_SECRET: process.env.FLUTTERWAVE_WEBHOOK_SECRET!,
 
   // Cloudinary
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME!,

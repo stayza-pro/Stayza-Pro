@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Building2 } from "lucide-react";
 import { Button, Input, Card } from "../ui";
 import { PropertyFormData, Property } from "../../types";
 
@@ -41,6 +42,7 @@ interface PropertyFormProps {
   onSubmit: (data: PropertyFormData) => Promise<void>;
   isLoading?: boolean;
   className?: string;
+  currentUser?: any; // User with realtor information
 }
 
 export const PropertyForm: React.FC<PropertyFormProps> = ({
@@ -48,6 +50,7 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
   onSubmit,
   isLoading = false,
   className = "",
+  currentUser,
 }) => {
   const [formData, setFormData] = useState<PropertyFormData>({
     title: property?.title || "",
@@ -155,6 +158,53 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
       console.error("Form submission error:", error);
     }
   };
+
+  // Check CAC approval status for realtors
+  const isRealtorCacApproved = currentUser?.realtor?.cacStatus === "APPROVED";
+  const isRealtor = currentUser?.role === "REALTOR";
+
+  // If user is a realtor but CAC is not approved, show message
+  if (isRealtor && !isRealtorCacApproved) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card className="p-8 text-center bg-yellow-50 border-yellow-200">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+              <Building2 className="w-8 h-8 text-yellow-600" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                CAC Verification Required
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Your CAC (Corporate Affairs Commission) number needs to be
+                verified before you can upload properties. This ensures
+                compliance with Nigerian business regulations.
+              </p>
+              <p className="text-sm text-yellow-800 bg-yellow-100 p-3 rounded-lg">
+                Current Status:{" "}
+                <strong>
+                  {currentUser?.realtor?.cacStatus === "PENDING" &&
+                    "Pending Verification"}
+                  {currentUser?.realtor?.cacStatus === "REJECTED" &&
+                    "Verification Failed"}
+                  {currentUser?.realtor?.cacStatus === "SUSPENDED" &&
+                    "Account Suspended"}
+                </strong>
+              </p>
+            </div>
+            {currentUser?.realtor?.cacStatus === "REJECTED" &&
+              currentUser?.realtor?.canAppeal && (
+                <p className="text-sm text-red-600">
+                  You can submit an appeal from your dashboard if you believe
+                  this rejection was incorrect.
+                </p>
+              )}
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>

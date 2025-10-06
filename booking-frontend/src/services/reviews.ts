@@ -1,5 +1,5 @@
 import { apiClient, PaginatedResponse } from "./api";
-import { Review, ReviewFormData, SearchParams } from "../types";
+import { Review, ReviewFormData, ReviewResponse, SearchParams } from "../types";
 
 export const reviewService = {
   // Create a new review
@@ -55,7 +55,6 @@ export const reviewService = {
 
   // Get user's reviews (as author)
   getUserReviews: async (
-    userId?: string,
     searchParams?: SearchParams
   ): Promise<PaginatedResponse<Review>> => {
     const params = new URLSearchParams();
@@ -70,16 +69,16 @@ export const reviewService = {
     }
 
     const queryString = params.toString();
-    const baseUrl = userId ? `/reviews/user/${userId}` : "/reviews/my-reviews";
-    const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+    const url = queryString
+      ? `/reviews/my/reviews?${queryString}`
+      : "/reviews/my/reviews";
 
     const response = await apiClient.get<Review[]>(url);
     return response as PaginatedResponse<Review>;
   },
 
-  // Get reviews received by host
-  getHostReviews: async (
-    hostId?: string,
+  // Get reviews received by realtor
+  getRealtorReviews: async (
     searchParams?: SearchParams
   ): Promise<PaginatedResponse<Review>> => {
     const params = new URLSearchParams();
@@ -94,10 +93,9 @@ export const reviewService = {
     }
 
     const queryString = params.toString();
-    const baseUrl = hostId
-      ? `/reviews/host/${hostId}`
-      : "/reviews/host-reviews";
-    const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+    const url = queryString
+      ? `/reviews/realtor/reviews?${queryString}`
+      : "/reviews/realtor/reviews";
 
     const response = await apiClient.get<Review[]>(url);
     return response as PaginatedResponse<Review>;
@@ -243,27 +241,66 @@ export const reviewService = {
     return response as PaginatedResponse<Review>;
   },
 
-  // Get review analytics
-  getReviewAnalytics: async (
-    period = "30d"
-  ): Promise<{
+  // Get review analytics for realtor
+  getReviewAnalytics: async (): Promise<{
     totalReviews: number;
     averageRating: number;
-    ratingTrend: Array<{
-      period: string;
-      averageRating: number;
-      reviewCount: number;
-    }>;
+    ratingDistribution: {
+      5: number;
+      4: number;
+      3: number;
+      2: number;
+      1: number;
+    };
+    recentReviews: Review[];
+    responseRate: number;
+    responsesGiven: number;
   }> => {
     const response = await apiClient.get<{
       totalReviews: number;
       averageRating: number;
-      ratingTrend: Array<{
-        period: string;
-        averageRating: number;
-        reviewCount: number;
-      }>;
-    }>(`/reviews/analytics?period=${period}`);
+      ratingDistribution: {
+        5: number;
+        4: number;
+        3: number;
+        2: number;
+        1: number;
+      };
+      recentReviews: Review[];
+      responseRate: number;
+      responsesGiven: number;
+    }>(`/reviews/analytics`);
     return response.data;
+  },
+
+  // Respond to a review (realtor only)
+  respondToReview: async (
+    reviewId: string,
+    comment: string
+  ): Promise<ReviewResponse> => {
+    const response = await apiClient.post<ReviewResponse>(
+      `/reviews/${reviewId}/respond`,
+      { comment }
+    );
+    return response.data;
+  },
+
+  // Upload photos for review
+  uploadReviewPhotos: async (
+    photos: File[]
+  ): Promise<Array<{ url: string; caption?: string }>> => {
+    const formData = new FormData();
+    photos.forEach((photo) => {
+      formData.append("photos", photo);
+    });
+
+    const response = await apiClient.post<{
+      photos: Array<{ url: string; caption?: string }>;
+    }>("/reviews/upload-photos", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data.photos;
   },
 };

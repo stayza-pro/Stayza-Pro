@@ -19,9 +19,11 @@ import {
   User,
   Shield,
   HelpCircle,
+  Building2,
 } from "lucide-react";
 import Image from "next/image";
 import { User as UserType } from "@/types";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 interface ModernDashboardLayoutProps {
   children: ReactNode;
@@ -66,6 +68,12 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
           label: "Bookings",
           icon: Calendar,
           href: "/dashboard/bookings",
+        },
+        {
+          id: "cac-verification",
+          label: "CAC Verification",
+          icon: Building2,
+          href: "/dashboard/admin/cac-verification",
         },
         {
           id: "analytics",
@@ -122,6 +130,13 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
       ],
     };
 
+    const notificationsItem = {
+      id: "notifications",
+      label: "Notifications",
+      icon: Bell,
+      href: "/dashboard/notifications",
+    };
+
     const settingsItem = {
       id: "settings",
       label: "Settings",
@@ -132,6 +147,7 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
     return [
       ...baseItems,
       ...(roleSpecificItems[currentUser.role] || []),
+      notificationsItem,
       settingsItem,
     ];
   };
@@ -334,10 +350,7 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
             {/* Header Actions */}
             <div className="flex items-center space-x-4">
               {/* Notifications */}
-              <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all">
-                <Bell className="w-6 h-6" />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
+              <NotificationCenter />
 
               {/* User Menu */}
               <div className="relative">
@@ -385,7 +398,7 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
                               className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                 currentUser.role === "ADMIN"
                                   ? "bg-purple-100 text-purple-800"
-                                  : currentUser.role === "HOST"
+                                  : currentUser.role === "REALTOR"
                                   ? "bg-blue-100 text-blue-800"
                                   : "bg-gray-100 text-gray-800"
                               }`}

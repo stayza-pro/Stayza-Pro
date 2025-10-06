@@ -58,15 +58,6 @@ export interface ApiResponse<T = any> {
   };
 }
 
-export interface StripeWebhookEvent {
-  id: string;
-  object: string;
-  type: string;
-  data: {
-    object: any;
-  };
-}
-
 export interface PaystackWebhookEvent {
   event: string;
   data: {

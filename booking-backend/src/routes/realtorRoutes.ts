@@ -12,7 +12,15 @@ import {
   getStripeAccountStatusController,
   getStripeDashboardLinkController,
   checkSubdomainAvailability,
+  approveCac,
+  rejectCac,
+  appealCacRejection,
+  getAllRealtorsForAdmin,
 } from "@/controllers/realtorController";
+import {
+  getRealtorAnalytics,
+  getPropertyAnalytics,
+} from "@/controllers/analyticsController";
 import {
   authenticate,
   requireRole,
@@ -580,5 +588,120 @@ router.put(
  *         description: Realtor not found or not approved
  */
 router.get("/:slug", getPublicRealtorProfile);
+
+// CAC Verification Routes (Admin only)
+router.post("/:id/approve-cac", authenticate, requireRole("ADMIN"), approveCac);
+router.post("/:id/reject-cac", authenticate, requireRole("ADMIN"), rejectCac);
+router.get(
+  "/admin/all",
+  authenticate,
+  requireRole("ADMIN"),
+  getAllRealtorsForAdmin
+);
+
+// CAC Appeal Route (Realtor only)
+router.post(
+  "/appeal-cac",
+  authenticate,
+  requireRole("REALTOR"),
+  appealCacRejection
+);
+
+// Analytics Routes (Realtor only)
+/**
+ * @swagger
+ * /api/realtors/analytics:
+ *   get:
+ *     summary: Get realtor analytics
+ *     description: Get comprehensive analytics for the authenticated realtor's properties and bookings
+ *     tags:
+ *       - Realtors
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: timeRange
+ *         schema:
+ *           type: string
+ *           enum: [7d, 30d, 90d, 1y]
+ *           default: 30d
+ *         description: Time range for analytics data
+ *     responses:
+ *       200:
+ *         description: Analytics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     timeRange:
+ *                       type: string
+ *                     overview:
+ *                       type: object
+ *                     trends:
+ *                       type: object
+ *                     topProperties:
+ *                       type: array
+ *       401:
+ *         description: Unauthorized - Invalid token
+ *       403:
+ *         description: Forbidden - Not a realtor
+ *       404:
+ *         description: Realtor profile not found
+ */
+router.get(
+  "/analytics",
+  authenticate,
+  requireRole("REALTOR"),
+  getRealtorAnalytics
+);
+
+/**
+ * @swagger
+ * /api/realtors/properties/{id}/analytics:
+ *   get:
+ *     summary: Get property-specific analytics
+ *     description: Get detailed analytics for a specific property owned by the realtor
+ *     tags:
+ *       - Realtors
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *       - in: query
+ *         name: timeRange
+ *         schema:
+ *           type: string
+ *           enum: [7d, 30d, 90d, 1y]
+ *           default: 30d
+ *         description: Time range for analytics data
+ *     responses:
+ *       200:
+ *         description: Property analytics retrieved successfully
+ *       401:
+ *         description: Unauthorized - Invalid token
+ *       403:
+ *         description: Forbidden - Not a realtor
+ *       404:
+ *         description: Property not found or not owned by realtor
+ */
+router.get(
+  "/properties/:id/analytics",
+  authenticate,
+  requireRole("REALTOR"),
+  getPropertyAnalytics
+);
 
 export default router;

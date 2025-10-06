@@ -18,7 +18,7 @@ interface PaymentFormProps {
 }
 
 // MVP Version: Simple payment placeholder component
-// Full payment integration with Stripe/Paystack will be added in post-MVP releases
+// Full payment integration with Flutterwave/Paystack will be added in post-MVP releases
 export const PaymentForm: React.FC<PaymentFormProps> = ({
   bookingData,
   className = "",
@@ -88,7 +88,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
               </span>
             </div>
             <p className="text-sm text-blue-800">
-              Full payment integration with Stripe and Paystack will be
+              Full payment integration with Flutterwave and Paystack will be
               available in Q2 2024.
             </p>
           </div>

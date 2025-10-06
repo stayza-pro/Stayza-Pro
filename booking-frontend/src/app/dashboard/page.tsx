@@ -4,6 +4,7 @@ import { useAuthStore } from "../../store/authStore";
 import { ModernAdminDashboard } from "../../components/dashboard/ModernAdminDashboard";
 import { ModernPropertyManagement } from "../../components/dashboard/ModernPropertyManagement";
 import { AnalyticsDashboard } from "../../components/dashboard/AnalyticsDashboard";
+import { EnhancedAnalyticsDashboard } from "../../components/dashboard/EnhancedAnalyticsDashboard";
 import { ModernDashboardLayout } from "../../components/layout/ModernDashboardLayout";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

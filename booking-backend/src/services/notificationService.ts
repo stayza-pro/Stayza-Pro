@@ -1,0 +1,599 @@
+import { Server as HTTPServer } from "http";
+import { Server as SocketIOServer, Socket } from "socket.io";
+import jwt from "jsonwebtoken";
+import { config } from "@/config";
+import { prisma } from "@/config/database";
+
+interface AuthenticatedSocket extends Socket {
+  userId?: string;
+  userRole?: string;
+  realtorId?: string;
+}
+
+interface NotificationData {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: any;
+  priority: string;
+  createdAt: Date;
+  bookingId?: string;
+  propertyId?: string;
+  paymentId?: string;
+  reviewId?: string;
+}
+
+export class NotificationService {
+  private static instance: NotificationService | null = null;
+  private io: SocketIOServer;
+  private connectedUsers: Map<string, Set<string>> = new Map(); // userId -> Set of socketIds
+
+  constructor(server: HTTPServer) {
+    this.io = new SocketIOServer(server, {
+      cors: {
+        origin: process.env.FRONTEND_URL || "http://localhost:3000",
+        methods: ["GET", "POST"],
+        credentials: true,
+      },
+      transports: ["websocket", "polling"],
+    });
+
+    this.setupSocketHandlers();
+    NotificationService.instance = this;
+  }
+
+  public static initialize(server: HTTPServer): NotificationService {
+    if (!NotificationService.instance) {
+      NotificationService.instance = new NotificationService(server);
+    }
+    return NotificationService.instance;
+  }
+
+  public static getInstance(): NotificationService {
+    if (!NotificationService.instance) {
+      throw new Error(
+        "NotificationService not initialized. Call initialize() first."
+      );
+    }
+    return NotificationService.instance;
+  }
+
+  private setupSocketHandlers(): void {
+    this.io.use(this.authenticateSocket.bind(this));
+
+    this.io.on("connection", (socket: AuthenticatedSocket) => {
+      console.log(`User ${socket.userId} connected with socket ${socket.id}`);
+
+      // Add user to connected users map
+      if (socket.userId) {
+        if (!this.connectedUsers.has(socket.userId)) {
+          this.connectedUsers.set(socket.userId, new Set());
+        }
+        this.connectedUsers.get(socket.userId)!.add(socket.id);
+      }
+
+      // Join user to their personal room
+      if (socket.userId) {
+        socket.join(`user:${socket.userId}`);
+      }
+
+      // Join realtor to their realtor room
+      if (socket.realtorId) {
+        socket.join(`realtor:${socket.realtorId}`);
+      }
+
+      // Handle marking notifications as read
+      socket.on("mark_notification_read", async (notificationId: string) => {
+        await this.markNotificationAsRead(notificationId, socket.userId!);
+      });
+
+      // Handle marking all notifications as read
+      socket.on("mark_all_read", async () => {
+        await this.markAllNotificationsAsRead(socket.userId!);
+      });
+
+      // Handle getting unread count
+      socket.on("get_unread_count", async () => {
+        const count = await this.getUnreadCount(socket.userId!);
+        socket.emit("unread_count", count);
+      });
+
+      // Handle requesting notification history
+      socket.on(
+        "get_notification_history",
+        async (data: { page?: number; limit?: number }) => {
+          const notifications = await this.getNotificationHistory(
+            socket.userId!,
+            data.page || 1,
+            data.limit || 20
+          );
+          socket.emit("notification_history", notifications);
+        }
+      );
+
+      // Handle disconnect
+      socket.on("disconnect", () => {
+        console.log(`User ${socket.userId} disconnected`);
+
+        if (socket.userId && this.connectedUsers.has(socket.userId)) {
+          const userSockets = this.connectedUsers.get(socket.userId)!;
+          userSockets.delete(socket.id);
+
+          if (userSockets.size === 0) {
+            this.connectedUsers.delete(socket.userId);
+          }
+        }
+      });
+
+      // Send pending notifications for this user
+      this.sendPendingNotifications(socket.userId!);
+    });
+  }
+
+  private async authenticateSocket(
+    socket: AuthenticatedSocket,
+    next: Function
+  ): Promise<void> {
+    try {
+      const token =
+        socket.handshake.auth?.token ||
+        socket.handshake.headers?.authorization?.replace("Bearer ", "");
+
+      if (!token) {
+        return next(new Error("Authentication error: No token provided"));
+      }
+
+      const decoded = jwt.verify(token, config.JWT_SECRET) as any;
+
+      // Get user details from database
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        include: {
+          realtor: true,
+        },
+      });
+
+      if (!user) {
+        return next(new Error("Authentication error: User not found"));
+      }
+
+      socket.userId = user.id;
+      socket.userRole = user.role;
+      socket.realtorId = user.realtor?.id;
+
+      next();
+    } catch (error) {
+      console.error("Socket authentication error:", error);
+      next(new Error("Authentication error"));
+    }
+  }
+
+  // Send notification to specific user
+  public async sendToUser(
+    userId: string,
+    notification: NotificationData
+  ): Promise<void> {
+    this.io.to(`user:${userId}`).emit("notification", notification);
+  }
+
+  // Send notification to all realtors
+  public async sendToRealtors(notification: NotificationData): Promise<void> {
+    // Get all realtor IDs
+    const realtors = await prisma.realtor.findMany({
+      select: { id: true },
+    });
+
+    realtors.forEach((realtor) => {
+      this.io.to(`realtor:${realtor.id}`).emit("notification", notification);
+    });
+  }
+
+  // Send notification to specific realtor
+  public async sendToRealtor(
+    realtorId: string,
+    notification: NotificationData
+  ): Promise<void> {
+    this.io.to(`realtor:${realtorId}`).emit("notification", notification);
+  }
+
+  // Send system-wide notification
+  public async sendSystemNotification(
+    notification: NotificationData
+  ): Promise<void> {
+    this.io.emit("system_notification", notification);
+  }
+
+  // Create and send notification
+  public async createAndSendNotification(data: {
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    data?: any;
+    priority?: string;
+    bookingId?: string;
+    propertyId?: string;
+    paymentId?: string;
+    reviewId?: string;
+    emailEnabled?: boolean;
+    pushEnabled?: boolean;
+  }): Promise<void> {
+    try {
+      // Create notification in database
+      const notification = await prisma.notification.create({
+        data: {
+          userId: data.userId,
+          type: data.type as any,
+          title: data.title,
+          message: data.message,
+          data: data.data,
+          priority: data.priority || "normal",
+          bookingId: data.bookingId,
+          propertyId: data.propertyId,
+          paymentId: data.paymentId,
+          reviewId: data.reviewId,
+          emailSent: false,
+          pushSent: false,
+        },
+      });
+
+      // Send real-time notification
+      const notificationData: NotificationData = {
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        data: notification.data as any,
+        priority: notification.priority,
+        createdAt: notification.createdAt,
+        bookingId: notification.bookingId || undefined,
+        propertyId: notification.propertyId || undefined,
+        paymentId: notification.paymentId || undefined,
+        reviewId: notification.reviewId || undefined,
+      };
+
+      await this.sendToUser(data.userId, notificationData);
+
+      // Update unread count
+      const unreadCount = await this.getUnreadCount(data.userId);
+      this.io.to(`user:${data.userId}`).emit("unread_count", unreadCount);
+
+      // TODO: Send email/push notifications based on user preferences
+      if (data.emailEnabled !== false) {
+        await this.sendEmailNotification(data.userId, notification);
+      }
+    } catch (error) {
+      console.error("Error creating notification:", error);
+    }
+  }
+
+  // Mark notification as read
+  private async markNotificationAsRead(
+    notificationId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      await prisma.notification.updateMany({
+        where: {
+          id: notificationId,
+          userId: userId,
+        },
+        data: {
+          isRead: true,
+        },
+      });
+
+      // Send updated unread count
+      const unreadCount = await this.getUnreadCount(userId);
+      this.io.to(`user:${userId}`).emit("unread_count", unreadCount);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  }
+
+  // Mark all notifications as read for user
+  private async markAllNotificationsAsRead(userId: string): Promise<void> {
+    try {
+      await prisma.notification.updateMany({
+        where: {
+          userId: userId,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+        },
+      });
+
+      this.io.to(`user:${userId}`).emit("unread_count", 0);
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+    }
+  }
+
+  // Get unread notification count
+  private async getUnreadCount(userId: string): Promise<number> {
+    try {
+      return await prisma.notification.count({
+        where: {
+          userId: userId,
+          isRead: false,
+        },
+      });
+    } catch (error) {
+      console.error("Error getting unread count:", error);
+      return 0;
+    }
+  }
+
+  // Get notification history
+  private async getNotificationHistory(
+    userId: string,
+    page: number = 1,
+    limit: number = 20
+  ) {
+    try {
+      const skip = (page - 1) * limit;
+
+      const [notifications, totalCount] = await Promise.all([
+        prisma.notification.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limit,
+          include: {
+            booking: {
+              select: {
+                id: true,
+                checkInDate: true,
+                checkOutDate: true,
+                property: {
+                  select: {
+                    title: true,
+                  },
+                },
+              },
+            },
+            property: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+            payment: {
+              select: {
+                id: true,
+                amount: true,
+                status: true,
+              },
+            },
+            review: {
+              select: {
+                id: true,
+                rating: true,
+                property: {
+                  select: {
+                    title: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        prisma.notification.count({
+          where: { userId },
+        }),
+      ]);
+
+      return {
+        notifications,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          pages: Math.ceil(totalCount / limit),
+        },
+      };
+    } catch (error) {
+      console.error("Error getting notification history:", error);
+      return {
+        notifications: [],
+        pagination: { page: 1, limit: 20, total: 0, pages: 0 },
+      };
+    }
+  }
+
+  // Send pending notifications when user connects
+  private async sendPendingNotifications(userId: string): Promise<void> {
+    try {
+      const notifications = await prisma.notification.findMany({
+        where: {
+          userId,
+          isRead: false,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10, // Limit to most recent 10 unread notifications
+      });
+
+      notifications.forEach((notification) => {
+        const notificationData: NotificationData = {
+          id: notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          data: notification.data as any,
+          priority: notification.priority,
+          createdAt: notification.createdAt,
+          bookingId: notification.bookingId || undefined,
+          propertyId: notification.propertyId || undefined,
+          paymentId: notification.paymentId || undefined,
+          reviewId: notification.reviewId || undefined,
+        };
+
+        this.io.to(`user:${userId}`).emit("notification", notificationData);
+      });
+    } catch (error) {
+      console.error("Error sending pending notifications:", error);
+    }
+  }
+
+  // TODO: Implement email notification sending
+  private async sendEmailNotification(
+    userId: string,
+    notification: any
+  ): Promise<void> {
+    // Implementation would depend on your email service (SendGrid, AWS SES, etc.)
+    console.log(
+      `Email notification would be sent to user ${userId}:`,
+      notification.title
+    );
+  }
+
+  // Check if user is online
+  public isUserOnline(userId: string): boolean {
+    return this.connectedUsers.has(userId);
+  }
+
+  // Get online users count
+  public getOnlineUsersCount(): number {
+    return this.connectedUsers.size;
+  }
+
+  // Get connected sockets for user
+  public getUserSockets(userId: string): Set<string> | undefined {
+    return this.connectedUsers.get(userId);
+  }
+
+  // Clean up expired notifications (can be called periodically)
+  public async cleanupExpiredNotifications(): Promise<void> {
+    try {
+      await prisma.notification.deleteMany({
+        where: {
+          expiresAt: {
+            lt: new Date(),
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error cleaning up expired notifications:", error);
+    }
+  }
+}
+
+// Notification helper functions for different event types
+export const notificationHelpers = {
+  // Booking notifications
+  bookingConfirmed: (
+    userId: string,
+    bookingId: string,
+    propertyTitle: string
+  ) => ({
+    userId,
+    type: "BOOKING_CONFIRMED",
+    title: "Booking Confirmed",
+    message: `Your booking for "${propertyTitle}" has been confirmed!`,
+    bookingId,
+    priority: "high",
+  }),
+
+  bookingCancelled: (
+    userId: string,
+    bookingId: string,
+    propertyTitle: string
+  ) => ({
+    userId,
+    type: "BOOKING_CANCELLED",
+    title: "Booking Cancelled",
+    message: `Your booking for "${propertyTitle}" has been cancelled.`,
+    bookingId,
+    priority: "high",
+  }),
+
+  // Payment notifications
+  paymentCompleted: (
+    userId: string,
+    paymentId: string,
+    amount: number,
+    currency: string
+  ) => ({
+    userId,
+    type: "PAYMENT_COMPLETED",
+    title: "Payment Successful",
+    message: `Your payment of ${currency} ${amount} has been processed successfully.`,
+    paymentId,
+    priority: "high",
+  }),
+
+  paymentFailed: (
+    userId: string,
+    paymentId: string,
+    amount: number,
+    currency: string
+  ) => ({
+    userId,
+    type: "PAYMENT_FAILED",
+    title: "Payment Failed",
+    message: `Your payment of ${currency} ${amount} could not be processed. Please try again.`,
+    paymentId,
+    priority: "urgent",
+  }),
+
+  // Review notifications
+  reviewReceived: (
+    userId: string,
+    reviewId: string,
+    propertyTitle: string,
+    rating: number
+  ) => ({
+    userId,
+    type: "REVIEW_RECEIVED",
+    title: "New Review Received",
+    message: `You received a ${rating}-star review for "${propertyTitle}".`,
+    reviewId,
+    priority: "normal",
+  }),
+
+  reviewResponse: (
+    userId: string,
+    reviewId: string,
+    propertyTitle: string
+  ) => ({
+    userId,
+    type: "REVIEW_RESPONSE",
+    title: "Host Responded to Your Review",
+    message: `The host responded to your review for "${propertyTitle}".`,
+    reviewId,
+    priority: "normal",
+  }),
+
+  // System notifications
+  systemAlert: (userId: string, title: string, message: string) => ({
+    userId,
+    type: "SYSTEM_ALERT",
+    title,
+    message,
+    priority: "high",
+  }),
+
+  // CAC status notifications
+  cacApproved: (userId: string) => ({
+    userId,
+    type: "CAC_STATUS_UPDATE",
+    title: "CAC Verification Approved",
+    message:
+      "Your CAC verification has been approved. You can now list properties.",
+    priority: "high",
+  }),
+
+  cacRejected: (userId: string, reason?: string) => ({
+    userId,
+    type: "CAC_STATUS_UPDATE",
+    title: "CAC Verification Rejected",
+    message:
+      reason ||
+      "Your CAC verification was rejected. Please contact support for more information.",
+    priority: "high",
+  }),
+};
+
+export default NotificationService;

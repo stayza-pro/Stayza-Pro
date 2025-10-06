@@ -173,13 +173,17 @@ export const requireApprovedRealtor = async (
       return;
     }
 
-    // Get realtor profile with status
+    // Get realtor profile with status and CAC status
     const realtor = await prisma.realtor.findUnique({
       where: { userId: req.user.id },
       select: {
         id: true,
         status: true,
         businessName: true,
+        cacStatus: true,
+        suspendedAt: true,
+        suspensionExpiresAt: true,
+        canAppeal: true,
       },
     });
 
@@ -187,6 +191,56 @@ export const requireApprovedRealtor = async (
       res.status(404).json({
         success: false,
         message: "Realtor profile not found",
+      });
+      return;
+    }
+
+    // Check if account is suspended due to CAC rejection
+    if (realtor.suspendedAt) {
+      const now = new Date();
+      if (realtor.suspensionExpiresAt && now > realtor.suspensionExpiresAt) {
+        // Account should be deleted - handle this in a separate cleanup job
+        res.status(403).json({
+          success: false,
+          message:
+            "Your account has been permanently suspended. Please contact support.",
+          statusCode: "ACCOUNT_EXPIRED",
+        });
+        return;
+      }
+
+      res.status(403).json({
+        success: false,
+        message: `Your account is suspended due to CAC verification issues. ${
+          realtor.canAppeal
+            ? "You can appeal by submitting correct CAC details."
+            : "Please contact support for assistance."
+        }`,
+        statusCode: "ACCOUNT_SUSPENDED",
+        canAppeal: realtor.canAppeal,
+        suspensionExpiresAt: realtor.suspensionExpiresAt,
+      });
+      return;
+    }
+
+    // Check CAC verification status
+    if (realtor.cacStatus === "PENDING") {
+      res.status(403).json({
+        success: false,
+        message:
+          "Your CAC number is pending verification. You can access your dashboard but cannot upload properties until CAC is approved.",
+        statusCode: "CAC_PENDING",
+      });
+      return;
+    }
+
+    if (realtor.cacStatus === "REJECTED") {
+      res.status(403).json({
+        success: false,
+        message:
+          "Your CAC number has been rejected. Please appeal with correct CAC details to continue.",
+        statusCode: "CAC_REJECTED",
+        canAppeal: realtor.canAppeal,
       });
       return;
     }
@@ -228,6 +282,86 @@ export const requireApprovedRealtor = async (
     res.status(500).json({
       success: false,
       message: "Internal server error",
+    });
+  }
+};
+
+/**
+ * Middleware to allow dashboard access but check CAC for property operations
+ * Should be used after authenticate middleware for dashboard access
+ */
+export const requireRealtorDashboardAccess = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    if (req.user.role !== "REALTOR") {
+      res.status(403).json({
+        success: false,
+        message: "Realtor access required",
+      });
+      return;
+    }
+
+    // Get realtor profile with minimal checks for dashboard access
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user.id },
+      select: {
+        id: true,
+        status: true,
+        businessName: true,
+        cacStatus: true,
+        suspendedAt: true,
+        suspensionExpiresAt: true,
+        canAppeal: true,
+      },
+    });
+
+    if (!realtor) {
+      res.status(404).json({
+        success: false,
+        message: "Realtor profile not found",
+      });
+      return;
+    }
+
+    // Check if account is permanently suspended
+    if (realtor.suspendedAt) {
+      const now = new Date();
+      if (realtor.suspensionExpiresAt && now > realtor.suspensionExpiresAt) {
+        res.status(403).json({
+          success: false,
+          message:
+            "Your account has been permanently suspended. Please contact support.",
+          statusCode: "ACCOUNT_EXPIRED",
+        });
+        return;
+      }
+    }
+
+    // Allow dashboard access even with pending CAC
+    // Attach realtor info to request for later use
+    req.realtor = {
+      id: realtor.id,
+      status: realtor.status,
+      businessName: realtor.businessName,
+    };
+
+    next();
+  } catch (error) {
+    console.error("Dashboard access middleware error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Authentication failed",
     });
   }
 };

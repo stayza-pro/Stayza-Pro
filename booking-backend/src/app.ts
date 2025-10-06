@@ -18,6 +18,7 @@ import paymentRoutes from "@/routes/paymentRoutes";
 import reviewRoutes from "@/routes/reviewRoutes";
 import webhookRoutes from "@/routes/webhookRoutes";
 import emailRoutes from "@/routes/emailRoutes";
+import notificationRoutes from "@/routes/notificationRoutes";
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/email", emailRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // 404 handler
 app.use(notFound);
@@ -78,11 +80,16 @@ app.use(errorHandler);
 const PORT = config.PORT;
 
 if (require.main === module) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`🚀 Server running in ${config.NODE_ENV} mode on port ${PORT}`);
     console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
     console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
   });
+
+  // Initialize NotificationService with Socket.io
+  const { NotificationService } = require("@/services/notificationService");
+  NotificationService.initialize(server);
+  console.log(`🔔 Real-time notifications initialized`);
 }
 
 export default app;
