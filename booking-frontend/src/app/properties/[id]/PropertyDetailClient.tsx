@@ -13,7 +13,15 @@ import { Button, Card, Loading } from "@/components/ui";
 import { useProperty } from "@/hooks/useProperties";
 import { useAuthStore } from "@/store/authStore";
 import { bookingService, paymentService, serviceUtils } from "@/services";
-import type { Booking, BookingFormData, Payment, Property } from "@/types";
+import type {
+  Booking,
+  BookingFormData,
+  Payment,
+  Property,
+  PropertyImage,
+  RealtorStatus,
+  CacStatus,
+} from "@/types";
 
 type RawImage =
   | string
@@ -38,23 +46,20 @@ type RawRealtorCandidate = {
 };
 
 type RawProperty = Partial<
-  Omit<Property, "images" | "pricePerNight" | "realtor"> & {
-    realtor: Property["realtor"];
-  }
+  Omit<Property, "images" | "pricePerNight" | "realtor">
 > & {
   images?: unknown;
   pricePerNight?: unknown;
-  realtor?: RawRealtorCandidate;
+  realtor?: RawRealtorCandidate & { user?: RawRealtorCandidate };
   hostId?: string;
   realtorId?: string;
-  realtor?: RawRealtorCandidate & { user?: RawRealtorCandidate };
 };
 
 interface PropertyDetailClientProps {
   propertyId: string;
 }
 
-const normalizeImages = (images: RawProperty["images"]): string[] => {
+const normalizeImages = (images: RawProperty["images"]): PropertyImage[] => {
   if (!images) {
     return [];
   }
@@ -62,32 +67,39 @@ const normalizeImages = (images: RawProperty["images"]): string[] => {
   const imageArray = Array.isArray(images) ? images : [images];
 
   return imageArray
-    .map((image) => {
+    .map((image, index) => {
       const rawImage = image as RawImage;
+      let url: string | null = null;
+
       if (typeof rawImage === "string") {
-        return rawImage;
-      }
-
-      if (rawImage && typeof rawImage === "object") {
-        const { url, imageUrl } = rawImage;
-        if (typeof url === "string") {
-          return url;
-        }
+        url = rawImage;
+      } else if (rawImage && typeof rawImage === "object") {
+        const { url: imageUrl, imageUrl: altUrl } = rawImage;
         if (typeof imageUrl === "string") {
-          return imageUrl;
+          url = imageUrl;
+        } else if (typeof altUrl === "string") {
+          url = altUrl;
         }
       }
 
-      return null;
+      return url
+        ? {
+            id: `image-${index}`,
+            propertyId: "temp",
+            url,
+            order: index,
+            createdAt: new Date(),
+          }
+        : null;
     })
-    .filter((value): value is string => Boolean(value));
+    .filter((value): value is PropertyImage => Boolean(value));
 };
 
 const normalizeProperty = (rawProperty: RawProperty): Property => {
   const images = normalizeImages(rawProperty.images);
 
   const hostCandidate: RawRealtorCandidate | undefined =
-    rawProperty.realtor || rawProperty.realtor?.user || rawProperty.realtor;
+    rawProperty.realtor?.user || rawProperty.realtor;
 
   const realtor = {
     id:
@@ -132,22 +144,50 @@ const normalizeProperty = (rawProperty: RawProperty): Property => {
     latitude: rawProperty.latitude ?? undefined,
     longitude: rawProperty.longitude ?? undefined,
     isActive: rawProperty.isActive ?? true,
-    status: rawProperty.status ?? undefined,
-    createdAt: rawProperty.createdAt ?? new Date().toISOString(),
-    updatedAt: rawProperty.updatedAt ?? new Date().toISOString(),
-    realtor,
-    hostId: rawProperty.hostId ?? rawProperty.realtorId ?? realtor.id,
+    status: rawProperty.status ?? "DRAFT",
+    createdAt: rawProperty.createdAt
+      ? new Date(rawProperty.createdAt)
+      : new Date(),
+    updatedAt: rawProperty.updatedAt
+      ? new Date(rawProperty.updatedAt)
+      : new Date(),
+    realtor: {
+      ...realtor,
+      userId: realtor.id,
+      businessName: realtor.firstName,
+      slug: realtor.firstName.toLowerCase().replace(/\s+/g, "-"),
+      brandColorHex: "#3B82F6",
+      logoUrl: realtor.avatar,
+      phone: "",
+      website: "",
+      description: "",
+      status: "APPROVED" as const,
+      cacStatus: "APPROVED" as const,
+      canAppeal: false,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Property["realtor"],
+    realtorId: rawProperty.hostId ?? rawProperty.realtorId ?? realtor.id,
+    houseRules: Array.isArray(rawProperty.houseRules)
+      ? rawProperty.houseRules
+      : rawProperty.houseRules
+      ? [rawProperty.houseRules]
+      : [],
+    checkInTime: rawProperty.checkInTime ?? "15:00",
+    checkOutTime: rawProperty.checkOutTime ?? "11:00",
+    isApproved: rawProperty.isActive ?? true,
     averageRating: rawProperty.averageRating ?? undefined,
     reviewCount: rawProperty.reviewCount ?? undefined,
   };
 };
 
 const summarizeBooking = (booking: Booking, property: Property) => {
-  const checkInDate = new Date(booking.checkInDate).toLocaleDateString();
-  const checkOutDate = new Date(booking.checkOutDate).toLocaleDateString();
+  const checkInDate = new Date(booking.checkIn).toLocaleDateString();
+  const checkOutDate = new Date(booking.checkOut).toLocaleDateString();
   const nights = Math.ceil(
-    (new Date(booking.checkOutDate).getTime() -
-      new Date(booking.checkInDate).getTime()) /
+    (new Date(booking.checkOut).getTime() -
+      new Date(booking.checkIn).getTime()) /
       (1000 * 60 * 60 * 24)
   );
 
@@ -155,7 +195,7 @@ const summarizeBooking = (booking: Booking, property: Property) => {
     checkInDate,
     checkOutDate,
     nights,
-    guests: booking.totalGuests,
+    guests: booking.guests,
     total: booking.totalPrice,
     currency: booking.currency,
     bookingId: booking.id,
@@ -374,8 +414,8 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
     try {
       const availability = await bookingService.checkAvailability(
         propertyId,
-        formData.checkInDate,
-        formData.checkOutDate
+        formData.checkIn,
+        formData.checkOut
       );
 
       if (!availability.available) {
@@ -560,14 +600,14 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
                         </div>
                       )}
 
-                      {!isInitializingPayment && !stripeSession && (
+                      {!isInitializingPayment && !flutterwaveSession && (
                         <p className="text-sm text-gray-600">
                           Click “Pay with card” to generate a secure Stripe
                           checkout for this booking.
                         </p>
                       )}
 
-                      {stripeSession && (
+                      {flutterwaveSession && (
                         <FlutterwaveCheckout
                           bookingId={activeBooking!.id}
                           amount={Number(activeBooking!.totalPrice)}

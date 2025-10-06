@@ -220,13 +220,13 @@ function LoginContent() {
               Home
             </Link>
             <Link
-              href="/register/guest"
+              href={"/auth/register" as any}
               className="transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             >
               Sign Up
             </Link>
             <Link
-              href="/contact"
+              href={"/about" as any}
               className="transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             >
               Support
@@ -235,7 +235,7 @@ function LoginContent() {
 
           <div className="hidden items-center gap-3 md:flex">
             <Link
-              href="/get-started"
+              href={"/" as any}
               className="inline-flex items-center justify-center rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-white/90 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             >
               Start for free
@@ -253,21 +253,21 @@ function LoginContent() {
               Home
             </Link>
             <Link
-              href="/register/guest"
+              href={"/auth/register" as any}
               onClick={() => setMobileMenuOpen(false)}
               className="rounded-xl px-3 py-2 transition-colors hover:bg-white/10"
             >
               Sign Up
             </Link>
             <Link
-              href="/contact"
+              href={"/about" as any}
               onClick={() => setMobileMenuOpen(false)}
               className="rounded-xl px-3 py-2 transition-colors hover:bg-white/10"
             >
               Support
             </Link>
             <Link
-              href="/get-started"
+              href={"/" as any}
               className="w-full justify-center inline-flex items-center rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-white/90"
             >
               Start for free
@@ -504,7 +504,7 @@ function LoginContent() {
 
                     <div className="text-sm">
                       <Link
-                        href="/auth/forgot-password"
+                        href={"/" as any}
                         className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
                       >
                         {t("forgot_password")}
@@ -538,13 +538,13 @@ function LoginContent() {
                     <p className="text-sm text-gray-600">{t("no_account")}</p>
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                       <Link
-                        href="/register/guest"
+                        href={"/auth/register" as any}
                         className="inline-flex items-center justify-center rounded-xl border-2 border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
                       >
                         Sign up as Guest
                       </Link>
                       <Link
-                        href="/register/realtor"
+                        href={"/auth/register" as any}
                         className="inline-flex items-center justify-center rounded-xl border-2 border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 transition-all hover:border-blue-300 hover:bg-blue-50"
                       >
                         Register as Realtor
@@ -594,7 +594,7 @@ function LoginContent() {
           <p className="text-sm text-white/80">
             Questions about your account?{" "}
             <Link
-              href="/contact"
+              href={"/about" as any}
               className="font-medium text-white hover:text-white/90 underline transition-colors"
             >
               Contact our support team

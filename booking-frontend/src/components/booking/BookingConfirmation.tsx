@@ -31,8 +31,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   onViewBookings,
   className = "",
 }) => {
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (date: string | Date): string => {
+    return new Date(date).toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -41,8 +41,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   };
 
   const nights = Math.ceil(
-    (new Date(booking.checkOutDate).getTime() -
-      new Date(booking.checkInDate).getTime()) /
+    (new Date(booking.checkOut).getTime() -
+      new Date(booking.checkIn).getTime()) /
       (1000 * 60 * 60 * 24)
   );
 
@@ -87,7 +87,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <div>
                 <div className="font-medium text-gray-900">Check-in</div>
                 <div className="text-gray-600">
-                  {formatDate(booking.checkInDate)}
+                  {formatDate(booking.checkIn)}
                 </div>
                 <div className="text-sm text-gray-500">After 3:00 PM</div>
               </div>
@@ -98,7 +98,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <div>
                 <div className="font-medium text-gray-900">Check-out</div>
                 <div className="text-gray-600">
-                  {formatDate(booking.checkOutDate)}
+                  {formatDate(booking.checkOut)}
                 </div>
                 <div className="text-sm text-gray-500">Before 11:00 AM</div>
               </div>
@@ -109,8 +109,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <div>
                 <div className="font-medium text-gray-900">Guests</div>
                 <div className="text-gray-600">
-                  {booking.totalGuests}{" "}
-                  {booking.totalGuests === 1 ? "guest" : "guests"}
+                  {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
                 </div>
               </div>
             </div>
@@ -137,8 +136,10 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           <div className="space-y-4">
             <div className="flex items-start space-x-4">
               <Image
-                src={booking.property.images[0] || "/placeholder-image.jpg"}
-                alt={booking.property.title}
+                src={
+                  booking.property?.images?.[0]?.url || "/placeholder-image.jpg"
+                }
+                alt={booking.property?.title || "Property"}
                 width={64}
                 height={64}
                 className="w-16 h-16 object-cover rounded-lg"
@@ -146,11 +147,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               />
               <div>
                 <h3 className="font-medium text-gray-900">
-                  {booking.property.title}
+                  {booking.property?.title || "Unknown Property"}
                 </h3>
                 <div className="flex items-center text-gray-600 text-sm mt-1">
                   <MapPin className="h-4 w-4 mr-1" />
-                  {booking.property.address}, {booking.property.city}
+                  {booking.property?.address || "Unknown"},{" "}
+                  {booking.property?.city || "Unknown"}
                 </div>
               </div>
             </div>
@@ -158,19 +160,19 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <div className="text-lg font-semibold text-gray-900">
-                  {booking.property.maxGuests}
+                  {booking.property?.maxGuests}
                 </div>
                 <div className="text-sm text-gray-600">Max Guests</div>
               </div>
               <div>
                 <div className="text-lg font-semibold text-gray-900">
-                  {booking.property.bedrooms}
+                  {booking.property?.bedrooms}
                 </div>
                 <div className="text-sm text-gray-600">Bedrooms</div>
               </div>
               <div>
                 <div className="text-lg font-semibold text-gray-900">
-                  {booking.property.bathrooms}
+                  {booking.property?.bathrooms}
                 </div>
                 <div className="text-sm text-gray-600">Bathrooms</div>
               </div>
@@ -186,8 +188,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-4">
             <Image
-              src={booking.property.host.avatar || "/default-avatar.png"}
-              alt={`${booking.property.host.firstName} ${booking.property.host.lastName}`}
+              src={
+                booking.property?.realtor?.user?.avatar || "/default-avatar.png"
+              }
+              alt={`${
+                booking.property?.realtor?.user?.firstName || "Unknown"
+              } ${booking.property?.realtor?.user?.lastName || "Host"}`}
               width={64}
               height={64}
               className="w-16 h-16 object-cover rounded-full"
@@ -195,8 +201,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             />
             <div>
               <h3 className="text-lg font-medium text-gray-900">
-                {booking.property.host.firstName}{" "}
-                {booking.property.host.lastName}
+                {booking.property?.realtor?.user?.firstName || "Unknown"}{" "}
+                {booking.property?.realtor?.user?.lastName || "Host"}
               </h3>
               <p className="text-gray-600">Property Host</p>
             </div>
@@ -227,12 +233,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         <div className="space-y-3">
           <div className="flex justify-between text-gray-600">
             <span>
-              {booking.currency} {booking.property.pricePerNight} × {nights}{" "}
-              nights
+              {booking.currency} {booking.property?.pricePerNight || 0} ×{" "}
+              {nights} nights
             </span>
             <span>
               {booking.currency}{" "}
-              {(booking.property.pricePerNight * nights).toFixed(2)}
+              {((booking.property?.pricePerNight || 0) * nights).toFixed(2)}
             </span>
           </div>
 
@@ -240,7 +246,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <span>Service fee</span>
             <span>
               {booking.currency}{" "}
-              {(booking.property.pricePerNight * nights * 0.1).toFixed(2)}
+              {((booking.property?.pricePerNight || 0) * nights * 0.1).toFixed(
+                2
+              )}
             </span>
           </div>
 
@@ -248,7 +256,9 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <span>Taxes</span>
             <span>
               {booking.currency}{" "}
-              {(booking.property.pricePerNight * nights * 0.05).toFixed(2)}
+              {((booking.property?.pricePerNight || 0) * nights * 0.05).toFixed(
+                2
+              )}
             </span>
           </div>
 

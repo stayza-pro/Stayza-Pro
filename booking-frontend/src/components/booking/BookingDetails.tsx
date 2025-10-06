@@ -47,8 +47,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (date: string | Date): string => {
+    return new Date(date).toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -56,27 +56,29 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     });
   };
 
-  const formatTime = (dateString: string): string => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
+  const formatTime = (date: string | Date): string => {
+    return new Date(date).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
   };
 
   const nights = Math.ceil(
-    (new Date(booking.checkOutDate).getTime() -
-      new Date(booking.checkInDate).getTime()) /
+    (new Date(booking.checkOut).getTime() -
+      new Date(booking.checkIn).getTime()) /
       (1000 * 60 * 60 * 24)
   );
 
-  const isUpcoming = new Date(booking.checkInDate) > new Date();
+  const isUpcoming = new Date(booking.checkIn) > new Date();
   const isOngoing =
-    new Date(booking.checkInDate) <= new Date() &&
-    new Date(booking.checkOutDate) > new Date();
+    new Date(booking.checkIn) <= new Date() &&
+    new Date(booking.checkOut) > new Date();
   const canCancel =
     booking.status === "CONFIRMED" && isUpcoming && booking.isRefundable;
   const canReview =
-    booking.status === "COMPLETED" && !booking.review && viewType === "guest";
+    booking.status === "COMPLETED" &&
+    (!booking.reviews || booking.reviews.length === 0) &&
+    viewType === "guest";
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -155,8 +157,10 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         <div className="flex items-start space-x-6">
           <div className="flex-shrink-0">
             <Image
-              src={booking.property.images[0] || "/placeholder-image.jpg"}
-              alt={booking.property.title}
+              src={
+                booking.property?.images?.[0]?.url || "/placeholder-image.jpg"
+              }
+              alt={booking.property?.title || "Property"}
               width={128}
               height={128}
               className="w-32 h-32 object-cover rounded-lg"
@@ -166,31 +170,31 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              {booking.property.title}
+              {booking.property?.title || "Property"}
             </h2>
 
             <div className="flex items-center text-gray-600 mb-2">
               <MapPin className="h-4 w-4 mr-1" />
-              {booking.property.address}, {booking.property.city},{" "}
-              {booking.property.country}
+              {booking.property?.address}, {booking.property?.city},{" "}
+              {booking.property?.country}
             </div>
 
             <div className="flex items-center space-x-6 text-sm text-gray-600 mb-4">
               <div className="flex items-center">
                 <Users className="h-4 w-4 mr-1" />
-                {booking.property.maxGuests} guests max
+                {booking.property?.maxGuests} guests max
               </div>
               <div className="flex items-center">
                 <Home className="h-4 w-4 mr-1" />
-                {booking.property.bedrooms} bedrooms
+                {booking.property?.bedrooms} bedrooms
               </div>
               <div className="flex items-center">
                 <Home className="h-4 w-4 mr-1" />
-                {booking.property.bathrooms} bathrooms
+                {booking.property?.bathrooms} bathrooms
               </div>
             </div>
 
-            {booking.property.averageRating && (
+            {booking.property?.averageRating && (
               <div className="flex items-center mb-4">
                 <Star className="h-5 w-5 text-yellow-400 mr-1" />
                 <span className="font-medium">
@@ -202,26 +206,27 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               </div>
             )}
 
-            {booking.property.amenities.length > 0 && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Amenities</h4>
-                <div className="flex flex-wrap gap-2">
-                  {booking.property.amenities.slice(0, 6).map((amenity) => (
-                    <span
-                      key={amenity}
-                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                    >
-                      {amenity}
-                    </span>
-                  ))}
-                  {booking.property.amenities.length > 6 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                      +{booking.property.amenities.length - 6} more
-                    </span>
-                  )}
+            {booking.property?.amenities &&
+              booking.property.amenities.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Amenities</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {booking.property.amenities.slice(0, 6).map((amenity) => (
+                      <span
+                        key={amenity}
+                        className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                      >
+                        {amenity}
+                      </span>
+                    ))}
+                    {booking.property.amenities.length > 6 && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                        +{booking.property.amenities.length - 6} more
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </Card>
@@ -239,7 +244,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <div>
                 <div className="text-sm text-gray-600 mb-1">Check-in</div>
                 <div className="font-medium text-gray-900">
-                  {formatDate(booking.checkInDate)}
+                  {formatDate(booking.checkIn)}
                 </div>
                 <div className="text-sm text-gray-500">After 3:00 PM</div>
               </div>
@@ -247,7 +252,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <div>
                 <div className="text-sm text-gray-600 mb-1">Check-out</div>
                 <div className="font-medium text-gray-900">
-                  {formatDate(booking.checkOutDate)}
+                  {formatDate(booking.checkOut)}
                 </div>
                 <div className="text-sm text-gray-500">Before 11:00 AM</div>
               </div>
@@ -257,8 +262,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <div>
                 <div className="text-sm text-gray-600 mb-1">Guests</div>
                 <div className="font-medium text-gray-900">
-                  {booking.totalGuests}{" "}
-                  {booking.totalGuests === 1 ? "guest" : "guests"}
+                  {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
                 </div>
               </div>
 
@@ -290,13 +294,18 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             <Image
               src={
                 viewType === "guest"
-                  ? booking.property.host.avatar || "/default-avatar.png"
-                  : booking.guest.avatar || "/default-avatar.png"
+                  ? booking.property?.realtor?.user?.avatar ||
+                    "/default-avatar.png"
+                  : booking.guest?.avatar || "/default-avatar.png"
               }
               alt={
                 viewType === "guest"
-                  ? `${booking.property.host.firstName} ${booking.property.host.lastName}`
-                  : `${booking.guest.firstName} ${booking.guest.lastName}`
+                  ? `${booking.property?.realtor?.user?.firstName || "Host"} ${
+                      booking.property?.realtor?.user?.lastName || ""
+                    }`
+                  : `${booking.guest?.firstName || "Guest"} ${
+                      booking.guest?.lastName || ""
+                    }`
               }
               width={64}
               height={64}
@@ -307,8 +316,12 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
             <div className="flex-1">
               <h4 className="font-medium text-gray-900">
                 {viewType === "guest"
-                  ? `${booking.property.host.firstName} ${booking.property.host.lastName}`
-                  : `${booking.guest.firstName} ${booking.guest.lastName}`}
+                  ? `${booking.property?.realtor?.user?.firstName || "Host"} ${
+                      booking.property?.realtor?.user?.lastName || ""
+                    }`
+                  : `${booking.guest?.firstName || "Guest"} ${
+                      booking.guest?.lastName || ""
+                    }`}
               </h4>
               <p className="text-gray-600 text-sm">
                 {viewType === "guest" ? "Property Host" : "Guest"}
@@ -318,9 +331,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <div className="mt-2 space-y-1">
                   <div className="flex items-center text-sm text-gray-600">
                     <Mail className="h-4 w-4 mr-2" />
-                    {booking.guest.email}
+                    {booking.guest?.email || "No email"}
                   </div>
-                  {booking.guest.phone && (
+                  {booking.guest?.phone && (
                     <div className="flex items-center text-sm text-gray-600">
                       <Phone className="h-4 w-4 mr-2" />
                       {booking.guest.phone}
@@ -337,8 +350,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 onClick={() =>
                   onContactUser(
                     viewType === "guest"
-                      ? booking.property.host.id
-                      : booking.guest.id
+                      ? booking.property?.realtor?.user?.id || ""
+                      : booking.guest?.id || ""
                   )
                 }
                 className="flex items-center"
@@ -362,12 +375,12 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           <div className="space-y-3">
             <div className="flex justify-between text-gray-600">
               <span>
-                {booking.currency} {booking.property.pricePerNight} × {nights}{" "}
-                nights
+                {booking.currency} {booking.property?.pricePerNight || 0} ×{" "}
+                {nights} nights
               </span>
               <span>
                 {booking.currency}{" "}
-                {(booking.property.pricePerNight * nights).toFixed(2)}
+                {((booking.property?.pricePerNight || 0) * nights).toFixed(2)}
               </span>
             </div>
 
@@ -375,7 +388,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <span>Service fee</span>
               <span>
                 {booking.currency}{" "}
-                {(booking.property.pricePerNight * nights * 0.1).toFixed(2)}
+                {(
+                  (booking.property?.pricePerNight || 0) *
+                  nights *
+                  0.1
+                ).toFixed(2)}
               </span>
             </div>
 
@@ -383,7 +400,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <span>Taxes</span>
               <span>
                 {booking.currency}{" "}
-                {(booking.property.pricePerNight * nights * 0.05).toFixed(2)}
+                {(
+                  (booking.property?.pricePerNight || 0) *
+                  nights *
+                  0.05
+                ).toFixed(2)}
               </span>
             </div>
 
@@ -425,9 +446,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <div>
                 <div className="text-sm text-gray-600 mb-1">Transaction ID</div>
                 <div className="font-mono text-sm text-gray-900">
-                  {booking.payment.stripePaymentIntentId ||
-                    booking.payment.paystackReference ||
-                    "N/A"}
+                  {booking.payment?.providerTransactionId || "N/A"}
                 </div>
               </div>
             </div>
@@ -446,52 +465,63 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       )}
 
       {/* Review Section */}
-      {booking.review && (
+      {booking.reviews && booking.reviews.length > 0 && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Review</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Review{booking.reviews.length > 1 ? "s" : ""}
+          </h3>
 
-          <div className="flex items-start space-x-4">
-            <Image
-              src={booking.review.author.avatar || "/default-avatar.png"}
-              alt={`${booking.review.author.firstName} ${booking.review.author.lastName}`}
-              width={48}
-              height={48}
-              className="w-12 h-12 object-cover rounded-full"
-              unoptimized
-            />
+          {booking.reviews.map((review, index) => (
+            <div
+              key={review.id}
+              className={`flex items-start space-x-4 ${
+                index > 0 ? "mt-6 pt-6 border-t border-gray-200" : ""
+              }`}
+            >
+              <Image
+                src={review.author?.avatar || "/default-avatar.png"}
+                alt={`${review.author?.firstName || "Anonymous"} ${
+                  review.author?.lastName || "User"
+                }`}
+                width={48}
+                height={48}
+                className="w-12 h-12 object-cover rounded-full"
+                unoptimized
+              />
 
-            <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className="font-medium text-gray-900">
-                  {booking.review.author.firstName}{" "}
-                  {booking.review.author.lastName}
-                </span>
-                <div className="flex items-center">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${
-                        i < (booking.review?.rating ?? 0)
-                          ? "text-yellow-400 fill-current"
-                          : "text-gray-300"
-                      }`}
-                    />
-                  ))}
-                  <span className="ml-2 text-sm text-gray-600">
-                    {booking.review.rating}/5
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="font-medium text-gray-900">
+                    {review.author?.firstName || "Anonymous"}{" "}
+                    {review.author?.lastName || "User"}
                   </span>
+                  <div className="flex items-center">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-4 w-4 ${
+                          i < (review?.rating ?? 0)
+                            ? "text-yellow-400 fill-current"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    ))}
+                    <span className="ml-2 text-sm text-gray-600">
+                      {review.rating}/5
+                    </span>
+                  </div>
                 </div>
+
+                {review.comment && (
+                  <p className="text-gray-700 mb-2">{review.comment}</p>
+                )}
+
+                <p className="text-sm text-gray-500">
+                  {formatDate(review.createdAt)}
+                </p>
               </div>
-
-              {booking.review.comment && (
-                <p className="text-gray-700 mb-2">{booking.review.comment}</p>
-              )}
-
-              <p className="text-sm text-gray-500">
-                {formatDate(booking.review.createdAt)}
-              </p>
             </div>
-          </div>
+          ))}
         </Card>
       )}
 

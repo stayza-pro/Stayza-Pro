@@ -62,7 +62,7 @@ const sidebarItems: SidebarItem[] = [
   },
   {
     name: "My Properties",
-    href: "/host/properties",
+    href: "/realtor/properties",
     icon: (
       <svg
         className="w-5 h-5"
@@ -78,11 +78,11 @@ const sidebarItems: SidebarItem[] = [
         />
       </svg>
     ),
-    roles: ["HOST", "ADMIN"],
+    roles: ["REALTOR", "ADMIN"],
   },
   {
     name: "Host Bookings",
-    href: "/host/bookings",
+    href: "/realtor/bookings",
     icon: (
       <svg
         className="w-5 h-5"
@@ -98,7 +98,7 @@ const sidebarItems: SidebarItem[] = [
         />
       </svg>
     ),
-    roles: ["HOST", "ADMIN"],
+    roles: ["REALTOR", "ADMIN"],
   },
   {
     name: "Payouts",
@@ -118,7 +118,7 @@ const sidebarItems: SidebarItem[] = [
         />
       </svg>
     ),
-    roles: ["HOST", "ADMIN"],
+    roles: ["REALTOR", "ADMIN"],
   },
   {
     name: "Reviews",
@@ -191,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
   const { user } = useAuthStore();
 
   const effectiveRole: UserRole | undefined =
-    user?.role === "REALTOR" ? "HOST" : user?.role;
+    user?.role === "REALTOR" ? "REALTOR" : user?.role;
 
   const filteredItems = sidebarItems.filter((item) => {
     if (!item.roles) return true;
@@ -202,7 +202,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
     if (href === "/dashboard") {
       return (
         pathname === "/dashboard" ||
-        pathname === "/host/dashboard" ||
+        pathname === "/realtor/dashboard" ||
         pathname === "/admin/dashboard"
       );
     }
@@ -285,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
                 className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
                   user?.role === "ADMIN"
                     ? "bg-purple-100 text-purple-800"
-                    : user?.role === "HOST"
+                    : user?.role === "REALTOR"
                     ? "bg-blue-100 text-blue-800"
                     : "bg-green-100 text-green-800"
                 }`}
@@ -365,9 +365,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
               </Link>
             )}
 
-            {user?.role === "HOST" && (
+            {user?.role === "REALTOR" && (
               <Link
-                href="/host/properties/new"
+                href="/realtor/properties/new"
                 className="flex items-center px-3 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
                 onClick={onClose}
               >

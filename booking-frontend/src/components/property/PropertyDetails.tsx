@@ -66,7 +66,10 @@ export const PropertyDetails: React.FC<PropertyDetailsProps> = ({
             <div className="relative aspect-w-16 aspect-h-10 rounded-lg overflow-hidden">
               {property.images && property.images.length > 0 ? (
                 <Image
-                  src={property.images[selectedImageIndex]}
+                  src={
+                    property.images[selectedImageIndex]?.url ||
+                    "/placeholder-image.jpg"
+                  }
                   alt={property.title}
                   fill
                   className="object-cover"
@@ -97,7 +100,7 @@ export const PropertyDetails: React.FC<PropertyDetailsProps> = ({
                       setSelectedImageIndex(
                         selectedImageIndex > 0
                           ? selectedImageIndex - 1
-                          : property.images.length - 1
+                          : (property.images?.length || 1) - 1
                       )
                     }
                     className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-2 shadow-md transition-all"
@@ -119,7 +122,7 @@ export const PropertyDetails: React.FC<PropertyDetailsProps> = ({
                   <button
                     onClick={() =>
                       setSelectedImageIndex(
-                        selectedImageIndex < property.images.length - 1
+                        selectedImageIndex < (property.images?.length || 1) - 1
                           ? selectedImageIndex + 1
                           : 0
                       )
@@ -158,7 +161,7 @@ export const PropertyDetails: React.FC<PropertyDetailsProps> = ({
                     }`}
                   >
                     <Image
-                      src={image}
+                      src={image.url}
                       alt={`${property.title} - Image ${index + 1}`}
                       fill
                       className="object-cover"
@@ -382,10 +385,12 @@ export const PropertyDetails: React.FC<PropertyDetailsProps> = ({
                 {/* Host Info */}
                 <div className="border-t pt-4">
                   <div className="flex items-center space-x-3">
-                    {property.host.avatar ? (
+                    {property.realtor?.user?.avatar ? (
                       <Image
-                        src={property.host.avatar}
-                        alt={`${property.host.firstName} ${property.host.lastName}`}
+                        src={property.realtor.user.avatar}
+                        alt={`${property.realtor.user.firstName || "Host"} ${
+                          property.realtor.user.lastName || ""
+                        }`}
                         width={48}
                         height={48}
                         className="rounded-full"
@@ -393,14 +398,14 @@ export const PropertyDetails: React.FC<PropertyDetailsProps> = ({
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center">
                         <span className="text-white font-medium text-lg">
-                          {property.host.firstName.charAt(0)}
+                          {property.realtor?.user?.firstName?.charAt(0) || "H"}
                         </span>
                       </div>
                     )}
                     <div>
                       <p className="font-medium text-gray-900">
-                        Hosted by {property.host.firstName}{" "}
-                        {property.host.lastName}
+                        Hosted by {property.realtor?.user?.firstName || "Host"}{" "}
+                        {property.realtor?.user?.lastName || ""}
                       </p>
                       <p className="text-sm text-gray-600">
                         Joined {new Date(property.createdAt).getFullYear()}

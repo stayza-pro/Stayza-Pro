@@ -23,9 +23,43 @@ import {
   useAnalyticsExport,
 } from "@/hooks/analytics/useAnalytics";
 import { AnalyticsTimeRange, AnalyticsViewType } from "@/types/analytics";
-import { AnalyticsOverview } from "./AnalyticsOverview";
-import { PerformanceMetrics } from "./PerformanceMetrics";
-import { AlertsPanel } from "./AlertsPanel";
+// import { AnalyticsOverview } from "./AnalyticsOverview";
+// import { PerformanceMetrics } from "./PerformanceMetrics";
+// import { AlertsPanel } from "./AlertsPanel";
+
+// Temporary placeholder components
+const AnalyticsOverview: React.FC<any> = ({ analytics, timeRange }) => (
+  <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      Analytics Overview
+    </h3>
+    <div className="text-gray-500">
+      Analytics overview component will be restored once import issues are
+      resolved.
+    </div>
+  </div>
+);
+
+const PerformanceMetrics: React.FC<any> = ({ analytics, propertyId }) => (
+  <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      Performance Metrics
+    </h3>
+    <div className="text-gray-500">
+      Performance metrics component will be restored once import issues are
+      resolved.
+    </div>
+  </div>
+);
+
+const AlertsPanel: React.FC<any> = ({ analytics, propertyId }) => (
+  <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">Alerts Panel</h3>
+    <div className="text-gray-500">
+      Alerts panel component will be restored once import issues are resolved.
+    </div>
+  </div>
+);
 
 interface PropertyAnalyticsDashboardProps {
   propertyId: string;

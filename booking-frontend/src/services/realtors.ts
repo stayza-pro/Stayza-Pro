@@ -9,6 +9,7 @@ interface GetRealtorsFilters {
   status?: RealtorStatus;
   page?: number;
   limit?: number;
+  [key: string]: string | number | boolean | Date | null | undefined;
 }
 
 export const realtorService = {

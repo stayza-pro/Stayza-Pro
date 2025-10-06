@@ -6,8 +6,8 @@ export const bookingService = {
   createBooking: async (data: BookingFormData): Promise<Booking> => {
     const response = await apiClient.post<Booking>("/bookings", {
       ...data,
-      checkInDate: data.checkInDate.toISOString().split("T")[0],
-      checkOutDate: data.checkOutDate.toISOString().split("T")[0],
+      checkInDate: data.checkIn.toISOString().split("T")[0],
+      checkOutDate: data.checkOut.toISOString().split("T")[0],
     });
     return response.data;
   },

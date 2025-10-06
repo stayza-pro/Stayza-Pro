@@ -6,7 +6,19 @@ import { Footer } from "../../components/layout/Footer";
 import { PropertyGrid } from "../../components/property/PropertyGrid";
 import { SearchFilters } from "../../components/property/SearchFilters";
 import { useState } from "react";
-import type { PropertyFilters } from "../../types";
+import type {
+  PropertyFilters,
+  PropertyType,
+  PropertyAmenity,
+} from "../../types";
+
+interface FiltersState {
+  priceRange: { min: number; max: number };
+  propertyType: string;
+  minRating: number;
+  amenities: string[];
+  instantBook: boolean;
+}
 
 export default function PropertiesPage() {
   const [filters, setFilters] = useState<PropertyFilters>({});
@@ -16,8 +28,29 @@ export default function PropertiesPage() {
     limit: 20,
   });
 
-  const handleFiltersChange = (newFilters: PropertyFilters) => {
-    setFilters(newFilters);
+  const handleFiltersChange = (filtersState: FiltersState) => {
+    // Convert FiltersState to PropertyFilters
+    const convertedFilters: PropertyFilters = {
+      minPrice:
+        filtersState.priceRange.min > 0
+          ? filtersState.priceRange.min
+          : undefined,
+      maxPrice:
+        filtersState.priceRange.max < 1000
+          ? filtersState.priceRange.max
+          : undefined,
+      type: filtersState.propertyType
+        ? (filtersState.propertyType.toUpperCase() as PropertyType)
+        : undefined,
+      amenities:
+        filtersState.amenities.length > 0
+          ? filtersState.amenities.map(
+              (a) => a.toUpperCase() as PropertyAmenity
+            )
+          : undefined,
+    };
+
+    setFilters(convertedFilters);
   };
 
   return (

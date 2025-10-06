@@ -48,12 +48,14 @@ const PropertyManagement: React.FC = () => {
 
   // Fetch user's properties
   const {
-    data: properties = [],
+    data: propertiesResponse,
     isLoading,
     error,
   } = useQuery("host-properties", () => propertyService.getHostProperties(), {
     enabled: !!user,
   });
+
+  const properties = propertiesResponse?.data || [];
 
   // Delete property mutation
   const deletePropertyMutation = useMutation(
@@ -72,7 +74,7 @@ const PropertyManagement: React.FC = () => {
   );
 
   // Filter properties
-  const filteredProperties = properties.filter((property) => {
+  const filteredProperties = properties.filter((property: Property) => {
     const matchesSearch = property.title
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
@@ -328,7 +330,7 @@ const PropertyManagement: React.FC = () => {
             }
           >
             <AnimatePresence>
-              {filteredProperties.map((property) => (
+              {filteredProperties.map((property: Property) => (
                 <PropertyCard key={property.id} property={property} />
               ))}
             </AnimatePresence>

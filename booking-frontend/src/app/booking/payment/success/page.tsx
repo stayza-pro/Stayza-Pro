@@ -169,7 +169,7 @@ const PaymentSuccessPage = () => {
                   amount={payment?.amount}
                   currency={payment?.currency}
                   paymentMethod={payment?.method}
-                  transactionId={payment?.paystackReference}
+                  transactionId={payment?.providerTransactionId}
                   errorMessage={errorMessage || undefined}
                   onDownloadReceipt={
                     effectiveStatus === "success"

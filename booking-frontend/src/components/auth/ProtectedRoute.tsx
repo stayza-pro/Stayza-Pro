@@ -53,7 +53,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         case "ADMIN":
           router.push("/admin/dashboard");
           break;
-        case "HOST":
         case "REALTOR":
           router.push("/host/dashboard");
           break;

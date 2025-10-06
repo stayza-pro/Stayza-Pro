@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Building2 } from "lucide-react";
 import { Button, Input, Card } from "../ui";
-import { PropertyFormData, Property } from "../../types";
+import { PropertyFormData, Property, PropertyAmenity } from "../../types";
 
 const propertyTypes: Array<{ value: Property["type"]; label: string }> = [
   { value: "APARTMENT", label: "Apartment" },
@@ -16,26 +16,58 @@ const propertyTypes: Array<{ value: Property["type"]; label: string }> = [
   { value: "OTHER", label: "Other" },
 ];
 
-const commonAmenities = [
-  "WiFi",
-  "Kitchen",
-  "Parking",
-  "Pool",
-  "Gym",
-  "Air Conditioning",
-  "Heating",
-  "Balcony",
-  "Garden",
-  "Pet Friendly",
-  "Washing Machine",
+const commonAmenities: PropertyAmenity[] = [
+  "WIFI",
+  "KITCHEN",
+  "PARKING",
+  "POOL",
+  "GYM",
+  "AC",
+  "HEATING",
+  "BALCONY",
+  "GARDEN",
+  "PET_FRIENDLY",
+  "WASHING_MACHINE",
   "TV",
-  "Hot Tub",
-  "BBQ Grill",
-  "Beach Access",
-  "Fireplace",
-  "Workspace",
-  "Breakfast",
+  "HOT_TUB",
+  "BBQ",
+  "FIREPLACE",
 ];
+
+const getAmenityDisplayName = (amenity: PropertyAmenity): string => {
+  const displayNames: Record<PropertyAmenity, string> = {
+    WIFI: "WiFi",
+    KITCHEN: "Kitchen",
+    PARKING: "Parking",
+    POOL: "Pool",
+    GYM: "Gym",
+    AC: "Air Conditioning",
+    HEATING: "Heating",
+    BALCONY: "Balcony",
+    GARDEN: "Garden",
+    PET_FRIENDLY: "Pet Friendly",
+    WASHING_MACHINE: "Washing Machine",
+    TV: "TV",
+    HOT_TUB: "Hot Tub",
+    BBQ: "BBQ Grill",
+    FIREPLACE: "Fireplace",
+    WHEELCHAIR_ACCESSIBLE: "Wheelchair Accessible",
+    SECURITY: "Security",
+    CONCIERGE: "Concierge",
+    ELEVATOR: "Elevator",
+    SMOKING_ALLOWED: "Smoking Allowed",
+    DISHWASHER: "Dishwasher",
+    MICROWAVE: "Microwave",
+    COFFEE_MAKER: "Coffee Maker",
+    IRON: "Iron",
+    HAIR_DRYER: "Hair Dryer",
+    TOWELS: "Towels",
+    LINENS: "Linens",
+    SHAMPOO: "Shampoo",
+    SOAP: "Soap",
+  };
+  return displayNames[amenity] || amenity;
+};
 
 interface PropertyFormProps {
   property?: Property;
@@ -68,6 +100,9 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     country: property?.country || "",
     latitude: property?.latitude,
     longitude: property?.longitude,
+    houseRules: property?.houseRules || [],
+    checkInTime: property?.checkInTime || "15:00",
+    checkOutTime: property?.checkOutTime || "11:00",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -90,7 +125,7 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     }
   };
 
-  const handleAmenityToggle = (amenity: string) => {
+  const handleAmenityToggle = (amenity: PropertyAmenity) => {
     const updatedAmenities = formData.amenities.includes(amenity)
       ? formData.amenities.filter((a) => a !== amenity)
       : [...formData.amenities, amenity];
@@ -573,7 +608,9 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
                 disabled={isLoading}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <span className="text-sm text-gray-700">{amenity}</span>
+              <span className="text-sm text-gray-700">
+                {getAmenityDisplayName(amenity)}
+              </span>
             </label>
           ))}
         </div>

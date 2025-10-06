@@ -27,8 +27,8 @@ export const Header: React.FC = () => {
     switch (user.role) {
       case "ADMIN":
         return "/admin/dashboard";
-      case "HOST":
-        return "/host/dashboard";
+      case "REALTOR":
+        return "/realtor/dashboard";
       case "GUEST":
       default:
         return "/dashboard";
@@ -59,9 +59,9 @@ export const Header: React.FC = () => {
             >
               Browse Properties
             </Link>
-            {isAuthenticated && user?.role === "HOST" && (
+            {isAuthenticated && user?.role === "REALTOR" && (
               <Link
-                href="/host/properties"
+                href="/realtor/properties"
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
                 My Properties
@@ -139,16 +139,16 @@ export const Header: React.FC = () => {
                       Profile Settings
                     </Link>
 
-                    {user?.role === "HOST" && (
+                    {user?.role === "REALTOR" && (
                       <>
                         <Link
-                          href="/host/bookings"
+                          href="/realtor/bookings"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         >
                           My Bookings
                         </Link>
                         <Link
-                          href="/host/properties"
+                          href="/realtor/properties"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         >
                           My Properties
@@ -234,9 +234,9 @@ export const Header: React.FC = () => {
                 Browse Properties
               </Link>
 
-              {isAuthenticated && user?.role === "HOST" && (
+              {isAuthenticated && user?.role === "REALTOR" && (
                 <Link
-                  href="/host/properties"
+                  href="/realtor/properties"
                   className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
                 >
                   My Properties

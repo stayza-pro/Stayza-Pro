@@ -2,10 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import { useProperties } from "@/hooks/useProperties";
-import { PropertyFilters as PropertyFiltersType, Property } from "@/types";
+import {
+  PropertyFilters as PropertyFiltersType,
+  Property,
+  PropertyType,
+  PropertyAmenity,
+} from "@/types";
 import { AdvancedSearchFilters } from "@/components/property/AdvancedSearchFilters";
 import { PropertyMapView } from "@/components/property/PropertyMapView";
-import { PropertyGrid } from "@/components/property/PropertyGrid";
+
 import { PropertyCard } from "@/components/property/PropertyCard";
 import { Button } from "@/components/ui";
 import { motion, AnimatePresence } from "framer-motion";
@@ -69,6 +74,8 @@ export default function AdvancedPropertySearchPage() {
     refetch,
   } = useProperties(filters, searchParams);
 
+  const handleRefetch = () => refetch();
+
   const properties = propertiesResponse?.data || [];
   const totalCount = propertiesResponse?.pagination?.totalItems || 0;
   const hasMore = propertiesResponse?.pagination?.hasNext || false;
@@ -128,25 +135,32 @@ export default function AdvancedPropertySearchPage() {
     }));
   };
 
-  const quickSearchOptions = [
+  const quickSearchOptions: Array<{
+    label: string;
+    filters: Partial<PropertyFiltersType>;
+    icon: any;
+  }> = [
     {
       label: "Lagos Apartments",
-      filters: { city: "Lagos", type: "APARTMENT" },
+      filters: { city: "Lagos", type: "APARTMENT" as PropertyType },
       icon: MapPin,
     },
     {
       label: "Weekend Getaways",
-      filters: { type: "VILLA", minPrice: 100 },
+      filters: { type: "VILLA" as PropertyType, minPrice: 100 },
       icon: Calendar,
     },
     {
       label: "Family Friendly",
-      filters: { maxGuests: 6, amenities: ["Kitchen", "WiFi"] },
+      filters: {
+        maxGuests: 6,
+        amenities: ["KITCHEN", "WIFI"] as PropertyAmenity[],
+      },
       icon: Users,
     },
   ];
 
-  const handleQuickSearch = (quickFilters: any) => {
+  const handleQuickSearch = (quickFilters: Partial<PropertyFiltersType>) => {
     const convertedFilters: PropertyFiltersType = {
       ...filters,
       city: quickFilters.city || filters.city,
@@ -244,24 +258,26 @@ export default function AdvancedPropertySearchPage() {
                 <div className="flex items-center space-x-4">
                   {/* View Mode Toggle */}
                   <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-                    {viewModes
-                      .filter((vm) => vm.mode !== "map")
-                      .map((vm) => {
-                        const Icon = vm.icon;
-                        return (
-                          <button
-                            key={vm.mode}
-                            onClick={() => handleViewModeChange(vm.mode)}
-                            className={`px-3 py-2 text-sm transition-colors ${
-                              viewMode === vm.mode
-                                ? "bg-blue-600 text-white"
-                                : "bg-white text-gray-700 hover:bg-gray-50"
-                            }`}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </button>
-                        );
-                      })}
+                    <button
+                      onClick={() => handleViewModeChange("grid")}
+                      className={`px-3 py-2 text-sm transition-colors ${
+                        viewMode === "grid"
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleViewModeChange("list")}
+                      className={`px-3 py-2 text-sm transition-colors ${
+                        viewMode === "list"
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -292,7 +308,7 @@ export default function AdvancedPropertySearchPage() {
               )}
 
               {/* Error State */}
-              {error && (
+              {!!error && (
                 <div className="text-center py-12">
                   <div className="text-gray-400 mb-4">
                     <Search className="h-16 w-16 mx-auto" />
@@ -303,7 +319,7 @@ export default function AdvancedPropertySearchPage() {
                   <p className="text-gray-600 mb-4">
                     We couldn't load the properties. Please try again.
                   </p>
-                  <Button onClick={() => refetch()}>Try Again</Button>
+                  <Button onClick={handleRefetch}>Try Again</Button>
                 </div>
               )}
 
@@ -320,7 +336,25 @@ export default function AdvancedPropertySearchPage() {
                     Try adjusting your search filters or explore different
                     locations.
                   </p>
-                  <Button onClick={() => setFilters({})}>Clear Filters</Button>
+                  <Button
+                    onClick={() =>
+                      setFilters({
+                        city: "",
+                        country: "",
+                        type: undefined,
+                        minPrice: undefined,
+                        maxPrice: undefined,
+                        maxGuests: undefined,
+                        checkIn: undefined,
+                        checkOut: undefined,
+                        amenities: [],
+                        isActive: true,
+                        isApproved: true,
+                      })
+                    }
+                  >
+                    Clear Filters
+                  </Button>
                 </div>
               )}
 

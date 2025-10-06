@@ -45,15 +45,15 @@ export const BookingList: React.FC<BookingListProps> = ({
     if (searchTerm) {
       filtered = filtered.filter(
         (booking) =>
-          booking.property.title
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          booking.property.city
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          booking.property.country
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
+          booking.property?.title
+            ?.toLowerCase()
+            ?.includes(searchTerm.toLowerCase()) ||
+          booking.property?.city
+            ?.toLowerCase()
+            ?.includes(searchTerm.toLowerCase()) ||
+          booking.property?.country
+            ?.toLowerCase()
+            ?.includes(searchTerm.toLowerCase()) ||
           booking.id.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -63,8 +63,8 @@ export const BookingList: React.FC<BookingListProps> = ({
       const now = new Date();
 
       filtered = filtered.filter((booking) => {
-        const checkIn = new Date(booking.checkInDate);
-        const checkOut = new Date(booking.checkOutDate);
+        const checkIn = new Date(booking.checkIn);
+        const checkOut = new Date(booking.checkOut);
 
         switch (filterType) {
           case "upcoming":
@@ -79,9 +79,7 @@ export const BookingList: React.FC<BookingListProps> = ({
               (booking.status === "COMPLETED" || booking.status === "CONFIRMED")
             );
           case "cancelled":
-            return (
-              booking.status === "CANCELLED" || booking.status === "REFUNDED"
-            );
+            return booking.status === "CANCELLED";
           default:
             return true;
         }
@@ -100,14 +98,10 @@ export const BookingList: React.FC<BookingListProps> = ({
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           );
         case "checkIn":
-          return (
-            new Date(a.checkInDate).getTime() -
-            new Date(b.checkInDate).getTime()
-          );
+          return new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime();
         case "checkOut":
           return (
-            new Date(a.checkOutDate).getTime() -
-            new Date(b.checkOutDate).getTime()
+            new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime()
           );
         case "price":
           return b.totalPrice - a.totalPrice;
@@ -133,8 +127,8 @@ export const BookingList: React.FC<BookingListProps> = ({
     };
 
     bookings.forEach((booking) => {
-      const checkIn = new Date(booking.checkInDate);
-      const checkOut = new Date(booking.checkOutDate);
+      const checkIn = new Date(booking.checkIn);
+      const checkOut = new Date(booking.checkOut);
 
       if (checkIn > now && booking.status === "CONFIRMED") {
         counts.upcoming++;
@@ -151,7 +145,7 @@ export const BookingList: React.FC<BookingListProps> = ({
         counts.past++;
       } else if (
         booking.status === "CANCELLED" ||
-        booking.status === "REFUNDED"
+        false // REFUNDED status not available in BookingStatus type
       ) {
         counts.cancelled++;
       }

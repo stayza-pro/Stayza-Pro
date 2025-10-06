@@ -134,8 +134,8 @@ export const RefundForm: React.FC<RefundFormProps> = ({
     }).format(amount);
   };
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (date: Date | string): string => {
+    return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -144,8 +144,6 @@ export const RefundForm: React.FC<RefundFormProps> = ({
 
   const getRefundTimeframe = (): string => {
     switch (payment.method) {
-      case "PAYSTACK":
-        return "3-5 business days";
       case "FLUTTERWAVE":
         return "3-7 business days";
       default:
@@ -204,8 +202,9 @@ export const RefundForm: React.FC<RefundFormProps> = ({
             <div>
               <div className="text-sm text-gray-600 mb-1">Transaction ID</div>
               <div className="font-mono text-sm text-gray-900">
-                {payment.stripePaymentIntentId ||
-                  payment.paystackReference ||
+                {payment.providerTransactionId ||
+                  payment.providerId ||
+                  payment.id ||
                   "N/A"}
               </div>
             </div>

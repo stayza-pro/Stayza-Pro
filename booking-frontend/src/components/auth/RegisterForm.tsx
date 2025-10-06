@@ -122,8 +122,8 @@ export const RegisterForm: React.FC = () => {
                 <input
                   type="radio"
                   name="role"
-                  value="HOST"
-                  checked={formData.role === "HOST"}
+                  value="REALTOR"
+                  checked={formData.role === "REALTOR"}
                   onChange={handleInputChange}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                 />

@@ -39,10 +39,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
   const [showFullComment, setShowFullComment] = useState(false);
   const [showActions, setShowActions] = useState(false);
 
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
+  const formatDate = (date: string | Date): string => {
+    const dateObj = new Date(date);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffTime = Math.abs(now.getTime() - dateObj.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 1) return "1 day ago";
@@ -50,7 +50,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
     if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
     if (diffDays < 365) return `${Math.ceil(diffDays / 30)} months ago`;
 
-    return date.toLocaleDateString("en-US", {
+    return dateObj.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -85,10 +85,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
 
   const canDeleteReview =
     currentUser &&
-    (currentUser.id === review.guest.id ||
+    (currentUser.id === review.author?.id ||
       currentUser.role === "ADMIN" ||
-      (currentUser.role === "HOST" &&
-        review.property?.hostId === currentUser.id));
+      (currentUser.role === "REALTOR" &&
+        review.property?.realtor?.user?.id === currentUser.id));
 
   const truncateComment = (
     comment: string,
@@ -128,8 +128,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
             <div className="flex-shrink-0">
               {showGuestName ? (
                 <Image
-                  src={review.guest.avatar || "/default-avatar.png"}
-                  alt={`${review.guest.firstName} ${review.guest.lastName}`}
+                  src={review.author?.avatar || "/default-avatar.png"}
+                  alt={`${review.author?.firstName || "Anonymous"} ${
+                    review.author?.lastName || "User"
+                  }`}
                   width={48}
                   height={48}
                   className="w-12 h-12 object-cover rounded-full"
@@ -147,7 +149,9 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
               <div className="flex items-center space-x-3">
                 <h3 className="text-lg font-semibold text-gray-900">
                   {showGuestName
-                    ? `${review.guest.firstName} ${review.guest.lastName}`
+                    ? `${review.author?.firstName || "Anonymous"} ${
+                        review.author?.lastName || "User"
+                      }`
                     : "Anonymous Guest"}
                 </h3>
                 <div className="flex items-center space-x-2">
@@ -258,7 +262,10 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
           <div className="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r">
             <div className="flex items-start space-x-3">
               <Image
-                src={review.property?.host?.avatar || "/default-avatar.png"}
+                src={
+                  review.property?.realtor?.user?.avatar ||
+                  "/default-avatar.png"
+                }
                 alt="Host"
                 width={32}
                 height={32}

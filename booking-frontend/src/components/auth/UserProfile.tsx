@@ -89,8 +89,8 @@ export const UserProfile: React.FC = () => {
             ) : (
               <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center">
                 <span className="text-2xl font-semibold text-gray-600">
-                  {user.firstName.charAt(0)}
-                  {user.lastName.charAt(0)}
+                  {(user.firstName && user.firstName.charAt(0)) || "U"}
+                  {(user.lastName && user.lastName.charAt(0)) || ""}
                 </span>
               </div>
             )}
@@ -105,7 +105,7 @@ export const UserProfile: React.FC = () => {
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   user.role === "ADMIN"
                     ? "bg-purple-100 text-purple-800"
-                    : user.role === "HOST"
+                    : user.role === "REALTOR"
                     ? "bg-blue-100 text-blue-800"
                     : "bg-green-100 text-green-800"
                 }`}

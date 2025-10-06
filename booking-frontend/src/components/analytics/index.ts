@@ -17,7 +17,7 @@ export type {
   RevenueMetrics,
   GuestAnalytics,
   ReviewMetrics,
-  BookingMetrics,
+  BookingAnalytics,
   MarketAnalysis,
 } from "@/types/analytics";
 

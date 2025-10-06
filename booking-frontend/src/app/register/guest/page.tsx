@@ -372,16 +372,12 @@ function GuestRegistrationContent() {
                 </label>
                 <PhoneNumberFormatter
                   value={data.phoneNumber}
-                  onChange={(value: string) =>
-                    handleInputChange("phoneNumber", value)
-                  }
-                  onBlur={(value: string) =>
-                    validateField("phoneNumber", value)
-                  }
+                  onChange={(value: string) => {
+                    handleInputChange("phoneNumber", value);
+                    validateField("phoneNumber", value);
+                  }}
                   placeholder="+234 801 234 5678"
                   className="marketing-input"
-                  defaultCountry="NG"
-                  showCountrySelector={true}
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   For booking updates and support

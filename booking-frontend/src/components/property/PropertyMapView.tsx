@@ -18,7 +18,7 @@ import { Card } from "../ui";
 interface MapViewProps {
   properties: Property[];
   selectedProperty?: Property | null;
-  onPropertySelect?: (property: Property) => void;
+  onPropertySelect?: (property: Property | null) => void;
   onPropertyHover?: (property: Property | null) => void;
   className?: string;
   center?: { lat: number; lng: number };
@@ -354,13 +354,13 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <button
               onClick={() => setMapZoom(Math.min(mapZoom + 1, 18))}
-              className="block w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors border-b border-gray-200"
+              className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors border-b border-gray-200"
             >
               +
             </button>
             <button
               onClick={() => setMapZoom(Math.max(mapZoom - 1, 1))}
-              className="block w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors"
             >
               −
             </button>

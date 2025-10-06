@@ -21,7 +21,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 }) => {
   const [formData, setFormData] = useState<Partial<BookingFormData>>({
     propertyId: property.id,
-    totalGuests: 1,
+    guests: 1,
     specialRequests: "",
   });
 
@@ -30,12 +30,12 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
   // Calculate booking details
   const bookingDetails = useMemo(() => {
-    if (!formData.checkInDate || !formData.checkOutDate) {
+    if (!formData.checkIn || !formData.checkOut) {
       return null;
     }
 
-    const checkIn = new Date(formData.checkInDate);
-    const checkOut = new Date(formData.checkOutDate);
+    const checkIn = new Date(formData.checkIn);
+    const checkOut = new Date(formData.checkOut);
     const nights = Math.ceil(
       (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -51,7 +51,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       taxes,
       total,
     };
-  }, [formData.checkInDate, formData.checkOutDate, property.pricePerNight]);
+  }, [formData.checkIn, formData.checkOut, property.pricePerNight]);
 
   const handleInputChange = <K extends keyof BookingFormData>(
     field: K,
@@ -74,40 +74,40 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.checkInDate) {
-      newErrors.checkInDate = "Check-in date is required";
+    if (!formData.checkIn) {
+      newErrors.checkIn = "Check-in date is required";
     }
 
-    if (!formData.checkOutDate) {
-      newErrors.checkOutDate = "Check-out date is required";
+    if (!formData.checkOut) {
+      newErrors.checkOut = "Check-out date is required";
     }
 
-    if (formData.checkInDate && formData.checkOutDate) {
-      const checkIn = new Date(formData.checkInDate);
-      const checkOut = new Date(formData.checkOutDate);
+    if (formData.checkIn && formData.checkOut) {
+      const checkIn = new Date(formData.checkIn);
+      const checkOut = new Date(formData.checkOut);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       if (checkIn < today) {
-        newErrors.checkInDate = "Check-in date cannot be in the past";
+        newErrors.checkIn = "Check-in date cannot be in the past";
       }
 
       if (checkOut <= checkIn) {
-        newErrors.checkOutDate = "Check-out date must be after check-in date";
+        newErrors.checkOut = "Check-out date must be after check-in date";
       }
 
       const nights = Math.ceil(
         (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
       );
       if (nights > 28) {
-        newErrors.checkOutDate = "Maximum stay is 28 nights";
+        newErrors.checkOut = "Maximum stay is 28 nights";
       }
     }
 
-    if (!formData.totalGuests || formData.totalGuests < 1) {
-      newErrors.totalGuests = "Number of guests is required";
-    } else if (formData.totalGuests > property.maxGuests) {
-      newErrors.totalGuests = `Maximum ${property.maxGuests} guests allowed`;
+    if (!formData.guests || formData.guests < 1) {
+      newErrors.guests = "Number of guests is required";
+    } else if (formData.guests > property.maxGuests) {
+      newErrors.guests = `Maximum ${property.maxGuests} guests allowed`;
     }
 
     setErrors(newErrors);
@@ -145,7 +145,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       <Card className="p-6">
         <div className="flex items-start space-x-4">
           <Image
-            src={property.images[0] || "/placeholder-image.jpg"}
+            src={property.images?.[0]?.url || "/placeholder-image.jpg"}
             alt={property.title}
             width={80}
             height={80}
@@ -188,65 +188,55 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label
-                  htmlFor="checkInDate"
+                  htmlFor="checkIn"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Check-in Date *
                 </label>
                 <Input
-                  id="checkInDate"
+                  id="checkIn"
                   type="date"
                   min={today}
-                  value={
-                    formData.checkInDate ? formatDate(formData.checkInDate) : ""
-                  }
+                  value={formData.checkIn ? formatDate(formData.checkIn) : ""}
                   onChange={(e) =>
-                    handleInputChange("checkInDate", new Date(e.target.value))
+                    handleInputChange("checkIn", new Date(e.target.value))
                   }
                   disabled={isLoading || isSubmitting}
-                  className={errors.checkInDate ? "border-red-500" : ""}
+                  className={errors.checkIn ? "border-red-500" : ""}
                 />
-                {errors.checkInDate && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.checkInDate}
-                  </p>
+                {errors.checkIn && (
+                  <p className="text-red-500 text-sm mt-1">{errors.checkIn}</p>
                 )}
               </div>
 
               <div>
                 <label
-                  htmlFor="checkOutDate"
+                  htmlFor="checkOut"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Check-out Date *
                 </label>
                 <Input
-                  id="checkOutDate"
+                  id="checkOut"
                   type="date"
                   min={
-                    formData.checkInDate
+                    formData.checkIn
                       ? formatDate(
                           new Date(
-                            formData.checkInDate.getTime() + 24 * 60 * 60 * 1000
+                            formData.checkIn.getTime() + 24 * 60 * 60 * 1000
                           )
                         )
                       : tomorrow
                   }
-                  value={
-                    formData.checkOutDate
-                      ? formatDate(formData.checkOutDate)
-                      : ""
-                  }
+                  value={formData.checkOut ? formatDate(formData.checkOut) : ""}
                   onChange={(e) =>
-                    handleInputChange("checkOutDate", new Date(e.target.value))
+                    handleInputChange("checkOut", new Date(e.target.value))
                   }
                   disabled={isLoading || isSubmitting}
-                  className={errors.checkOutDate ? "border-red-500" : ""}
+                  className={errors.checkOut ? "border-red-500" : ""}
                 />
-                {errors.checkOutDate && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.checkOutDate}
-                  </p>
+                {errors.checkOut && (
+                  <p className="text-red-500 text-sm mt-1">{errors.checkOut}</p>
                 )}
               </div>
             </div>
@@ -254,7 +244,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             {/* Guests */}
             <div>
               <label
-                htmlFor="totalGuests"
+                htmlFor="guests"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
                 Number of Guests *
@@ -262,14 +252,14 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               <div className="relative">
                 <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <select
-                  id="totalGuests"
-                  value={formData.totalGuests || 1}
+                  id="guests"
+                  value={formData.guests || 1}
                   onChange={(e) =>
-                    handleInputChange("totalGuests", parseInt(e.target.value))
+                    handleInputChange("guests", parseInt(e.target.value))
                   }
                   disabled={isLoading || isSubmitting}
                   className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.totalGuests ? "border-red-500" : "border-gray-300"
+                    errors.guests ? "border-red-500" : "border-gray-300"
                   }`}
                 >
                   {Array.from(
@@ -282,10 +272,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                   ))}
                 </select>
               </div>
-              {errors.totalGuests && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.totalGuests}
-                </p>
+              {errors.guests && (
+                <p className="text-red-500 text-sm mt-1">{errors.guests}</p>
               )}
             </div>
 

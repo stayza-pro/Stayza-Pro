@@ -34,8 +34,8 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   onViewReceipt,
   className = "",
 }) => {
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (date: string | Date): string => {
+    return new Date(date).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -43,19 +43,21 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   };
 
   const nights = Math.ceil(
-    (new Date(booking.checkOutDate).getTime() -
-      new Date(booking.checkInDate).getTime()) /
+    (new Date(booking.checkOut).getTime() -
+      new Date(booking.checkIn).getTime()) /
       (1000 * 60 * 60 * 24)
   );
 
-  const isUpcoming = new Date(booking.checkInDate) > new Date();
+  const isUpcoming = new Date(booking.checkIn) > new Date();
   const isOngoing =
-    new Date(booking.checkInDate) <= new Date() &&
-    new Date(booking.checkOutDate) > new Date();
+    new Date(booking.checkIn) <= new Date() &&
+    new Date(booking.checkOut) > new Date();
   const canCancel =
     booking.status === "CONFIRMED" && isUpcoming && booking.isRefundable;
   const canReview =
-    booking.status === "COMPLETED" && !booking.review && viewType === "guest";
+    booking.status === "COMPLETED" &&
+    (!booking.reviews || booking.reviews.length === 0) &&
+    viewType === "guest";
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -85,8 +87,8 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         {/* Property Image and Basic Info */}
         <div className="flex items-start space-x-4 flex-1">
           <Image
-            src={booking.property.images[0] || "/placeholder-image.jpg"}
-            alt={booking.property.title}
+            src={booking.property?.images?.[0]?.url || "/placeholder-image.jpg"}
+            alt={booking.property?.title || "Property"}
             width={80}
             height={80}
             className="w-20 h-20 object-cover rounded-lg"
@@ -95,26 +97,27 @@ export const BookingCard: React.FC<BookingCardProps> = ({
 
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-gray-900 truncate">
-              {booking.property.title}
+              {booking.property?.title || "Unknown Property"}
             </h3>
 
             <div className="flex items-center text-gray-600 text-sm mt-1">
               <MapPin className="h-4 w-4 mr-1" />
-              {booking.property.city}, {booking.property.country}
+              {booking.property?.city || "Unknown"},{" "}
+              {booking.property?.country || "Unknown"}
             </div>
 
             {viewType === "host" && (
               <div className="flex items-center text-gray-600 text-sm mt-1">
                 <Users className="h-4 w-4 mr-1" />
-                Guest: {booking.guest.firstName} {booking.guest.lastName}
+                Guest: {booking.guest?.firstName || "Unknown"}{" "}
+                {booking.guest?.lastName || ""}
               </div>
             )}
 
             <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
               <div className="flex items-center">
                 <Users className="h-4 w-4 mr-1" />
-                {booking.totalGuests}{" "}
-                {booking.totalGuests === 1 ? "guest" : "guests"}
+                {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
               </div>
 
               <div className="flex items-center">
@@ -135,7 +138,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
             {getStatusText(booking.status)}
           </span>
 
-          {booking.property.averageRating && (
+          {booking.property?.averageRating && (
             <div className="flex items-center text-sm text-gray-600">
               <Star className="h-4 w-4 text-yellow-400 mr-1" />
               {booking.property.averageRating.toFixed(1)}
@@ -149,14 +152,14 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         <div>
           <div className="text-sm text-gray-600 mb-1">Check-in</div>
           <div className="font-medium text-gray-900">
-            {formatDate(booking.checkInDate)}
+            {formatDate(booking.checkIn)}
           </div>
         </div>
 
         <div>
           <div className="text-sm text-gray-600 mb-1">Check-out</div>
           <div className="font-medium text-gray-900">
-            {formatDate(booking.checkOutDate)}
+            {formatDate(booking.checkOut)}
           </div>
         </div>
 
@@ -198,35 +201,37 @@ export const BookingCard: React.FC<BookingCardProps> = ({
       )}
 
       {/* Review Status */}
-      {booking.review && viewType === "guest" && (
-        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-blue-600 mb-1">Your Review</div>
-              <div className="flex items-center">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <Star
-                    key={i}
-                    className={`h-4 w-4 ${
-                      i < booking.review!.rating
-                        ? "text-yellow-400 fill-current"
-                        : "text-gray-300"
-                    }`}
-                  />
-                ))}
-                <span className="ml-2 text-sm text-gray-600">
-                  {booking.review.rating}/5
-                </span>
+      {booking.reviews &&
+        booking.reviews.length > 0 &&
+        viewType === "guest" && (
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-blue-600 mb-1">Your Review</div>
+                <div className="flex items-center">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-4 w-4 ${
+                        i < (booking.reviews?.[0]?.rating || 0)
+                          ? "text-yellow-400 fill-current"
+                          : "text-gray-300"
+                      }`}
+                    />
+                  ))}
+                  <span className="ml-2 text-sm text-gray-600">
+                    {booking.reviews?.[0]?.rating || 0}/5
+                  </span>
+                </div>
               </div>
             </div>
+            {booking.reviews?.[0]?.comment && (
+              <div className="text-sm text-gray-700 mt-2">
+                &ldquo;{booking.reviews[0].comment}&rdquo;
+              </div>
+            )}
           </div>
-          {booking.review.comment && (
-            <div className="text-sm text-gray-700 mt-2">
-              &ldquo;{booking.review.comment}&rdquo;
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
       {/* Actions */}
       <div className="flex items-center justify-between pt-4 border-t">
@@ -248,8 +253,8 @@ export const BookingCard: React.FC<BookingCardProps> = ({
               onClick={() =>
                 onContactUser(
                   viewType === "guest"
-                    ? booking.property.host.id
-                    : booking.guest.id
+                    ? booking.property?.realtorId || ""
+                    : booking.guest?.id || ""
                 )
               }
               className="flex items-center"

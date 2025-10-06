@@ -88,7 +88,7 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
           href: "/dashboard/revenue",
         },
       ],
-      HOST: [
+      REALTOR: [
         {
           id: "properties",
           label: "My Properties",

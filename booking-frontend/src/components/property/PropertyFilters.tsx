@@ -2,7 +2,11 @@
 
 import React, { useState } from "react";
 import { Button, Input, Card } from "../ui";
-import { PropertyFilters as PropertyFiltersType, Property } from "../../types";
+import {
+  PropertyFilters as PropertyFiltersType,
+  Property,
+  PropertyAmenity,
+} from "../../types";
 
 const propertyTypes: Array<{ value: Property["type"]; label: string }> = [
   { value: "APARTMENT", label: "Apartment" },
@@ -15,23 +19,57 @@ const propertyTypes: Array<{ value: Property["type"]; label: string }> = [
   { value: "OTHER", label: "Other" },
 ];
 
-const amenitiesList = [
-  "WiFi",
-  "Kitchen",
-  "Parking",
-  "Pool",
-  "Gym",
-  "Air Conditioning",
-  "Heating",
-  "Balcony",
-  "Garden",
-  "Pet Friendly",
-  "Washing Machine",
+const amenitiesList: PropertyAmenity[] = [
+  "WIFI",
+  "KITCHEN",
+  "PARKING",
+  "POOL",
+  "GYM",
+  "AC",
+  "HEATING",
+  "BALCONY",
+  "GARDEN",
+  "PET_FRIENDLY",
+  "WASHING_MACHINE",
   "TV",
-  "Hot Tub",
-  "BBQ Grill",
-  "Beach Access",
+  "HOT_TUB",
+  "BBQ",
 ];
+
+const getAmenityDisplayName = (amenity: PropertyAmenity): string => {
+  const displayNames: Record<PropertyAmenity, string> = {
+    WIFI: "WiFi",
+    KITCHEN: "Kitchen",
+    PARKING: "Parking",
+    POOL: "Pool",
+    GYM: "Gym",
+    AC: "Air Conditioning",
+    HEATING: "Heating",
+    BALCONY: "Balcony",
+    GARDEN: "Garden",
+    PET_FRIENDLY: "Pet Friendly",
+    WASHING_MACHINE: "Washing Machine",
+    TV: "TV",
+    HOT_TUB: "Hot Tub",
+    BBQ: "BBQ Grill",
+    FIREPLACE: "Fireplace",
+    WHEELCHAIR_ACCESSIBLE: "Wheelchair Accessible",
+    SECURITY: "Security",
+    CONCIERGE: "Concierge",
+    ELEVATOR: "Elevator",
+    SMOKING_ALLOWED: "Smoking Allowed",
+    DISHWASHER: "Dishwasher",
+    MICROWAVE: "Microwave",
+    COFFEE_MAKER: "Coffee Maker",
+    IRON: "Iron",
+    HAIR_DRYER: "Hair Dryer",
+    TOWELS: "Towels",
+    LINENS: "Linens",
+    SHAMPOO: "Shampoo",
+    SOAP: "Soap",
+  };
+  return displayNames[amenity] || amenity;
+};
 
 interface PropertyFiltersProps {
   filters: PropertyFiltersType;
@@ -62,7 +100,7 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({
     });
   };
 
-  const handleAmenityToggle = (amenity: string) => {
+  const handleAmenityToggle = (amenity: PropertyAmenity) => {
     const currentAmenities = filters.amenities || [];
     const updatedAmenities = currentAmenities.includes(amenity)
       ? currentAmenities.filter((a) => a !== amenity)
@@ -304,7 +342,9 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({
                     disabled={isLoading}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <span className="text-sm text-gray-700">{amenity}</span>
+                  <span className="text-sm text-gray-700">
+                    {getAmenityDisplayName(amenity)}
+                  </span>
                 </label>
               ))}
             </div>
