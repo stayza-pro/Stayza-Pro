@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -26,7 +26,7 @@ const mapPaymentStatus = (status?: Payment["status"]) => {
   }
 };
 
-const PaymentSuccessPage = () => {
+const PaymentSuccessContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference") || searchParams.get("trxref");
@@ -201,6 +201,24 @@ const PaymentSuccessPage = () => {
       </main>
       <Footer />
     </div>
+  );
+};
+
+const PaymentSuccessPage = () => {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex flex-col bg-gray-50">
+          <Header />
+          <main className="flex-1 flex items-center justify-center">
+            <Loading size="lg" />
+          </main>
+          <Footer />
+        </div>
+      }
+    >
+      <PaymentSuccessContent />
+    </Suspense>
   );
 };
 

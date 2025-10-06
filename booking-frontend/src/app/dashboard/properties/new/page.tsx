@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "react-query";
+
+export const dynamic = "force-dynamic";
 import { toast } from "react-hot-toast";
 import { ArrowLeft } from "lucide-react";
 
@@ -22,6 +24,11 @@ interface PropertyImage {
 }
 
 const NewProperty: React.FC = () => {
+  // Don't render on server-side
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   const { user } = useAuthStore();
   const router = useRouter();
   const [images, setImages] = useState<PropertyImage[]>([]);

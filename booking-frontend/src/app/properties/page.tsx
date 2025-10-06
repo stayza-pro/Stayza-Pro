@@ -1,6 +1,8 @@
 "use client";
 
 import { useProperties } from "../../hooks/useProperties";
+
+export const dynamic = "force-dynamic";
 import { Header } from "../../components/layout/Header";
 import { Footer } from "../../components/layout/Footer";
 import { PropertyGrid } from "../../components/property/PropertyGrid";
@@ -21,6 +23,11 @@ interface FiltersState {
 }
 
 export default function PropertiesPage() {
+  // Don't render on server-side
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   const [filters, setFilters] = useState<PropertyFilters>({});
 
   const { data: propertiesResponse, isLoading } = useProperties(filters, {

@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "react-query";
+
+export const dynamic = "force-dynamic";
 import { toast } from "react-hot-toast";
 import {
   Search,
@@ -36,6 +38,11 @@ import { propertyService } from "@/services";
 import { Property, PropertyStatus } from "@/types";
 
 const PropertyManagement: React.FC = () => {
+  // Don't render on server-side
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   const { user } = useAuthStore();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -52,7 +59,7 @@ const PropertyManagement: React.FC = () => {
     isLoading,
     error,
   } = useQuery("host-properties", () => propertyService.getHostProperties(), {
-    enabled: !!user,
+    enabled: !!user && typeof window !== "undefined",
   });
 
   const properties = propertiesResponse?.data || [];

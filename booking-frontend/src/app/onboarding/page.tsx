@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 import { useAuthStore } from "@/store/authStore";
 import { OnboardingProgress } from "@/components/onboarding/OnboardingProgress";
 import { BusinessInfoStep } from "@/components/onboarding/BusinessInfoStep";
@@ -60,8 +62,13 @@ export default function OnboardingPage() {
   const router = useRouter();
 
   // Redirect if user is not authenticated or not a realtor
-  if (!user || user.role !== "REALTOR") {
+  if (typeof window !== "undefined" && (!user || user.role !== "REALTOR")) {
     router.push("/dashboard");
+    return null;
+  }
+
+  // Don't render during SSR if conditions aren't met
+  if (!user || user.role !== "REALTOR") {
     return null;
   }
 

@@ -42,6 +42,7 @@ export const useProperties = (
     {
       staleTime: 2 * 60 * 1000, // 2 minutes
       keepPreviousData: true,
+      enabled: typeof window !== "undefined",
     }
   );
 };
