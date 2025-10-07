@@ -303,4 +303,116 @@ export const reviewService = {
     });
     return response.data.photos;
   },
+
+  // Realtor Moderation Functions
+
+  // Get reviews for realtor moderation (realtor only)
+  getRealtorReviewsForModeration: async (params?: {
+    page?: number;
+    limit?: number;
+    visible?: boolean;
+    rating?: number;
+  }): Promise<PaginatedResponse<Review>> => {
+    const queryParams = new URLSearchParams();
+
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.visible !== undefined)
+      queryParams.append("visible", params.visible.toString());
+    if (params?.rating) queryParams.append("rating", params.rating.toString());
+
+    const url = queryParams.toString()
+      ? `/reviews/realtor/reviews?${queryParams}`
+      : "/reviews/realtor/reviews";
+
+    const response = await apiClient.get<Review[]>(url);
+    return response as PaginatedResponse<Review>;
+  },
+
+  // Toggle review visibility (realtor only)
+  toggleReviewVisibility: async (
+    reviewId: string,
+    visible: boolean
+  ): Promise<Review> => {
+    const response = await apiClient.patch<Review>(
+      `/reviews/${reviewId}/visibility`,
+      { visible }
+    );
+    return response.data;
+  },
+
+  // Helper functions for realtor moderation
+  canModerateReview: (review: Review, realtorId: string): boolean => {
+    return review.property?.realtorId === realtorId;
+  },
+
+  getReviewModerationStats: (
+    reviews: Review[]
+  ): {
+    total: number;
+    visible: number;
+    hidden: number;
+    byRating: Record<number, number>;
+  } => {
+    const stats = {
+      total: reviews.length,
+      visible: reviews.filter((r) => r.isVisible !== false).length,
+      hidden: reviews.filter((r) => r.isVisible === false).length,
+      byRating: {} as Record<number, number>,
+    };
+
+    // Count by rating
+    reviews.forEach((review) => {
+      stats.byRating[review.rating] = (stats.byRating[review.rating] || 0) + 1;
+    });
+
+    return stats;
+  },
+
+  shouldFlagReview: (review: Review): boolean => {
+    // Flag reviews that might need attention
+    const lowRating = review.rating <= 2;
+    const hasNegativeKeywords = !!(
+      review.comment &&
+      /\b(terrible|awful|worst|horrible|scam|fraud)\b/i.test(review.comment)
+    );
+    const hasResponse = !!(review.hostResponse && review.hostResponse.comment.length > 0);
+
+    return lowRating && !hasResponse && hasNegativeKeywords;
+  },
+
+  getRecommendedAction: (review: Review): "respond" | "hide" | "none" => {
+    if (reviewService.shouldFlagReview(review)) {
+      return review.rating <= 1 ? "hide" : "respond";
+    }
+
+    if (
+      review.rating <= 2 &&
+      (!review.hostResponse || review.hostResponse.comment.length === 0)
+    ) {
+      return "respond";
+    }
+
+    return "none";
+  },
+
+  // Additional missing methods for moderation dashboard
+  flagReviewForAdmin: async (reviewId: string, reason: string): Promise<void> => {
+    await apiClient.post(`/reviews/${reviewId}/flag`, { reason });
+  },
+
+  extractErrorMessage: (error: any): string => {
+    if (typeof error === 'string') return error;
+    if (error?.response?.data?.message) return error.response.data.message;
+    if (error?.message) return error.message;
+    return 'An unexpected error occurred';
+  },
+
+  hasPhotos: (review: Review): boolean => {
+    return !!(review.photos && review.photos.length > 0);
+  },
+
+  getPhotoUrls: (review: Review): string[] => {
+    return review.photos?.map(photo => photo.url) || [];
+  },
 };

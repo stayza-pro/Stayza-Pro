@@ -69,7 +69,7 @@ export default function GetStartedPage() {
         "Mobile-responsive booking page",
       ],
       cta: "Start Free",
-      href: "/register/realtor?plan=starter",
+      href: "/realtor/register?plan=starter",
       popular: false,
     },
     {
@@ -88,7 +88,7 @@ export default function GetStartedPage() {
         "Priority support",
       ],
       cta: "Start Trial",
-      href: "/register/realtor?plan=professional",
+      href: "/realtor/register?plan=professional",
       popular: true,
     },
     {

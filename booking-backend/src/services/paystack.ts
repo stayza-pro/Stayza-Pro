@@ -29,7 +29,7 @@ export const createSubAccount = async (realtor: {
       business_name: realtor.businessName,
       settlement_bank: realtor.bankCode,
       account_number: realtor.accountNumber,
-      percentage_charge: realtor.percentageCharge || 90, // Realtor gets 90%
+      percentage_charge: realtor.percentageCharge || 93, // Realtor gets 93% (100% - 7% platform commission)
       description: `Subaccount for ${realtor.businessName}`,
       primary_contact_email: realtor.businessEmail,
       metadata: {
@@ -254,10 +254,75 @@ export const verifyWebhookSignature = (
   return hash === signature;
 };
 
+/**
+ * Initialize a simple Paystack transaction (without splits)
+ */
+export const initializePaystackTransaction = async (data: {
+  email: string;
+  amount: number;
+  reference: string;
+  callback_url?: string;
+  metadata?: any;
+  subaccount?: string | null;
+  transaction_charge?: number;
+}) => {
+  try {
+    const payload: any = {
+      email: data.email,
+      amount: data.amount,
+      reference: data.reference,
+      callback_url: data.callback_url,
+      metadata: data.metadata,
+    };
+
+    // Add subaccount if provided
+    if (data.subaccount) {
+      payload.subaccount = data.subaccount;
+      payload.transaction_charge = data.transaction_charge || 0;
+    }
+
+    const response = await paystackClient.post(
+      "/transaction/initialize",
+      payload
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Paystack initialization error:",
+      error.response?.data || error
+    );
+    throw new Error(
+      error.response?.data?.message || "Payment initialization failed"
+    );
+  }
+};
+
+/**
+ * Verify Paystack transaction
+ */
+export const verifyPaystackTransaction = async (reference: string) => {
+  try {
+    const response = await paystackClient.get(
+      `/transaction/verify/${reference}`
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Paystack verification error:",
+      error.response?.data || error
+    );
+    throw new Error(
+      error.response?.data?.message || "Payment verification failed"
+    );
+  }
+};
+
 export const paystackService = {
   createSubAccount,
   initializeSplitPayment,
+  initializePaystackTransaction,
   verifyTransaction,
+  verifyPaystackTransaction,
   processRefund,
   listBanks,
   resolveAccount,

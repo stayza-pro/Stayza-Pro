@@ -41,7 +41,7 @@ export async function completePastBookings(now: Date = new Date()) {
       });
       processedIds.push(b.id);
       auditLogger
-        .log("BOOKING_STATUS_UPDATE", "Booking", {
+        .log("BOOKING_STATUS_UPDATE", "BOOKING", {
           entityId: b.id,
           userId: b.guestId,
           details: { auto: true, newStatus: "COMPLETED" },
@@ -110,7 +110,7 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
 
       cancelledIds.push(booking.id);
       auditLogger
-        .log("BOOKING_STATUS_UPDATE", "Booking", {
+        .log("BOOKING_STATUS_UPDATE", "BOOKING", {
           entityId: booking.id,
           userId: booking.guestId,
           details: {

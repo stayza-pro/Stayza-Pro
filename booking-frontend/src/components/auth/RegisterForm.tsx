@@ -424,7 +424,7 @@ export const RegisterForm: React.FC = () => {
           <p className="text-gray-600">
             Already have an account?{" "}
             <Link
-              href="/auth/login"
+              href="/guest/login"
               className="text-blue-600 hover:text-blue-800 font-medium"
             >
               Sign in here

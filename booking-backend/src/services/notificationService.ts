@@ -566,6 +566,87 @@ export const notificationHelpers = {
     priority: "normal",
   }),
 
+  createReviewModerationNotification: (
+    propertyTitle: string,
+    action: string,
+    businessName?: string
+  ) => ({
+    type: "REVIEW_MODERATION",
+    title: "Review Status Updated",
+    message: `Your review for "${propertyTitle}" has been ${action}${
+      businessName ? ` by ${businessName}` : ""
+    }.`,
+    priority: "normal" as const,
+  }),
+
+  // Refund notifications
+  refundRequested: (
+    userId: string,
+    amount: number,
+    currency: string,
+    propertyTitle: string,
+    guestName: string
+  ) => ({
+    userId,
+    type: "REFUND_REQUEST",
+    title: "New Refund Request",
+    message: `${guestName} requested a refund of ${currency} ${amount} for "${propertyTitle}".`,
+    priority: "high",
+  }),
+
+  refundApprovedByRealtor: (
+    userId: string,
+    amount: number,
+    currency: string,
+    propertyTitle: string
+  ) => ({
+    userId,
+    type: "REFUND_APPROVED_BY_REALTOR",
+    title: "Refund Request Approved",
+    message: `Your refund request of ${currency} ${amount} for "${propertyTitle}" has been approved by the realtor and is now pending admin processing.`,
+    priority: "high",
+  }),
+
+  refundRejectedByRealtor: (
+    userId: string,
+    amount: number,
+    currency: string,
+    propertyTitle: string,
+    reason: string
+  ) => ({
+    userId,
+    type: "REFUND_REJECTED_BY_REALTOR",
+    title: "Refund Request Rejected",
+    message: `Your refund request of ${currency} ${amount} for "${propertyTitle}" has been rejected by the realtor. Reason: ${reason}`,
+    priority: "high",
+  }),
+
+  refundPendingAdminApproval: (
+    userId: string,
+    amount: number,
+    currency: string,
+    propertyTitle: string
+  ) => ({
+    userId,
+    type: "REFUND_PENDING_ADMIN_APPROVAL",
+    title: "Refund Request Pending Admin Processing",
+    message: `A refund request of ${currency} ${amount} for "${propertyTitle}" has been approved by the realtor and is pending your processing.`,
+    priority: "normal",
+  }),
+
+  refundProcessed: (
+    userId: string,
+    amount: number,
+    currency: string,
+    propertyTitle: string
+  ) => ({
+    userId,
+    type: "REFUND_PROCESSED",
+    title: "Refund Processed",
+    message: `Your refund of ${currency} ${amount} for "${propertyTitle}" has been processed successfully. The funds should appear in your account within 3-7 business days.`,
+    priority: "high",
+  }),
+
   // System notifications
   systemAlert: (userId: string, title: string, message: string) => ({
     userId,

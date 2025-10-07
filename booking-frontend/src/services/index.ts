@@ -5,6 +5,9 @@ export { bookingService } from "./bookings";
 export { paymentService } from "./payments";
 export { reviewService } from "./reviews";
 export { realtorService } from "./realtors";
+export { refundService } from "./refunds";
+export { adminService } from "./admin";
+export { analyticsService } from "./analytics";
 
 // Export API client and types
 export { apiClient, type ApiResponse, type PaginatedResponse } from "./api";
@@ -14,6 +17,35 @@ export type {
   PaystackVerificationRequest,
   PaystackVerificationResponse,
 } from "./payments";
+
+// Export refund types
+export type {
+  RefundRequest,
+  RefundReason,
+  RefundStatus,
+  RefundRequestInput,
+  RealtorDecisionInput,
+  AdminProcessInput,
+} from "./refunds";
+
+// Export admin types
+export type {
+  AdminRealtorResponse,
+  PlatformAnalytics,
+  CommissionReport,
+  PendingPayout,
+  AuditLog,
+  RealtorSuspensionData,
+  RealtorApprovalData,
+} from "./admin";
+
+// Export common types
+export type {
+  Review,
+  ReviewModerationResult,
+  ReviewModerationFilters,
+  ReviewResponse,
+} from "./types";
 
 // Export utilities
 export { serviceUtils } from "./utils";

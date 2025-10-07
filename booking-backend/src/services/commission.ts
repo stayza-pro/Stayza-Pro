@@ -3,8 +3,9 @@ import { prisma } from "@/config/database";
 import { AppError } from "@/middleware/errorHandler";
 
 // Platform commission rates (can be configurable per realtor in the future)
-export const PLATFORM_COMMISSION_RATE = 0.05; // 5%
-export const PAYMENT_PROCESSING_FEE_RATE = 0.015; // 1.5%
+export const PLATFORM_COMMISSION_RATE = 0.07; // 7%
+// Payment gateway fees (Paystack/Flutterwave) are charged directly to guest
+// and automatically deducted by the payment provider
 
 /**
  * Calculate commission breakdown for a payment
@@ -24,13 +25,11 @@ export const calculateCommission = (
   const commissionRate = new Decimal(
     customCommissionRate || PLATFORM_COMMISSION_RATE
   );
-  const processingFeeRate = new Decimal(PAYMENT_PROCESSING_FEE_RATE);
 
   const platformCommission = totalAmount.mul(commissionRate);
-  const paymentProcessingFee = totalAmount.mul(processingFeeRate);
-  const realtorEarnings = totalAmount
-    .sub(platformCommission)
-    .sub(paymentProcessingFee);
+  // Payment gateway fees are handled by provider (Paystack/Flutterwave)
+  const paymentProcessingFee = new Decimal(0); // No longer deducted from booking amount
+  const realtorEarnings = totalAmount.sub(platformCommission);
 
   return {
     totalAmount,

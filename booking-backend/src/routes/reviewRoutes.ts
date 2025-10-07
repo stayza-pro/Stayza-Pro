@@ -11,6 +11,7 @@ import {
   deleteReview,
   respondToReview,
   getReviewAnalytics,
+  getRealtorReviewsForModeration,
 } from "@/controllers/reviewController";
 import {
   uploadReviewPhotos,
@@ -21,9 +22,8 @@ const getReview = (req: Request, res: Response) => {
   throw new AppError("Individual review retrieval coming soon", 501);
 };
 
-const toggleReviewVisibility = (req: Request, res: Response) => {
-  throw new AppError("Review moderation coming soon", 501);
-};
+// Import the actual controller function
+import { toggleReviewVisibility } from "@/controllers/reviewController";
 
 const router = express.Router();
 
@@ -569,7 +569,7 @@ router.delete("/:id", authenticate, deleteReview);
  * @swagger
  * /api/reviews/{id}/visibility:
  *   patch:
- *     summary: Toggle review visibility (ADMIN only)
+ *     summary: Toggle review visibility (REALTOR only)
  *     tags: [Reviews]
  *     security:
  *       - BearerAuth: []
@@ -615,7 +615,7 @@ router.delete("/:id", authenticate, deleteReview);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  *       403:
- *         description: Forbidden - Admin access required
+ *         description: Forbidden - Realtor access required (can only moderate reviews for own properties)
  *         content:
  *           application/json:
  *             schema:
@@ -630,8 +630,80 @@ router.delete("/:id", authenticate, deleteReview);
 router.patch(
   "/:id/visibility",
   authenticate,
-  authorize("ADMIN"),
+  authorize("REALTOR"),
   toggleReviewVisibility
+);
+
+/**
+ * @swagger
+ * /api/reviews/realtor/manage:
+ *   get:
+ *     summary: Get all reviews for realtor's properties with moderation options (REALTOR only)
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of items per page
+ *       - in: query
+ *         name: isVisible
+ *         schema:
+ *           type: boolean
+ *         description: Filter by visibility status
+ *       - in: query
+ *         name: propertyId
+ *         schema:
+ *           type: string
+ *         description: Filter by specific property
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, rating]
+ *           default: createdAt
+ *         description: Sort by field
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *     responses:
+ *       200:
+ *         description: Reviews retrieved for moderation successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedReviews'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       403:
+ *         description: Forbidden - Realtor access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+router.get(
+  "/realtor/manage",
+  authenticate,
+  authorize("REALTOR"),
+  getRealtorReviewsForModeration
 );
 
 /**

@@ -15,7 +15,7 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredRole,
-  redirectTo = "/auth/login",
+  redirectTo = "/guest/login",
 }) => {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, checkAuth } = useAuthStore();
@@ -60,7 +60,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           router.push("/dashboard");
           break;
         default:
-          router.push("/auth/login");
+          router.push("/guest/login");
       }
     }
   }, [

@@ -5,6 +5,8 @@ import {
   getUserPayments,
   initializeFlutterwavePayment,
   verifyFlutterwavePayment,
+  initializePaystackPayment,
+  verifyPaystackPayment,
   processRefund,
 } from "@/controllers/paymentController";
 // MVP: Webhooks handled in separate routes
@@ -214,6 +216,10 @@ router.post(
 );
 router.post("/verify-flutterwave", authenticate, verifyFlutterwavePayment);
 
+// Paystack payment endpoints
+router.post("/initialize-paystack", authenticate, initializePaystackPayment);
+router.post("/verify-paystack", authenticate, verifyPaystackPayment);
+
 /**
  * @swagger
  * /api/payments/verify-paystack:
@@ -378,8 +384,51 @@ router.get("/:id", authenticate, getUserPayments);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-// MVP: Refund functionality coming soon
-// router.post("/:id/refund", authenticate, processRefund);
+/**
+ * @swagger
+ * /api/payments/{id}/refund:
+ *   post:
+ *     deprecated: true
+ *     summary: "[DEPRECATED] Direct refund - Use new two-stage refund system"
+ *     description: "This endpoint is deprecated. Use the new two-stage refund system: POST /api/refunds/request (Guest) → PATCH /api/refunds/{id}/realtor-decision (Realtor) → POST /api/refunds/{id}/process (Admin)"
+ *     tags: [Payments]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Payment ID
+ *     responses:
+ *       410:
+ *         description: Endpoint deprecated - Use new two-stage refund system
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "This refund endpoint is deprecated. Please use the new two-stage refund system starting with POST /api/refunds/request"
+ */
+router.post("/:id/refund", authenticate, (req, res) => {
+  res.status(410).json({
+    success: false,
+    message:
+      "This refund endpoint is deprecated. Please use the new two-stage refund system starting with POST /api/refunds/request",
+    newEndpoints: {
+      requestRefund: "POST /api/refunds/request",
+      realtorDecision: "PATCH /api/refunds/{id}/realtor-decision",
+      adminProcess: "POST /api/refunds/{id}/process",
+      viewDetails: "GET /api/refunds/{id}",
+    },
+  });
+});
 
 // Additional payment endpoints
 /**

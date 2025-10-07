@@ -31,7 +31,17 @@ import {
   Globe,
   CreditCard,
 } from "lucide-react";
-import { RealtorRegistrationFormData } from "@/app/register/realtor/schema";
+// Define a simple interface for the preview data
+interface RealtorRegistrationFormData {
+  fullName?: string;
+  businessEmail?: string;
+  agencyName?: string;
+  customSubdomain?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  [key: string]: any;
+}
 
 interface ModernPreviewWebsiteProps {
   data: Partial<RealtorRegistrationFormData>;

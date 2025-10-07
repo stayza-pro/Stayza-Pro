@@ -70,6 +70,18 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
           href: "/dashboard/bookings",
         },
         {
+          id: "realtor-management",
+          label: "Realtor Management",
+          icon: Users,
+          href: "/dashboard/admin/realtor-management",
+        },
+        {
+          id: "refunds-admin",
+          label: "Refund Management",
+          icon: DollarSign,
+          href: "/dashboard/admin/refunds",
+        },
+        {
           id: "cac-verification",
           label: "CAC Verification",
           icon: Building2,
@@ -102,6 +114,18 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
           href: "/dashboard/bookings",
         },
         {
+          id: "review-moderation",
+          label: "Review Moderation",
+          icon: Shield,
+          href: "/dashboard/realtor/reviews",
+        },
+        {
+          id: "refunds-realtor",
+          label: "Refund Requests",
+          icon: DollarSign,
+          href: "/dashboard/realtor/refunds",
+        },
+        {
           id: "revenue",
           label: "Revenue",
           icon: DollarSign,
@@ -120,6 +144,12 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
           label: "My Bookings",
           icon: Calendar,
           href: "/dashboard/bookings",
+        },
+        {
+          id: "refunds-guest",
+          label: "My Refunds",
+          icon: DollarSign,
+          href: "/dashboard/guest/refunds",
         },
         {
           id: "favorites",

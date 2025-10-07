@@ -258,7 +258,7 @@ Stayza/
 
 #### **Guest Registration Flow**
 ```
-1. User visits registration page (/register/guest)
+1. User visits registration page (/guest/register)
 2. Fills basic information (email, password, name)
 3. System sends email verification
 4. User clicks verification link
@@ -268,7 +268,7 @@ Stayza/
 
 #### **Realtor Registration Flow**
 ```
-1. User visits realtor registration (/register/realtor)
+1. User visits realtor registration (/realtor/register)
 2. Fills comprehensive business information
 3. Uploads CAC documents (Corporate Affairs Commission)
 4. System creates pending realtor account

@@ -512,6 +512,21 @@ export const emailTemplates = {
     `,
   }),
 
+  realtorSuspended: (businessName: string, reason: string) => ({
+    subject: "Account Suspension Notice",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #ef4444;">Account Suspension Notice</h2>
+        <p>Hello ${businessName},</p>
+        <p>Your realtor account has been suspended due to policy violations.</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p>All active bookings under your account have been cancelled and customers have been notified.</p>
+        <p>If you believe this suspension is in error, please contact our support team immediately.</p>
+        <p>Best regards,<br>The Property Booking Team</p>
+      </div>
+    `,
+  }),
+
   bookingConfirmation: (booking: any, property: any, realtor: any) => ({
     subject: `Booking Confirmed - ${property.title}`,
     html: `
@@ -831,6 +846,16 @@ export const sendRealtorRejection = async (
   return sendEmail(to, template);
 };
 
+// Send realtor suspension notification
+export const sendRealtorSuspension = async (
+  to: string,
+  businessName: string,
+  reason: string
+) => {
+  const template = emailTemplates.realtorSuspended(businessName, reason);
+  return sendEmail(to, template);
+};
+
 // Send booking confirmation
 export const sendBookingConfirmation = async (
   to: string,
@@ -926,5 +951,174 @@ export const sendCacRejection = async (
   reason: string
 ) => {
   const template = emailTemplates.cacRejected(businessName, reason);
+  return sendEmail(to, template);
+};
+
+// Send booking suspension notification
+export const sendBookingSuspensionNotification = async (
+  to: string,
+  guest: { firstName: string; lastName: string },
+  bookingDetails: {
+    bookingId: string;
+    propertyTitle: string;
+    realtorBusinessName: string;
+    reason: string;
+  }
+) => {
+  const guestName = `${guest.firstName} ${guest.lastName}`.trim();
+  const template = {
+    subject: "🚨 Important: Your Booking Has Been Suspended",
+    html: `
+      <h2>Booking Suspension Notice</h2>
+      <p>Dear ${guestName},</p>
+      <p>We regret to inform you that your booking has been suspended due to ${bookingDetails.reason}.</p>
+      <h3>Booking Details:</h3>
+      <ul>
+        <li><strong>Booking ID:</strong> ${bookingDetails.bookingId}</li>
+        <li><strong>Property:</strong> ${bookingDetails.propertyTitle}</li>
+        <li><strong>Property Host:</strong> ${bookingDetails.realtorBusinessName}</li>
+        <li><strong>Status:</strong> Suspended</li>
+      </ul>
+      <p>We understand this is inconvenient and we're processing your full refund. The funds should appear in your account within 3-7 business days.</p>
+      <p>If you have any questions, please contact our support team.</p>
+    `,
+  };
+  return sendEmail(to, template);
+};
+
+// Send refund request notification to realtor
+export const sendRefundRequestToRealtor = async (
+  to: string,
+  realtorName: string,
+  guestDetails: { firstName: string; lastName: string; email: string },
+  refundDetails: {
+    amount: number;
+    currency: string;
+    propertyTitle: string;
+    reason: string;
+    customerNotes?: string;
+  },
+  dashboardUrl: string
+) => {
+  // Create a simple template since we're not adding to the main templates object
+  const template = {
+    subject: `💰 New Refund Request - ${refundDetails.propertyTitle}`,
+    html: `
+      <h2>New Refund Request</h2>
+      <p>Hello ${realtorName},</p>
+      <p>You have received a new refund request that requires your review and decision.</p>
+      <h3>Refund Details:</h3>
+      <ul>
+        <li><strong>Guest:</strong> ${guestDetails.firstName} ${
+      guestDetails.lastName
+    } (${guestDetails.email})</li>
+        <li><strong>Property:</strong> ${refundDetails.propertyTitle}</li>
+        <li><strong>Refund Amount:</strong> ${refundDetails.currency} ${
+      refundDetails.amount
+    }</li>
+        <li><strong>Reason:</strong> ${refundDetails.reason}</li>
+        ${
+          refundDetails.customerNotes
+            ? `<li><strong>Customer Notes:</strong> ${refundDetails.customerNotes}</li>`
+            : ""
+        }
+      </ul>
+      <p>Please review this request and make your decision by logging into your dashboard.</p>
+      <a href="${dashboardUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Review Refund Request</a>
+    `,
+  };
+  return sendEmail(to, template);
+};
+
+// Send refund decision notification to guest
+export const sendRefundDecisionToGuest = async (
+  to: string,
+  guestName: string,
+  refundDetails: {
+    amount: number;
+    currency: string;
+    propertyTitle: string;
+    approved: boolean;
+    realtorReason: string;
+    realtorNotes?: string;
+  }
+) => {
+  const template = {
+    subject: `${refundDetails.approved ? "✅" : "❌"} Refund Request ${
+      refundDetails.approved ? "Approved" : "Update"
+    } - ${refundDetails.propertyTitle}`,
+    html: `
+      <h2>Refund Request ${refundDetails.approved ? "Approved" : "Update"}</h2>
+      <p>Hello ${guestName},</p>
+      <p>${
+        refundDetails.approved
+          ? "Good news! Your refund request has been approved by the property realtor and is now being processed by our admin team."
+          : "We've received a response to your refund request from the property realtor."
+      }</p>
+      <h3>Refund Details:</h3>
+      <ul>
+        <li><strong>Property:</strong> ${refundDetails.propertyTitle}</li>
+        <li><strong>Refund Amount:</strong> ${refundDetails.currency} ${
+      refundDetails.amount
+    }</li>
+        <li><strong>Decision:</strong> ${
+          refundDetails.approved ? "Approved" : "Not Approved"
+        }</li>
+        <li><strong>Reason:</strong> ${refundDetails.realtorReason}</li>
+        ${
+          refundDetails.realtorNotes
+            ? `<li><strong>Additional Notes:</strong> ${refundDetails.realtorNotes}</li>`
+            : ""
+        }
+      </ul>
+      ${
+        refundDetails.approved
+          ? "<p>Your refund is now in the final processing stage. You will receive another notification once the refund has been completed.</p>"
+          : "<p>If you believe this decision was made in error, please contact our support team.</p>"
+      }
+    `,
+  };
+  return sendEmail(to, template);
+};
+
+// Send refund processed notification to guest
+export const sendRefundProcessedToGuest = async (
+  to: string,
+  guestName: string,
+  refundDetails: {
+    amount: number;
+    currency: string;
+    propertyTitle: string;
+    processedAt: Date;
+    paymentMethod: string;
+  }
+) => {
+  const template = {
+    subject: `💸 Refund Processed Successfully - ${refundDetails.propertyTitle}`,
+    html: `
+      <h2>Refund Processed Successfully!</h2>
+      <p>Great news ${guestName}!</p>
+      <p>Your refund has been successfully processed and the funds are on their way back to you.</p>
+      <h3>Refund Summary:</h3>
+      <ul>
+        <li><strong>Property:</strong> ${refundDetails.propertyTitle}</li>
+        <li><strong>Refund Amount:</strong> ${refundDetails.currency} ${
+      refundDetails.amount
+    }</li>
+        <li><strong>Processed On:</strong> ${refundDetails.processedAt.toLocaleDateString()}</li>
+        <li><strong>Refund Method:</strong> ${
+          refundDetails.paymentMethod
+        } (Original payment method)</li>
+      </ul>
+      <h3>When Will I Receive My Refund?</h3>
+      <p>Refund processing times depend on your payment method:</p>
+      <ul>
+        <li><strong>Paystack/Flutterwave:</strong> 3-7 business days</li>
+        <li><strong>Bank transfers:</strong> 1-3 business days</li>
+        <li><strong>Cards:</strong> 5-10 business days depending on your bank</li>
+      </ul>
+      <p>If you don't see the refund in your account within the expected timeframe, please contact our support team.</p>
+    `,
+  };
   return sendEmail(to, template);
 };
