@@ -73,7 +73,7 @@ export default function ComingSoonPage({
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <Link
-              href="/auth/login"
+              href="/guest/login"
               className="flex items-center space-x-2 text-green-600 hover:text-green-800"
             >
               <span>✓</span>

@@ -174,7 +174,7 @@ export const LoginForm: React.FC = () => {
           <p className="text-gray-600">
             Don&apos;t have an account?{" "}
             <Link
-              href="/auth/register"
+              href="/guest/register"
               className="text-blue-600 hover:text-blue-800 font-medium"
             >
               Sign up here

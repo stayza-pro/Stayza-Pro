@@ -22,15 +22,30 @@ export const routing = defineRouting({
       pt: "/propriedades",
     },
     "/dashboard": "/dashboard",
-    "/auth/login": {
-      en: "/auth/login",
-      fr: "/auth/connexion",
-      pt: "/auth/login",
+    "/guest/login": {
+      en: "/guest/login",
+      fr: "/guest/connexion",
+      pt: "/guest/login",
     },
-    "/auth/register": {
-      en: "/auth/register",
-      fr: "/auth/inscription",
-      pt: "/auth/registro",
+    "/guest/register": {
+      en: "/guest/register",
+      fr: "/guest/inscription",
+      pt: "/guest/registro",
+    },
+    "/realtor/login": {
+      en: "/realtor/login",
+      fr: "/realtor/connexion",
+      pt: "/realtor/login",
+    },
+    "/realtor/register": {
+      en: "/realtor/register",
+      fr: "/realtor/inscription",
+      pt: "/realtor/registro",
+    },
+    "/admin/login": {
+      en: "/admin/login",
+      fr: "/admin/connexion",
+      pt: "/admin/login",
     },
   },
 });

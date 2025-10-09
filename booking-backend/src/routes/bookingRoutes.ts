@@ -2,7 +2,6 @@ import express from "express";
 import {
   checkAvailability,
   createBooking,
-  getAllBookings,
   getMyBookings,
   getHostBookings,
   getBooking,
@@ -314,7 +313,7 @@ router.post(
   bookingLimiter,
   createBooking
 );
-router.get("/", authenticate, authorize("ADMIN"), getAllBookings);
+// Admin booking management removed - handled by individual realtors
 
 /**
  * @swagger

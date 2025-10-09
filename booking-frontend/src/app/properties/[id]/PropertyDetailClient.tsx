@@ -404,7 +404,7 @@ const PropertyDetailClient = ({ propertyId }: PropertyDetailClientProps) => {
 
     if (!isAuthenticated) {
       toast.error("Please log in to book this property.");
-      router.push(`/auth/login?redirect=/properties/${propertyId}`);
+      router.push(`/guest/login?redirect=/properties/${propertyId}`);
       return;
     }
 

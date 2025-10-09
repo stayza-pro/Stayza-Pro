@@ -117,18 +117,16 @@ function GuestRegistrationContent() {
 
         {/* Header Section */}
         <div className="text-center mb-8">
-          <div 
+          <div
             className="mx-auto h-20 w-20 flex items-center justify-center rounded-3xl shadow-lg mb-6"
-            style={{ 
+            style={{
               backgroundColor: palette.primary,
-              background: `linear-gradient(135deg, ${palette.primary}, ${palette.secondary})`
+              background: `linear-gradient(135deg, ${palette.primary}, ${palette.secondary})`,
             }}
           >
             <User className="h-10 w-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            Join Stayza
-          </h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">Join Stayza</h1>
           <p className="text-lg text-gray-600 max-w-md mx-auto">
             {propertyId
               ? "Create your account to complete this booking securely"
@@ -141,7 +139,9 @@ function GuestRegistrationContent() {
           <div className="flex items-center p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/20">
             <Shield className="w-5 h-5 text-green-600 mr-3" />
             <div>
-              <p className="font-medium text-gray-900 text-sm">Secure Bookings</p>
+              <p className="font-medium text-gray-900 text-sm">
+                Secure Bookings
+              </p>
               <p className="text-xs text-gray-600">Protected payments & data</p>
             </div>
           </div>
@@ -149,7 +149,9 @@ function GuestRegistrationContent() {
             <CheckCircle className="w-5 h-5 text-blue-600 mr-3" />
             <div>
               <p className="font-medium text-gray-900 text-sm">Quick Access</p>
-              <p className="text-xs text-gray-600">Instant booking confirmations</p>
+              <p className="text-xs text-gray-600">
+                Instant booking confirmations
+              </p>
             </div>
           </div>
         </div>
@@ -163,13 +165,22 @@ function GuestRegistrationContent() {
                   label="Full Name"
                   type="text"
                   value={data.fullName}
-                  onChange={(e) => handleInputChange("fullName", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("fullName", e.target.value)
+                  }
                   placeholder="Enter your full name"
                   error={errors.fullName}
-                  leftIcon={<User className="w-5 h-5" style={{ color: palette.primary }} />}
+                  leftIcon={
+                    <User
+                      className="w-5 h-5"
+                      style={{ color: palette.primary }}
+                    />
+                  }
                   required
                   className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                  style={{ "--focus-ring-color": palette.primary + "20" } as any}
+                  style={
+                    { "--focus-ring-color": palette.primary + "20" } as any
+                  }
                 />
               </div>
 
@@ -181,10 +192,17 @@ function GuestRegistrationContent() {
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   placeholder="Enter your email address"
                   error={errors.email}
-                  leftIcon={<Mail className="w-5 h-5" style={{ color: palette.primary }} />}
+                  leftIcon={
+                    <Mail
+                      className="w-5 h-5"
+                      style={{ color: palette.primary }}
+                    />
+                  }
                   required
                   className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                  style={{ "--focus-ring-color": palette.primary + "20" } as any}
+                  style={
+                    { "--focus-ring-color": palette.primary + "20" } as any
+                  }
                 />
               </div>
 
@@ -193,11 +211,15 @@ function GuestRegistrationContent() {
                   label="Phone Number (Optional)"
                   type="tel"
                   value={data.phoneNumber}
-                  onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("phoneNumber", e.target.value)
+                  }
                   placeholder="+234 801 234 5678"
                   helperText="For booking updates and support"
                   className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                  style={{ "--focus-ring-color": palette.primary + "20" } as any}
+                  style={
+                    { "--focus-ring-color": palette.primary + "20" } as any
+                  }
                 />
               </div>
 
@@ -207,14 +229,23 @@ function GuestRegistrationContent() {
                     label="Password"
                     type="password"
                     value={data.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("password", e.target.value)
+                    }
                     placeholder="Create password"
                     error={errors.password}
-                    leftIcon={<Lock className="w-5 h-5" style={{ color: palette.primary }} />}
+                    leftIcon={
+                      <Lock
+                        className="w-5 h-5"
+                        style={{ color: palette.primary }}
+                      />
+                    }
                     helperText="Min. 6 characters"
                     required
                     className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                    style={{ "--focus-ring-color": palette.primary + "20" } as any}
+                    style={
+                      { "--focus-ring-color": palette.primary + "20" } as any
+                    }
                   />
                 </div>
                 <div>
@@ -227,22 +258,29 @@ function GuestRegistrationContent() {
                     }
                     placeholder="Repeat password"
                     error={errors.confirmPassword}
-                    leftIcon={<Lock className="w-5 h-5" style={{ color: palette.primary }} />}
+                    leftIcon={
+                      <Lock
+                        className="w-5 h-5"
+                        style={{ color: palette.primary }}
+                      />
+                    }
                     required
                     className="h-12 text-base transition-all duration-200 focus:ring-2 rounded-xl"
-                    style={{ "--focus-ring-color": palette.primary + "20" } as any}
+                    style={
+                      { "--focus-ring-color": palette.primary + "20" } as any
+                    }
                   />
                 </div>
               </div>
             </div>
 
             {errors.general && (
-              <div 
+              <div
                 className="p-4 rounded-xl border-l-4"
-                style={{ 
+                style={{
                   backgroundColor: "#FEF2F2",
                   borderColor: "#F87171",
-                  color: "#DC2626"
+                  color: "#DC2626",
                 }}
               >
                 <p className="text-sm font-medium">{errors.general}</p>
@@ -250,11 +288,11 @@ function GuestRegistrationContent() {
             )}
 
             <div className="space-y-4 pt-2">
-              <Button 
-                type="submit" 
-                loading={isSubmitting} 
+              <Button
+                type="submit"
+                loading={isSubmitting}
                 className="w-full h-14 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-                style={{ 
+                style={{
                   backgroundColor: palette.primary,
                   borderColor: palette.primary,
                 }}
@@ -274,7 +312,9 @@ function GuestRegistrationContent() {
                   <div className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500 font-medium">Quick Alternative</span>
+                  <span className="px-4 bg-white text-gray-500 font-medium">
+                    Quick Alternative
+                  </span>
                 </div>
               </div>
 
@@ -282,10 +322,10 @@ function GuestRegistrationContent() {
                 variant="outline"
                 onClick={handleContinueAsGuest}
                 className="w-full h-12 text-base font-semibold rounded-xl border-2 hover:shadow-md transition-all duration-200 group"
-                style={{ 
-                  borderColor: palette.secondary, 
+                style={{
+                  borderColor: palette.secondary,
                   color: palette.secondary,
-                  backgroundColor: "white"
+                  backgroundColor: "white",
                 }}
               >
                 <span className="group-hover:translate-x-0.5 transition-transform">
@@ -310,11 +350,19 @@ function GuestRegistrationContent() {
           </p>
           <p className="text-xs text-gray-500">
             By creating an account, you agree to our{" "}
-            <Link href="/legal/terms" className="hover:underline" style={{ color: palette.primary }}>
+            <Link
+              href="/legal/terms"
+              className="hover:underline"
+              style={{ color: palette.primary }}
+            >
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/legal/privacy" className="hover:underline" style={{ color: palette.primary }}>
+            <Link
+              href="/legal/privacy"
+              className="hover:underline"
+              style={{ color: palette.primary }}
+            >
               Privacy Policy
             </Link>
           </p>
@@ -326,11 +374,13 @@ function GuestRegistrationContent() {
 
 export default function GuestRegistrationPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
       <GuestRegistrationContent />
     </Suspense>
   );

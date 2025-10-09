@@ -179,13 +179,13 @@ export const Header: React.FC = () => {
             ) : (
               <div className="flex items-center space-x-3">
                 <Link
-                  href="/auth/login"
+                  href="/guest/login"
                   className="text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   Sign In
                 </Link>
                 <Button variant="primary" size="sm">
-                  <Link href="/auth/register">Sign Up</Link>
+                  <Link href="/guest/register">Sign Up</Link>
                 </Button>
               </div>
             )}
@@ -290,13 +290,13 @@ export const Header: React.FC = () => {
               ) : (
                 <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
                   <Link
-                    href="/auth/login"
+                    href="/guest/login"
                     className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
                   >
                     Sign In
                   </Link>
                   <Link
-                    href="/auth/register"
+                    href="/guest/register"
                     className="block px-4 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors font-medium"
                   >
                     Sign Up

@@ -24,7 +24,7 @@ export const authService = {
   // Login user
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>(
-      "/auth/login",
+      "/guest/login",
       credentials
     );
 

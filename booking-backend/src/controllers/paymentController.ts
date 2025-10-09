@@ -585,6 +585,235 @@ export const processRefund = asyncHandler(
   }
 );
 
+/**
+ * @desc    Initialize Paystack payment
+ * @route   POST /api/payments/initialize-paystack
+ * @access  Private
+ */
+export const initializePaystackPayment = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { bookingId } = req.body;
+    const user = req.user!;
+
+    // Get booking details
+    const booking = await prisma.booking.findFirst({
+      where: {
+        id: bookingId,
+        guestId: user.id,
+        status: "PENDING",
+      },
+      include: {
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found or not eligible for payment", 404);
+    }
+
+    // Check if payment already exists
+    const existingPayment = await prisma.payment.findUnique({
+      where: { bookingId },
+    });
+
+    if (existingPayment && existingPayment.status === "COMPLETED") {
+      throw new AppError("Payment already completed", 400);
+    }
+
+    // Create or update payment record
+    const payment = existingPayment
+      ? await prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            method: PaymentMethod.PAYSTACK,
+            status: PaymentStatus.PENDING,
+          },
+        })
+      : await prisma.payment.create({
+          data: {
+            bookingId: booking.id,
+            userId: user.id,
+            amount: booking.totalPrice,
+            currency: booking.currency,
+            method: PaymentMethod.PAYSTACK,
+            status: PaymentStatus.PENDING,
+          },
+        });
+
+    // Initialize Paystack transaction
+    const { initializePaystackTransaction } = await import(
+      "@/services/paystack"
+    );
+
+    const paystackResponse = await initializePaystackTransaction({
+      email: user.email,
+      amount: Number(booking.totalPrice) * 100, // Convert to kobo
+      reference: payment.id,
+      callback_url: `${process.env.FRONTEND_URL}/payment/verify?provider=paystack&reference=${payment.id}`,
+      metadata: {
+        bookingId: booking.id,
+        userId: user.id,
+        propertyTitle: booking.property.title,
+      },
+      subaccount: booking.property.realtor.paystackSubAccountCode,
+      transaction_charge: 0, // Platform will handle commission separately
+    });
+
+    // Update payment with reference
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        reference: paystackResponse.data.reference,
+        metadata: {
+          paystackData: paystackResponse.data,
+        } as any,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Payment initialized successfully",
+      data: {
+        paymentId: payment.id,
+        authorizationUrl: paystackResponse.data.authorization_url,
+        accessCode: paystackResponse.data.access_code,
+        reference: paystackResponse.data.reference,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Verify Paystack payment
+ * @route   POST /api/payments/verify-paystack
+ * @access  Private
+ */
+export const verifyPaystackPayment = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { reference } = req.body;
+    const user = req.user!;
+
+    if (!reference) {
+      throw new AppError("Payment reference is required", 400);
+    }
+
+    // Find payment record
+    const payment = await prisma.payment.findFirst({
+      where: {
+        OR: [
+          { reference },
+          { id: reference }, // In case frontend sends paymentId
+        ],
+        userId: user.id,
+      },
+      include: {
+        booking: {
+          include: {
+            property: {
+              include: {
+                realtor: true,
+              },
+            },
+            guest: true,
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new AppError("Payment record not found", 404);
+    }
+
+    if (payment.status === PaymentStatus.COMPLETED) {
+      res.json({
+        success: true,
+        message: "Payment already verified",
+        data: { payment, booking: payment.booking },
+      });
+      return;
+    }
+
+    // Verify with Paystack
+    const { verifyPaystackTransaction } = await import("@/services/paystack");
+
+    const verification = await verifyPaystackTransaction(
+      payment.reference || payment.id
+    );
+
+    if (!verification.status || verification.data.status !== "success") {
+      // Update payment status to failed
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          providerTransactionId: verification.data.id?.toString(),
+        },
+      });
+      throw new AppError("Payment verification failed", 400);
+    }
+
+    // Update payment status
+    const updatedPayment = await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.COMPLETED,
+        providerTransactionId: verification.data.id?.toString(),
+        paidAt: new Date(),
+        metadata: {
+          paystackVerification: verification.data,
+        } as any,
+      },
+      include: {
+        booking: {
+          include: {
+            property: true,
+            guest: true,
+          },
+        },
+      },
+    });
+
+    // Update booking status
+    await prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: { status: "CONFIRMED" },
+    });
+
+    // Calculate and update commission
+    try {
+      const { updatePaymentCommission } = await import("@/services/commission");
+      await updatePaymentCommission(updatedPayment.id);
+    } catch (commissionError) {
+      console.error("Commission update failed:", commissionError);
+    }
+
+    // Send confirmation email
+    try {
+      await sendPaymentReceipt(
+        updatedPayment.booking.guest.email,
+        updatedPayment.booking,
+        updatedPayment,
+        updatedPayment.booking.property
+      );
+    } catch (emailError) {
+      console.error("Payment receipt email failed:", emailError);
+    }
+
+    res.json({
+      success: true,
+      message: "Payment verified successfully",
+      data: {
+        payment: updatedPayment,
+        booking: updatedPayment.booking,
+      },
+    });
+  }
+);
+
 export default {
   initializeFlutterwavePayment,
   verifyFlutterwavePayment,

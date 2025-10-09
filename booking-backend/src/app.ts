@@ -23,6 +23,7 @@ import reviewRoutes from "@/routes/reviewRoutes";
 import webhookRoutes from "@/routes/webhookRoutes";
 import emailRoutes from "@/routes/emailRoutes";
 import notificationRoutes from "@/routes/notificationRoutes";
+import refundRoutes from "@/routes/refundRoutes";
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/refunds", refundRoutes);
 
 // 404 handler
 app.use(notFound);

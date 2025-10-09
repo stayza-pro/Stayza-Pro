@@ -837,6 +837,224 @@ export const getReviewAnalytics = asyncHandler(
   }
 );
 
+/**
+ * @desc    Toggle review visibility (Realtor only)
+ * @route   PATCH /api/reviews/:id/visibility
+ * @access  Private (Realtor only - for their property reviews)
+ */
+export const toggleReviewVisibility = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const { isVisible } = req.body;
+    const user = req.user!;
+
+    if (typeof isVisible !== "boolean") {
+      throw new AppError("isVisible must be a boolean value", 400);
+    }
+
+    // Find the review and check if it belongs to realtor's property
+    const review = await prisma.review.findUnique({
+      where: { id },
+      include: {
+        property: {
+          include: {
+            realtor: {
+              select: {
+                id: true,
+                userId: true,
+                businessName: true,
+              },
+            },
+          },
+        },
+        author: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!review) {
+      throw new AppError("Review not found", 404);
+    }
+
+    // Check if the user is the realtor who owns the property
+    if (review.property.realtor.userId !== user.id) {
+      throw new AppError(
+        "You can only moderate reviews for your own properties",
+        403
+      );
+    }
+
+    // Update review visibility
+    const updatedReview = await prisma.review.update({
+      where: { id },
+      data: { isVisible },
+      include: {
+        author: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        property: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    });
+
+    // Send notification to guest about visibility change
+    try {
+      const notificationService = NotificationService.getInstance();
+      const action = isVisible ? "made visible" : "hidden";
+      const notification =
+        notificationHelpers.createReviewModerationNotification(
+          updatedReview.property.title,
+          action,
+          review.property.realtor.businessName
+        );
+
+      await notificationService.createAndSendNotification({
+        userId: updatedReview.authorId,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        reviewId: updatedReview.id,
+        priority: notification.priority,
+      });
+    } catch (notificationError) {
+      console.error(
+        "Failed to send review moderation notification:",
+        notificationError
+      );
+      // Don't fail the visibility update if notification fails
+    }
+
+    res.json({
+      success: true,
+      message: `Review visibility ${
+        isVisible ? "enabled" : "disabled"
+      } successfully`,
+      data: {
+        id: updatedReview.id,
+        isVisible: updatedReview.isVisible,
+        propertyTitle: updatedReview.property.title,
+        authorName:
+          `${updatedReview.author.firstName} ${updatedReview.author.lastName}`.trim(),
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Get all reviews for realtor's properties with moderation options
+ * @route   GET /api/reviews/realtor/manage
+ * @access  Private (Realtor only)
+ */
+export const getRealtorReviewsForModeration = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user!;
+    const {
+      page = 1,
+      limit = 20,
+      isVisible,
+      propertyId,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get realtor record
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    const where: any = {
+      property: {
+        realtorId: realtor.id,
+      },
+    };
+
+    // Filter by visibility
+    if (isVisible !== undefined) {
+      where.isVisible = isVisible === "true";
+    }
+
+    // Filter by specific property
+    if (propertyId) {
+      where.propertyId = propertyId as string;
+    }
+
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where,
+        include: {
+          author: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          property: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          photos: {
+            select: {
+              url: true,
+              caption: true,
+            },
+          },
+          hostResponse: {
+            select: {
+              id: true,
+              comment: true,
+              createdAt: true,
+            },
+          },
+        },
+        orderBy: {
+          [sortBy as string]: sortOrder,
+        },
+        skip,
+        take: limitNum,
+      }),
+      prisma.review.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    res.json({
+      success: true,
+      message: "Reviews retrieved for moderation",
+      data: reviews,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalCount: total,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  }
+);
+
 export default {
   createReview,
   getPropertyReviews,
@@ -846,4 +1064,6 @@ export default {
   getHostReviews,
   respondToReview,
   getReviewAnalytics,
+  toggleReviewVisibility,
+  getRealtorReviewsForModeration,
 };

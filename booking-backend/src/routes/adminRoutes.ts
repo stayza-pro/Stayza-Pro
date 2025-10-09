@@ -4,9 +4,7 @@ import {
   approveRealtor,
   rejectRealtor,
   suspendRealtor,
-  getAllProperties,
-  approveProperty,
-  rejectProperty,
+  batchSuspendRealtorBookings,
   getPlatformAnalytics,
   getPlatformCommissionReport,
   getRealtorCommissionReport,
@@ -14,12 +12,7 @@ import {
   getPendingPayouts,
 } from "@/controllers/adminController";
 import { getAuditLogs } from "@/controllers/auditController";
-import {
-  updateBookingStatus,
-  batchUpdateBookingStatuses,
-  getBookingStatusInfo,
-  getBookingStatusStats,
-} from "@/controllers/bookingStatusController";
+import { batchUpdateBookingStatuses } from "@/controllers/bookingStatusController";
 import { authenticate, requireRole } from "@/middleware/auth";
 
 const router = express.Router();
@@ -251,118 +244,7 @@ router.post("/realtors/:id/reject", rejectRealtor);
  */
 router.post("/realtors/:id/suspend", suspendRealtor);
 
-/**
- * @swagger
- * /api/admin/properties:
- *   get:
- *     summary: Get all properties (admin)
- *     description: Get paginated list of all properties with filtering options
- *     tags: [Admin]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: query
- *         name: isApproved
- *         schema:
- *           type: boolean
- *         description: Filter by approval status
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by title, city, or realtor business name
- *       - in: query
- *         name: page
- *         schema:
- *           type: number
- *           default: 1
- *         description: Page number for pagination
- *       - in: query
- *         name: limit
- *         schema:
- *           type: number
- *           default: 20
- *         description: Number of results per page
- *     responses:
- *       200:
- *         description: Properties retrieved successfully
- *       403:
- *         description: Admin access required
- */
-router.get("/properties", getAllProperties);
-
-/**
- * @swagger
- * /api/admin/properties/{id}/approve:
- *   post:
- *     summary: Approve property
- *     description: Approve a property listing
- *     tags: [Admin]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Property ID
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               notes:
- *                 type: string
- *                 description: Optional approval notes
- *     responses:
- *       200:
- *         description: Property approved successfully
- *       400:
- *         description: Property already approved
- *       404:
- *         description: Property not found
- */
-router.post("/properties/:id/approve", approveProperty);
-
-/**
- * @swagger
- * /api/admin/properties/{id}/reject:
- *   post:
- *     summary: Reject property
- *     description: Reject a property listing with reason
- *     tags: [Admin]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Property ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - reason
- *             properties:
- *               reason:
- *                 type: string
- *                 description: Rejection reason (required)
- *     responses:
- *       200:
- *         description: Property rejected successfully
- *       400:
- *         description: Missing rejection reason
- *       404:
- *         description: Property not found
- */
-router.post("/properties/:id/reject", rejectProperty);
+// Property management removed - realtors manage their own properties
 
 /**
  * @swagger
@@ -612,59 +494,14 @@ router.post("/commission/payout/:paymentId", processRealtorPayout);
  */
 router.get("/audit-logs", getAuditLogs);
 
-// Booking status management routes
-/**
- * @swagger
- * /admin/bookings/{id}/status:
- *   put:
- *     summary: Update booking status (Admin only)
- *     tags: [Admin Booking Status]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Booking ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - status
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
- *               reason:
- *                 type: string
- *                 description: Reason for status change
- *               skipValidation:
- *                 type: boolean
- *                 default: false
- *                 description: Skip business rule validation (admin override)
- *     responses:
- *       200:
- *         description: Booking status updated successfully
- *       400:
- *         description: Invalid status or transition not allowed
- *       404:
- *         description: Booking not found
- *       403:
- *         description: Admin access required
- */
-router.put("/bookings/:id/status", updateBookingStatus);
+// Booking management - only batch operations for realtor suspension
 
 /**
  * @swagger
- * /admin/bookings/batch-status:
+ * /admin/bookings/batch-suspend:
  *   put:
- *     summary: Batch update booking statuses (Admin only)
- *     tags: [Admin Booking Status]
+ *     summary: Batch suspend bookings when realtor is suspended
+ *     tags: [Admin Realtor Management]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -674,92 +511,23 @@ router.put("/bookings/:id/status", updateBookingStatus);
  *           schema:
  *             type: object
  *             required:
- *               - bookingIds
- *               - status
+ *               - realtorId
  *               - reason
  *             properties:
- *               bookingIds:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array of booking IDs
- *               status:
+ *               realtorId:
  *                 type: string
- *                 enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
+ *                 description: Realtor ID whose bookings to suspend
  *               reason:
  *                 type: string
- *                 description: Reason for batch status change
- *               skipValidation:
- *                 type: boolean
- *                 default: false
+ *                 description: Reason for suspension (suspicious activities)
  *     responses:
  *       200:
- *         description: Batch status update completed
+ *         description: Bookings suspended and guests notified
  *       400:
  *         description: Invalid request
  *       403:
  *         description: Admin access required
  */
-router.put("/bookings/batch-status", batchUpdateBookingStatuses);
-
-/**
- * @swagger
- * /admin/bookings/{id}/status-info:
- *   get:
- *     summary: Get booking status workflow information
- *     tags: [Admin Booking Status]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Booking ID
- *     responses:
- *       200:
- *         description: Booking status information retrieved
- *       404:
- *         description: Booking not found
- *       403:
- *         description: Admin access required
- */
-router.get("/bookings/:id/status-info", getBookingStatusInfo);
-
-/**
- * @swagger
- * /admin/bookings/status-stats:
- *   get:
- *     summary: Get booking status statistics
- *     tags: [Admin Booking Status]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: realtorId
- *         schema:
- *           type: string
- *       - in: query
- *         name: propertyId
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Booking status statistics retrieved
- *       403:
- *         description: Admin access required
- */
-router.get("/bookings/status-stats", getBookingStatusStats);
+router.put("/bookings/batch-suspend", batchSuspendRealtorBookings);
 
 export default router;

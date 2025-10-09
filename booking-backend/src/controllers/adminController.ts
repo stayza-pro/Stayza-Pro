@@ -251,13 +251,18 @@ export const rejectRealtor = asyncHandler(
 );
 
 /**
- * @desc    Suspend realtor account
+ * @desc    Suspend realtor account with booking cancellation
  * @route   POST /api/admin/realtors/:id/suspend
  * @access  Private (Admin only)
  */
 export const suspendRealtor = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      throw new AppError("Suspension reason is required", 400);
+    }
 
     const realtor = await prisma.realtor.findUnique({
       where: { id },
@@ -266,6 +271,14 @@ export const suspendRealtor = asyncHandler(
           select: {
             id: true,
             email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        properties: {
+          select: {
+            id: true,
+            title: true,
           },
         },
       },
@@ -275,16 +288,52 @@ export const suspendRealtor = asyncHandler(
       throw new AppError("Realtor not found", 404);
     }
 
-    // MVP: Deactivate realtor and properties instead of suspension workflow
+    if (!realtor.isActive) {
+      throw new AppError("Realtor is already suspended", 400);
+    }
+
+    // Get all active bookings for this realtor's properties
+    const activeBookings = await prisma.booking.findMany({
+      where: {
+        property: {
+          realtorId: id,
+        },
+        status: {
+          in: ["PENDING", "CONFIRMED"],
+        },
+      },
+      include: {
+        guest: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        property: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    });
+
+    // Suspend realtor account
     const updatedRealtor = await prisma.realtor.update({
       where: { id },
       data: {
         isActive: false,
+        suspendedAt: new Date(),
+        status: "SUSPENDED",
       },
       include: {
         user: {
           select: {
             id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
@@ -296,10 +345,209 @@ export const suspendRealtor = asyncHandler(
       data: { isActive: false },
     });
 
+    // Suspend all active bookings
+    if (activeBookings.length > 0) {
+      const bookingIds = activeBookings.map((booking) => booking.id);
+
+      // Import batch booking suspension
+      const { batchUpdateBookingStatus } = await import(
+        "@/services/bookingStatus"
+      );
+
+      await batchUpdateBookingStatus(bookingIds, "CANCELLED", {
+        adminId: req.user!.id,
+        reason: `Booking suspended due to realtor account suspension: ${reason}`,
+        skipValidation: true,
+      });
+
+      // Send suspension notifications to guests
+      try {
+        const { sendBookingSuspensionNotification } = await import(
+          "@/services/email"
+        );
+
+        for (const booking of activeBookings) {
+          await sendBookingSuspensionNotification(
+            booking.guest.email,
+            {
+              firstName: booking.guest.firstName,
+              lastName: booking.guest.lastName,
+            },
+            {
+              bookingId: booking.id,
+              propertyTitle: booking.property.title,
+              realtorBusinessName: realtor.businessName,
+              reason: "suspicious activities detected",
+            }
+          );
+        }
+      } catch (emailError) {
+        console.error("Failed to send suspension notifications:", emailError);
+        // Don't fail the suspension process if notifications fail
+      }
+    }
+
+    // Send suspension email to realtor
+    try {
+      const { sendRealtorSuspension } = await import("@/services/email");
+      await sendRealtorSuspension(
+        realtor.user.email,
+        realtor.businessName,
+        reason
+      );
+    } catch (emailError) {
+      console.error("Failed to send realtor suspension email:", emailError);
+    }
+
+    // Log admin action
+    try {
+      await logRealtorSuspension(
+        req.user!.id,
+        realtor.id,
+        realtor.businessName,
+        reason,
+        req
+      );
+    } catch (auditError) {
+      console.error("Failed to log realtor suspension:", auditError);
+    }
+
     res.json({
       success: true,
-      message: "Realtor and properties deactivated successfully",
-      data: { realtor: updatedRealtor },
+      message: "Realtor suspended and bookings cancelled successfully",
+      data: {
+        realtor: updatedRealtor,
+        suspendedBookings: activeBookings.length,
+        affectedProperties: realtor.properties.length,
+        notificationsSent: activeBookings.length,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Batch suspend bookings for realtor suspension
+ * @route   PUT /api/admin/bookings/batch-suspend
+ * @access  Private (Admin only)
+ */
+export const batchSuspendRealtorBookings = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { realtorId, reason } = req.body;
+
+    if (!realtorId || !reason) {
+      throw new AppError("Realtor ID and reason are required", 400);
+    }
+
+    // Get realtor details
+    const realtor = await prisma.realtor.findUnique({
+      where: { id: realtorId },
+      select: {
+        id: true,
+        businessName: true,
+        isActive: true,
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor not found", 404);
+    }
+
+    // Get all active bookings for this realtor
+    const activeBookings = await prisma.booking.findMany({
+      where: {
+        property: {
+          realtorId,
+        },
+        status: {
+          in: ["PENDING", "CONFIRMED"],
+        },
+      },
+      include: {
+        guest: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        property: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    });
+
+    if (activeBookings.length === 0) {
+      res.json({
+        success: true,
+        message: "No active bookings found for this realtor",
+        data: {
+          suspendedBookings: 0,
+          notificationsSent: 0,
+        },
+      });
+      return;
+    }
+
+    const bookingIds = activeBookings.map((booking) => booking.id);
+
+    // Batch suspend bookings
+    const { batchUpdateBookingStatus } = await import(
+      "@/services/bookingStatus"
+    );
+
+    const result = await batchUpdateBookingStatus(bookingIds, "CANCELLED", {
+      adminId: req.user!.id,
+      reason: `Realtor suspension: ${reason}`,
+      skipValidation: true,
+    });
+
+    // Send notifications to affected guests
+    let notificationsSent = 0;
+    try {
+      const { sendBookingSuspensionNotification } = await import(
+        "@/services/email"
+      );
+
+      for (const booking of activeBookings) {
+        try {
+          await sendBookingSuspensionNotification(
+            booking.guest.email,
+            {
+              firstName: booking.guest.firstName,
+              lastName: booking.guest.lastName,
+            },
+            {
+              bookingId: booking.id,
+              propertyTitle: booking.property.title,
+              realtorBusinessName: realtor.businessName,
+              reason: "suspicious activities detected from the property host",
+            }
+          );
+          notificationsSent++;
+        } catch (emailError) {
+          console.error(
+            `Failed to notify guest ${booking.guest.email}:`,
+            emailError
+          );
+        }
+      }
+    } catch (emailError) {
+      console.error("Failed to send suspension notifications:", emailError);
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully suspended ${result.successful.length} bookings and notified ${notificationsSent} guests`,
+      data: {
+        successful: result.successful,
+        failed: result.failed,
+        suspendedBookings: result.successful.length,
+        notificationsSent,
+        realtorBusinessName: realtor.businessName,
+      },
     });
   }
 );
