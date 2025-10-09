@@ -1,131 +1,120 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast, Toaster } from "react-hot-toast";
-import { Button, Input, Card } from "@/components/ui";
-import {
-  Eye,
-  EyeOff,
-  Upload,
-  X,
-  CheckCircle,
-  Palette,
-  Globe2,
-  DollarSign,
-  User,
-  Briefcase,
-  Share2,
-  Check,
-  AlertCircle,
-  Wand2,
-  Plus,
-  Minus,
-  Loader2,
-  Phone,
-  MapPin,
-  Building2,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { palette } from "@/app/(marketing)/content";
-
-// Import new components
 import {
   realtorRegistrationSchema,
   type RealtorRegistrationFormData,
-  validatePhoneNumber,
 } from "./schema";
-import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
-import { GuidedTipsCarousel } from "./GuidedTipsCarousel";
-import PreviewComponent from "./PreviewComponent";
+import { authService, RealtorRegisterData } from "@/services/auth";
+import { useRouter } from "next/navigation";
 
-import { MobileStickyAction } from "./MobileStickyAction";
-
+// Import all sophisticated components
 import { ColorPaletteGenerator } from "./ColorPaletteGenerator";
+import { CompletionCelebration } from "./CompletionCelebration";
+import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
+import ConditionalLogic from "./ConditionalLogic";
+import { EnhancedErrorHandler } from "./EnhancedErrorHandler";
+import { GuidedTipsCarousel } from "./GuidedTipsCarousel";
+import { MobileStickyAction } from "./MobileStickyAction";
 import { PhoneNumberFormatter } from "./PhoneNumberFormatter";
+import { PreviewComponent } from "./PreviewComponent";
 import { SocialMediaValidator } from "./SocialMediaValidator";
 
-import { AccessibilityEnhancer } from "./AccessibilityEnhancer";
-import { EnhancedErrorHandler } from "./EnhancedErrorHandler";
-import ConditionalLogic from "./ConditionalLogic";
-import SmartInput from "./SmartInput";
-import CompletionCelebration from "./CompletionCelebration";
-import { RealtorRegistrationApi, handleApiError, useApiState } from "./api";
-import {
-  AnimatedButton,
-  AnimatedInput,
-  AnimatedProgress,
-  AnimatedCard,
-  SuccessAnimation,
-} from "./SimpleAnimations";
-import "./accessibility.css";
+interface Step {
+  id: number;
+  title: string;
+  description: string;
+  fields: (keyof RealtorRegistrationFormData)[];
+}
 
-const colorOptions = [
-  palette.primary, // Marketing Primary
-  palette.secondary, // Marketing Secondary
-  palette.accent, // Marketing Accent
-  "#3B82F6", // Blue
-  "#EF4444", // Red
-  "#10B981", // Green
-  "#F59E0B", // Yellow
-  "#8B5CF6", // Purple
-  "#EC4899", // Pink
-  "#06B6D4", // Cyan
-  "#84CC16", // Lime
-  "#F97316", // Orange
-  "#6366F1", // Indigo
-  "#14B8A6", // Teal
-  "#F59E0B", // Amber
+const REGISTRATION_STEPS: Step[] = [
+  {
+    id: 1,
+    title: "Personal Information",
+    description: "Let's start with your basic information",
+    fields: ["fullName", "businessEmail", "phoneNumber"],
+  },
+  {
+    id: 2,
+    title: "Security",
+    description: "Create a secure password for your account",
+    fields: ["password", "confirmPassword"],
+  },
+  {
+    id: 3,
+    title: "Business Details",
+    description: "Tell us about your real estate business",
+    fields: ["agencyName", "tagline", "customSubdomain", "businessAddress"],
+  },
+  {
+    id: 4,
+    title: "Branding",
+    description: "Customize your brand colors and style",
+    fields: ["primaryColor", "secondaryColor", "accentColor", "logo"],
+  },
+  {
+    id: 5,
+    title: "Social Media",
+    description: "Connect your social media accounts",
+    fields: ["socials"],
+  },
+  {
+    id: 6,
+    title: "Legal & Compliance",
+    description: "Review and accept our terms",
+    fields: [
+      "termsAccepted",
+      "privacyAccepted",
+      "marketingOptIn",
+      "dataProcessingConsent",
+    ],
+  },
 ];
 
-function RealtorRegistrationContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const plan = searchParams.get("plan") || "free";
-  const formRef = useRef<HTMLFormElement>(null);
+export default function RealtorRegistrationPage() {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // React Hook Form setup
+  const router = useRouter();
+
+  // Initialize form with proper validation
   const methods = useForm<RealtorRegistrationFormData>({
-    resolver: zodResolver(realtorRegistrationSchema),
+    resolver: zodResolver(realtorRegistrationSchema) as any,
     mode: "onChange",
     defaultValues: {
-      // Account Info (Step 1)
       fullName: "",
       businessEmail: "",
       phoneNumber: "",
       password: "",
       confirmPassword: "",
-
-      // Business Info (Step 2)
       agencyName: "",
       tagline: "",
       customSubdomain: "",
-      corporateRegNumber: "",
       businessAddress: "",
-
-      // Branding (Step 3)
-      primaryColor: palette.primary,
-      secondaryColor: palette.secondary,
-      accentColor: palette.accent,
-      customPrimaryColor: "",
-      customSecondaryColor: "",
-      customAccentColor: "",
-      logo: null,
-
-      // Social Media (Step 4)
+      primaryColor: "#1E3A8A",
+      secondaryColor: "#047857",
+      accentColor: "#F97316",
+      customPrimaryColor: undefined,
+      customSecondaryColor: undefined,
+      customAccentColor: undefined,
+      logo: undefined,
+      corporateRegNumber: "",
+      whatsappType: "personal" as const,
+      referralSource: "",
+      specialRequirements: "",
       socials: {
         instagram: "",
-        twitter: "",
         facebook: "",
+        twitter: "",
+        tiktok: "",
+        whatsapp: "",
+        website: "",
       },
-      whatsappType: "personal",
-
-      // Review & Compliance (Step 5)
       termsAccepted: false,
       privacyAccepted: false,
       marketingOptIn: false,
@@ -137,83 +126,603 @@ function RealtorRegistrationContent() {
     register,
     handleSubmit,
     watch,
-    formState: { errors, isSubmitting, isValid, dirtyFields },
-    setValue,
+    formState: { errors },
     trigger,
-    clearErrors,
-    getValues,
+    setValue,
   } = methods;
 
-  // Watch all form values for preview
   const watchedData = watch();
-
-  // UI State
-  const [currentStep, setCurrentStep] = useState(0);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [subdomainStatus, setSubdomainStatus] = useState<{
-    status: "idle" | "checking" | "available" | "unavailable" | "error";
-    message: string;
-    suggestions?: string[];
-  }>({ status: "idle", message: "" });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [previewMode, setPreviewMode] = useState<"guest" | "dashboard">(
-    "guest"
+  const currentStepData = REGISTRATION_STEPS.find(
+    (step) => step.id === currentStep
   );
-  const [language, setLanguage] = useState<string>("en");
-  const [currency, setCurrency] = useState<string>("USD");
-  const [showGuidedTips, setShowGuidedTips] = useState(true);
 
-  const [highlightRegion, setHighlightRegion] = useState<string | null>(null);
-  const [isFirstVisit, setIsFirstVisit] = useState(true);
-  const [showSocialFields, setShowSocialFields] = useState(false);
-  const [socialValidation, setSocialValidation] = useState<{
-    isValid: boolean;
-    errors: Record<string, string>;
-  }>({ isValid: true, errors: {} });
-  const [emailValidation, setEmailValidation] = useState<{
-    isValid: boolean;
-    type: "business" | "personal" | "temporary" | "invalid";
-    confidence: number;
-  }>({ isValid: true, type: "business", confidence: 100 });
+  // Check if current step is valid
+  const isCurrentStepValid = useCallback(async () => {
+    if (!currentStepData) return false;
 
-  // Error handling state
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [networkStatus, setNetworkStatus] = useState<
-    "online" | "offline" | "slow"
-  >("online");
+    const fieldsToValidate = currentStepData.fields;
+    const results = await Promise.all(
+      fieldsToValidate.map((field) => trigger(field))
+    );
 
-  // API states
-  const registrationApi = useApiState();
-  const subdomainApi = useApiState();
-  const emailValidationApi = useApiState();
-  const logoUploadApi = useApiState();
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    return results.every(Boolean);
+  }, [currentStep, trigger, currentStepData]);
 
-  // Animation states
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [showCompletionCelebration, setShowCompletionCelebration] =
-    useState(false);
-  const [registrationSuccess, setRegistrationSuccess] = useState<any>(null);
+  // Navigate to next step
+  const nextStep = useCallback(async () => {
+    const isValid = await isCurrentStepValid();
+    if (isValid && currentStep < REGISTRATION_STEPS.length) {
+      setCurrentStep((prev) => prev + 1);
+    }
+  }, [currentStep, isCurrentStepValid]);
 
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  // Navigate to previous step
+  const prevStep = useCallback(() => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+    }
+  }, [currentStep]);
 
-  // Form step configuration
-  const formSteps = [
-    {
-      id: "account",
-      title: "Account Setup",
-      icon: User,
-      description: "Create your account credentials",
-      fields: [
-        "fullName",
-        "businessEmail",
-        "phoneNumber",
-        "password",
-        "confirmPassword",
-      ],
+  // Handle form submission
+  const onSubmit = useCallback(
+    async (data: RealtorRegistrationFormData) => {
+      try {
+        setIsSubmitting(true);
+        setSubmitError(null);
+
+        // Transform data for API
+        const apiData: RealtorRegisterData = {
+          fullName: data.fullName,
+          businessEmail: data.businessEmail,
+          phone: data.phoneNumber,
+          password: data.password,
+          confirmPassword: data.confirmPassword,
+          agencyName: data.agencyName,
+          businessType: "Real Estate", // Default value
+          businessDescription: data.tagline || "",
+          yearsInBusiness: 1, // Default value
+          customSubdomain: data.customSubdomain,
+          businessAddress: data.businessAddress,
+          city: "", // Will be extracted from businessAddress
+          state: "", // Will be extracted from businessAddress
+          country: "Nigeria", // Default
+          postalCode: "", // Will be extracted from businessAddress
+          brandingColors: {
+            primary: data.customPrimaryColor || data.primaryColor,
+            secondary: data.customSecondaryColor || data.secondaryColor,
+            accent: data.customAccentColor || data.accentColor,
+          },
+          logoUrl: data.logo ? URL.createObjectURL(data.logo) : undefined,
+          socialMedia: {
+            website: data.socials?.website,
+            facebook: data.socials?.facebook,
+            instagram: data.socials?.instagram,
+            twitter: data.socials?.twitter,
+            linkedin: "", // Not in current schema
+            youtube: "", // Not in current schema
+          },
+          termsAccepted: data.termsAccepted,
+          privacyPolicyAccepted: data.privacyAccepted,
+          marketingConsent: data.marketingOptIn,
+          dataProcessingConsent: data.dataProcessingConsent,
+        };
+
+        await authService.realtorRegister(apiData);
+
+        // Show celebration
+        setShowCelebration(true);
+
+        // Redirect after delay
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 3000);
+      } catch (error: any) {
+        console.error("Registration failed:", error);
+        setSubmitError(
+          error.message || "Registration failed. Please try again."
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
     },
+    [router]
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      <FormProvider {...methods}>
+        <div className="container mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <motion.h1
+              className="text-4xl font-bold text-gray-900 mb-4"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              Join Stayza as a Realtor
+            </motion.h1>
+            <p className="text-gray-600 text-lg">
+              Create your professional real estate presence
+            </p>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              {REGISTRATION_STEPS.map((step, index) => (
+                <div key={step.id} className="flex items-center">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                      currentStep >= step.id
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {step.id}
+                  </div>
+                  {index < REGISTRATION_STEPS.length - 1 && (
+                    <div
+                      className={`h-1 w-16 mx-2 transition-colors ${
+                        currentStep > step.id ? "bg-blue-600" : "bg-gray-200"
+                      }`}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {currentStepData?.title}
+              </h2>
+              <p className="text-gray-600">{currentStepData?.description}</p>
+            </div>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Main Form */}
+              <div className="lg:col-span-2">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="bg-white rounded-lg shadow-lg p-6"
+                >
+                  <form onSubmit={handleSubmit(onSubmit as any)}>
+                    <AnimatePresence mode="wait">
+                      {currentStep === 1 && (
+                        <motion.div
+                          key="step1"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className="space-y-6"
+                        >
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Full Name *
+                            </label>
+                            <input
+                              {...register("fullName")}
+                              type="text"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter your full name"
+                            />
+                            <EnhancedErrorHandler
+                              error={errors.fullName?.message}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Business Email *
+                            </label>
+                            <input
+                              {...register("businessEmail")}
+                              type="email"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="your@business-email.com"
+                            />
+                            <EnhancedErrorHandler
+                              error={errors.businessEmail?.message}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Phone Number *
+                            </label>
+                            <PhoneNumberFormatter
+                              value={watchedData.phoneNumber}
+                              onChange={(value) =>
+                                setValue("phoneNumber", value)
+                              }
+                              error={errors.phoneNumber?.message}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {currentStep === 2 && (
+                        <motion.div
+                          key="step2"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className="space-y-6"
+                        >
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Password *
+                            </label>
+                            <PasswordStrengthMeter
+                              password={watchedData.password}
+                              onPasswordChange={(value) =>
+                                setValue("password", value)
+                              }
+                              error={errors.password?.message}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Confirm Password *
+                            </label>
+                            <input
+                              {...register("confirmPassword")}
+                              type="password"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Confirm your password"
+                            />
+                            <EnhancedErrorHandler
+                              error={errors.confirmPassword?.message}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {currentStep === 3 && (
+                        <motion.div
+                          key="step3"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className="space-y-6"
+                        >
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Agency Name *
+                            </label>
+                            <input
+                              {...register("agencyName")}
+                              type="text"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Your Real Estate Agency"
+                            />
+                            <EnhancedErrorHandler
+                              error={errors.agencyName?.message}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Tagline
+                            </label>
+                            <input
+                              {...register("tagline")}
+                              type="text"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Your professional tagline"
+                            />
+                            <EnhancedErrorHandler
+                              error={errors.tagline?.message}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Custom Subdomain *
+                            </label>
+                            <div className="flex">
+                              <input
+                                {...register("customSubdomain")}
+                                type="text"
+                                className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="yourname"
+                              />
+                              <span className="px-4 py-3 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-gray-600">
+                                .stayza.com
+                              </span>
+                            </div>
+                            <EnhancedErrorHandler
+                              error={errors.customSubdomain?.message}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Business Address *
+                            </label>
+                            <textarea
+                              {...register("businessAddress")}
+                              rows={3}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter your business address"
+                            />
+                            <EnhancedErrorHandler
+                              error={errors.businessAddress?.message}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {currentStep === 4 && (
+                        <motion.div
+                          key="step4"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className="space-y-6"
+                        >
+                          <ColorPaletteGenerator
+                            primaryColor={watchedData.primaryColor}
+                            secondaryColor={watchedData.secondaryColor}
+                            accentColor={watchedData.accentColor}
+                            customPrimaryColor={watchedData.customPrimaryColor}
+                            customSecondaryColor={
+                              watchedData.customSecondaryColor
+                            }
+                            customAccentColor={watchedData.customAccentColor}
+                            onPrimaryChange={(value) =>
+                              setValue("primaryColor", value)
+                            }
+                            onSecondaryChange={(value) =>
+                              setValue("secondaryColor", value)
+                            }
+                            onAccentChange={(value) =>
+                              setValue("accentColor", value)
+                            }
+                            onCustomPrimaryChange={(value) =>
+                              setValue("customPrimaryColor", value)
+                            }
+                            onCustomSecondaryChange={(value) =>
+                              setValue("customSecondaryColor", value)
+                            }
+                            onCustomAccentChange={(value) =>
+                              setValue("customAccentColor", value)
+                            }
+                          />
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Logo Upload
+                            </label>
+                            <input
+                              {...register("logo")}
+                              type="file"
+                              accept="image/*"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                              Upload your agency logo (PNG, JPG, or SVG)
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {currentStep === 5 && (
+                        <motion.div
+                          key="step5"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className="space-y-6"
+                        >
+                          <SocialMediaValidator
+                            socials={watchedData.socials}
+                            onSocialsChange={(socials) =>
+                              setValue("socials", socials)
+                            }
+                            errors={{
+                              instagram: errors.socials?.instagram?.message,
+                              facebook: errors.socials?.facebook?.message,
+                              twitter: errors.socials?.twitter?.message,
+                              tiktok: errors.socials?.tiktok?.message,
+                              whatsapp: errors.socials?.whatsapp?.message,
+                              website: errors.socials?.website?.message,
+                            }}
+                          />
+                        </motion.div>
+                      )}
+
+                      {currentStep === 6 && (
+                        <motion.div
+                          key="step6"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className="space-y-6"
+                        >
+                          <div className="space-y-4">
+                            <div className="flex items-start space-x-3">
+                              <input
+                                {...register("termsAccepted")}
+                                type="checkbox"
+                                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <div className="text-sm">
+                                <label className="font-medium text-gray-700">
+                                  I accept the Terms of Service *
+                                </label>
+                                <p className="text-gray-500">
+                                  By checking this, you agree to our terms and
+                                  conditions
+                                </p>
+                              </div>
+                            </div>
+                            <EnhancedErrorHandler
+                              error={errors.termsAccepted?.message}
+                            />
+
+                            <div className="flex items-start space-x-3">
+                              <input
+                                {...register("privacyAccepted")}
+                                type="checkbox"
+                                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <div className="text-sm">
+                                <label className="font-medium text-gray-700">
+                                  I accept the Privacy Policy *
+                                </label>
+                                <p className="text-gray-500">
+                                  We respect your privacy and protect your data
+                                </p>
+                              </div>
+                            </div>
+                            <EnhancedErrorHandler
+                              error={errors.privacyAccepted?.message}
+                            />
+
+                            <div className="flex items-start space-x-3">
+                              <input
+                                {...register("marketingOptIn")}
+                                type="checkbox"
+                                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <div className="text-sm">
+                                <label className="font-medium text-gray-700">
+                                  Marketing Communications
+                                </label>
+                                <p className="text-gray-500">
+                                  Receive updates about new features and tips
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-start space-x-3">
+                              <input
+                                {...register("dataProcessingConsent")}
+                                type="checkbox"
+                                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <div className="text-sm">
+                                <label className="font-medium text-gray-700">
+                                  Data Processing Consent *
+                                </label>
+                                <p className="text-gray-500">
+                                  Allow us to process your data for service
+                                  delivery
+                                </p>
+                              </div>
+                            </div>
+                            <EnhancedErrorHandler
+                              error={errors.dataProcessingConsent?.message}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Error Display */}
+                    {submitError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg"
+                      >
+                        <p className="text-red-600 text-sm">{submitError}</p>
+                      </motion.div>
+                    )}
+
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-between items-center mt-8">
+                      <button
+                        type="button"
+                        onClick={prevStep}
+                        disabled={currentStep === 1}
+                        className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                          currentStep === 1
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      >
+                        Previous
+                      </button>
+
+                      {currentStep < REGISTRATION_STEPS.length ? (
+                        <button
+                          type="button"
+                          onClick={nextStep}
+                          className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                        >
+                          Next Step
+                        </button>
+                      ) : (
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isSubmitting
+                            ? "Creating Account..."
+                            : "Complete Registration"}
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+
+              {/* Sidebar */}
+              <div className="lg:col-span-1">
+                <div className="sticky top-8 space-y-6">
+                  {/* Preview Component */}
+                  <PreviewComponent
+                    data={watchedData}
+                    currentStep={currentStep}
+                  />
+
+                  {/* Guided Tips */}
+                  <GuidedTipsCarousel currentStep={currentStep} />
+
+                  {/* Conditional Logic Component */}
+                  <ConditionalLogic
+                    formData={watchedData}
+                    currentStep={currentStep}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Sticky Actions */}
+          <MobileStickyAction
+            currentStep={currentStep}
+            totalSteps={REGISTRATION_STEPS.length}
+            onNext={nextStep}
+            onPrevious={prevStep}
+            onSubmit={handleSubmit(onSubmit as any)}
+            isSubmitting={isSubmitting}
+            canGoNext={true}
+            canGoPrevious={currentStep > 1}
+          />
+        </div>
+      </FormProvider>
+
+      {/* Celebration Modal */}
+      <AnimatePresence>
+        {showCelebration && (
+          <CompletionCelebration
+            onClose={() => setShowCelebration(false)}
+            realtorName={watchedData.fullName}
+            agencyName={watchedData.agencyName}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
     {
       id: "business",
       title: "Business Info",

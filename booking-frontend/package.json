@@ -2,6 +2,7 @@
   "name": "booking-frontend",
   "version": "1.0.0",
   "description": "Frontend for property booking system with Next.js, TypeScript, and Tailwind CSS",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev",

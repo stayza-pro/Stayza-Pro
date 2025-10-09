@@ -8,7 +8,7 @@ export const routing = defineRouting({
   // Used when no locale matches
   defaultLocale: "en",
 
-  // The pathname for each locale
+  // The pathname for each locale - only include routes that exist in [locale] directory
   pathnames: {
     "/": "/",
     "/about": {
@@ -20,32 +20,6 @@ export const routing = defineRouting({
       en: "/properties",
       fr: "/proprietes",
       pt: "/propriedades",
-    },
-    "/dashboard": "/dashboard",
-    "/guest/login": {
-      en: "/guest/login",
-      fr: "/guest/connexion",
-      pt: "/guest/login",
-    },
-    "/guest/register": {
-      en: "/guest/register",
-      fr: "/guest/inscription",
-      pt: "/guest/registro",
-    },
-    "/realtor/login": {
-      en: "/realtor/login",
-      fr: "/realtor/connexion",
-      pt: "/realtor/login",
-    },
-    "/realtor/register": {
-      en: "/realtor/register",
-      fr: "/realtor/inscription",
-      pt: "/realtor/registro",
-    },
-    "/admin/login": {
-      en: "/admin/login",
-      fr: "/admin/connexion",
-      pt: "/admin/login",
     },
   },
 });

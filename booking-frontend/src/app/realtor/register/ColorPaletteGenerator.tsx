@@ -1,22 +1,16 @@
-"use client";
-
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Palette,
-  Sparkles,
+  Wand2,
   Copy,
   Check,
   RefreshCw,
   Eye,
-  EyeOff,
-  Star,
-  Shuffle,
   Download,
-  Share2,
-  Zap,
+  Upload,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { cn } from "@/utils/cn";
 
 interface ColorPalette {
   id: string;
@@ -74,23 +68,23 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
   const businessTypeColors = useMemo(
     () => ({
       "real-estate": {
-        primary: ["#2563EB", "#1D4ED8", "#3B82F6", "#0EA5E9"],
-        secondary: ["#059669", "#10B981", "#065F46", "#064E3B"],
+        primary: ["#2563EB", "#1D4ED8", "#3B82F6", "#0EA5E9"], // Blues - trust, professionalism
+        secondary: ["#059669", "#10B981", "#065F46", "#064E3B"], // Greens - growth, stability
         themes: ["Professional", "Trustworthy", "Modern", "Sophisticated"],
       },
       "property-management": {
-        primary: ["#7C3AED", "#8B5CF6", "#A855F7", "#6366F1"],
-        secondary: ["#DC2626", "#EF4444", "#F97316", "#EA580C"],
+        primary: ["#7C3AED", "#8B5CF6", "#A855F7", "#6366F1"], // Purples - luxury, premium
+        secondary: ["#DC2626", "#EF4444", "#F97316", "#EA580C"], // Reds/Oranges - energy, action
         themes: ["Premium", "Luxury", "Dynamic", "Elegant"],
       },
       "vacation-rentals": {
-        primary: ["#059669", "#10B981", "#0D9488", "#14B8A6"],
-        secondary: ["#F59E0B", "#FBBF24", "#F97316", "#FB923C"],
+        primary: ["#059669", "#10B981", "#0D9488", "#14B8A6"], // Teals/Greens - relaxation, nature
+        secondary: ["#F59E0B", "#FBBF24", "#F97316", "#FB923C"], // Oranges/Yellows - warmth, vacation
         themes: ["Relaxing", "Tropical", "Warm", "Inviting"],
       },
       commercial: {
-        primary: ["#374151", "#4B5563", "#6B7280", "#1F2937"],
-        secondary: ["#2563EB", "#3B82F6", "#1D4ED8", "#1E40AF"],
+        primary: ["#374151", "#4B5563", "#6B7280", "#1F2937"], // Grays - corporate, serious
+        secondary: ["#2563EB", "#3B82F6", "#1D4ED8", "#1E40AF"], // Blues - business, trust
         themes: ["Corporate", "Professional", "Serious", "Established"],
       },
       default: {
@@ -104,53 +98,85 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
 
   // Generate color palettes based on business context
   const generatePalettes = useCallback(async (): Promise<ColorPalette[]> => {
-    const typeColors =
-      businessTypeColors[businessType as keyof typeof businessTypeColors] ||
-      businessTypeColors.default;
+    const typeKey = businessType
+      .toLowerCase()
+      .replace(/\s+/g, "-") as keyof typeof businessTypeColors;
+    const colorSet = businessTypeColors[typeKey] || businessTypeColors.default;
+
     const palettes: ColorPalette[] = [];
 
     // Generate 6 different palette variations
     for (let i = 0; i < 6; i++) {
-      const primary = typeColors.primary[i % typeColors.primary.length];
-      const secondary = typeColors.secondary[i % typeColors.secondary.length];
-      const accent = generateComplementaryColors(primary, secondary);
+      const primaryColor = colorSet.primary[i % colorSet.primary.length];
+      const secondaryColor = colorSet.secondary[i % colorSet.secondary.length];
 
-      const palette: ColorPalette = {
+      // Generate complementary colors
+      const { accent, background, text } = generateComplementaryColors(
+        primaryColor,
+        secondaryColor
+      );
+
+      // Calculate accessibility scores
+      const accessibility = calculateAccessibility(
+        primaryColor,
+        background,
+        text
+      );
+
+      palettes.push({
         id: `palette-${i + 1}`,
-        name: `${typeColors.themes[i % typeColors.themes.length]} Theme`,
+        name: `${colorSet.themes[i % colorSet.themes.length]} ${
+          businessType || "Business"
+        }`,
         colors: {
-          primary,
-          secondary,
+          primary: primaryColor,
+          secondary: secondaryColor,
           accent,
-          background: "#FFFFFF",
-          text: "#1F2937",
+          background,
+          text,
         },
-        score: Math.floor(Math.random() * 30) + 70, // Score between 70-100
+        score: 85 + Math.random() * 15, // Simulated AI score
         tags: [
-          typeColors.themes[i % typeColors.themes.length],
-          businessType || "General",
+          colorSet.themes[i % colorSet.themes.length],
+          accessibility.wcagAA ? "WCAG AA" : "Needs Contrast",
+          getPalettePersonality(primaryColor, secondaryColor),
         ],
-        accessibility: calculateAccessibility(primary, "#FFFFFF", "#1F2937"),
-      };
-
-      palettes.push(palette);
+        accessibility,
+      });
     }
 
-    return palettes;
+    return palettes.sort((a, b) => b.score - a.score);
   }, [businessType, businessTypeColors]);
 
   // Generate complementary colors
   const generateComplementaryColors = (primary: string, secondary: string) => {
-    // Simple color harmony logic - in a real app, use proper color theory
-    const colors = [
-      "#F97316",
-      "#EF4444",
-      "#8B5CF6",
-      "#06B6D4",
-      "#84CC16",
-      "#F59E0B",
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
+    // Convert hex to HSL for better color manipulation
+    const primaryHsl = hexToHsl(primary);
+    const secondaryHsl = hexToHsl(secondary);
+
+    // Generate accent (tertiary color)
+    const accentHue = (primaryHsl.h + 120) % 360;
+    const accent = hslToHex({
+      h: accentHue,
+      s: Math.min(primaryHsl.s * 0.8, 80),
+      l: Math.min(primaryHsl.l * 1.2, 75),
+    });
+
+    // Generate background (light neutral)
+    const background = hslToHex({
+      h: primaryHsl.h,
+      s: 10,
+      l: 97,
+    });
+
+    // Generate text color (dark contrast)
+    const text = hslToHex({
+      h: primaryHsl.h,
+      s: 15,
+      l: 15,
+    });
+
+    return { accent, background, text };
   };
 
   // Get palette personality based on colors
@@ -158,15 +184,14 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
     primary: string,
     secondary: string
   ): string => {
-    const personalities = [
-      "Bold & Confident",
-      "Calm & Professional",
-      "Energetic & Modern",
-      "Elegant & Sophisticated",
-      "Warm & Inviting",
-      "Fresh & Dynamic",
-    ];
-    return personalities[Math.floor(Math.random() * personalities.length)];
+    const primaryHsl = hexToHsl(primary);
+
+    if (primaryHsl.h >= 0 && primaryHsl.h < 60) return "Energetic";
+    if (primaryHsl.h >= 60 && primaryHsl.h < 120) return "Natural";
+    if (primaryHsl.h >= 120 && primaryHsl.h < 180) return "Calming";
+    if (primaryHsl.h >= 180 && primaryHsl.h < 240) return "Trustworthy";
+    if (primaryHsl.h >= 240 && primaryHsl.h < 300) return "Creative";
+    return "Sophisticated";
   };
 
   // Calculate WCAG accessibility scores
@@ -175,50 +200,150 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
     background: string,
     text: string
   ) => {
-    // Simplified accessibility calculation - in real implementation, use proper contrast ratio calculation
-    const mockRatio = 4.5 + Math.random() * 3; // Mock ratio between 4.5-7.5
+    const contrastRatio = calculateContrastRatio(primary, "#FFFFFF");
     return {
-      contrastRatio: Math.round(mockRatio * 10) / 10,
-      wcagAA: mockRatio >= 4.5,
-      wcagAAA: mockRatio >= 7,
+      contrastRatio,
+      wcagAA: contrastRatio >= 4.5,
+      wcagAAA: contrastRatio >= 7,
     };
   };
 
-  // Generate palettes on component mount or when business context changes
-  useEffect(() => {
-    const loadPalettes = async () => {
-      setIsGenerating(true);
-      try {
-        const palettes = await generatePalettes();
-        setGeneratedPalettes(palettes);
+  // Calculate contrast ratio between two colors
+  const calculateContrastRatio = (color1: string, color2: string): number => {
+    const lum1 = getRelativeLuminance(color1);
+    const lum2 = getRelativeLuminance(color2);
+    const brightest = Math.max(lum1, lum2);
+    const darkest = Math.min(lum1, lum2);
+    return (brightest + 0.05) / (darkest + 0.05);
+  };
 
-        // Auto-select the first palette if no current selection
-        if (!selectedPaletteId && palettes.length > 0) {
-          setSelectedPaletteId(palettes[0].id);
-          onColorsChange({
-            primary: palettes[0].colors.primary,
-            secondary: palettes[0].colors.secondary,
-            accent: palettes[0].colors.accent,
-          });
+  // Get relative luminance of a color
+  const getRelativeLuminance = (hex: string): number => {
+    const rgb = hexToRgb(hex);
+    const [r, g, b] = [rgb.r, rgb.g, rgb.b].map((c) => {
+      c = c / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+
+  // Color conversion utilities
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
         }
-      } catch (error) {
-        console.error("Failed to generate palettes:", error);
-        toast.error("Failed to generate color palettes");
-      } finally {
-        setIsGenerating(false);
+      : { r: 0, g: 0, b: 0 };
+  };
+
+  const hexToHsl = (hex: string) => {
+    const { r, g, b } = hexToRgb(hex);
+    const rNorm = r / 255;
+    const gNorm = g / 255;
+    const bNorm = b / 255;
+
+    const max = Math.max(rNorm, gNorm, bNorm);
+    const min = Math.min(rNorm, gNorm, bNorm);
+    let h = 0,
+      s = 0;
+    const l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+      switch (max) {
+        case rNorm:
+          h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0);
+          break;
+        case gNorm:
+          h = (bNorm - rNorm) / d + 2;
+          break;
+        case bNorm:
+          h = (rNorm - gNorm) / d + 4;
+          break;
       }
+      h /= 6;
+    }
+
+    return { h: h * 360, s: s * 100, l: l * 100 };
+  };
+
+  const hslToHex = ({
+    h,
+    s,
+    l,
+  }: {
+    h: number;
+    s: number;
+    l: number;
+  }): string => {
+    h = h / 360;
+    s = s / 100;
+    l = l / 100;
+
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
     };
 
-    loadPalettes();
-  }, [
-    businessType,
-    businessName,
-    generatePalettes,
-    selectedPaletteId,
-    onColorsChange,
-  ]);
+    let r, g, b;
+    if (s === 0) {
+      r = g = b = l;
+    } else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1 / 3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1 / 3);
+    }
 
-  // Handle palette selection
+    const toHex = (c: number) => {
+      const hex = Math.round(c * 255).toString(16);
+      return hex.length === 1 ? "0" + hex : hex;
+    };
+
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  };
+
+  // Copy color to clipboard
+  const copyColor = async (color: string) => {
+    try {
+      await navigator.clipboard.writeText(color);
+      setCopiedColor(color);
+      setTimeout(() => setCopiedColor(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy color:", err);
+    }
+  };
+
+  // Auto-generate palettes when business context changes
+  useEffect(() => {
+    if (businessType || businessName) {
+      setIsGenerating(true);
+
+      const timeoutId = setTimeout(async () => {
+        try {
+          const palettes = await generatePalettes();
+          setGeneratedPalettes(palettes);
+        } catch (error) {
+          console.error("Failed to generate palettes:", error);
+        } finally {
+          setIsGenerating(false);
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [businessType, businessName, generatePalettes]);
+
   const handlePaletteSelect = (palette: ColorPalette) => {
     setSelectedPaletteId(palette.id);
     onColorsChange({
@@ -226,223 +351,214 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
       secondary: palette.colors.secondary,
       accent: palette.colors.accent,
     });
-    toast.success(`Applied ${palette.name}`);
   };
 
-  // Handle color copy
-  const handleColorCopy = async (color: string) => {
-    try {
-      await navigator.clipboard.writeText(color);
-      setCopiedColor(color);
-      toast.success(`Copied ${color} to clipboard`);
-      setTimeout(() => setCopiedColor(null), 2000);
-    } catch (error) {
-      toast.error("Failed to copy color");
-    }
-  };
-
-  // Regenerate palettes
-  const handleRegenerate = async () => {
+  const regeneratePalettes = async () => {
     setIsGenerating(true);
     try {
-      const newPalettes = await generatePalettes();
-      setGeneratedPalettes(newPalettes);
-      toast.success("Generated new color palettes");
-    } catch (error) {
-      toast.error("Failed to regenerate palettes");
+      const palettes = await generatePalettes();
+      setGeneratedPalettes(palettes);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  if (isGenerating && generatedPalettes.length === 0) {
-    return (
-      <div
-        className={`bg-white rounded-xl border border-gray-200 p-6 ${className}`}
-      >
-        <div className="flex items-center justify-center space-x-3 py-8">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          >
-            <Palette className="w-6 h-6 text-blue-500" />
-          </motion.div>
-          <span className="text-gray-600">Generating color palettes...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div
-      className={`bg-white rounded-xl border border-gray-200 p-6 ${className}`}
-    >
+    <div className={cn("space-y-4", className)}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
-            <Palette className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Smart Color Palettes
-            </h3>
-            <p className="text-sm text-gray-600">
-              AI-generated colors for {businessType || "your business"}
-            </p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Palette className="h-5 w-5 text-purple-600" />
+          <h3 className="font-semibold text-gray-900">AI Color Palette</h3>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleRegenerate}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={regeneratePalettes}
             disabled={isGenerating}
-            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-            title="Generate new palettes"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             <RefreshCw
-              className={`w-4 h-4 ${isGenerating ? "animate-spin" : ""}`}
+              className={cn(
+                "h-4 w-4 text-gray-600",
+                isGenerating && "animate-spin"
+              )}
             />
-          </motion.button>
+          </button>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
+            type="button"
             onClick={() => setShowCustomPicker(!showCustomPicker)}
-            className="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-            title="Custom color picker"
+            className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
-            {showCustomPicker ? (
-              <EyeOff className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
-          </motion.button>
+            Custom
+          </button>
         </div>
       </div>
 
-      {/* Generated Palettes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <AnimatePresence>
-          {generatedPalettes.map((palette, index) => (
-            <motion.div
-              key={palette.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className={`relative group cursor-pointer rounded-lg border-2 transition-all duration-200 ${
-                selectedPaletteId === palette.id
-                  ? "border-blue-500 ring-2 ring-blue-200"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
-              onClick={() => handlePaletteSelect(palette)}
-            >
-              {/* Color Preview */}
-              <div className="flex h-16 rounded-t-lg overflow-hidden">
-                <div
-                  className="flex-1"
-                  style={{ backgroundColor: palette.colors.primary }}
-                />
-                <div
-                  className="flex-1"
-                  style={{ backgroundColor: palette.colors.secondary }}
-                />
-                <div
-                  className="flex-1"
-                  style={{ backgroundColor: palette.colors.accent }}
-                />
-              </div>
+      {/* Loading State */}
+      {isGenerating && (
+        <div className="flex items-center justify-center py-8 text-gray-500">
+          <Wand2 className="h-5 w-5 mr-2 animate-pulse" />
+          <span className="text-sm">Generating perfect palettes...</span>
+        </div>
+      )}
 
-              {/* Palette Info */}
-              <div className="p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-gray-900 text-sm">
-                    {palette.name}
-                  </h4>
-                  <div className="flex items-center space-x-1">
-                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                    <span className="text-xs text-gray-600">
-                      {palette.score}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Color Values */}
-                <div className="space-y-1">
-                  {Object.entries(palette.colors)
-                    .slice(0, 3)
-                    .map(([name, color]) => (
-                      <div
-                        key={name}
-                        className="flex items-center justify-between text-xs"
-                      >
-                        <span className="text-gray-600 capitalize">{name}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleColorCopy(color);
-                          }}
-                          className="flex items-center space-x-1 text-gray-800 hover:text-blue-600 transition-colors"
-                        >
-                          <span className="font-mono">{color}</span>
-                          {copiedColor === color ? (
-                            <Check className="w-3 h-3 text-green-500" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-                      </div>
-                    ))}
-                </div>
-
-                {/* Accessibility Badge */}
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                  <div className="flex items-center space-x-1">
-                    {palette.accessibility.wcagAA && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        AA
+      {/* Generated Palettes */}
+      <AnimatePresence mode="wait">
+        {!isGenerating && generatedPalettes.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            {generatedPalettes.map((palette, index) => (
+              <motion.button
+                key={palette.id}
+                type="button"
+                onClick={() => handlePaletteSelect(palette)}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all text-left group hover:scale-105",
+                  selectedPaletteId === palette.id
+                    ? "border-purple-500 bg-purple-50"
+                    : "border-gray-200 hover:border-gray-300"
+                )}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                {/* Color Preview - Website Style Gradient */}
+                <div className="mb-3 space-y-3">
+                  {/* Main Gradient Preview */}
+                  <div className="relative h-16 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-gray-300 transition-colors">
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        background: `linear-gradient(135deg, ${palette.colors.primary} 0%, ${palette.colors.secondary} 100%)`,
+                      }}
+                    />
+                    {/* Accent Color Highlight */}
+                    <div
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full border-2 border-white shadow-md"
+                      style={{ backgroundColor: palette.colors.accent }}
+                    />
+                    <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded">
+                        Click to select
                       </span>
-                    )}
-                    {palette.accessibility.wcagAAA && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        AAA
-                      </span>
-                    )}
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-500">
-                    {palette.accessibility.contrastRatio}:1
-                  </span>
-                </div>
 
-                {/* Tags */}
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {palette.tags.slice(0, 2).map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700"
+                  {/* Individual Color Swatches */}
+                  <div className="flex gap-1">
+                    <div
+                      className="flex-1 h-6 rounded cursor-pointer border border-gray-200 hover:border-gray-300 transition-colors relative overflow-hidden"
+                      style={{ backgroundColor: palette.colors.primary }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyColor(palette.colors.primary);
+                      }}
+                      title={`Primary: ${palette.colors.primary}`}
                     >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                      <span className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                        {copiedColor === palette.colors.primary ? (
+                          <Check className="h-3 w-3 text-white" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-white" />
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className="flex-1 h-6 rounded cursor-pointer border border-gray-200 hover:border-gray-300 transition-colors relative overflow-hidden"
+                      style={{ backgroundColor: palette.colors.secondary }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyColor(palette.colors.secondary);
+                      }}
+                      title={`Secondary: ${palette.colors.secondary}`}
+                    >
+                      <span className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                        {copiedColor === palette.colors.secondary ? (
+                          <Check className="h-3 w-3 text-white" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-white" />
+                        )}
+                      </span>
+                    </div>
+                    <div
+                      className="flex-1 h-6 rounded cursor-pointer border border-gray-200 hover:border-gray-300 transition-colors relative overflow-hidden"
+                      style={{ backgroundColor: palette.colors.accent }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyColor(palette.colors.accent);
+                      }}
+                      title={`Accent: ${palette.colors.accent}`}
+                    >
+                      <span className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                        {copiedColor === palette.colors.accent ? (
+                          <Check className="h-3 w-3 text-white" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-white" />
+                        )}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Selection Indicator */}
-              {selectedPaletteId === palette.id && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center"
-                >
-                  <Check className="w-4 h-4 text-white" />
-                </motion.div>
-              )}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+                  {/* Color Labels */}
+                  <div className="flex justify-between text-xs text-gray-500 px-1">
+                    <span className="font-medium">Primary</span>
+                    <span className="font-medium">Secondary</span>
+                    <span className="font-medium">Accent</span>
+                  </div>
+                </div>
+
+                {/* Palette Info */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm text-gray-900">
+                      {palette.name}
+                    </h4>
+                    <span className="text-xs font-bold text-purple-600">
+                      {Math.round(palette.score)}%
+                    </span>
+                  </div>
+
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-1">
+                    {palette.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className={cn(
+                          "px-2 py-0.5 text-xs rounded-full font-medium",
+                          tag.includes("WCAG")
+                            ? "bg-green-100 text-green-700"
+                            : tag === "Needs Contrast"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-gray-100 text-gray-600"
+                        )}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Accessibility Score */}
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <Eye className="h-3 w-3" />
+                    <span>
+                      Contrast: {palette.accessibility.contrastRatio.toFixed(1)}
+                      :1
+                      {palette.accessibility.wcagAA && " ✓ WCAG AA"}
+                    </span>
+                  </div>
+                </div>
+              </motion.button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Custom Color Picker */}
       <AnimatePresence>
@@ -451,83 +567,132 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="border-t border-gray-200 pt-6"
+            className="p-4 bg-gray-50 rounded-lg border border-gray-200"
           >
-            <div className="grid grid-cols-3 gap-4">
-              {["primary", "secondary", "accent"].map((colorType) => (
-                <div key={colorType} className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 capitalize">
-                    {colorType} Color
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="color"
-                      value={
-                        currentColors?.[
-                          colorType as keyof typeof currentColors
-                        ] || "#3B82F6"
-                      }
-                      onChange={(e) => {
-                        onColorsChange({
-                          primary:
-                            colorType === "primary"
-                              ? e.target.value
-                              : currentColors?.primary || "#3B82F6",
-                          secondary:
-                            colorType === "secondary"
-                              ? e.target.value
-                              : currentColors?.secondary || "#059669",
-                          accent:
-                            colorType === "accent"
-                              ? e.target.value
-                              : currentColors?.accent || "#F97316",
-                        });
-                      }}
-                      className="w-12 h-8 rounded border border-gray-300 cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={
-                        currentColors?.[
-                          colorType as keyof typeof currentColors
-                        ] || "#3B82F6"
-                      }
-                      onChange={(e) => {
-                        if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
-                          onColorsChange({
-                            primary:
-                              colorType === "primary"
-                                ? e.target.value
-                                : currentColors?.primary || "#3B82F6",
-                            secondary:
-                              colorType === "secondary"
-                                ? e.target.value
-                                : currentColors?.secondary || "#059669",
-                            accent:
-                              colorType === "accent"
-                                ? e.target.value
-                                : currentColors?.accent || "#F97316",
-                          });
-                        }
-                      }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="#3B82F6"
-                    />
-                  </div>
+            <h4 className="font-medium text-sm text-gray-900 mb-3">
+              Custom Colors
+            </h4>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Primary Color
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={currentColors?.primary || "#3B82F6"}
+                    onChange={(e) =>
+                      onColorsChange({
+                        primary: e.target.value,
+                        secondary: currentColors?.secondary || "#10B981",
+                        accent: currentColors?.accent || "#F59E0B",
+                      })
+                    }
+                    className="w-12 h-8 rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={currentColors?.primary || "#3B82F6"}
+                    onChange={(e) =>
+                      onColorsChange({
+                        primary: e.target.value,
+                        secondary: currentColors?.secondary || "#10B981",
+                        accent: currentColors?.accent || "#F59E0B",
+                      })
+                    }
+                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                    placeholder="#3B82F6"
+                  />
                 </div>
-              ))}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Secondary Color
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={currentColors?.secondary || "#10B981"}
+                    onChange={(e) =>
+                      onColorsChange({
+                        primary: currentColors?.primary || "#3B82F6",
+                        secondary: e.target.value,
+                        accent: currentColors?.accent || "#F59E0B",
+                      })
+                    }
+                    className="w-12 h-8 rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={currentColors?.secondary || "#10B981"}
+                    onChange={(e) =>
+                      onColorsChange({
+                        primary: currentColors?.primary || "#3B82F6",
+                        secondary: e.target.value,
+                        accent: currentColors?.accent || "#F59E0B",
+                      })
+                    }
+                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                    placeholder="#10B981"
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Accent Color
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={currentColors?.accent || "#F59E0B"}
+                    onChange={(e) =>
+                      onColorsChange({
+                        primary: currentColors?.primary || "#3B82F6",
+                        secondary: currentColors?.secondary || "#10B981",
+                        accent: e.target.value,
+                      })
+                    }
+                    className="w-12 h-8 rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={currentColors?.accent || "#F59E0B"}
+                    onChange={(e) =>
+                      onColorsChange({
+                        primary: currentColors?.primary || "#3B82F6",
+                        secondary: currentColors?.secondary || "#10B981",
+                        accent: e.target.value,
+                      })
+                    }
+                    className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded"
+                    placeholder="#F59E0B"
+                  />
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Footer Info */}
-      <div className="text-center pt-4 border-t border-gray-100">
-        <p className="text-xs text-gray-500">
-          Colors are optimized for {businessType || "real estate"} businesses
-          and accessibility standards
-        </p>
-      </div>
+      {/* No Palettes State */}
+      {!isGenerating &&
+        generatedPalettes.length === 0 &&
+        (businessType || businessName) && (
+          <div className="text-center py-8 text-gray-500">
+            <Palette className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No palettes generated yet.</p>
+            <button
+              type="button"
+              onClick={regeneratePalettes}
+              className="mt-2 text-sm text-purple-600 hover:text-purple-700"
+            >
+              Generate Palettes
+            </button>
+          </div>
+        )}
     </div>
   );
 };

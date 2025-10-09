@@ -1,247 +1,442 @@
 "use client";
 
-import React, { ReactNode, useMemo } from "react";
-import { UseFormWatch } from "react-hook-form";
+import React, { useEffect, useState, useCallback } from "react";
+import { UseFormReturn } from "react-hook-form";
 import { RealtorRegistrationFormData } from "./schema";
 
-interface ConditionalFieldProps {
-  children: ReactNode;
-  watch: UseFormWatch<RealtorRegistrationFormData>;
-  condition: (data: Partial<RealtorRegistrationFormData>) => boolean;
-  fallback?: ReactNode;
-  className?: string;
+interface ConditionalLogicProps {
+  formMethods: UseFormReturn<RealtorRegistrationFormData>;
+  currentStep: number;
+  plan: string;
 }
 
-export const ConditionalField: React.FC<ConditionalFieldProps> = ({
-  children,
-  watch,
-  condition,
-  fallback = null,
-  className = "",
-}) => {
-  const watchedData = watch();
+interface LocationSuggestion {
+  city: string;
+  state: string;
+  country: string;
+  timeZone: string;
+  currency: string;
+}
 
-  const shouldShow = useMemo(() => {
-    return condition(watchedData);
-  }, [watchedData, condition]);
+interface BusinessSuggestion {
+  websiteDomain: string;
+  businessHours: string;
+  suggestedColors: string[];
+  marketingTips: string[];
+}
 
-  if (!shouldShow) {
-    return fallback ? <div className={className}>{fallback}</div> : null;
-  }
+export function ConditionalLogic({
+  formMethods,
+  currentStep,
+  plan,
+}: ConditionalLogicProps) {
+  const { watch, setValue, getValues } = formMethods;
+  const [locationSuggestions, setLocationSuggestions] = useState<
+    LocationSuggestion[]
+  >([]);
+  const [businessSuggestion, setBusinessSuggestion] =
+    useState<BusinessSuggestion | null>(null);
 
-  return <div className={className}>{children}</div>;
-};
+  // Watch key fields for conditional logic
+  const businessEmail = watch("businessEmail");
+  const agencyName = watch("agencyName");
+  const businessAddress = watch("businessAddress");
+  const primaryColor = watch("primaryColor");
 
-// Specific business logic conditions
-export const businessTypeConditions = {
-  // Show company fields for agencies and brokerages
-  isCompanyBusiness: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName),
+  // Smart business type detection based on company name
+  const detectBusinessType = useCallback((companyName: string) => {
+    if (!companyName) return null;
 
-  // Show license verification for licensed business types
-  requiresLicense: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName || data.corporateRegNumber),
+    const name = companyName.toLowerCase();
 
-  // Show team size for agencies and brokerages
-  hasTeam: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName),
+    // Real estate keywords
+    const realEstateKeywords = [
+      "real estate",
+      "realty",
+      "properties",
+      "homes",
+      "housing",
+      "estate",
+      "property",
+      "land",
+      "residential",
+      "commercial",
+    ];
 
-  // Show property management fields for property managers
-  isPropertyManager: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName && data.specialRequirements?.includes("property")),
+    // Luxury keywords
+    const luxuryKeywords = [
+      "luxury",
+      "premium",
+      "elite",
+      "exclusive",
+      "boutique",
+      "platinum",
+      "gold",
+      "diamond",
+      "prestige",
+      "signature",
+    ];
 
-  // Show consultation fields for consultants
-  isConsultant: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.specialRequirements?.includes("consulting")),
+    // Commercial keywords
+    const commercialKeywords = [
+      "commercial",
+      "office",
+      "retail",
+      "industrial",
+      "warehouse",
+      "business",
+      "corporate",
+      "development",
+      "investment",
+    ];
 
-  // Show investor-specific fields
-  isInvestor: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.specialRequirements?.includes("investment")),
+    if (luxuryKeywords.some((keyword) => name.includes(keyword))) {
+      return "luxury";
+    } else if (commercialKeywords.some((keyword) => name.includes(keyword))) {
+      return "commercial";
+    } else if (realEstateKeywords.some((keyword) => name.includes(keyword))) {
+      return "residential";
+    }
 
-  // Show service areas for location-based services
-  needsServiceAreas: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessAddress),
+    return null;
+  }, []);
 
-  // Show specialization fields
-  needsSpecialization: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName),
+  // Smart domain extraction from business email
+  const extractDomainInfo = useCallback((email: string) => {
+    if (!email || !email.includes("@")) return null;
 
-  // Show portfolio fields for investors and property managers
-  hasPortfolio: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(
-      data.specialRequirements?.includes("investment") ||
-        data.specialRequirements?.includes("property")
-    ),
+    const domain = email.split("@")[1].toLowerCase();
 
-  // Show marketing preferences for all business types
-  needsMarketing: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName),
+    // Skip common email providers
+    const commonProviders = [
+      "gmail.com",
+      "yahoo.com",
+      "hotmail.com",
+      "outlook.com",
+      "icloud.com",
+      "aol.com",
+      "live.com",
+      "msn.com",
+    ];
 
-  // Show social media fields if socials are provided
-  usesSocialMedia: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.socials),
+    if (commonProviders.includes(domain)) return null;
 
-  // Show website field if socials include website
-  hasWebsite: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.socials?.website),
+    // Extract potential company name from domain
+    const domainParts = domain.split(".");
+    const companyPart = domainParts[0];
 
-  // Show referral fields based on referral source
-  usesReferrals: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.referralSource),
+    // Clean up domain to suggest company name
+    const suggestions = {
+      websiteDomain: `www.${domain}`,
+      potentialCompanyName: companyPart
+        .split(/[-_]/)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" "),
+    };
 
-  // Show advertising fields if marketing opt-in is enabled
-  usesPaidAds: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.marketingOptIn),
-};
+    return suggestions;
+  }, []);
 
-// Geographic conditions
-export const geographicConditions = {
-  // Show state/province field for certain countries
-  needsStateProvince: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessAddress),
+  // Get location suggestions based on partial input
+  const getLocationSuggestions = useCallback(
+    async (city: string, state?: string) => {
+      if (!city || city.length < 2) return;
 
-  // Show postal code field for most countries
-  needsPostalCode: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessAddress),
+      try {
+        // Mock location API call - in real app would use Google Places or similar
+        const mockSuggestions: LocationSuggestion[] = [
+          {
+            city: "Lagos",
+            state: "Lagos State",
+            country: "Nigeria",
+            timeZone: "Africa/Lagos",
+            currency: "NGN",
+          },
+          {
+            city: "Abuja",
+            state: "Federal Capital Territory",
+            country: "Nigeria",
+            timeZone: "Africa/Lagos",
+            currency: "NGN",
+          },
+          {
+            city: "New York",
+            state: "New York",
+            country: "United States",
+            timeZone: "America/New_York",
+            currency: "USD",
+          },
+          {
+            city: "London",
+            state: "England",
+            country: "United Kingdom",
+            timeZone: "Europe/London",
+            currency: "GBP",
+          },
+        ].filter(
+          (loc) =>
+            loc.city.toLowerCase().includes(city.toLowerCase()) ||
+            (state && loc.state.toLowerCase().includes(state.toLowerCase()))
+        );
 
-  // Show region-specific license fields
-  needsUSLicense: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessAddress) &&
-    businessTypeConditions.requiresLicense(data),
+        setLocationSuggestions(mockSuggestions);
+      } catch (error) {
+        console.error("Error fetching location suggestions:", error);
+      }
+    },
+    []
+  );
 
-  needsCALicense: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessAddress) &&
-    businessTypeConditions.requiresLicense(data),
+  // Generate business-specific suggestions
+  const generateBusinessSuggestions = useCallback(
+    (businessType: string, companyName: string) => {
+      const suggestions: Record<string, Partial<BusinessSuggestion>> = {
+        luxury: {
+          suggestedColors: ["#000000", "#FFD700", "#C0C0C0", "#800080"],
+          businessHours: "10:00 AM - 7:00 PM",
+          marketingTips: [
+            "Focus on high-quality property photography",
+            "Emphasize exclusive locations and amenities",
+            "Target affluent demographics in marketing",
+          ],
+        },
+        commercial: {
+          suggestedColors: ["#003366", "#0066CC", "#333333", "#00AA44"],
+          businessHours: "9:00 AM - 6:00 PM",
+          marketingTips: [
+            "Highlight ROI and investment potential",
+            "Network with business owners and investors",
+            "Focus on location analytics and market data",
+          ],
+        },
+        residential: {
+          suggestedColors: ["#2E8B57", "#4682B4", "#CD853F", "#6B8E23"],
+          businessHours: "9:00 AM - 8:00 PM",
+          marketingTips: [
+            "Emphasize family-friendly features",
+            "Showcase neighborhood amenities",
+            "Use warm, welcoming imagery",
+          ],
+        },
+      };
 
-  // Show local market knowledge fields
-  isLocalExpert: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessAddress && data.agencyName),
-};
+      const baseUrl = companyName
+        ? `www.${companyName.toLowerCase().replace(/\s+/g, "")}.com`
+        : "";
 
-// Experience-based conditions
-export const experienceConditions = {
-  // Show advanced fields for experienced professionals
-  isExperienced: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName && data.corporateRegNumber),
+      return {
+        websiteDomain: baseUrl,
+        ...suggestions[businessType],
+      } as BusinessSuggestion;
+    },
+    []
+  );
 
-  // Show beginner guidance for new professionals
-  isNewProfessional: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName && !data.corporateRegNumber),
+  // Apply conditional logic based on plan
+  useEffect(() => {
+    // Plan-based logic can be implemented when plan-specific features are added to schema
+    console.log(`Plan selected: ${plan}`);
+  }, [plan]);
 
-  // Show mentorship fields for new professionals
-  needsMentorship: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName && !data.corporateRegNumber && !data.socials),
+  // Smart auto-completion for business email
+  useEffect(() => {
+    if (businessEmail && !agencyName) {
+      const domainInfo = extractDomainInfo(businessEmail);
+      if (domainInfo?.potentialCompanyName) {
+        // Suggest agency name based on email domain
+        setValue("agencyName", domainInfo.potentialCompanyName);
+        // Website domain is generated from subdomain, not stored in socials
+      }
+    }
+  }, [businessEmail, agencyName, extractDomainInfo, setValue, getValues]);
 
-  // Show leadership fields for very experienced professionals
-  isLeader: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(
-      data.agencyName && data.corporateRegNumber && data.socials?.website
-    ),
-};
+  // Smart business type detection based on agency name
+  useEffect(() => {
+    if (agencyName) {
+      const detectedType = detectBusinessType(agencyName);
+      if (detectedType) {
+        // Store business type in tagline or use for UI suggestions only
+        console.log(
+          `Detected business type: ${detectedType} for agency: ${agencyName}`
+        );
+        // Could set tagline with business type suggestion
+        if (!getValues("tagline")) {
+          const taglines = {
+            luxury: "Luxury Properties & Exclusive Estates",
+            commercial: "Commercial Real Estate Solutions",
+            residential: "Your Home, Our Priority",
+          };
+          setValue(
+            "tagline",
+            taglines[detectedType as keyof typeof taglines] || ""
+          );
+        }
+      }
+    }
+  }, [agencyName, detectBusinessType, setValue, getValues]);
 
-// Validation-based conditions
-export const validationConditions = {
-  // Show confirmation field when email is entered
-  needsEmailConfirmation: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessEmail && data.businessEmail.length > 0),
+  // Location-based suggestions
+  useEffect(() => {
+    if (businessAddress && businessAddress.length >= 2) {
+      // Extract city from business address for suggestions
+      const addressParts = businessAddress.split(",");
+      const cityPart = addressParts[0]?.trim();
+      if (cityPart) {
+        getLocationSuggestions(cityPart);
+      }
+    }
+  }, [businessAddress, getLocationSuggestions]);
 
-  // Show phone verification when phone is entered
-  needsPhoneVerification: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.phoneNumber && data.phoneNumber.length > 0),
+  // Auto-populate location details
+  const applyLocationSuggestion = useCallback(
+    (suggestion: LocationSuggestion) => {
+      // Update business address with full location
+      const fullAddress = `${suggestion.city}, ${suggestion.state}, ${suggestion.country}`;
+      setValue("businessAddress", fullAddress);
+      setLocationSuggestions([]); // Clear suggestions after selection
+    },
+    [setValue]
+  );
 
-  // Show password confirmation when password meets minimum requirements
-  needsPasswordConfirmation: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.password && data.password.length >= 8),
+  // Business suggestions based on agency name
+  useEffect(() => {
+    if (agencyName) {
+      const businessType = detectBusinessType(agencyName);
+      if (businessType) {
+        const suggestions = generateBusinessSuggestions(
+          businessType,
+          agencyName
+        );
+        setBusinessSuggestion(suggestions);
 
-  // Show terms acceptance for all users
-  needsTermsAcceptance: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessEmail || data.phoneNumber),
+        // Website domain is generated from subdomain, not stored in socials
+      }
+    }
+  }, [
+    agencyName,
+    generateBusinessSuggestions,
+    setValue,
+    getValues,
+    detectBusinessType,
+  ]);
 
-  // Show marketing consent for business users
-  needsMarketingConsent: (data: Partial<RealtorRegistrationFormData>) =>
-    businessTypeConditions.isCompanyBusiness(data),
-};
+  // Color harmony suggestions
+  useEffect(() => {
+    if (primaryColor && agencyName && businessSuggestion?.suggestedColors) {
+      // Find complementary colors based on business type and primary color
+      const suggestedSecondary = businessSuggestion.suggestedColors.filter(
+        (color) => color !== primaryColor
+      )[0];
 
-// Accessibility conditions
-export const accessibilityConditions = {
-  // Show alternative formats for users who might need them
-  needsAlternativeFormats: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.specialRequirements?.includes("accessibility")),
+      if (suggestedSecondary && !getValues("accentColor")) {
+        setValue("accentColor", suggestedSecondary);
+      }
+    }
+  }, [primaryColor, agencyName, businessSuggestion, setValue, getValues]);
 
-  // Show screen reader specific fields
-  usesScreenReader: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.specialRequirements?.includes("screen_reader")),
+  // Conditional validation rules
+  const getConditionalValidation = useCallback(() => {
+    const validations: Record<string, any> = {};
 
-  // Show keyboard navigation preferences
-  needsKeyboardNav: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.specialRequirements?.includes("keyboard_only")),
+    // Plan-based validations
+    if (plan === "premium" || plan === "professional") {
+      validations.tagline = {
+        required: "Business tagline is required for this plan",
+      };
+    }
 
-  // Show high contrast options
-  needsHighContrast: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.specialRequirements?.includes("high_contrast")),
-};
+    // Agency name based validations
+    const agencyName = getValues("agencyName");
+    const businessType = agencyName ? detectBusinessType(agencyName) : null;
+    if (businessType === "luxury") {
+      validations.tagline = {
+        required: "Please specify your luxury market focus in tagline",
+      };
+    }
 
-// Combined condition helpers
-export const createComplexCondition = (
-  ...conditions: Array<(data: Partial<RealtorRegistrationFormData>) => boolean>
-) => {
-  return (data: Partial<RealtorRegistrationFormData>) =>
-    conditions.every((condition) => condition(data));
-};
+    return validations;
+  }, [plan, getValues, detectBusinessType]);
 
-export const createOrCondition = (
-  ...conditions: Array<(data: Partial<RealtorRegistrationFormData>) => boolean>
-) => {
-  return (data: Partial<RealtorRegistrationFormData>) =>
-    conditions.some((condition) => condition(data));
-};
+  // Render location suggestions
+  const renderLocationSuggestions = () => {
+    if (locationSuggestions.length === 0) return null;
 
-// Multi-step navigation conditions
-export const stepConditions = {
-  // Can proceed to step 2 (business info)
-  canProceedToStep2: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.businessEmail && data.password && data.fullName),
+    return (
+      <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1">
+        {locationSuggestions.map((suggestion, index) => (
+          <button
+            key={index}
+            type="button"
+            onClick={() => applyLocationSuggestion(suggestion)}
+            className="w-full text-left px-4 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+          >
+            <div className="font-medium">
+              {suggestion.city}, {suggestion.state}
+            </div>
+            <div className="text-sm text-gray-500">{suggestion.country}</div>
+          </button>
+        ))}
+      </div>
+    );
+  };
 
-  // Can proceed to step 3 (professional info)
-  canProceedToStep3: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.agencyName && data.businessAddress),
+  // Render business suggestions
+  const renderBusinessSuggestions = () => {
+    if (!businessSuggestion) return null;
 
-  // Can proceed to step 4 (additional info)
-  canProceedToStep4: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.customSubdomain),
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mt-4">
+        <h4 className="font-medium text-blue-900 mb-2">💡 Smart Suggestions</h4>
 
-  // Can proceed to final step (review)
-  canProceedToReview: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(data.termsAccepted),
+        {businessSuggestion.marketingTips && (
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-blue-800">Marketing Tips:</p>
+            <ul className="text-sm text-blue-700 space-y-1">
+              {businessSuggestion.marketingTips.map((tip, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-  // Ready to submit
-  canSubmit: (data: Partial<RealtorRegistrationFormData>) =>
-    Boolean(
-      data.businessEmail &&
-        data.password &&
-        data.fullName &&
-        data.agencyName &&
-        data.businessAddress &&
-        data.customSubdomain &&
-        data.termsAccepted
-    ),
-};
+        {businessSuggestion.suggestedColors && (
+          <div className="mt-3">
+            <p className="text-sm font-medium text-blue-800 mb-2">
+              Suggested Colors:
+            </p>
+            <div className="flex space-x-2">
+              {businessSuggestion.suggestedColors
+                .slice(0, 4)
+                .map((color, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setValue("primaryColor", color)}
+                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm hover:scale-110 transition-transform"
+                    style={{ backgroundColor: color }}
+                    title={`Apply ${color}`}
+                  />
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
-// Form section visibility
-export const sectionConditions = {
-  showPersonalInfo: () => true, // Always show personal info
+  // This component primarily provides logic, minimal rendering
+  return (
+    <>
+      {/* Location Suggestions */}
+      {currentStep === 2 && renderLocationSuggestions()}
 
-  showBusinessInfo: (data: Partial<RealtorRegistrationFormData>) =>
-    stepConditions.canProceedToStep2(data),
+      {/* Business Suggestions */}
+      {(currentStep === 1 || currentStep === 4) && renderBusinessSuggestions()}
+    </>
+  );
+}
 
-  showProfessionalInfo: (data: Partial<RealtorRegistrationFormData>) =>
-    stepConditions.canProceedToStep3(data),
-
-  showAdditionalInfo: (data: Partial<RealtorRegistrationFormData>) =>
-    stepConditions.canProceedToStep4(data),
-
-  showReviewSection: (data: Partial<RealtorRegistrationFormData>) =>
-    stepConditions.canProceedToReview(data),
-};
-
-export default ConditionalField;
+export default ConditionalLogic;

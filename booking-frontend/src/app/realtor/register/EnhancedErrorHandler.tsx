@@ -1,417 +1,645 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  AlertCircle,
+  AlertTriangle,
+  Wifi,
+  WifiOff,
   RefreshCw,
   CheckCircle,
-  XCircle,
-  Info,
-  Lightbulb,
-  ExternalLink,
-  Copy,
   X,
+  Zap,
+  Clock,
+  AlertCircle,
+  Shield,
+  Loader2,
+  Bug,
+  HelpCircle,
+  ExternalLink,
 } from "lucide-react";
-import { FieldError, FieldErrors } from "react-hook-form";
-import { ZodError } from "zod";
+import { toast } from "react-hot-toast";
 
-type ErrorSeverity = "error" | "warning" | "info" | "success";
-type ErrorCategory =
-  | "validation"
+// Error types
+type ErrorType =
   | "network"
+  | "validation"
+  | "authentication"
   | "server"
-  | "security"
-  | "business";
+  | "timeout"
+  | "rate-limit"
+  | "unknown";
 
-interface EnhancedError {
+type ErrorSeverity = "low" | "medium" | "high" | "critical";
+
+interface ErrorDetails {
   id: string;
-  field?: string;
-  message: string;
+  type: ErrorType;
   severity: ErrorSeverity;
-  category: ErrorCategory;
-  suggestion?: string;
-  action?: {
-    label: string;
-    handler: () => void;
-  };
-  dismissible?: boolean;
-  helpUrl?: string;
+  title: string;
+  message: string;
+  details?: string;
+  retryable: boolean;
+  retryCount: number;
+  maxRetries: number;
+  timestamp: Date;
   context?: Record<string, any>;
+  suggestions?: string[];
+  helpUrl?: string;
+  reportable: boolean;
 }
 
-interface EnhancedErrorHandlerProps {
-  errors: FieldErrors;
-  globalErrors?: EnhancedError[];
-  onRetry?: () => void;
-  onClearErrors?: () => void;
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
+  backoffMultiplier: number;
+  retryOn: ErrorType[];
+}
+
+interface ErrorHandlerProps {
+  onRetry?: (errorId: string) => Promise<void>;
+  onReport?: (error: ErrorDetails) => void;
+  onDismiss?: (errorId: string) => void;
+  retryConfig?: Partial<RetryConfig>;
+  showNetworkStatus?: boolean;
   className?: string;
 }
 
-export const EnhancedErrorHandler: React.FC<EnhancedErrorHandlerProps> = ({
-  errors,
-  globalErrors = [],
+const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 3,
+  baseDelay: 1000,
+  maxDelay: 10000,
+  backoffMultiplier: 2,
+  retryOn: ["network", "server", "timeout"],
+};
+
+// Error messages and suggestions
+const ERROR_MESSAGES: Record<
+  ErrorType,
+  {
+    title: string;
+    defaultMessage: string;
+    suggestions: string[];
+    helpUrl?: string;
+  }
+> = {
+  network: {
+    title: "Connection Problem",
+    defaultMessage:
+      "Unable to connect to the server. Please check your internet connection.",
+    suggestions: [
+      "Check your internet connection",
+      "Try refreshing the page",
+      "Disable any VPN or proxy",
+      "Check if your firewall is blocking the connection",
+    ],
+    helpUrl: "/help/connection-issues",
+  },
+  validation: {
+    title: "Validation Error",
+    defaultMessage: "Some information provided is not valid.",
+    suggestions: [
+      "Review the form fields highlighted in red",
+      "Ensure all required fields are filled",
+      "Check the format of email addresses and phone numbers",
+      "Remove any special characters that may not be allowed",
+    ],
+  },
+  authentication: {
+    title: "Authentication Required",
+    defaultMessage: "You need to sign in to continue.",
+    suggestions: [
+      "Sign in with your account",
+      "Check if your session has expired",
+      "Clear browser cookies and try again",
+      "Contact support if you continue to have issues",
+    ],
+    helpUrl: "/help/authentication",
+  },
+  server: {
+    title: "Server Error",
+    defaultMessage:
+      "Our servers are experiencing issues. Please try again later.",
+    suggestions: [
+      "Wait a few minutes and try again",
+      "Refresh the page",
+      "Check our status page for known issues",
+      "Contact support if the problem persists",
+    ],
+    helpUrl: "/help/server-errors",
+  },
+  timeout: {
+    title: "Request Timeout",
+    defaultMessage: "The request took too long to complete.",
+    suggestions: [
+      "Check your internet connection speed",
+      "Try again with a faster connection",
+      "Reduce the size of files being uploaded",
+      "Contact support if timeouts persist",
+    ],
+  },
+  "rate-limit": {
+    title: "Too Many Requests",
+    defaultMessage:
+      "You've made too many requests. Please wait before trying again.",
+    suggestions: [
+      "Wait a few minutes before trying again",
+      "Avoid rapid successive requests",
+      "Contact support if you need higher limits",
+      "Check if you have multiple tabs open",
+    ],
+  },
+  unknown: {
+    title: "Unexpected Error",
+    defaultMessage: "An unexpected error occurred.",
+    suggestions: [
+      "Refresh the page and try again",
+      "Clear your browser cache",
+      "Try using a different browser",
+      "Contact support with details about what you were doing",
+    ],
+  },
+};
+
+export function EnhancedErrorHandler({
   onRetry,
-  onClearErrors,
+  onReport,
+  onDismiss,
+  retryConfig = {},
+  showNetworkStatus = true,
   className = "",
-}) => {
-  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(
-    new Set()
+}: ErrorHandlerProps) {
+  const [errors, setErrors] = useState<Map<string, ErrorDetails>>(new Map());
+  const [isOnline, setIsOnline] = useState(true);
+  const [retryingErrors, setRetryingErrors] = useState<Set<string>>(new Set());
+  const [networkQuality, setNetworkQuality] = useState<
+    "good" | "slow" | "poor"
+  >("good");
+
+  const config = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
+  const retryTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const networkTest = useRef<HTMLImageElement | null>(null);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success("Connection restored");
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.error("Connection lost");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Test network quality - simplified to avoid image loading issues
+    const testNetworkQuality = () => {
+      if (!navigator.onLine) {
+        setNetworkQuality("poor");
+        return;
+      }
+
+      // Use connection API if available, otherwise assume good quality
+      if ("connection" in navigator && (navigator as any).connection) {
+        const conn = (navigator as any).connection;
+        if (conn.effectiveType === "slow-2g" || conn.effectiveType === "2g") {
+          setNetworkQuality("poor");
+        } else if (conn.effectiveType === "3g") {
+          setNetworkQuality("slow");
+        } else {
+          setNetworkQuality("good");
+        }
+      } else {
+        setNetworkQuality("good");
+      }
+    };
+
+    testNetworkQuality();
+    const qualityInterval = setInterval(testNetworkQuality, 30000);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      clearInterval(qualityInterval);
+    };
+  }, []);
+
+  // Auto-retry mechanism
+  const scheduleRetry = useCallback(
+    (error: ErrorDetails, delay: number) => {
+      const timeoutId = setTimeout(async () => {
+        if (!onRetry) return;
+
+        setRetryingErrors((prev) => new Set([...prev, error.id]));
+
+        try {
+          await onRetry(error.id);
+          // If successful, remove error
+          setErrors((prev) => {
+            const newErrors = new Map(prev);
+            newErrors.delete(error.id);
+            return newErrors;
+          });
+          toast.success("Operation completed successfully");
+        } catch (retryError) {
+          // Increment retry count and potentially schedule another retry
+          const updatedError = {
+            ...error,
+            retryCount: error.retryCount + 1,
+            timestamp: new Date(),
+          };
+
+          if (updatedError.retryCount < updatedError.maxRetries) {
+            const nextDelay = Math.min(
+              delay * config.backoffMultiplier,
+              config.maxDelay
+            );
+            scheduleRetry(updatedError, nextDelay);
+          } else {
+            // Max retries reached
+            updatedError.retryable = false;
+            toast.error("All retry attempts failed");
+          }
+
+          setErrors((prev) => new Map(prev).set(error.id, updatedError));
+        } finally {
+          setRetryingErrors((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(error.id);
+            return newSet;
+          });
+        }
+      }, delay);
+
+      retryTimeouts.current.set(error.id, timeoutId);
+    },
+    [onRetry, config.backoffMultiplier, config.maxDelay]
   );
-  const [copiedErrorId, setCopiedErrorId] = useState<string | null>(null);
 
-  // Convert field errors to enhanced errors
-  const fieldErrors: EnhancedError[] = errors
-    ? Object.entries(errors).map(([field, error]) => {
-        // Safely handle different error types
-        const errorMessage =
-          typeof error?.message === "string"
-            ? error.message
-            : error && typeof error === "object" && "message" in error
-            ? String(error.message)
-            : "Invalid value";
+  // Add new error
+  const addError = useCallback(
+    (type: ErrorType, message?: string, details?: Partial<ErrorDetails>) => {
+      const errorInfo = ERROR_MESSAGES[type];
+      const errorId = `error_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
 
-        return {
-          id: `field-${field}`,
-          field,
-          message: errorMessage,
-          severity: "error" as ErrorSeverity,
-          category: "validation" as ErrorCategory,
-          suggestion: getFieldSuggestion(field, errorMessage),
-          dismissible: false,
-        };
-      })
-    : [];
+      const error: ErrorDetails = {
+        id: errorId,
+        type,
+        severity: "medium",
+        title: errorInfo.title,
+        message: message || errorInfo.defaultMessage,
+        retryable: config.retryOn.includes(type),
+        retryCount: 0,
+        maxRetries: config.maxRetries,
+        timestamp: new Date(),
+        suggestions: errorInfo.suggestions,
+        helpUrl: errorInfo.helpUrl,
+        reportable: true,
+        ...details,
+      };
 
-  // Combine all errors
-  const allErrors = [...fieldErrors, ...globalErrors].filter(
-    (error) => !dismissedErrors.has(error.id)
+      setErrors((prev) => new Map(prev).set(errorId, error));
+
+      // Auto-retry if configured
+      if (error.retryable && onRetry) {
+        scheduleRetry(error, config.baseDelay);
+      }
+
+      // Show toast notification
+      const toastMessage = `${error.title}: ${error.message}`;
+      switch (error.severity) {
+        case "critical":
+          toast.error(toastMessage, { duration: 6000 });
+          break;
+        case "high":
+          toast.error(toastMessage);
+          break;
+        case "medium":
+          toast(toastMessage, { icon: "⚠️" });
+          break;
+        case "low":
+          toast(toastMessage, { icon: "ℹ️", duration: 3000 });
+          break;
+      }
+
+      return errorId;
+    },
+    [config, onRetry, scheduleRetry]
   );
 
-  const handleDismiss = (errorId: string) => {
-    setDismissedErrors((prev) => new Set([...prev, errorId]));
-  };
+  // Manual retry
+  const handleRetry = useCallback(
+    async (errorId: string) => {
+      const error = errors.get(errorId);
+      if (!error || !onRetry) return;
 
-  const handleCopyError = async (error: EnhancedError) => {
-    const errorInfo = `Field: ${error.field || "Global"}\nMessage: ${
-      error.message
-    }\nSuggestion: ${error.suggestion || "None"}`;
+      setRetryingErrors((prev) => new Set([...prev, errorId]));
 
-    try {
-      await navigator.clipboard.writeText(errorInfo);
-      setCopiedErrorId(error.id);
-      setTimeout(() => setCopiedErrorId(null), 2000);
-    } catch (err) {
-      console.error("Failed to copy error info:", err);
-    }
-  };
+      try {
+        await onRetry(errorId);
+        setErrors((prev) => {
+          const newErrors = new Map(prev);
+          newErrors.delete(errorId);
+          return newErrors;
+        });
+        toast.success("Retry successful");
+      } catch (retryError) {
+        toast.error("Retry failed");
+        console.error("Retry error:", retryError);
+      } finally {
+        setRetryingErrors((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(errorId);
+          return newSet;
+        });
+      }
+    },
+    [errors, onRetry]
+  );
 
-  const getErrorIcon = (severity: ErrorSeverity) => {
-    switch (severity) {
-      case "error":
-        return <XCircle className="w-5 h-5 text-red-500" />;
-      case "warning":
-        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
-      case "info":
-        return <Info className="w-5 h-5 text-blue-500" />;
-      case "success":
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+  // Dismiss error
+  const handleDismiss = useCallback(
+    (errorId: string) => {
+      // Clear any pending retry
+      const timeoutId = retryTimeouts.current.get(errorId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        retryTimeouts.current.delete(errorId);
+      }
+
+      setErrors((prev) => {
+        const newErrors = new Map(prev);
+        newErrors.delete(errorId);
+        return newErrors;
+      });
+
+      if (onDismiss) {
+        onDismiss(errorId);
+      }
+    },
+    [onDismiss]
+  );
+
+  // Report error
+  const handleReport = useCallback(
+    (error: ErrorDetails) => {
+      if (onReport) {
+        onReport(error);
+        toast.success("Error report sent");
+      }
+    },
+    [onReport]
+  );
+
+  // Get error icon
+  const getErrorIcon = (error: ErrorDetails) => {
+    switch (error.type) {
+      case "network":
+        return <WifiOff className="w-5 h-5" />;
+      case "validation":
+        return <AlertTriangle className="w-5 h-5" />;
+      case "authentication":
+        return <Shield className="w-5 h-5" />;
+      case "server":
+        return <AlertCircle className="w-5 h-5" />;
+      case "timeout":
+        return <Clock className="w-5 h-5" />;
+      case "rate-limit":
+        return <Zap className="w-5 h-5" />;
       default:
-        return <AlertCircle className="w-5 h-5 text-gray-500" />;
+        return <Bug className="w-5 h-5" />;
     }
   };
 
-  const getErrorTheme = (severity: ErrorSeverity) => {
-    switch (severity) {
-      case "error":
+  // Get error color classes
+  const getErrorColors = (error: ErrorDetails) => {
+    switch (error.severity) {
+      case "critical":
+        return {
+          bg: "bg-red-100 border-red-300",
+          text: "text-red-900",
+          icon: "text-red-600",
+          button: "text-red-700 hover:text-red-900",
+        };
+      case "high":
         return {
           bg: "bg-red-50 border-red-200",
           text: "text-red-800",
+          icon: "text-red-500",
           button: "text-red-600 hover:text-red-800",
         };
-      case "warning":
+      case "medium":
         return {
           bg: "bg-yellow-50 border-yellow-200",
           text: "text-yellow-800",
-          button: "text-yellow-600 hover:text-yellow-800",
+          icon: "text-yellow-600",
+          button: "text-yellow-700 hover:text-yellow-900",
         };
-      case "info":
+      case "low":
         return {
           bg: "bg-blue-50 border-blue-200",
           text: "text-blue-800",
-          button: "text-blue-600 hover:text-blue-800",
-        };
-      case "success":
-        return {
-          bg: "bg-green-50 border-green-200",
-          text: "text-green-800",
-          button: "text-green-600 hover:text-green-800",
-        };
-      default:
-        return {
-          bg: "bg-gray-50 border-gray-200",
-          text: "text-gray-800",
-          button: "text-gray-600 hover:text-gray-800",
+          icon: "text-blue-600",
+          button: "text-blue-700 hover:text-blue-900",
         };
     }
   };
 
-  if (allErrors.length === 0) return null;
+  // Get network status
+  const getNetworkStatus = () => {
+    if (!isOnline) {
+      return {
+        icon: <WifiOff className="w-4 h-4" />,
+        color: "text-red-600",
+        status: "Offline",
+      };
+    }
+
+    switch (networkQuality) {
+      case "good":
+        return {
+          icon: <Wifi className="w-4 h-4" />,
+          color: "text-green-600",
+          status: "Good Connection",
+        };
+      case "slow":
+        return {
+          icon: <Wifi className="w-4 h-4" />,
+          color: "text-yellow-600",
+          status: "Slow Connection",
+        };
+      case "poor":
+        return {
+          icon: <WifiOff className="w-4 h-4" />,
+          color: "text-red-600",
+          status: "Poor Connection",
+        };
+    }
+  };
+
+  const networkStatus = getNetworkStatus();
+  const errorArray = Array.from(errors.values()).sort(
+    (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+  );
+
+  // Expose addError function globally for use in other components
+  useEffect(() => {
+    (window as any).addError = addError;
+    return () => {
+      delete (window as any).addError;
+    };
+  }, [addError]);
 
   return (
-    <div className={`space-y-3 ${className}`}>
+    <div
+      className={`fixed top-4 right-4 z-50 w-96 max-h-screen overflow-y-auto ${className}`}
+    >
+      {/* Network Status */}
+      {showNetworkStatus && (
+        <div
+          className={`mb-2 p-2 bg-white border rounded-lg shadow-sm ${networkStatus.color}`}
+        >
+          <div className="flex items-center space-x-2 text-sm">
+            {networkStatus.icon}
+            <span>{networkStatus.status}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Error Messages */}
       <AnimatePresence>
-        {allErrors.map((error) => {
-          const theme = getErrorTheme(error.severity);
+        {errorArray.map((error) => {
+          const colors = getErrorColors(error);
+          const isRetrying = retryingErrors.has(error.id);
 
           return (
             <motion.div
               key={error.id}
-              initial={{ opacity: 0, scale: 0.95, height: 0 }}
-              animate={{ opacity: 1, scale: 1, height: "auto" }}
-              exit={{ opacity: 0, scale: 0.95, height: 0 }}
-              className={`p-4 border rounded-lg ${theme.bg} ${theme.text}`}
+              initial={{ opacity: 0, x: 300, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 300, scale: 0.9 }}
+              transition={{ duration: 0.3 }}
+              className={`mb-3 p-4 border rounded-lg shadow-lg bg-white ${colors.bg}`}
             >
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 pt-0.5">
-                  {getErrorIcon(error.severity)}
+              {/* Header */}
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <div className={colors.icon}>{getErrorIcon(error)}</div>
+                  <h4 className={`font-medium ${colors.text}`}>
+                    {error.title}
+                  </h4>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      {error.field && (
-                        <p className="text-sm font-medium mb-1">
-                          {formatFieldName(error.field)}
-                        </p>
-                      )}
-                      <p className="text-sm">{error.message}</p>
+                <button
+                  onClick={() => handleDismiss(error.id)}
+                  className={`${colors.button} hover:bg-black hover:bg-opacity-10 rounded p-1 transition-colors`}
+                  aria-label="Dismiss error"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                      {error.suggestion && (
-                        <div className="mt-2 flex items-start space-x-2">
-                          <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm opacity-90">
-                            {error.suggestion}
-                          </p>
-                        </div>
-                      )}
+              {/* Message */}
+              <p className={`text-sm mb-3 ${colors.text}`}>{error.message}</p>
 
-                      {error.context && (
-                        <details className="mt-2">
-                          <summary className="text-xs cursor-pointer opacity-75 hover:opacity-100">
-                            Technical Details
-                          </summary>
-                          <pre className="text-xs mt-1 p-2 bg-black bg-opacity-10 rounded overflow-x-auto">
-                            {JSON.stringify(error.context, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                    </div>
+              {/* Details */}
+              {error.details && (
+                <details className={`text-xs mb-3 ${colors.text}`}>
+                  <summary className="cursor-pointer font-medium">
+                    Technical Details
+                  </summary>
+                  <pre className="mt-1 p-2 bg-black bg-opacity-5 rounded overflow-x-auto">
+                    {error.details}
+                  </pre>
+                </details>
+              )}
 
-                    <div className="flex items-center space-x-2 ml-3">
-                      <button
-                        onClick={() => handleCopyError(error)}
-                        className={`p-1 rounded hover:bg-black hover:bg-opacity-10 transition-colors ${theme.button}`}
-                        title="Copy error details"
-                      >
-                        {copiedErrorId === error.id ? (
-                          <CheckCircle className="w-4 h-4" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
+              {/* Suggestions */}
+              {error.suggestions && error.suggestions.length > 0 && (
+                <div className="mb-3">
+                  <h5 className={`text-xs font-medium mb-1 ${colors.text}`}>
+                    Try these solutions:
+                  </h5>
+                  <ul className={`text-xs space-y-1 ${colors.text}`}>
+                    {error.suggestions.slice(0, 3).map((suggestion, index) => (
+                      <li key={index} className="flex items-start">
+                        <span className="w-1 h-1 bg-current rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                        {suggestion}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-                      {error.dismissible && (
-                        <button
-                          onClick={() => handleDismiss(error.id)}
-                          className={`p-1 rounded hover:bg-black hover:bg-opacity-10 transition-colors ${theme.button}`}
-                          title="Dismiss error"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3 mt-3">
-                    {error.action && (
-                      <button
-                        onClick={error.action.handler}
-                        className={`text-sm font-medium underline hover:no-underline ${theme.button}`}
-                      >
-                        {error.action.label}
-                      </button>
-                    )}
-
-                    {error.helpUrl && (
-                      <a
-                        href={error.helpUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`text-sm font-medium underline hover:no-underline flex items-center space-x-1 ${theme.button}`}
-                      >
-                        <span>Learn more</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-
-                    {onRetry && error.category === "network" && (
-                      <button
-                        onClick={onRetry}
-                        className={`text-sm font-medium underline hover:no-underline flex items-center space-x-1 ${theme.button}`}
-                      >
+              {/* Actions */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {error.retryable && (
+                    <button
+                      onClick={() => handleRetry(error.id)}
+                      disabled={isRetrying}
+                      className={`
+                        flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded
+                        ${
+                          isRetrying
+                            ? "opacity-50 cursor-not-allowed"
+                            : colors.button
+                        }
+                        bg-white border transition-colors
+                      `}
+                    >
+                      {isRetrying ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
                         <RefreshCw className="w-3 h-3" />
-                        <span>Retry</span>
-                      </button>
-                    )}
-                  </div>
+                      )}
+                      <span>{isRetrying ? "Retrying..." : "Retry"}</span>
+                    </button>
+                  )}
+
+                  {error.helpUrl && (
+                    <a
+                      href={error.helpUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`
+                        flex items-center space-x-1 px-3 py-1 text-xs font-medium rounded
+                        ${colors.button} bg-white border transition-colors
+                      `}
+                    >
+                      <HelpCircle className="w-3 h-3" />
+                      <span>Help</span>
+                      <ExternalLink className="w-2 h-2" />
+                    </a>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  {error.reportable && onReport && (
+                    <button
+                      onClick={() => handleReport(error)}
+                      className={`text-xs ${colors.button} hover:underline`}
+                    >
+                      Report
+                    </button>
+                  )}
+
+                  <span className={`text-xs ${colors.text} opacity-75`}>
+                    {error.retryCount > 0 &&
+                      `${error.retryCount}/${error.maxRetries} retries`}
+                  </span>
                 </div>
               </div>
             </motion.div>
           );
         })}
       </AnimatePresence>
-
-      {/* Global error actions */}
-      {allErrors.length > 1 && onClearErrors && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex justify-center pt-2"
-        >
-          <button
-            onClick={onClearErrors}
-            className="text-sm text-gray-600 hover:text-gray-800 underline hover:no-underline"
-          >
-            Clear all errors
-          </button>
-        </motion.div>
-      )}
     </div>
   );
-};
-
-// Helper functions
-function getErrorMessage(error: FieldError | undefined): string {
-  if (!error) return "Unknown error";
-
-  if (typeof error.message === "string") {
-    return error.message;
-  }
-
-  if (error.type) {
-    return getDefaultErrorMessage(error.type);
-  }
-
-  return "Invalid value";
 }
-
-function getDefaultErrorMessage(type: string): string {
-  const errorMessages: Record<string, string> = {
-    required: "This field is required",
-    min: "Value is too small",
-    max: "Value is too large",
-    minLength: "Text is too short",
-    maxLength: "Text is too long",
-    pattern: "Invalid format",
-    businessEmail: "Please enter a valid email address",
-    url: "Please enter a valid URL",
-    date: "Please enter a valid date",
-    number: "Please enter a valid number",
-  };
-
-  return errorMessages[type] || "Invalid value";
-}
-
-function getFieldSuggestion(
-  field: string,
-  message: string
-): string | undefined {
-  const suggestions: Record<string, string> = {
-    businessEmail:
-      "Make sure your email includes @ and a valid domain (e.g., user@example.com)",
-    password:
-      "Use at least 8 characters with a mix of letters, numbers, and symbols",
-    phone:
-      "Include your country code and use only numbers and common separators",
-    website: "Start with http:// or https:// and include a valid domain name",
-    businessName: "Use your official business name as registered",
-    licenseNumber:
-      "Enter your license number exactly as it appears on your license",
-    yearsExperience: "Enter a number between 0 and 50",
-    zipCode: "Use the standard postal code format for your country",
-    socialMedia:
-      "Enter the full URL to your profile (e.g., https://linkedin.com/in/yourname)",
-  };
-
-  return suggestions[field];
-}
-
-function formatFieldName(field: string): string {
-  return field
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (str) => str.toUpperCase())
-    .replace(/_/g, " ");
-}
-
-// Error factory functions for common scenarios
-export const createNetworkError = (
-  message: string,
-  retryHandler?: () => void
-): EnhancedError => ({
-  id: `network-${Date.now()}`,
-  message,
-  severity: "error",
-  category: "network",
-  suggestion: "Check your internet connection and try again",
-  action: retryHandler ? { label: "Retry", handler: retryHandler } : undefined,
-  dismissible: true,
-});
-
-export const createValidationError = (
-  field: string,
-  message: string
-): EnhancedError => ({
-  id: `validation-${field}-${Date.now()}`,
-  field,
-  message,
-  severity: "error",
-  category: "validation",
-  suggestion: getFieldSuggestion(field, message),
-  dismissible: false,
-});
-
-export const createBusinessError = (
-  message: string,
-  suggestion?: string
-): EnhancedError => ({
-  id: `business-${Date.now()}`,
-  message,
-  severity: "warning",
-  category: "business",
-  suggestion,
-  dismissible: true,
-});
-
-export const createSecurityError = (
-  message: string,
-  helpUrl?: string
-): EnhancedError => ({
-  id: `security-${Date.now()}`,
-  message,
-  severity: "error",
-  category: "security",
-  suggestion: "Please review your input for security compliance",
-  helpUrl,
-  dismissible: false,
-});
-
-export const createSuccessMessage = (message: string): EnhancedError => ({
-  id: `success-${Date.now()}`,
-  message,
-  severity: "success",
-  category: "validation",
-  dismissible: true,
-});
-
-export default EnhancedErrorHandler;
