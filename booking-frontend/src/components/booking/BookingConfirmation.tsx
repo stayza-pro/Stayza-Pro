@@ -189,7 +189,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           <div className="flex items-center space-x-4">
             <Image
               src={
-                booking.property?.realtor?.user?.avatar || "/default-avatar.png"
+                booking.property?.realtor?.user?.avatar || "/images/default-avatar.svg"
               }
               alt={`${
                 booking.property?.realtor?.user?.firstName || "Unknown"

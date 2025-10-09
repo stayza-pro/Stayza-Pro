@@ -23,8 +23,12 @@ export const authService = {
 
   // Login user
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    // Clear any existing tokens to avoid interference
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+
     const response = await apiClient.post<AuthResponse>(
-      "/guest/login",
+      "/auth/login",
       credentials
     );
 
@@ -77,13 +81,13 @@ export const authService = {
 
   // Get current user profile
   getProfile: async (): Promise<User> => {
-    const response = await apiClient.get<User>("/auth/profile");
+    const response = await apiClient.get<User>("/auth/me");
     return response.data;
   },
 
   // Update user profile
   updateProfile: async (data: Partial<User>): Promise<User> => {
-    const response = await apiClient.patch<User>("/auth/profile", data);
+    const response = await apiClient.put<User>("/auth/profile", data);
     return response.data;
   },
 

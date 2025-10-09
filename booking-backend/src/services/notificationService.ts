@@ -148,7 +148,7 @@ export class NotificationService {
 
       // Get user details from database
       const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
+        where: { id: decoded.id },
         include: {
           realtor: true,
         },

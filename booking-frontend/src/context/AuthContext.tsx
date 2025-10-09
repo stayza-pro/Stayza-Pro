@@ -29,15 +29,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     // Initialize auth state
-    const initAuth = () => {
+    const initAuth = async () => {
       setLoading(true);
 
       try {
-        checkAuth();
+        await checkAuth();
       } catch (error) {
         console.error("Failed to initialize auth:", error);
       } finally {
-        setLoading(false);
+        // The checkAuth method now handles setting isLoading to false
+        // so we don't need to call setLoading(false) here
       }
     };
 

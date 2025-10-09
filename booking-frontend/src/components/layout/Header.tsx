@@ -26,10 +26,11 @@ export const Header: React.FC = () => {
 
     switch (user.role) {
       case "ADMIN":
-        return "/admin/dashboard";
+        return "/admin";
       case "REALTOR":
-        return "/realtor/dashboard";
+        return "/realtor";
       case "GUEST":
+        return "/guest";
       default:
         return "/dashboard";
     }

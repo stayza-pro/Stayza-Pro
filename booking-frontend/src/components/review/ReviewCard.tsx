@@ -128,7 +128,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
             <div className="flex-shrink-0">
               {showGuestName ? (
                 <Image
-                  src={review.author?.avatar || "/default-avatar.png"}
+                  src={review.author?.avatar || "/images/default-avatar.svg"}
                   alt={`${review.author?.firstName || "Anonymous"} ${
                     review.author?.lastName || "User"
                   }`}
@@ -264,7 +264,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
               <Image
                 src={
                   review.property?.realtor?.user?.avatar ||
-                  "/default-avatar.png"
+                  "/images/default-avatar.svg"
                 }
                 alt="Host"
                 width={32}

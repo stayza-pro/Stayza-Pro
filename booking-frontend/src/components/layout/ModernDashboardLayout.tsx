@@ -25,11 +25,19 @@ import Image from "next/image";
 import { User as UserType } from "@/types";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
+interface BrandingConfig {
+  businessName: string;
+  primaryColor: string;
+  secondaryColor?: string;
+  logoUrl?: string;
+}
+
 interface ModernDashboardLayoutProps {
   children: ReactNode;
   currentUser: UserType;
   activeRoute?: string;
   onRouteChange?: (route: string) => void;
+  branding?: BrandingConfig;
 }
 
 export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
@@ -37,6 +45,7 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
   currentUser,
   activeRoute = "overview",
   onRouteChange,
+  branding,
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -222,6 +231,7 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
                 onRouteChange={onRouteChange}
                 onClose={() => setMobileMenuOpen(false)}
                 currentUser={currentUser}
+                branding={branding}
               />
             </motion.div>
           </motion.div>
@@ -244,14 +254,39 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
           >
             {sidebarOpen && (
               <>
-                <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">S</span>
-                </div>
+                {branding?.logoUrl ? (
+                  <div className="w-8 h-8 rounded-lg overflow-hidden">
+                    <Image
+                      src={branding.logoUrl}
+                      alt={branding.businessName}
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{
+                      backgroundColor: branding?.primaryColor || "#1f2937",
+                    }}
+                  >
+                    <span className="text-white font-bold text-sm">
+                      {branding?.businessName?.charAt(0) || "S"}
+                    </span>
+                  </div>
+                )}
                 <div>
                   <h1 className="text-lg font-bold text-gray-900">
-                    Stayza Pro
+                    {branding?.businessName || "Stayza Pro"}
                   </h1>
-                  <p className="text-xs text-gray-500">Admin Dashboard</p>
+                  <p className="text-xs text-gray-500">
+                    {currentUser.role === "ADMIN"
+                      ? "Admin Dashboard"
+                      : currentUser.role === "REALTOR"
+                      ? "Realtor Dashboard"
+                      : "Dashboard"}
+                  </p>
                 </div>
               </>
             )}
@@ -322,7 +357,7 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
             } p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer`}
           >
             <Image
-              src={currentUser.avatar || "/default-avatar.png"}
+              src={currentUser.avatar || "/images/default-avatar.svg"}
               alt={`${currentUser.firstName} ${currentUser.lastName}`}
               width={32}
               height={32}
@@ -389,7 +424,7 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
                   className="flex items-center space-x-2 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
                 >
                   <Image
-                    src={currentUser.avatar || "/default-avatar.png"}
+                    src={currentUser.avatar || "/images/default-avatar.svg"}
                     alt={`${currentUser.firstName} ${currentUser.lastName}`}
                     width={32}
                     height={32}
@@ -411,7 +446,9 @@ export const ModernDashboardLayout: React.FC<ModernDashboardLayoutProps> = ({
                       <div className="px-4 py-3 border-b border-gray-100">
                         <div className="flex items-center space-x-3">
                           <Image
-                            src={currentUser.avatar || "/default-avatar.png"}
+                            src={
+                              currentUser.avatar || "/images/default-avatar.svg"
+                            }
                             alt={`${currentUser.firstName} ${currentUser.lastName}`}
                             width={40}
                             height={40}
@@ -504,24 +541,51 @@ const MobileSidebar: React.FC<{
   onRouteChange?: (route: string) => void;
   onClose: () => void;
   currentUser: UserType;
+  branding?: BrandingConfig;
 }> = ({
   navigationItems,
   activeRoute,
   onRouteChange,
   onClose,
   currentUser,
+  branding,
 }) => {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">S</span>
-          </div>
+          {branding?.logoUrl ? (
+            <div className="w-8 h-8 rounded-lg overflow-hidden">
+              <Image
+                src={branding.logoUrl}
+                alt={branding.businessName}
+                width={32}
+                height={32}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: branding?.primaryColor || "#2563eb" }}
+            >
+              <span className="text-white font-bold text-sm">
+                {branding?.businessName?.charAt(0) || "S"}
+              </span>
+            </div>
+          )}
           <div>
-            <h1 className="text-lg font-bold text-gray-900">Stayza Pro</h1>
-            <p className="text-xs text-gray-500">Admin Dashboard</p>
+            <h1 className="text-lg font-bold text-gray-900">
+              {branding?.businessName || "Stayza Pro"}
+            </h1>
+            <p className="text-xs text-gray-500">
+              {currentUser.role === "ADMIN"
+                ? "Admin Dashboard"
+                : currentUser.role === "REALTOR"
+                ? "Realtor Dashboard"
+                : "Dashboard"}
+            </p>
           </div>
         </div>
         <button
@@ -566,7 +630,7 @@ const MobileSidebar: React.FC<{
       <div className="p-4 border-t border-gray-200">
         <div className="flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
           <Image
-            src={currentUser.avatar || "/default-avatar.png"}
+            src={currentUser.avatar || "/images/default-avatar.svg"}
             alt={`${currentUser.firstName} ${currentUser.lastName}`}
             width={40}
             height={40}

@@ -15,7 +15,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
+      // Redirect to realtor login with return URL
+      router.push("/realtor/login?returnTo=/dashboard");
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -34,15 +35,34 @@ export default function DashboardPage() {
     return null;
   }
 
+  // Redirect users to their role-specific dashboards
+  useEffect(() => {
+    if (user && !isLoading) {
+      switch (user.role) {
+        case "ADMIN":
+          router.push("/admin");
+          break;
+        case "REALTOR":
+          router.push("/realtor");
+          break;
+        case "GUEST":
+          router.push("/guest");
+          break;
+        default:
+          break;
+      }
+    }
+  }, [user, isLoading, router]);
+
   const renderDashboard = () => {
-    switch (user.role) {
+    switch (user?.role) {
       case "ADMIN":
         return <ModernAdminDashboard currentUser={user} />;
       case "REALTOR":
         return <ModernPropertyManagement currentUser={user} />;
       case "GUEST":
       default:
-        return <ModernAdminDashboard currentUser={user} />;
+        return <ModernPropertyManagement currentUser={user} />;
     }
   };
 

@@ -295,8 +295,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               src={
                 viewType === "guest"
                   ? booking.property?.realtor?.user?.avatar ||
-                    "/default-avatar.png"
-                  : booking.guest?.avatar || "/default-avatar.png"
+                    "/images/default-avatar.svg"
+                  : booking.guest?.avatar || "/images/default-avatar.svg"
               }
               alt={
                 viewType === "guest"
@@ -479,7 +479,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               }`}
             >
               <Image
-                src={review.author?.avatar || "/default-avatar.png"}
+                src={review.author?.avatar || "/images/default-avatar.svg"}
                 alt={`${review.author?.firstName || "Anonymous"} ${
                   review.author?.lastName || "User"
                 }`}

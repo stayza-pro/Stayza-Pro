@@ -21,6 +21,8 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { palette } from "@/app/(marketing)/content";
 import { LogoLockup } from "@/app/(marketing)/components/LogoLockup";
+import { useAuthStore } from "@/store/authStore";
+import { TestCredentials } from "@/components/dev/TestCredentials";
 
 // Force dynamic rendering since this page uses search params
 export const dynamic = "force-dynamic";
@@ -61,7 +63,7 @@ function RealtorLoginContent() {
   const returnTo = searchParams.get("returnTo") || "/dashboard";
 
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isLoading, error: authError } = useAuthStore();
 
   const {
     register,
@@ -73,82 +75,52 @@ function RealtorLoginContent() {
   });
 
   const onSubmit = async (data: LoginData) => {
-    setIsLoading(true);
-
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
+      await login(data.email, data.password);
 
-      const result: LoginResponse = await response.json();
-
-      if (!response.ok) {
-        if (result.errors) {
-          result.errors.forEach((error) => {
-            if (error.toLowerCase().includes("email")) {
-              setError("email", { message: error });
-            } else if (error.toLowerCase().includes("password")) {
-              setError("password", { message: error });
-            } else {
-              toast.error(error);
-            }
-          });
-        } else {
-          toast.error(result.message || "Login failed");
-        }
+      // Check if user is a realtor after successful login
+      const { user } = useAuthStore.getState();
+      if (user && user.role !== "REALTOR") {
+        toast.error(
+          "This login is for realtors only. Please use the correct login page for your account type."
+        );
         return;
       }
 
-      if (result.data) {
-        // Check if user is a realtor
-        if (result.data.user.role !== "REALTOR") {
-          toast.error(
-            "This login is for realtors only. Please use the correct login page for your account type."
-          );
-          return;
-        }
+      toast.success(`Welcome back, ${user?.firstName}!`);
 
-        // Check realtor status
-        const realtorStatus = result.data.user.realtor?.status;
-        if (realtorStatus === "PENDING") {
-          toast(
-            "Your account is pending approval. You will receive an email once approved.",
-            { icon: "⏳" }
-          );
-          router.push("/realtor/pending-approval");
-          return;
-        } else if (realtorStatus === "REJECTED") {
-          toast.error(
-            "Your realtor application was rejected. Please contact support for more information."
-          );
-          router.push("/realtor/application-rejected");
-          return;
-        } else if (realtorStatus === "SUSPENDED") {
-          toast.error(
-            "Your account has been suspended. Please contact support for more information."
-          );
-          return;
-        }
-
-        // Store tokens
-        localStorage.setItem("accessToken", result.data.accessToken);
-        localStorage.setItem("refreshToken", result.data.refreshToken);
-        localStorage.setItem("user", JSON.stringify(result.data.user));
-
-        toast.success(`Welcome back, ${result.data.user.firstName}!`);
-
-        // Redirect to intended destination
-        router.push(returnTo);
-      }
+      // Redirect to intended destination
+      router.push(returnTo);
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error("Login failed. Please try again.");
-    } finally {
-      setIsLoading(false);
+
+      // Handle different types of errors
+      if (error.response) {
+        // Server responded with error status
+        const message =
+          error.response.data?.message ||
+          "Login failed. Please check your credentials.";
+        toast.error(message);
+
+        // Handle specific validation errors
+        if (error.response.data?.errors) {
+          error.response.data.errors.forEach((err: string) => {
+            if (err.toLowerCase().includes("email")) {
+              setError("email", { message: err });
+            } else if (err.toLowerCase().includes("password")) {
+              setError("password", { message: err });
+            }
+          });
+        }
+      } else if (error.request) {
+        // Network error - server not reachable
+        toast.error(
+          "Unable to connect to server. Please check your internet connection and try again."
+        );
+      } else {
+        // Other error
+        toast.error(error.message || "Login failed. Please try again.");
+      }
     }
   };
 
@@ -431,6 +403,9 @@ function RealtorLoginContent() {
           </div>
         </motion.div>
       </div>
+
+      {/* Development Test Credentials */}
+      <TestCredentials />
     </div>
   );
 }

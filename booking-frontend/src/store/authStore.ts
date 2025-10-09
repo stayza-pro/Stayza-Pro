@@ -171,27 +171,84 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: loading });
       },
 
-      checkAuth: () => {
-        const token = authService.getAccessToken();
-        if (token) {
-          // Verify token with backend and update state
-          authService
-            .getProfile()
-            .then((user) => {
+      checkAuth: async () => {
+        const state = get();
+        const token = state.accessToken || authService.getAccessToken();
+        const refreshToken =
+          state.refreshToken || authService.getRefreshToken();
+
+        if (!token && !refreshToken) {
+          // No tokens available, user is not authenticated
+          set({
+            user: null,
+            accessToken: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+          return;
+        }
+
+        try {
+          set({ isLoading: true });
+
+          // Try to get user profile with current token
+          const user = await authService.getProfile();
+
+          set({
+            user,
+            accessToken: token,
+            refreshToken,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error: any) {
+          // If profile fetch fails, try to refresh token
+          if (refreshToken && error?.response?.status === 401) {
+            try {
+              await get().refreshUserToken();
+              // After successful refresh, try to get profile again
+              const user = await authService.getProfile();
+              const newState = get();
               set({
                 user,
+                accessToken: newState.accessToken,
+                refreshToken: newState.refreshToken,
                 isAuthenticated: true,
+                isLoading: false,
+                error: null,
               });
-            })
-            .catch(() => {
-              // Token is invalid, clear state
+            } catch (refreshError) {
+              // Refresh failed, clear auth state
+              console.error("Token refresh failed:", refreshError);
               set({
                 user: null,
                 accessToken: null,
                 refreshToken: null,
                 isAuthenticated: false,
+                isLoading: false,
+                error: null,
               });
+              // Clear tokens from localStorage
+              localStorage.removeItem("accessToken");
+              localStorage.removeItem("refreshToken");
+            }
+          } else {
+            // Token is invalid and no refresh token, clear state
+            console.error("Auth check failed:", error);
+            set({
+              user: null,
+              accessToken: null,
+              refreshToken: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: null,
             });
+            // Clear tokens from localStorage
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+          }
         }
       },
     }),
