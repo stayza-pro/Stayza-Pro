@@ -80,6 +80,9 @@ export interface User {
   resetPasswordExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  realtor?: Realtor;
 }
 
 export interface Realtor {

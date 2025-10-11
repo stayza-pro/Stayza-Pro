@@ -3,3 +3,4 @@ export { ModernAdminDashboard } from "./ModernAdminDashboard";
 export { ModernPropertyManagement } from "./ModernPropertyManagement";
 export { AnalyticsDashboard } from "./AnalyticsDashboard";
 export { CacStatusCard } from "./CacStatusCard";
+export { RealtorDashboard } from "./RealtorDashboard";

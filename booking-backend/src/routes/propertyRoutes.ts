@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Response } from "express";
 import {
   getProperties,
   getProperty,
@@ -16,6 +16,7 @@ import {
   requireApprovedRealtor,
 } from "@/middleware/auth";
 import { upload } from "@/utils/upload";
+import { AuthenticatedRequest } from "@/types";
 
 const router = express.Router();
 
@@ -353,17 +354,17 @@ router.get("/", getProperties);
 
 /**
  * @swagger
- * /api/properties/host/{hostId}:
+ * /api/properties/host/{realtorId}:
  *   get:
- *     summary: Get properties by host ID
+ *     summary: Get properties by realtor ID
  *     tags: [Properties]
  *     parameters:
  *       - in: path
- *         name: hostId
+ *         name: realtorId
  *         required: true
  *         schema:
  *           type: string
- *         description: Host user ID
+ *         description: Realtor user ID
  *       - in: query
  *         name: page
  *         schema:
@@ -378,19 +379,56 @@ router.get("/", getProperties);
  *         description: Number of items per page
  *     responses:
  *       200:
- *         description: Host properties retrieved successfully
+ *         description: Realtor properties retrieved successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PaginatedProperties'
  *       404:
- *         description: Host not found
+ *         description: Realtor not found
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.get("/host/:hostId", getPropertiesByHost);
+router.get("/host/:realtorId", getPropertiesByHost);
+
+/**
+ * @swagger
+ * /api/properties/my-properties:
+ *   get:
+ *     summary: Get current user's properties
+ *     tags: [Properties]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *     responses:
+ *       200:
+ *         description: User's properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedProperties'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+router.get("/my-properties", authenticate, getPropertiesByHost);
 
 /**
  * @swagger

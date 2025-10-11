@@ -89,8 +89,36 @@ function RealtorLoginContent() {
 
       toast.success(`Welcome back, ${user?.firstName}!`);
 
-      // Redirect to intended destination
-      router.push(returnTo);
+      // Generate realtor subdomain - use a simple approach for now
+      // In production, you'd get this from the user's realtor profile
+      let realtorSlug = "anderson"; // Default for testing
+
+      // Try to get from user profile if available
+      if (user?.realtor?.slug) {
+        realtorSlug = user.realtor.slug;
+      } else {
+        // Generate from email - clean it up properly
+        const emailPrefix = data.email.split("@")[0];
+        realtorSlug = emailPrefix.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+      }
+
+      // Build subdomain URL and redirect - use port 3000 since frontend is on 3000
+      const protocol = window.location.protocol;
+      const port = window.location.port || "3000";
+
+      // Pass auth tokens as URL parameters for cross-subdomain transfer
+      const { accessToken, refreshToken } = useAuthStore.getState();
+      const tokenParams = new URLSearchParams({
+        ...(accessToken && { token: accessToken }),
+        ...(refreshToken && { refresh: refreshToken }),
+      });
+
+      const subdomainUrl = `${protocol}//${realtorSlug}.localhost:${port}/dashboard?${tokenParams.toString()}`;
+
+      console.log("Redirecting to:", subdomainUrl);
+
+      // Redirect to realtor's subdomain dashboard with tokens
+      window.location.href = subdomainUrl;
     } catch (error: any) {
       console.error("Login error:", error);
 
@@ -417,3 +445,4 @@ export default function RealtorLoginPage() {
     </Suspense>
   );
 }
+

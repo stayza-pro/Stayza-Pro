@@ -1,94 +1,183 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuthStore } from "../../store/authStore";
-import { Loading } from "../ui";
-import { UserRole } from "@/types";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
+import { setCookie } from "@/utils/cookies";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: UserRole;
+  requiredRole?: "GUEST" | "REALTOR" | "ADMIN";
   redirectTo?: string;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+export default function ProtectedRoute({
   children,
   requiredRole,
-  redirectTo = "/guest/login",
-}) => {
+  redirectTo = "/login",
+}: ProtectedRouteProps) {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const searchParams = useSearchParams();
 
-  const normalizeRole = (role?: UserRole | null) => {
-    if (!role) return undefined;
-    if (role === "REALTOR") {
-      return "HOST";
-    }
-    return role;
-  };
+  // Get store values and methods separately for better stability
+  const { isAuthenticated, user, isLoading, checkAuth } = useAuthStore();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
 
-  const userRole = normalizeRole(user?.role ?? null);
-  const requiredNormalizedRole = normalizeRole(requiredRole ?? null);
-  const rawRole = user?.role;
+  // Prevent hydration errors by only rendering after mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
-    // Check authentication status on mount
-    checkAuth();
-  }, [checkAuth]);
+    if (!isMounted) return; // Don't run on server
 
-  useEffect(() => {
-    if (isLoading) {
-      return;
-    }
+    const initAuth = async () => {
+      try {
+        // Check if tokens are being passed via URL (cross-subdomain redirect)
+        const tokenFromUrl = searchParams.get("token");
+        const refreshFromUrl = searchParams.get("refresh");
 
-    if (!isAuthenticated) {
-      router.push(redirectTo);
-      return;
-    }
+        if (tokenFromUrl && refreshFromUrl) {
+          console.log("🔑 ProtectedRoute: Restoring tokens from URL...");
 
-    if (requiredNormalizedRole && userRole !== requiredNormalizedRole) {
-      // Redirect based on user role if they don't have required permission
-      switch (rawRole) {
-        case "ADMIN":
-          router.push("/admin/dashboard");
-          break;
-        case "REALTOR":
-          router.push("/host/dashboard");
-          break;
-        case "GUEST":
-          router.push("/dashboard");
-          break;
-        default:
-          router.push("/guest/login");
+          // Set tokens in localStorage for this subdomain
+          localStorage.setItem("accessToken", tokenFromUrl);
+          localStorage.setItem("refreshToken", refreshFromUrl);
+
+          // Set tokens in cookies for cross-subdomain access
+          setCookie("accessToken", tokenFromUrl, 7);
+          setCookie("refreshToken", refreshFromUrl, 30);
+
+          // Update auth store state FIRST before checking auth
+          useAuthStore.setState({
+            accessToken: tokenFromUrl,
+            refreshToken: refreshFromUrl,
+            isAuthenticated: true, // Assume authenticated for now
+          });
+
+          console.log("✅ ProtectedRoute: Tokens restored to storage");
+
+          // Clean up URL by removing token parameters
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete("token");
+          newUrl.searchParams.delete("refresh");
+          window.history.replaceState({}, "", newUrl.toString());
+
+          // Give a small delay to ensure localStorage is fully written
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // Now verify tokens by fetching user profile
+          try {
+            console.log("🔍 ProtectedRoute: Verifying tokens with backend...");
+            await checkAuth();
+
+            // Get fresh state after checkAuth completes
+            const { user: updatedUser, isAuthenticated: updatedAuth } =
+              useAuthStore.getState();
+            console.log("✅ ProtectedRoute: Token verification successful", {
+              isAuthenticated: updatedAuth,
+              hasUser: !!updatedUser,
+              userRole: updatedUser?.role,
+              userId: updatedUser?.id,
+            });
+          } catch (verifyError) {
+            console.error(
+              "❌ ProtectedRoute: Token verification failed:",
+              verifyError
+            );
+            // If verification fails, checkAuth already cleared the state
+          }
+        } else {
+          // No tokens in URL, just check existing auth state
+          console.log("🔍 ProtectedRoute: Checking existing auth...");
+          await checkAuth();
+
+          // Log the auth state after checkAuth completes
+          const authState = useAuthStore.getState();
+          console.log("✅ ProtectedRoute: Auth check completed", {
+            isAuthenticated: authState.isAuthenticated,
+            hasUser: !!authState.user,
+            userRole: authState.user?.role,
+            userId: authState.user?.id,
+          });
+        }
+      } catch (error) {
+        console.error("❌ ProtectedRoute: Auth initialization failed:", error);
+      } finally {
+        setIsChecking(false);
       }
+    };
+
+    initAuth();
+  }, [checkAuth, searchParams, isMounted]);
+
+  useEffect(() => {
+    if (!isChecking && !isLoading) {
+      console.log("🔍 ProtectedRoute: Checking access...", {
+        isAuthenticated,
+        userRole: user?.role,
+        requiredRole,
+      });
+
+      if (!isAuthenticated) {
+        console.log(
+          "❌ ProtectedRoute: Not authenticated, redirecting to:",
+          redirectTo
+        );
+        router.push(redirectTo);
+        return;
+      }
+
+      // Check role if required
+      if (requiredRole && user?.role !== requiredRole) {
+        console.log(
+          `❌ ProtectedRoute: Role mismatch. Required: ${requiredRole}, Got: ${user?.role}`
+        );
+        // Redirect based on user role
+        if (user?.role === "REALTOR") {
+          router.push("/dashboard");
+        } else if (user?.role === "ADMIN") {
+          router.push("/admin");
+        } else {
+          router.push("/login");
+        }
+        return;
+      }
+
+      console.log("✅ ProtectedRoute: Access granted!");
     }
   }, [
     isAuthenticated,
+    user,
+    requiredRole,
+    isChecking,
     isLoading,
-    userRole,
-    requiredNormalizedRole,
-    rawRole,
     router,
     redirectTo,
   ]);
 
-  // Show loading while checking authentication
-  if (isLoading) {
+  // Show loading state while checking authentication or during SSR
+  if (!isMounted || isChecking || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loading size="lg" />
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verifying authentication...</p>
+        </div>
       </div>
     );
   }
 
-  // Don't render children if not authenticated or wrong role
-  if (
-    !isAuthenticated ||
-    (requiredNormalizedRole && userRole !== requiredNormalizedRole)
-  ) {
+  // If not authenticated, don't render children (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // If role is required but doesn't match, don't render children (will redirect)
+  if (requiredRole && user?.role !== requiredRole) {
     return null;
   }
 
   return <>{children}</>;
-};
+}

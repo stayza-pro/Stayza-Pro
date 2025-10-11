@@ -5,6 +5,7 @@ import {
   RegisterData,
   AuthResponse,
   RefreshTokenResponse,
+  ApiResponse,
 } from "../types";
 
 export const authService = {
@@ -81,8 +82,15 @@ export const authService = {
 
   // Get current user profile
   getProfile: async (): Promise<User> => {
-    const response = await apiClient.get<User>("/auth/me");
-    return response.data;
+    const response = await apiClient.get<{ user: User }>("/auth/me");
+
+    // apiClient.get already returns the backend response: { success, message, data: { user } }
+    // So response.data contains { user: {...} }
+    if (!response.data?.user) {
+      console.error("❌ Validation failed - response:", response);
+      throw new Error("Invalid profile response format");
+    }
+    return response.data.user;
   },
 
   // Update user profile

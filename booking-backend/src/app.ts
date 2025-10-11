@@ -36,12 +36,61 @@ app.use("/api/webhooks", webhookRoutes);
 // Middleware
 app.use(helmet()); // Security headers
 app.use(compression()); // Gzip compression
-app.use(
-  cors({
-    origin: config.FRONTEND_URL,
-    credentials: true,
-  })
-);
+
+// Configure CORS for multi-tenant subdomain architecture
+const corsOptions = {
+  origin: (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void
+  ) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+
+    // Define allowed origins for development
+    const allowedOrigins = [
+      config.FRONTEND_URL, // http://localhost:3000
+      "http://localhost:3000",
+      "https://localhost:3000"
+    ];
+
+    // Development patterns (localhost)
+    const adminPatternDev = /^https?:\/\/admin\.localhost(:\d+)?$/;
+    const subdomainPatternDev = /^https?:\/\/[a-zA-Z0-9-]+\.localhost(:\d+)?$/;
+
+    // Production patterns (replace 'stayza.com' with your actual domain)
+    const productionDomain = process.env.PRODUCTION_DOMAIN || "stayza.com";
+    const adminPatternProd = new RegExp(
+      `^https?:\/\/admin\\.${productionDomain.replace(".", "\\.")}$`
+    );
+    const subdomainPatternProd = new RegExp(
+      `^https?:\/\/[a-zA-Z0-9-]+\\.${productionDomain.replace(".", "\\.")}$`
+    );
+    const mainDomainProd = new RegExp(
+      `^https?:\/\/(www\\.)?${productionDomain.replace(".", "\\.")}$`
+    );
+
+    // Check if origin is allowed
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      adminPatternDev.test(origin) ||
+      subdomainPatternDev.test(origin) ||
+      adminPatternProd.test(origin) ||
+      subdomainPatternProd.test(origin) ||
+      mainDomainProd.test(origin);
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error("Not allowed by CORS"), false);
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 

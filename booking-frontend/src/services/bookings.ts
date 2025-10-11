@@ -53,8 +53,8 @@ export const bookingService = {
 
     const queryString = params.toString();
     const url = queryString
-      ? `/bookings/host-bookings?${queryString}`
-      : "/bookings/host-bookings";
+      ? `/bookings/realtor-bookings?${queryString}`
+      : "/bookings/realtor-bookings";
 
     const response = await apiClient.get<Booking[]>(url);
     return response as PaginatedResponse<Booking>;

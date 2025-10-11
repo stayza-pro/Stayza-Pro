@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { User } from "../types";
 import { authService, serviceUtils } from "../services";
+import { setCookie, getCookie, deleteCookie } from "../utils/cookies";
 
 interface AuthState {
   user: User | null;
@@ -47,6 +48,12 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           set({ isLoading: true, error: null });
 
           const response = await authService.login({ email, password });
+
+          // Set cookies for cross-subdomain access
+          if (typeof window !== "undefined") {
+            setCookie("accessToken", response.accessToken, 7);
+            setCookie("refreshToken", response.refreshToken, 30);
+          }
 
           set({
             user: response.user,
@@ -105,6 +112,12 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           // Even if logout fails on server, clear local state
           console.error("Logout error:", error);
         } finally {
+          // Clear cookies for cross-subdomain logout
+          if (typeof window !== "undefined") {
+            deleteCookie("accessToken");
+            deleteCookie("refreshToken");
+          }
+
           set({
             user: null,
             accessToken: null,
@@ -173,9 +186,22 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       checkAuth: async () => {
         const state = get();
-        const token = state.accessToken || authService.getAccessToken();
-        const refreshToken =
-          state.refreshToken || authService.getRefreshToken();
+        let token = state.accessToken || authService.getAccessToken();
+        let refreshToken = state.refreshToken || authService.getRefreshToken();
+
+        // Fallback to cookies if localStorage doesn't have tokens (cross-subdomain case)
+        if (typeof window !== "undefined" && (!token || !refreshToken)) {
+          const cookieToken = getCookie("accessToken");
+          const cookieRefresh = getCookie("refreshToken");
+
+          if (cookieToken) token = cookieToken;
+          if (cookieRefresh) refreshToken = cookieRefresh;
+
+          // Also update localStorage for this subdomain
+          if (cookieToken) localStorage.setItem("accessToken", cookieToken);
+          if (cookieRefresh)
+            localStorage.setItem("refreshToken", cookieRefresh);
+        }
 
         if (!token && !refreshToken) {
           // No tokens available, user is not authenticated

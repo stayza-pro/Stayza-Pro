@@ -2,8 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useAuthStore } from "../../store/authStore";
-import { ModernPropertyManagement } from "../../components/dashboard/ModernPropertyManagement";
-import { ModernDashboardLayout } from "../../components/layout/ModernDashboardLayout";
+import { RealtorDashboard } from "../../components/dashboard/RealtorDashboard";
 import { useRouter } from "next/navigation";
 import { useBranding } from "../../hooks/useBranding";
 
@@ -35,14 +34,5 @@ export default function RealtorDashboardPage() {
     return null;
   }
 
-  return (
-    <ModernDashboardLayout
-      currentUser={user}
-      activeRoute="overview"
-      onRouteChange={() => {}}
-      branding={branding || undefined}
-    >
-      <ModernPropertyManagement currentUser={user} />
-    </ModernDashboardLayout>
-  );
+  return <RealtorDashboard />;
 }

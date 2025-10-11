@@ -558,7 +558,16 @@ export const deleteProperty = asyncHandler(
  */
 export const getPropertiesByHost = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { realtorId } = req.params;
+    // If realtorId is not in params, use the authenticated user's ID
+    const realtorId = req.params.realtorId || req.user?.id;
+
+    if (!realtorId) {
+      return res.status(400).json({
+        success: false,
+        message: "Realtor ID is required",
+      });
+    }
+
     const {
       page = "1",
       limit = "10",
@@ -633,6 +642,8 @@ export const getPropertiesByHost = asyncHandler(
         pages: Math.ceil(total / limitNum),
       },
     });
+
+    return; // Explicit return to satisfy TypeScript
   }
 );
 

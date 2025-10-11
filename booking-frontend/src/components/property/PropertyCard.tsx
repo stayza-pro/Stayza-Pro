@@ -292,7 +292,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             >
               <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
                 <span className="text-white text-xs font-medium">
-                  {property.realtor.businessName.charAt(0)}
+                  {property.realtor.businessName}
                 </span>
               </div>
               <span className="ml-2 text-sm text-gray-600">

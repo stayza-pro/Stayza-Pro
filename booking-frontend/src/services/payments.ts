@@ -122,6 +122,33 @@ export const paymentService = {
     return response.data;
   },
 
+  // Fetch host's payments with pagination
+  getHostPayments: async (searchParams?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<{
+    data: Payment[];
+    pagination?: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> => {
+    const params = new URLSearchParams();
+    if (searchParams?.page) params.append("page", String(searchParams.page));
+    if (searchParams?.limit) params.append("limit", String(searchParams.limit));
+    if (searchParams?.status) params.append("status", searchParams.status);
+
+    const queryString = params.toString();
+    const url = queryString ? `/payments?${queryString}` : "/payments";
+
+    const response = await apiClient.get<Payment[]>(url);
+    return response as any; // Type assertion for paginated response
+  },
+
   // Request a refund for a payment
   requestRefund: async (
     paymentId: string,
