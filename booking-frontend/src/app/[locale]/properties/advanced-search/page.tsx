@@ -77,7 +77,7 @@ export default function AdvancedPropertySearchPage() {
   const handleRefetch = () => refetch();
 
   const properties = propertiesResponse?.data || [];
-  const totalCount = propertiesResponse?.pagination?.totalItems || 0;
+  const totalCount = propertiesResponse?.pagination?.totalItems ?? 0;
   const hasMore = propertiesResponse?.pagination?.hasNext || false;
 
   // Update search params when view mode changes

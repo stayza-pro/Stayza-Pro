@@ -88,6 +88,7 @@ model User {
    adminAuditLogs         AuditLog[]              @relation("AdminAuditLogs")
    refundRequests         RefundRequest[]         @relation("RefundRequester")
    adminRefundRequests    RefundRequest[]         @relation("RefundAdmin")
+   platformSettings       PlatformSettings[]
 
    @@map("users")
 }
@@ -324,6 +325,13 @@ enum NotificationType {
    CAC_STATUS_UPDATE
    BOOKING_REMINDER
    PAYMENT_REMINDER
+   REALTOR_REGISTRATION
+   CAC_VERIFICATION
+   PAYOUT_COMPLETED
+   PROPERTY_SUBMISSION
+   REVIEW_FLAGGED
+   DISPUTE_OPENED
+   REALTOR_REINSTATED
 }
 
 model Notification {
@@ -480,4 +488,22 @@ model RefundRequest {
    @@index([requestedBy])
    @@index([realtorId])
    @@map("refund_requests")
+}
+
+model PlatformSettings {
+   key         String   @id // e.g., "commission_rate", "payout_threshold", "email_template_welcome"
+   value       Json // Store as JSON for flexibility (numbers, strings, objects, arrays)
+   description String? // Human-readable description of the setting
+   category    String   @default("general") // "commission", "payout", "email", "notification", "security"
+   isActive    Boolean  @default(true) // Allow disabling settings without deletion
+   updatedBy   String // Admin who last updated this setting
+   createdAt   DateTime @default(now())
+   updatedAt   DateTime @updatedAt
+
+   // Relations
+   updatedByUser User @relation(fields: [updatedBy], references: [id])
+
+   @@index([category])
+   @@index([isActive])
+   @@map("platform_settings")
 }

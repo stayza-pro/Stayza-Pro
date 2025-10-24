@@ -521,7 +521,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "bedrooms",
-                      value === "" ? "" : parseInt(value) || 0
+                      value === "" ? "" : parseInt(value) ?? 0
                     );
                   }}
                   onBlur={(e) => {
@@ -547,7 +547,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "bathrooms",
-                      value === "" ? "" : parseInt(value) || 0
+                      value === "" ? "" : parseInt(value) ?? 0
                     );
                   }}
                   onBlur={(e) => {
@@ -573,7 +573,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "maxGuests",
-                      value === "" ? "" : parseInt(value) || 0
+                      value === "" ? "" : parseInt(value) ?? 0
                     );
                   }}
                   onBlur={(e) => {
@@ -701,7 +701,7 @@ export default function AddPropertyPage() {
                   onChange={(e) =>
                     updateFormData(
                       "pricePerNight",
-                      parseFloat(e.target.value) || 0
+                      parseFloat(e.target.value) ?? 0
                     )
                   }
                   placeholder="150.00"
@@ -873,7 +873,7 @@ export default function AddPropertyPage() {
                   <p className="text-xs text-yellow-700 mt-1">
                     Properties with more amenities typically receive more
                     bookings. Select all that apply to your property. Selected:{" "}
-                    {formData.amenities?.length || 0}
+                    {formData.amenities?.length ?? 0}
                   </p>
                 </div>
               </div>
@@ -987,20 +987,20 @@ export default function AddPropertyPage() {
                 </div>
                 <div>
                   <p className="text-gray-500">Bedrooms</p>
-                  <p className="font-medium">{formData.bedrooms || 0}</p>
+                  <p className="font-medium">{formData.bedrooms ?? 0}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Bathrooms</p>
-                  <p className="font-medium">{formData.bathrooms || 0}</p>
+                  <p className="font-medium">{formData.bathrooms ?? 0}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Max Guests</p>
-                  <p className="font-medium">{formData.maxGuests || 0}</p>
+                  <p className="font-medium">{formData.maxGuests ?? 0}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Price Per Night</p>
                   <p className="font-medium">
-                    {formData.currency} {formData.pricePerNight || 0}
+                    {formData.currency} {formData.pricePerNight ?? 0}
                   </p>
                 </div>
               </div>

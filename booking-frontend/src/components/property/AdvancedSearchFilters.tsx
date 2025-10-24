@@ -542,7 +542,7 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                             onChange={(e) =>
                               handleFilterChange("priceRange", {
                                 ...filters.priceRange,
-                                min: parseInt(e.target.value) || 0,
+                                min: parseInt(e.target.value) ?? 0,
                               })
                             }
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"

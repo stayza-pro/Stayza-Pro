@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useEffect } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,17 +13,16 @@ import {
   EyeOff,
   Mail,
   Lock,
-  LogIn,
-  AlertCircle,
   ArrowLeft,
   Building2,
+  Home,
+  Calendar,
+  TrendingUp,
+  Sparkles,
+  MapPin,
 } from "lucide-react";
-import Image from "next/image";
-import { motion } from "framer-motion";
-import { palette } from "@/app/(marketing)/content";
-import { LogoLockup } from "@/app/(marketing)/components/LogoLockup";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/authStore";
-import { TestCredentials } from "@/components/dev/TestCredentials";
 
 // Force dynamic rendering since this page uses search params
 export const dynamic = "force-dynamic";
@@ -64,19 +64,16 @@ function RealtorLoginContent() {
 
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading, error: authError } = useAuthStore();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setError,
-  } = useForm<LoginData>({
-    resolver: zodResolver(loginSchema),
-  });
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-  const onSubmit = async (data: LoginData) => {
     try {
-      await login(data.email, data.password);
+      await login(email, password);
 
       // Check if user is a realtor after successful login
       const { user } = useAuthStore.getState();
@@ -89,36 +86,8 @@ function RealtorLoginContent() {
 
       toast.success(`Welcome back, ${user?.firstName}!`);
 
-      // Generate realtor subdomain - use a simple approach for now
-      // In production, you'd get this from the user's realtor profile
-      let realtorSlug = "anderson"; // Default for testing
-
-      // Try to get from user profile if available
-      if (user?.realtor?.slug) {
-        realtorSlug = user.realtor.slug;
-      } else {
-        // Generate from email - clean it up properly
-        const emailPrefix = data.email.split("@")[0];
-        realtorSlug = emailPrefix.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-      }
-
-      // Build subdomain URL and redirect - use port 3000 since frontend is on 3000
-      const protocol = window.location.protocol;
-      const port = window.location.port || "3000";
-
-      // Pass auth tokens as URL parameters for cross-subdomain transfer
-      const { accessToken, refreshToken } = useAuthStore.getState();
-      const tokenParams = new URLSearchParams({
-        ...(accessToken && { token: accessToken }),
-        ...(refreshToken && { refresh: refreshToken }),
-      });
-
-      const subdomainUrl = `${protocol}//${realtorSlug}.localhost:${port}/dashboard?${tokenParams.toString()}`;
-
-      console.log("Redirecting to:", subdomainUrl);
-
-      // Redirect to realtor's subdomain dashboard with tokens
-      window.location.href = subdomainUrl;
+      // Redirect to intended destination
+      router.push(returnTo);
     } catch (error: any) {
       console.error("Login error:", error);
 
@@ -128,321 +97,498 @@ function RealtorLoginContent() {
         const message =
           error.response.data?.message ||
           "Login failed. Please check your credentials.";
-        toast.error(message);
-
-        // Handle specific validation errors
-        if (error.response.data?.errors) {
-          error.response.data.errors.forEach((err: string) => {
-            if (err.toLowerCase().includes("email")) {
-              setError("email", { message: err });
-            } else if (err.toLowerCase().includes("password")) {
-              setError("password", { message: err });
-            }
-          });
-        }
+        setError(message);
       } else if (error.request) {
         // Network error - server not reachable
-        toast.error(
+        setError(
           "Unable to connect to server. Please check your internet connection and try again."
         );
       } else {
         // Other error
-        toast.error(error.message || "Login failed. Please try again.");
+        setError(error.message || "Login failed. Please try again.");
       }
     }
   };
 
+  // Live stats animation
+  const [stats, setStats] = useState({
+    activeRealtors: 342,
+    propertiesListed: 1847,
+    bookingsToday: 156,
+    avgResponse: 2.4,
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStats((prev) => ({
+        activeRealtors: prev.activeRealtors + Math.floor(Math.random() * 5 - 2),
+        propertiesListed:
+          prev.propertiesListed + Math.floor(Math.random() * 6 - 1),
+        bookingsToday: prev.bookingsToday + Math.floor(Math.random() * 4),
+        avgResponse: 2.4 + (Math.random() * 0.2 - 0.1),
+      }));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div
-      className="marketing-theme min-h-screen relative overflow-hidden"
-      style={{ backgroundColor: palette.primary }}
-    >
-      {/* Background Elements */}
-      <div className="absolute inset-0">
+    <div className="relative min-h-screen overflow-hidden marketing-theme">
+      {/* Split Screen Layout */}
+      <div className="flex flex-col lg:flex-row min-h-screen">
+        {/* LEFT SIDE - Animated Hero Section */}
         <motion.div
-          className="absolute right-[-18%] top-[-35%] h-[460px] w-[460px] rounded-full"
+          className="relative lg:w-1/2 p-8 lg:p-12 flex flex-col justify-between overflow-hidden"
           style={{
             background:
-              "radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)",
+              "linear-gradient(to bottom right, var(--marketing-primary), #2563EB, #3B82F6)",
           }}
-          animate={{ x: [0, 45, 0], y: [0, -35, 0], rotate: [0, 8, 0] }}
-          transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
-        />
+          initial={{ x: -100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.8 }}
+        >
+          {/* Animated Gradient Mesh Background */}
+          <div className="absolute inset-0 opacity-30">
+            <motion.div
+              className="absolute top-0 right-0 w-96 h-96 rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%)",
+              }}
+              animate={{
+                x: [0, 50, 0],
+                y: [0, -30, 0],
+                scale: [1, 1.1, 1],
+              }}
+              transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div
+              className="absolute bottom-0 left-0 w-80 h-80 rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(251,146,60,0.3) 0%, transparent 70%)",
+              }}
+              animate={{
+                x: [0, -40, 0],
+                y: [0, 40, 0],
+                scale: [1, 1.2, 1],
+              }}
+              transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div
+              className="absolute top-1/2 left-1/2 w-64 h-64 rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(34,211,238,0.2) 0%, transparent 70%)",
+              }}
+              animate={{
+                x: [-30, 30, -30],
+                y: [-20, 20, -20],
+                scale: [1, 1.15, 1],
+              }}
+              transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10">
+            {/* Back Button */}
+            <Link
+              href="/"
+              className="inline-flex items-center space-x-2 text-white/80 hover:text-white transition-colors group mb-8"
+            >
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <span className="text-sm font-medium">Back to Home</span>
+            </Link>
+
+            {/* Hero Content */}
+            <div className="max-w-xl">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mb-6"
+              >
+                <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20 mb-6">
+                  <Sparkles className="w-4 h-4 text-orange-300" />
+                  <span className="text-sm text-white font-medium">
+                    Realtor Hub
+                  </span>
+                </div>
+
+                <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+                  Your Branded
+                  <br />
+                  <span className="bg-gradient-to-r from-blue-200 via-blue-100 to-white bg-clip-text text-transparent">
+                    Booking Platform
+                  </span>
+                </h1>
+
+                <p className="text-xl text-white/80 font-normal leading-relaxed">
+                  Manage properties, track bookings, and grow your real estate
+                  business with powerful tools.
+                </p>
+              </motion.div>
+
+              {/* Live Stats Grid */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="grid grid-cols-2 gap-4 mt-12"
+              >
+                <StatCard
+                  icon={Building2}
+                  label="Active Realtors"
+                  value={stats.activeRealtors.toLocaleString()}
+                  trend="+15%"
+                  color="blue"
+                />
+                <StatCard
+                  icon={Home}
+                  label="Properties Listed"
+                  value={stats.propertiesListed.toLocaleString()}
+                  trend="+22%"
+                  color="emerald"
+                />
+                <StatCard
+                  icon={Calendar}
+                  label="Bookings Today"
+                  value={stats.bookingsToday}
+                  trend="+18%"
+                  color="orange"
+                />
+                <StatCard
+                  icon={TrendingUp}
+                  label="Avg Response"
+                  value={`${stats.avgResponse.toFixed(1)}h`}
+                  trend="improved"
+                  color="cyan"
+                />
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Bottom Decoration */}
+          <div className="relative z-10">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="flex items-center space-x-6 text-white/60 text-sm"
+            >
+              <div className="flex items-center space-x-2">
+                <Building2 className="w-4 h-4" />
+                <span>White-Label Ready</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <MapPin className="w-4 h-4" />
+                <span>Multi-Location</span>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* RIGHT SIDE - Login Form with Glassmorphism */}
         <motion.div
-          className="absolute bottom-[-30%] left-[-8%] h-[380px] w-[380px] rounded-full"
+          className="lg:w-1/2 flex items-center justify-center p-8 lg:p-12"
           style={{
             background:
-              "radial-gradient(circle, rgba(4,120,87,0.25) 0%, transparent 70%)",
+              "linear-gradient(to bottom right, var(--marketing-surface), var(--marketing-background))",
           }}
-          animate={{ x: [0, -35, 0], y: [0, 28, 0], rotate: [0, -6, 0] }}
-          transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
-        />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-20 border-b border-white/10 px-4 py-6 sm:px-6 lg:px-8">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between gap-6">
-          <Link
-            href="/"
-            className="flex items-center space-x-3 text-white/80 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span className="text-sm font-medium">Back to Home</span>
-          </Link>
-          <LogoLockup tone="light" />
-        </nav>
-      </header>
-
-      {/* Main Content */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.7,
-            delay: 0.1,
-            ease: [0.21, 0.61, 0.35, 1],
-          }}
-          className="max-w-md w-full space-y-8"
+          initial={{ x: 100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.8 }}
         >
           {/* Glassmorphism Login Card */}
-          <div className="rounded-[32px] border border-white/15 bg-white/10 p-8 shadow-2xl backdrop-blur">
-            <div className="text-center mb-8">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="w-full max-w-md"
+          >
+            {/* Card with Glassmorphism */}
+            <div className="relative marketing-card-elevated p-8 lg:p-10">
+              {/* Decorative Gradient Border */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-200/30 via-indigo-200/30 to-purple-200/30 rounded-3xl -z-10 blur-xl" />
+
+              {/* Logo Badge */}
               <motion.div
-                className="mx-auto h-20 w-20 rounded-2xl flex items-center justify-center mb-6 border border-white/20 backdrop-blur-sm"
-                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="flex justify-center mb-8"
               >
                 <Image
                   src="/images/stayza.png"
                   alt="Stayza Pro Logo"
-                  width={48}
-                  height={48}
-                  className="transition-transform duration-300 hover:scale-105"
-                  style={{
-                    filter: "brightness(0) invert(1)",
-                  }}
+                  width={150}
+                  height={150}
+                  className="transition-transform duration-300"
                 />
               </motion.div>
-              <motion.span
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/90 mb-4"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-              >
-                Realtor Access
-              </motion.span>
-              <motion.h1
-                className="text-3xl font-bold text-white leading-tight md:text-4xl"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                Welcome Back
-              </motion.h1>
-              <motion.p
-                className="mt-3 text-lg text-white/80"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-              >
-                Access your branded booking hub and manage your properties
-              </motion.p>
-            </div>
 
-            <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-              <div className="space-y-5">
-                {/* Email */}
+              {/* Title */}
+              <motion.div
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                className="text-center mb-8"
+              >
+                <h2 className="text-3xl font-bold mb-2 text-marketing-foreground">
+                  Realtor Portal
+                </h2>
+                <p className="text-marketing-muted">
+                  Access your branded booking hub
+                </p>
+              </motion.div>
+
+              {/* Error Message */}
+              <AnimatePresence mode="wait">
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    className="mb-6 p-4 bg-red-50/80 backdrop-blur-sm border border-red-200 rounded-xl"
+                  >
+                    <p className="text-sm text-red-700 text-center font-medium">
+                      {error}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Login Form */}
+              <form onSubmit={handleLogin} className="space-y-6">
+                {/* Email Input */}
                 <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.6 }}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.8 }}
                 >
                   <label
                     htmlFor="email"
-                    className="block text-sm font-medium text-white/90 mb-2"
+                    className="block text-sm font-semibold mb-2 text-marketing-foreground"
                   >
                     Business Email
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-white/50" />
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none z-10">
+                      <Mail className="h-5 w-5 text-marketing-muted transition-colors" />
                     </div>
                     <input
-                      {...register("email")}
+                      id="email"
                       type="email"
-                      className={`block w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 backdrop-blur transition-all duration-200 ${
-                        errors.email ? "border-red-400/50 bg-red-500/10" : ""
-                      }`}
-                      placeholder="Enter your business email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="realtor@yourcompany.com"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-2 font-medium bg-marketing-elevated border-marketing-subtle text-marketing-foreground placeholder:text-marketing-muted focus:border-marketing-accent ring-marketing-focus"
+                      disabled={isLoading}
                     />
                   </div>
-                  {errors.email && (
-                    <p className="mt-2 text-sm text-red-200 flex items-center">
-                      <AlertCircle className="h-4 w-4 mr-1.5" />
-                      {errors.email.message}
-                    </p>
-                  )}
                 </motion.div>
 
-                {/* Password */}
+                {/* Password Input */}
                 <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.7 }}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.9 }}
                 >
                   <label
                     htmlFor="password"
-                    className="block text-sm font-medium text-white/90 mb-2"
+                    className="block text-sm font-semibold mb-2 text-marketing-foreground"
                   >
                     Password
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-white/50" />
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none z-10">
+                      <Lock className="h-5 w-5 text-marketing-muted transition-colors" />
                     </div>
                     <input
-                      {...register("password")}
+                      id="password"
                       type={showPassword ? "text" : "password"}
-                      className={`block w-full pl-12 pr-12 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/40 backdrop-blur transition-all duration-200 ${
-                        errors.password ? "border-red-400/50 bg-red-500/10" : ""
-                      }`}
-                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
+                      className="w-full pl-12 pr-12 py-3.5 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-2 font-medium bg-marketing-elevated border-marketing-subtle text-marketing-foreground placeholder:text-marketing-muted focus:border-marketing-accent ring-marketing-focus"
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center"
                       onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-4 text-marketing-muted hover:text-marketing-accent transition-colors z-10"
                     >
                       {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-white/50 hover:text-white/80 transition-colors" />
+                        <EyeOff className="h-5 w-5" />
                       ) : (
-                        <Eye className="h-5 w-5 text-white/50 hover:text-white/80 transition-colors" />
+                        <Eye className="h-5 w-5" />
                       )}
                     </button>
                   </div>
-                  {errors.password && (
-                    <p className="mt-2 text-sm text-red-200 flex items-center">
-                      <AlertCircle className="h-4 w-4 mr-1.5" />
-                      {errors.password.message}
-                    </p>
-                  )}
                 </motion.div>
-              </div>
 
-              {/* Forgot Password */}
-              <motion.div
-                className="flex items-center justify-end"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.8 }}
-              >
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-white/80 hover:text-white transition-colors font-medium"
-                >
-                  Forgot your password?
-                </Link>
-              </motion.div>
-
-              {/* Submit Button */}
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.9 }}
-              >
-                <button
+                {/* Submit Button */}
+                <motion.button
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 1.0 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={isLoading}
-                  className="group relative w-full flex justify-center items-center py-4 px-6 border border-transparent text-sm font-semibold rounded-xl text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/30 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: palette.secondary,
-                    boxShadow: "0 10px 25px rgba(4, 120, 87, 0.3)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow =
-                      "0 15px 35px rgba(4, 120, 87, 0.4)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0px)";
-                    e.currentTarget.style.boxShadow =
-                      "0 10px 25px rgba(4, 120, 87, 0.3)";
-                  }}
+                  className="marketing-button-primary relative w-full py-4 px-6 font-bold rounded-xl overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                  {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <LogIn className="h-5 w-5 mr-2" />
-                      Access Your Hub
-                    </>
-                  )}
-                </button>
-              </motion.div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="relative flex items-center justify-center space-x-2">
+                    {isLoading ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                        >
+                          <Building2 className="w-5 h-5" />
+                        </motion.div>
+                        <span>Signing in...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Access Your Hub</span>
+                        <motion.div
+                          animate={{ x: [0, 4, 0] }}
+                          transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                        >
+                          <ArrowLeft className="w-5 h-5 rotate-180" />
+                        </motion.div>
+                      </>
+                    )}
+                  </span>
+                </motion.button>
+              </form>
 
               {/* Register Link */}
               <motion.div
-                className="text-center"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 1.0 }}
+                transition={{ delay: 1.2 }}
+                className="mt-8 text-center"
               >
-                <p className="text-sm text-white/80">
+                <p className="text-sm text-marketing-muted">
                   Don't have a realtor account?{" "}
                   <Link
                     href="/realtor/register"
-                    className="font-semibold text-white hover:text-white/90 transition-colors underline underline-offset-2"
+                    className="font-semibold text-marketing-accent hover:text-marketing-primary transition-colors"
                   >
                     Apply to become a realtor
                   </Link>
                 </p>
               </motion.div>
 
-              {/* Role Switch */}
+              {/* Footer - Role Switch */}
               <motion.div
-                className="text-center pt-6 border-t border-white/20"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 1.1 }}
+                transition={{ delay: 1.3 }}
+                className="mt-8 pt-6 border-t border-marketing-subtle"
               >
-                <p className="text-sm text-white/70 mb-3">
+                <p className="text-center text-xs text-marketing-subtle mb-3">
                   Looking for a different login?
                 </p>
-                <div className="flex items-center justify-center space-x-4">
+                <div className="flex items-center justify-center space-x-4 text-xs">
                   <Link
                     href="/guest/login"
-                    className="text-sm font-medium text-white/80 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10"
+                    className="font-medium text-marketing-muted hover:text-marketing-accent transition-colors"
                   >
                     Guest Login
                   </Link>
-                  <span className="text-white/30">|</span>
-                  <Link
-                    href="/admin/login"
-                    className="text-sm font-medium text-white/80 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10"
-                  >
-                    Admin Login
-                  </Link>
                 </div>
               </motion.div>
-            </form>
-          </div>
+            </div>
+          </motion.div>
         </motion.div>
       </div>
-
-      {/* Development Test Credentials */}
-      <TestCredentials />
     </div>
+  );
+}
+
+// Stat Card Component
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  trend,
+  color,
+}: {
+  icon: any;
+  label: string;
+  value: string | number;
+  trend: string;
+  color: string;
+}) {
+  const colorClasses = {
+    emerald: "from-emerald-400 to-emerald-600",
+    blue: "from-blue-400 to-blue-600",
+    orange: "from-orange-400 to-orange-600",
+    cyan: "from-cyan-400 to-cyan-600",
+  }[color];
+
+  return (
+    <motion.div
+      whileHover={{ y: -4, scale: 1.02 }}
+      className="relative bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20"
+    >
+      <motion.div
+        animate={{
+          y: [0, -8, 0],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      >
+        <div
+          className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClasses} flex items-center justify-center mb-3 shadow-lg`}
+        >
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        <p className="text-xs text-white/70 font-medium mb-1">{label}</p>
+        <div className="flex items-end justify-between">
+          <p className="text-2xl font-bold text-white">{value}</p>
+          <span className="text-xs text-emerald-300 font-semibold">
+            {trend}
+          </span>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
 export default function RealtorLoginPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense
+      fallback={
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{
+            background:
+              "linear-gradient(to bottom right, var(--marketing-primary), #2563EB)",
+          }}
+        >
+          <div className="text-white text-xl">Loading...</div>
+        </div>
+      }
+    >
       <RealtorLoginContent />
     </Suspense>
   );
 }
-

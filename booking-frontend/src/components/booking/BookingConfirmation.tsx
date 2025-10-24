@@ -189,7 +189,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
           <div className="flex items-center space-x-4">
             <Image
               src={
-                booking.property?.realtor?.user?.avatar || "/images/default-avatar.svg"
+                booking.property?.realtor?.user?.avatar ||
+                "/images/default-avatar.svg"
               }
               alt={`${
                 booking.property?.realtor?.user?.firstName || "Unknown"
@@ -233,12 +234,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         <div className="space-y-3">
           <div className="flex justify-between text-gray-600">
             <span>
-              {booking.currency} {booking.property?.pricePerNight || 0} ×{" "}
+              {booking.currency} {booking.property?.pricePerNight ?? 0} ×{" "}
               {nights} nights
             </span>
             <span>
               {booking.currency}{" "}
-              {((booking.property?.pricePerNight || 0) * nights).toFixed(2)}
+              {((booking.property?.pricePerNight ?? 0) * nights).toFixed(2)}
             </span>
           </div>
 
@@ -246,7 +247,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <span>Service fee</span>
             <span>
               {booking.currency}{" "}
-              {((booking.property?.pricePerNight || 0) * nights * 0.1).toFixed(
+              {((booking.property?.pricePerNight ?? 0) * nights * 0.1).toFixed(
                 2
               )}
             </span>
@@ -256,7 +257,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <span>Taxes</span>
             <span>
               {booking.currency}{" "}
-              {((booking.property?.pricePerNight || 0) * nights * 0.05).toFixed(
+              {((booking.property?.pricePerNight ?? 0) * nights * 0.05).toFixed(
                 2
               )}
             </span>

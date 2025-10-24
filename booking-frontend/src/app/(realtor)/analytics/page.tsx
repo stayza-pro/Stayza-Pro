@@ -211,7 +211,7 @@ export default function AnalyticsPage() {
                     <div className="p-3 bg-blue-100 rounded-lg">
                       <Home className="w-6 h-6 text-blue-600" />
                     </div>
-                    {formatGrowth(analytics.overview.properties.growth || 0)}
+                    {formatGrowth(analytics.overview.properties.growth ?? 0)}
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Total Properties</p>
@@ -347,7 +347,7 @@ export default function AnalyticsPage() {
                         <span className="text-sm text-gray-600">Pending</span>
                       </div>
                       <span className="text-sm font-semibold text-gray-900">
-                        {analytics.overview.bookings.pending || 0}
+                        {analytics.overview.bookings.pending ?? 0}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -356,7 +356,7 @@ export default function AnalyticsPage() {
                         <span className="text-sm text-gray-600">Cancelled</span>
                       </div>
                       <span className="text-sm font-semibold text-gray-900">
-                        {analytics.overview.bookings.cancelled || 0}
+                        {analytics.overview.bookings.cancelled ?? 0}
                       </span>
                     </div>
                   </div>

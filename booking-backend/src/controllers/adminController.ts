@@ -4,6 +4,10 @@ import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import * as emailService from "@/services/email";
 import {
+  getPlatformCommissionReport as generatePlatformReport,
+  getRealtorCommissionReport as generateRealtorReport,
+} from "@/services/commission";
+import {
   logRealtorApproval,
   logRealtorRejection,
   logRealtorSuspension,
@@ -11,6 +15,7 @@ import {
   logPropertyRejection,
   logPayoutProcessed,
 } from "@/services/auditLogger";
+import { createAdminNotification } from "@/services/notificationService";
 
 /**
  * @desc    Get all realtors (admin view)
@@ -420,6 +425,106 @@ export const suspendRealtor = asyncHandler(
         suspendedBookings: activeBookings.length,
         affectedProperties: realtor.properties.length,
         notificationsSent: activeBookings.length,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Reinstate a suspended realtor
+ * @route   POST /api/admin/realtors/:id/reinstate
+ * @access  Private (Admin only)
+ */
+export const reinstateRealtor = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const { notes } = req.body;
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        properties: {
+          select: { id: true, title: true },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor not found", 404);
+    }
+
+    if (realtor.isActive) {
+      throw new AppError("Realtor is already active", 400);
+    }
+
+    // Reactivate realtor account
+    const updatedRealtor = await prisma.realtor.update({
+      where: { id },
+      data: {
+        isActive: true,
+        suspendedAt: null,
+        status: "APPROVED",
+      },
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+      },
+    });
+
+    // Reactivate properties that were deactivated by suspension
+    await prisma.property.updateMany({
+      where: { realtorId: id, isActive: false },
+      data: { isActive: true },
+    });
+
+    // Send reinstatement email to realtor
+    try {
+      const { sendRealtorApproval } = await import("@/services/email");
+      await sendRealtorApproval(
+        realtor.user.email,
+        realtor.businessName,
+        notes || "Your account has been reinstated and is now active."
+      );
+    } catch (emailError) {
+      console.error("Failed to send realtor reinstatement email:", emailError);
+    }
+
+    // Log admin action
+    try {
+      await logRealtorApproval(
+        req.user!.id,
+        realtor.id,
+        realtor.businessName,
+        req
+      );
+    } catch (auditError) {
+      console.error("Failed to log realtor reinstatement:", auditError);
+    }
+
+    // Create admin notification
+    try {
+      await createAdminNotification({
+        type: "REALTOR_REINSTATED",
+        title: `Realtor reinstated: ${realtor.businessName}`,
+        message: `${realtor.businessName} has been reinstated by an admin. ${
+          notes || ""
+        }`,
+        data: { realtorId: id, realtorName: realtor.businessName },
+      });
+    } catch (notificationError) {
+      console.error("Failed to create admin notification:", notificationError);
+    }
+
+    res.json({
+      success: true,
+      message: "Realtor reinstated successfully",
+      data: {
+        realtor: updatedRealtor,
+        reactivatedProperties: realtor.properties.length,
       },
     });
   }
@@ -961,7 +1066,7 @@ export const getPlatformAnalytics = asyncHandler(
           (sum: number, property: any) => {
             const propertyRevenue = property.bookings.reduce(
               (pSum: number, booking: any) => {
-                return pSum + Number(booking.totalPrice || 0); // MVP: Use totalPrice for revenue
+                return pSum + Number(booking.totalPrice ?? 0); // MVP: Use totalPrice for revenue
               },
               0
             );
@@ -1007,14 +1112,14 @@ export const getPlatformAnalytics = asyncHandler(
             growth: calculateGrowth(totalBookings, previousBookings),
           },
           revenue: {
-            total: Number(totalRevenue._sum.amount || 0),
+            total: Number(totalRevenue._sum.amount ?? 0),
             growth: calculateGrowth(
-              Number(totalRevenue._sum.amount || 0),
-              Number(previousRevenue._sum.amount || 0)
+              Number(totalRevenue._sum.amount ?? 0),
+              Number(previousRevenue._sum.amount ?? 0)
             ),
           },
           performance: {
-            averageRating: averageRating._avg.rating || 0,
+            averageRating: averageRating._avg.rating ?? 0,
             totalReviews,
             occupancyRate:
               activeProperties > 0
@@ -1061,24 +1166,21 @@ export const getPlatformCommissionReport = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { startDate, endDate } = req.query;
 
-    const { getPlatformCommissionReport: generateReport } = await import(
-      "@/services/commission"
-    );
-
     const start = startDate ? new Date(startDate as string) : undefined;
     const end = endDate ? new Date(endDate as string) : undefined;
 
-    const report = await generateReport(start, end);
+    const report = await generatePlatformReport(start, end);
 
     res.json({
       success: true,
       data: {
         report: {
-          ...report,
-          totalRevenue: report.totalRevenue.toString(),
-          totalCommissions: report.totalCommissions.toString(),
-          totalPayouts: report.totalPayouts.toString(),
-          pendingPayouts: report.pendingPayouts.toString(),
+          totalRevenue: report.totalRevenue?.toString() || "0",
+          totalCommissions: report.totalCommissions?.toString() || "0",
+          totalPayouts: report.totalPayouts?.toString() || "0",
+          pendingPayouts: report.pendingPayouts?.toString() || "0",
+          totalBookings: report.totalBookings ?? 0,
+          activeRealtors: report.activeRealtors ?? 0,
         },
         period: {
           startDate: start?.toISOString() || "All time",
@@ -1099,24 +1201,22 @@ export const getRealtorCommissionReport = asyncHandler(
     const { realtorId } = req.params;
     const { startDate, endDate } = req.query;
 
-    const { getRealtorCommissionReport: generateReport } = await import(
-      "@/services/commission"
-    );
-
     const start = startDate ? new Date(startDate as string) : undefined;
     const end = endDate ? new Date(endDate as string) : undefined;
 
-    const report = await generateReport(realtorId, start, end);
+    const report = await generateRealtorReport(realtorId, start, end);
 
     res.json({
       success: true,
       data: {
         report: {
-          ...report,
-          totalEarnings: report.totalEarnings.toString(),
-          totalCommissionPaid: report.totalCommissionPaid.toString(),
-          pendingPayouts: report.pendingPayouts.toString(),
-          completedPayouts: report.completedPayouts.toString(),
+          realtorId: report.realtorId,
+          totalEarnings: report.totalEarnings?.toString() || "0",
+          totalCommissionPaid: report.totalCommissionPaid?.toString() || "0",
+          pendingPayouts: report.pendingPayouts?.toString() || "0",
+          completedPayouts: report.completedPayouts?.toString() || "0",
+          payoutCount: report.payoutCount ?? 0,
+          bookingCount: report.bookingCount ?? 0,
         },
         period: {
           startDate: start?.toISOString() || "All time",
@@ -1174,6 +1274,26 @@ export const processRealtorPayout = asyncHandler(
     } catch (auditError) {
       console.error("Failed to log payout processing:", auditError);
     }
+
+    // Create admin notification for payout completion
+    createAdminNotification({
+      type: "PAYOUT_COMPLETED",
+      title: "Payout Completed",
+      message: `Payout of ${payment.currency} ${
+        payment.realtorEarnings?.toString() || "0"
+      } to ${
+        payment.booking.property.realtor.businessName
+      } has been processed.`,
+      data: {
+        paymentId,
+        realtorId: payment.booking.property.realtorId,
+        realtorName: payment.booking.property.realtor.businessName,
+        amount: payment.realtorEarnings?.toString() || "0",
+        currency: payment.currency,
+        payoutReference,
+      },
+      priority: "low",
+    }).catch((err) => console.error("Admin notification failed", err));
 
     res.json({
       success: true,
@@ -1275,6 +1395,130 @@ export const getPendingPayouts = asyncHandler(
           hasMore: pageNum < totalPages,
         },
       },
+    });
+  }
+);
+
+/**
+ * @desc    Get admin notifications
+ * @route   GET /api/admin/notifications
+ * @access  Private (Admin only)
+ */
+export const getAdminNotifications = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { limit = 20, unreadOnly } = req.query;
+
+    const limitNum = parseInt(limit as string, 10);
+
+    const where: any = {
+      type: {
+        in: [
+          "REALTOR_REGISTRATION",
+          "CAC_VERIFICATION",
+          "PAYOUT_COMPLETED",
+          "PROPERTY_SUBMISSION",
+          "BOOKING_CANCELLED",
+          "REVIEW_FLAGGED",
+          "DISPUTE_OPENED",
+        ],
+      },
+    };
+
+    if (unreadOnly === "true") {
+      where.isRead = false;
+    }
+
+    const notifications = await prisma.notification.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limitNum,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        message: true,
+        isRead: true,
+        createdAt: true,
+        data: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        notifications: notifications.map((notif) => ({
+          id: notif.id,
+          type: notif.type,
+          title: notif.title,
+          message: notif.message,
+          isRead: notif.isRead,
+          createdAt: notif.createdAt,
+          metadata: notif.data,
+        })),
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Mark admin notification as read
+ * @route   PUT /api/admin/notifications/:notificationId/read
+ * @access  Private (Admin only)
+ */
+export const markAdminNotificationAsRead = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { notificationId } = req.params;
+
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notification) {
+      throw new AppError("Notification not found", 404);
+    }
+
+    await prisma.notification.update({
+      where: { id: notificationId },
+      data: { isRead: true },
+    });
+
+    res.json({
+      success: true,
+      message: "Notification marked as read",
+    });
+  }
+);
+
+/**
+ * @desc    Mark all admin notifications as read
+ * @route   PUT /api/admin/notifications/mark-all-read
+ * @access  Private (Admin only)
+ */
+export const markAllAdminNotificationsAsRead = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    await prisma.notification.updateMany({
+      where: {
+        type: {
+          in: [
+            "REALTOR_REGISTRATION",
+            "CAC_VERIFICATION",
+            "PAYOUT_COMPLETED",
+            "PROPERTY_SUBMISSION",
+            "BOOKING_CANCELLED",
+            "REVIEW_FLAGGED",
+            "DISPUTE_OPENED",
+          ],
+        },
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "All notifications marked as read",
     });
   }
 );

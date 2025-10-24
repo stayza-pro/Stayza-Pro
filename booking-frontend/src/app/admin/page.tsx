@@ -3,13 +3,11 @@
 import React, { useEffect } from "react";
 import { useAuthStore } from "../../store/authStore";
 import { ModernAdminDashboard } from "../../components/dashboard/ModernAdminDashboard";
-import { ModernDashboardLayout } from "../../components/layout/ModernDashboardLayout";
+import { AdminNavigation } from "../../components/admin/AdminNavigation";
 import { useRouter } from "next/navigation";
-import { useBranding } from "../../hooks/useBranding";
 
 export default function AdminDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuthStore();
-  const { branding, isLoading: brandingLoading } = useBranding();
   const router = useRouter();
 
   useEffect(() => {
@@ -18,12 +16,20 @@ export default function AdminDashboardPage() {
     }
   }, [isAuthenticated, isLoading, user?.role, router]);
 
-  if (isLoading || brandingLoading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "#1E3A8A" }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading Admin Dashboard...</p>
+          <div className="relative inline-block">
+            <div className="absolute inset-0 animate-ping rounded-full bg-white opacity-20"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/30 border-t-white relative z-10"></div>
+          </div>
+          <p className="text-white text-lg font-medium mt-4">
+            Loading Admin Dashboard...
+          </p>
         </div>
       </div>
     );
@@ -34,13 +40,13 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <ModernDashboardLayout
-      currentUser={user}
-      activeRoute="overview"
-      onRouteChange={() => {}}
-      branding={branding || undefined}
-    >
-      <ModernAdminDashboard currentUser={user} />
-    </ModernDashboardLayout>
+    <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
+      <AdminNavigation />
+      <main className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <ModernAdminDashboard currentUser={user} />
+        </div>
+      </main>
+    </div>
   );
 }

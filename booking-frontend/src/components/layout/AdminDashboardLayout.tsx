@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { getMainDomainUrl } from "@/utils/subdomain";
+import { deleteCookie } from "@/utils/cookies";
 import {
   User as UserIcon,
   Home as HomeIcon,
@@ -14,6 +16,9 @@ import {
   Search as MagnifyingGlassIcon,
   Menu as Bars3Icon,
   X as XMarkIcon,
+  DollarSign,
+  FileText,
+  FileCheck,
 } from "lucide-react";
 
 interface AdminDashboardLayoutProps {
@@ -27,14 +32,29 @@ const navigationItems = [
     icon: HomeIcon,
   },
   {
-    name: "Analytics",
-    href: "/admin/analytics",
-    icon: ChartBarIcon,
-  },
-  {
     name: "Realtors",
     href: "/admin/realtors",
     icon: UsersIcon,
+  },
+  {
+    name: "CAC Verification",
+    href: "/admin/cac-verification",
+    icon: FileCheck,
+  },
+  {
+    name: "Commission",
+    href: "/admin/commission",
+    icon: DollarSign,
+  },
+  {
+    name: "Audit Logs",
+    href: "/admin/audit-logs",
+    icon: FileText,
+  },
+  {
+    name: "Analytics",
+    href: "/admin/analytics",
+    icon: ChartBarIcon,
   },
   {
     name: "Properties",
@@ -60,10 +80,18 @@ export function AdminDashboardLayout({ children }: AdminDashboardLayoutProps) {
 
   const handleLogout = async () => {
     try {
-      // Clear auth state (implement logout logic)
+      // Clear all storage
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
-      router.push("/admin/login");
+      localStorage.removeItem("user");
+      sessionStorage.clear();
+
+      // Clear authentication cookies (critical!)
+      deleteCookie("accessToken");
+      deleteCookie("refreshToken");
+
+      // Redirect to main domain landing page (domain-aware)
+      window.location.href = getMainDomainUrl("/");
     } catch (error) {
       console.error("Logout failed:", error);
     }

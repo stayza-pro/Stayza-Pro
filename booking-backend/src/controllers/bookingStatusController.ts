@@ -237,11 +237,11 @@ export const getBookingStatusStats = asyncHandler(
 
     // Calculate conversion rates
     const confirmedBookings =
-      statusStats.find((s) => s.status === "CONFIRMED")?._count.status || 0;
+      statusStats.find((s) => s.status === "CONFIRMED")?._count.status ?? 0;
     const completedBookings =
-      statusStats.find((s) => s.status === "COMPLETED")?._count.status || 0;
+      statusStats.find((s) => s.status === "COMPLETED")?._count.status ?? 0;
     const cancelledBookings =
-      statusStats.find((s) => s.status === "CANCELLED")?._count.status || 0;
+      statusStats.find((s) => s.status === "CANCELLED")?._count.status ?? 0;
 
     const metrics = {
       conversionRate:

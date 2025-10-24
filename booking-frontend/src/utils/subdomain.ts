@@ -93,3 +93,34 @@ export function buildSubdomainUrl(subdomain: string, path = "/"): string {
 
   return `${url.protocol}//${newHostname}:${url.port}${path}`;
 }
+
+// Get the main domain URL (without subdomain)
+export function getMainDomainUrl(path = "/"): string {
+  if (typeof window === "undefined") {
+    const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+    return `${protocol}://localhost:3000${path}`;
+  }
+
+  const url = new URL(window.location.href);
+  const hostParts = url.hostname.split(".");
+
+  let mainHostname;
+  if (url.hostname === "localhost" || hostParts.length === 1) {
+    // Already on localhost or single domain
+    mainHostname = "localhost";
+  } else if (url.hostname.includes("localhost")) {
+    // subdomain.localhost -> localhost
+    mainHostname = "localhost";
+  } else {
+    // subdomain.stayza.com or www.stayza.com -> stayza.com
+    if (hostParts.length > 2) {
+      mainHostname = hostParts.slice(-2).join(".");
+    } else {
+      mainHostname = url.hostname;
+    }
+  }
+
+  // Preserve port for development
+  const port = url.port ? `:${url.port}` : "";
+  return `${url.protocol}//${mainHostname}${port}${path}`;
+}

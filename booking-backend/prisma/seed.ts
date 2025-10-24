@@ -18,6 +18,7 @@ async function main() {
   await prisma.propertyImage.deleteMany({});
   await prisma.property.deleteMany({});
   await prisma.realtor.deleteMany({});
+  await prisma.platformSettings.deleteMany({}); // Delete settings first to avoid foreign key constraints
   await prisma.user.deleteMany({});
 
   // Create passwords
@@ -114,8 +115,51 @@ async function main() {
     ],
   });
 
+  // Create platform settings
+  await prisma.platformSettings.createMany({
+    data: [
+      {
+        key: "commission_rate",
+        value: 0.07, // 7% commission
+        description: "Platform commission rate for successful bookings",
+        category: "commission",
+        updatedBy: admin.id,
+      },
+      {
+        key: "payout_threshold",
+        value: 10000, // ₦10,000 minimum payout
+        description: "Minimum amount required before payout processing",
+        category: "payout",
+        updatedBy: admin.id,
+      },
+      {
+        key: "booking_cancellation_window",
+        value: 24, // 24 hours
+        description: "Hours before check-in when free cancellation ends",
+        category: "booking",
+        updatedBy: admin.id,
+      },
+      {
+        key: "auto_payout_enabled",
+        value: true,
+        description: "Enable automatic payout processing",
+        category: "payout",
+        updatedBy: admin.id,
+      },
+      {
+        key: "max_property_images",
+        value: 10,
+        description: "Maximum number of images per property",
+        category: "property",
+        updatedBy: admin.id,
+      },
+    ],
+  });
+
   console.log("✅ Database seeding completed!");
-  console.log("Created: 1 admin, 1 realtor, 1 guest, 1 property with images");
+  console.log(
+    "Created: 1 admin, 1 realtor, 1 guest, 1 property with images, 5 platform settings"
+  );
 }
 
 main()

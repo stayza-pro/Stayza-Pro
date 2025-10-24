@@ -47,7 +47,7 @@ export const RefundForm: React.FC<RefundFormProps> = ({
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const maxAmount = maxRefundAmount || payment.amount;
-  const alreadyRefunded = payment.refundAmount || 0;
+  const alreadyRefunded = payment.refundAmount ?? 0;
   const availableForRefund = maxAmount - alreadyRefunded;
 
   const refundReasons = [
@@ -281,7 +281,7 @@ export const RefundForm: React.FC<RefundFormProps> = ({
                   step="0.01"
                   value={refundData.amount}
                   onChange={(e) =>
-                    handleInputChange("amount", parseFloat(e.target.value) || 0)
+                    handleInputChange("amount", parseFloat(e.target.value) ?? 0)
                   }
                   disabled={
                     isLoading ||

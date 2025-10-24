@@ -132,7 +132,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
               onChange={(e) =>
                 handleFilterChange("priceRange", {
                   ...filters.priceRange,
-                  min: parseInt(e.target.value) || 0,
+                  min: parseInt(e.target.value) ?? 0,
                 })
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"

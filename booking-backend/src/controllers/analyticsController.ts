@@ -268,18 +268,18 @@ export const getRealtorAnalytics = asyncHandler(
             growth: calculateGrowth(totalBookings, previousBookings),
           },
           revenue: {
-            total: Number(totalRevenue._sum.amount || 0),
+            total: Number(totalRevenue._sum.amount ?? 0),
             growth: calculateGrowth(
-              Number(totalRevenue._sum.amount || 0),
-              Number(previousRevenue._sum.amount || 0)
+              Number(totalRevenue._sum.amount ?? 0),
+              Number(previousRevenue._sum.amount ?? 0)
             ),
             average:
               totalBookings > 0
-                ? Number(totalRevenue._sum.amount || 0) / totalBookings
+                ? Number(totalRevenue._sum.amount ?? 0) / totalBookings
                 : 0,
           },
           performance: {
-            averageRating: Number(averageRating._avg.rating || 0),
+            averageRating: Number(averageRating._avg.rating ?? 0),
             totalReviews,
             occupancyRate:
               activeProperties > 0
@@ -446,14 +446,14 @@ export const getPropertyAnalytics = asyncHandler(
             pending: pendingBookings,
           },
           revenue: {
-            total: Number(totalRevenue._sum.amount || 0),
+            total: Number(totalRevenue._sum.amount ?? 0),
             average:
               totalBookings > 0
-                ? Number(totalRevenue._sum.amount || 0) / totalBookings
+                ? Number(totalRevenue._sum.amount ?? 0) / totalBookings
                 : 0,
           },
           performance: {
-            averageRating: Number(averageRating._avg.rating || 0),
+            averageRating: Number(averageRating._avg.rating ?? 0),
             totalReviews,
             occupancyRate: completedBookings,
             conversionRate:

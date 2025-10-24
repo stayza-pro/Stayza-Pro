@@ -278,7 +278,7 @@ export const initializePaystackTransaction = async (data: {
     // Add subaccount if provided
     if (data.subaccount) {
       payload.subaccount = data.subaccount;
-      payload.transaction_charge = data.transaction_charge || 0;
+      payload.transaction_charge = data.transaction_charge ?? 0;
     }
 
     const response = await paystackClient.post(

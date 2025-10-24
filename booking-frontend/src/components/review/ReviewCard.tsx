@@ -306,7 +306,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                   }`}
                 >
                   <ThumbsUp className="h-4 w-4" />
-                  <span>{review.likesCount || 0}</span>
+                  <span>{review.likesCount ?? 0}</span>
                 </button>
 
                 <button
@@ -318,7 +318,7 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({
                   }`}
                 >
                   <ThumbsDown className="h-4 w-4" />
-                  <span>{review.dislikesCount || 0}</span>
+                  <span>{review.dislikesCount ?? 0}</span>
                 </button>
               </div>
             )}

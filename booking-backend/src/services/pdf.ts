@@ -126,8 +126,8 @@ export class PDFService {
         // Base price
         const basePrice =
           booking.totalPrice -
-          (booking.serviceFee || 0) -
-          (booking.taxAmount || 0);
+          (booking.serviceFee ?? 0) -
+          (booking.taxAmount ?? 0);
         doc
           .fillColor("#374151")
           .fontSize(11)
@@ -305,8 +305,8 @@ export class PDFService {
         // Accommodation line
         const basePrice =
           booking.totalPrice -
-          (booking.serviceFee || 0) -
-          (booking.taxAmount || 0);
+          (booking.serviceFee ?? 0) -
+          (booking.taxAmount ?? 0);
         doc
           .fillColor("#374151")
           .fontSize(11)

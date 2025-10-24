@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { useRouter } from "next/navigation";
-import { getRealtorSubdomain } from "@/utils/subdomain";
+import { getRealtorSubdomain, getMainDomainUrl } from "@/utils/subdomain";
+import { deleteCookie } from "@/utils/cookies";
 import {
   User as UserIcon,
   Home as HomeIcon,
@@ -17,6 +18,8 @@ import {
   Search as MagnifyingGlassIcon,
   Menu as Bars3Icon,
   X as XMarkIcon,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 
 interface RealtorDashboardLayoutProps {
@@ -63,15 +66,44 @@ export function RealtorDashboardLayout({
   const { branding, isLoading: brandingLoading } = useBranding();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const realtorSubdomain = getRealtorSubdomain();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    if (profileDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [profileDropdownOpen]);
 
   const handleLogout = async () => {
     try {
-      // Clear auth state
+      // Clear all storage
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
-      // Redirect to main domain login
-      window.location.href = "http://localhost:3000/realtor/login";
+      localStorage.removeItem("user");
+      sessionStorage.clear();
+
+      // Clear authentication cookies (critical!)
+      deleteCookie("accessToken");
+      deleteCookie("refreshToken");
+
+      // Redirect to main domain landing page (domain-aware)
+      window.location.href = getMainDomainUrl("/");
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -133,6 +165,16 @@ export function RealtorDashboardLayout({
               </a>
             ))}
           </nav>
+          {/* Mobile Logout Button */}
+          <div className="border-t border-gray-200 p-4">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <LogOut className="mr-3 h-5 w-5" />
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
@@ -222,11 +264,11 @@ export function RealtorDashboardLayout({
                 <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
 
                 {/* Profile dropdown */}
-                <div className="relative">
+                <div className="relative" ref={dropdownRef}>
                   <button
                     type="button"
-                    className="-m-1.5 flex items-center p-1.5"
-                    onClick={handleLogout}
+                    className="-m-1.5 flex items-center p-1.5 hover:bg-gray-50 rounded-lg transition-colors"
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                   >
                     <span className="sr-only">Open user menu</span>
                     <div
@@ -242,8 +284,41 @@ export function RealtorDashboardLayout({
                       <span className="ml-4 text-sm font-semibold leading-6 text-gray-900">
                         {user?.firstName} {user?.lastName}
                       </span>
+                      <ChevronDown className="ml-2 h-4 w-4 text-gray-400" />
                     </span>
                   </button>
+
+                  {/* Dropdown Menu */}
+                  {profileDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                      <div className="px-4 py-2 border-b border-gray-200">
+                        <p className="text-sm font-medium text-gray-900">
+                          {user?.firstName} {user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          router.push("/settings");
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                      >
+                        <CogIcon className="h-4 w-4 mr-2" />
+                        Settings
+                      </button>
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center border-t border-gray-200"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Logout
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

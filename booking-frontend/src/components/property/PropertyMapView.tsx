@@ -142,7 +142,7 @@ const PropertyPreviewCard: React.FC<{
                     {property.averageRating?.toFixed(1) || "New"}
                   </span>
                   <span className="text-sm text-gray-400 ml-1">
-                    ({property.reviewCount || 0})
+                    ({property.reviewCount ?? 0})
                   </span>
                 </div>
 

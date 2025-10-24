@@ -675,6 +675,114 @@ export const notificationHelpers = {
       "Your CAC verification was rejected. Please contact support for more information.",
     priority: "high",
   }),
+
+  // Admin booking management notifications
+  bookingStatusChanged: (data: {
+    bookingId: string;
+    propertyTitle: string;
+    newStatus: string;
+    reason: string;
+    adminName: string;
+  }) => ({
+    type: "BOOKING_STATUS_ADMIN_UPDATE",
+    title: "Booking Status Updated",
+    message: `Your booking for "${data.propertyTitle}" has been updated to ${data.newStatus} by admin ${data.adminName}. Reason: ${data.reason}`,
+    bookingId: data.bookingId,
+    priority: "high",
+    data: {
+      newStatus: data.newStatus,
+      reason: data.reason,
+      adminName: data.adminName,
+    },
+  }),
+
+  adminBookingCancelled: (data: {
+    bookingId: string;
+    propertyTitle: string;
+    reason: string;
+    refundAmount: number;
+    adminName: string;
+  }) => ({
+    type: "BOOKING_ADMIN_CANCELLED",
+    title: "Booking Cancelled by Admin",
+    message: `Your booking for "${
+      data.propertyTitle
+    }" has been cancelled by admin ${data.adminName}. ${
+      data.refundAmount > 0
+        ? `A refund of ₦${data.refundAmount.toLocaleString()} has been processed.`
+        : "No refund applicable."
+    } Reason: ${data.reason}`,
+    bookingId: data.bookingId,
+    priority: "urgent",
+    data: {
+      reason: data.reason,
+      refundAmount: data.refundAmount,
+      adminName: data.adminName,
+    },
+  }),
 };
+
+/**
+ * Create admin notification for system events
+ * Admin notifications are stored with a specific set of types that the admin frontend filters for
+ */
+export async function createAdminNotification(data: {
+  type: string;
+  title: string;
+  message: string;
+  data?: any;
+  priority?: string;
+}): Promise<void> {
+  try {
+    // Get all admin users
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    });
+
+    if (admins.length === 0) {
+      console.warn("No admin users found to notify");
+      return;
+    }
+
+    // Create notification for each admin
+    await prisma.notification.createMany({
+      data: admins.map((admin) => ({
+        userId: admin.id,
+        type: data.type as any,
+        title: data.title,
+        message: data.message,
+        data: data.data,
+        priority: data.priority || "normal",
+        isRead: false,
+        emailSent: false,
+        pushSent: false,
+      })),
+    });
+
+    // Send real-time notification via WebSocket if service is initialized
+    try {
+      const notificationService = NotificationService.getInstance();
+      for (const admin of admins) {
+        notificationService["io"]
+          .to(`user:${admin.id}`)
+          .emit("admin_notification", {
+            type: data.type,
+            title: data.title,
+            message: data.message,
+            data: data.data,
+            priority: data.priority || "normal",
+            createdAt: new Date(),
+          });
+      }
+    } catch (wsError) {
+      console.log(
+        "WebSocket not initialized, notification saved to database only"
+      );
+    }
+  } catch (error) {
+    console.error("Error creating admin notification:", error);
+  }
+}
 
 export default NotificationService;

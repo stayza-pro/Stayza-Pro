@@ -822,7 +822,7 @@ export const getBooking = asyncHandler(
 //         userId: req.user!.id,
 //         details: {
 //           refundApplied: refundEvaluation?.eligible || false,
-//           refundAmount: refundEvaluation?.refundableAmount || 0,
+//           refundAmount: refundEvaluation?.refundableAmount ?? 0,
 //           reason: reason || undefined,
 //         },
 //         req,

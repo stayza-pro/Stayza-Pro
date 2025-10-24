@@ -61,7 +61,7 @@ export const requestRefund = asyncHandler(
     }
 
     // Check if refund amount is valid
-    const currentRefundAmount = Number(booking.payment.refundAmount || 0);
+    const currentRefundAmount = Number(booking.payment.refundAmount ?? 0);
     const availableForRefund =
       Number(booking.payment.amount) - currentRefundAmount;
 
@@ -502,7 +502,7 @@ export const processRefund = asyncHandler(
 
     const finalAmount =
       actualRefundAmount || Number(refundRequest.requestedAmount);
-    const currentRefundAmount = Number(refundRequest.payment.refundAmount || 0);
+    const currentRefundAmount = Number(refundRequest.payment.refundAmount ?? 0);
     const availableForRefund =
       Number(refundRequest.payment.amount) - currentRefundAmount;
 

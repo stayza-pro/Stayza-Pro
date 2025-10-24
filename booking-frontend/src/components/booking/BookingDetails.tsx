@@ -375,12 +375,12 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           <div className="space-y-3">
             <div className="flex justify-between text-gray-600">
               <span>
-                {booking.currency} {booking.property?.pricePerNight || 0} ×{" "}
+                {booking.currency} {booking.property?.pricePerNight ?? 0} ×{" "}
                 {nights} nights
               </span>
               <span>
                 {booking.currency}{" "}
-                {((booking.property?.pricePerNight || 0) * nights).toFixed(2)}
+                {((booking.property?.pricePerNight ?? 0) * nights).toFixed(2)}
               </span>
             </div>
 
@@ -389,7 +389,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <span>
                 {booking.currency}{" "}
                 {(
-                  (booking.property?.pricePerNight || 0) *
+                  (booking.property?.pricePerNight ?? 0) *
                   nights *
                   0.1
                 ).toFixed(2)}
@@ -401,7 +401,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <span>
                 {booking.currency}{" "}
                 {(
-                  (booking.property?.pricePerNight || 0) *
+                  (booking.property?.pricePerNight ?? 0) *
                   nights *
                   0.05
                 ).toFixed(2)}

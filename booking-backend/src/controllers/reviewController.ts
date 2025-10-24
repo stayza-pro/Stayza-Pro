@@ -821,7 +821,7 @@ export const getReviewAnalytics = asyncHandler(
       message: "Review analytics retrieved successfully",
       data: {
         totalReviews,
-        averageRating: averageRating._avg.rating || 0,
+        averageRating: averageRating._avg.rating ?? 0,
         ratingDistribution: {
           5: ratingDistribution[0],
           4: ratingDistribution[1],

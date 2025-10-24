@@ -213,14 +213,14 @@ export const BookingCard: React.FC<BookingCardProps> = ({
                     <Star
                       key={i}
                       className={`h-4 w-4 ${
-                        i < (booking.reviews?.[0]?.rating || 0)
+                        i < (booking.reviews?.[0]?.rating ?? 0)
                           ? "text-yellow-400 fill-current"
                           : "text-gray-300"
                       }`}
                     />
                   ))}
                   <span className="ml-2 text-sm text-gray-600">
-                    {booking.reviews?.[0]?.rating || 0}/5
+                    {booking.reviews?.[0]?.rating ?? 0}/5
                   </span>
                 </div>
               </div>

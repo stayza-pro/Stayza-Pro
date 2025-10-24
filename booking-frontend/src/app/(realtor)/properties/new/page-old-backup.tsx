@@ -31,9 +31,22 @@ import {
   Upload,
 } from "lucide-react";
 
-type Step = "details" | "location" | "pricing" | "amenities" | "photos" | "review";
+type Step =
+  | "details"
+  | "location"
+  | "pricing"
+  | "amenities"
+  | "photos"
+  | "review";
 
-const STEPS: Step[] = ["details", "location", "pricing", "amenities", "photos", "review"];
+const STEPS: Step[] = [
+  "details",
+  "location",
+  "pricing",
+  "amenities",
+  "photos",
+  "review",
+];
 
 const STEP_TITLES = {
   details: "Property Details",
@@ -82,7 +95,7 @@ export default function AddPropertyPage() {
     maxGuests: 2,
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  
+
   const brandColors = branding?.colors || {
     primary: "#3B82F6",
     secondary: "#1E40AF",
@@ -112,7 +125,7 @@ export default function AddPropertyPage() {
     if (!isLastStep) {
       const nextIndex = currentStepIndex + 1;
       setCurrentStep(STEPS[nextIndex]);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -120,7 +133,7 @@ export default function AddPropertyPage() {
     if (!isFirstStep) {
       const prevIndex = currentStepIndex - 1;
       setCurrentStep(STEPS[prevIndex]);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -142,8 +155,14 @@ export default function AddPropertyPage() {
       setLoading(true);
 
       // Validate required fields
-      if (!formData.name || !formData.description || !formData.address || 
-          !formData.city || !formData.state || !formData.pricePerNight) {
+      if (
+        !formData.name ||
+        !formData.description ||
+        !formData.address ||
+        !formData.city ||
+        !formData.state ||
+        !formData.pricePerNight
+      ) {
         alert("Please fill in all required fields");
         return;
       }
@@ -227,7 +246,7 @@ export default function AddPropertyPage() {
                 <input
                   type="number"
                   min="0"
-                  value={formData.bedrooms || 0}
+                  value={formData.bedrooms ?? 0}
                   onChange={(e) =>
                     updateFormData("bedrooms", parseInt(e.target.value))
                   }
@@ -243,7 +262,7 @@ export default function AddPropertyPage() {
                 <input
                   type="number"
                   min="0"
-                  value={formData.bathrooms || 0}
+                  value={formData.bathrooms ?? 0}
                   onChange={(e) =>
                     updateFormData("bathrooms", parseInt(e.target.value))
                   }
@@ -641,7 +660,7 @@ export default function AddPropertyPage() {
                   <div>
                     <dt className="text-gray-600">Cleaning Fee:</dt>
                     <dd className="font-medium">
-                      ${formData.cleaningFee || 0}
+                      ${formData.cleaningFee ?? 0}
                     </dd>
                   </div>
                   <div>

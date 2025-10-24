@@ -247,7 +247,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                     <span>{category.label}</span>
                   </label>
                   {renderStarRating(
-                    (formData[category.key] as number) || 0,
+                    (formData[category.key] as number) ?? 0,
                     (rating) => handleRatingChange(category.key, rating)
                   )}
                 </div>
@@ -276,7 +276,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
               maxLength={1000}
             />
             <div className="text-right text-sm text-gray-500">
-              {formData.comment?.length || 0}/1000 characters
+              {formData.comment?.length ?? 0}/1000 characters
             </div>
           </div>
 

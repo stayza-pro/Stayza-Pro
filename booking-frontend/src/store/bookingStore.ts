@@ -212,7 +212,7 @@ export const useBookingStore = create<BookingState & BookingActions>(
     updatePriceBreakdown: (breakdown) => {
       set({
         priceBreakdown: breakdown,
-        totalPrice: breakdown?.total || 0,
+        totalPrice: breakdown?.total ?? 0,
       });
     },
 

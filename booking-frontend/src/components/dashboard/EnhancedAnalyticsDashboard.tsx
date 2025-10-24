@@ -201,7 +201,7 @@ export const EnhancedAnalyticsDashboard: React.FC = () => {
     const maxValue = Math.max(
       ...data.map(
         (item) =>
-          item[dataKey] || item.bookings || item.revenue || item.count || 0
+          (item[dataKey] || item.bookings || item.revenue || item.count) ?? 0
       )
     );
 
@@ -209,7 +209,7 @@ export const EnhancedAnalyticsDashboard: React.FC = () => {
       <div className="space-y-4">
         {data.map((item, index) => {
           const value =
-            item[dataKey] || item.bookings || item.revenue || item.count || 0;
+            (item[dataKey] || item.bookings || item.revenue || item.count) ?? 0;
           const label =
             item.month ||
             item.city ||
@@ -351,7 +351,7 @@ export const EnhancedAnalyticsDashboard: React.FC = () => {
           color="bg-purple-500"
           format="currency"
           description={`₦${(
-            analyticsData.overview.revenue.average || 0
+            analyticsData.overview.revenue.average ?? 0
           ).toLocaleString()} avg per booking`}
         />
         <MetricCard

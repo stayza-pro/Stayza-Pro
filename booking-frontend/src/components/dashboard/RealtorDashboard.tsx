@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
-import { getRealtorSubdomain } from "@/utils/subdomain";
+import { getRealtorSubdomain, getMainDomainUrl } from "@/utils/subdomain";
+import { deleteCookie } from "@/utils/cookies";
 import { propertyService } from "@/services/properties";
 import { bookingService } from "@/services/bookings";
 import { paymentService } from "@/services/payments";
@@ -20,6 +21,7 @@ import {
   ArrowUp,
   ArrowDown,
   CreditCard,
+  LogOut,
 } from "lucide-react";
 
 interface StatsCard {
@@ -77,7 +79,7 @@ export function RealtorDashboard() {
           user?.id,
           { page: 1, limit: 1 }
         );
-        const propertyCount = propertiesResponse.pagination?.totalItems || 0;
+        const propertyCount = propertiesResponse.pagination?.totalItems ?? 0;
 
         // Fetch active bookings count
         const bookingsResponse = await bookingService.getHostBookings({
@@ -88,7 +90,7 @@ export function RealtorDashboard() {
         const activeBookings =
           bookingsResponse.data?.filter(
             (booking) => booking.status === "CONFIRMED"
-          ).length || 0;
+          ).length ?? 0;
 
         // Fetch payment stats (monthly revenue)
         const paymentsResponse = await paymentService.getHostPayments({
@@ -273,6 +275,25 @@ export function RealtorDashboard() {
             >
               <Eye className="w-4 h-4" />
               <span>Preview Site</span>
+            </button>
+            <button
+              onClick={() => {
+                // Clear all storage
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // Clear authentication cookies
+                deleteCookie("accessToken");
+                deleteCookie("refreshToken");
+
+                // Redirect to main domain landing page (domain-aware)
+                window.location.href = getMainDomainUrl("/");
+              }}
+              className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors flex items-center space-x-2"
+              title="Logout and return to homepage"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
             </button>
           </div>
         </div>

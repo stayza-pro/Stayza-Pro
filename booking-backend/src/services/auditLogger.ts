@@ -24,6 +24,7 @@ export type AuditAction =
   | "CAC_REJECTED"
   | "ADMIN_LOGIN"
   | "ADMIN_ACTION"
+  | "SETTINGS_UPDATE"
   | "SYSTEM_ERROR";
 
 export type AuditEntity =
@@ -33,7 +34,8 @@ export type AuditEntity =
   | "REALTOR"
   | "PROPERTY"
   | "CAC_VERIFICATION"
-  | "ADMIN";
+  | "ADMIN"
+  | "SETTINGS";
 
 interface LogOptions {
   entityId?: string;
@@ -208,5 +210,27 @@ export const logPayoutProcessed = (
     "PAYMENT",
     paymentId,
     { realtorId, amount, currency },
+    req
+  );
+
+export const logSettingUpdate = (
+  adminId: string,
+  settingKey: string,
+  oldValue: any,
+  newValue: any,
+  description: string,
+  req?: Request
+) =>
+  auditLogger.logAdminAction(
+    adminId,
+    "SETTINGS_UPDATE",
+    "SETTINGS",
+    settingKey,
+    {
+      oldValue: oldValue,
+      newValue: newValue,
+      description,
+      settingKey,
+    },
     req
   );

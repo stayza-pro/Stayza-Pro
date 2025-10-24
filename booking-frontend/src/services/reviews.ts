@@ -363,7 +363,7 @@ export const reviewService = {
 
     // Count by rating
     reviews.forEach((review) => {
-      stats.byRating[review.rating] = (stats.byRating[review.rating] || 0) + 1;
+      stats.byRating[review.rating] = (stats.byRating[review.rating] ?? 0) + 1;
     });
 
     return stats;
@@ -376,7 +376,9 @@ export const reviewService = {
       review.comment &&
       /\b(terrible|awful|worst|horrible|scam|fraud)\b/i.test(review.comment)
     );
-    const hasResponse = !!(review.hostResponse && review.hostResponse.comment.length > 0);
+    const hasResponse = !!(
+      review.hostResponse && review.hostResponse.comment.length > 0
+    );
 
     return lowRating && !hasResponse && hasNegativeKeywords;
   },
@@ -397,15 +399,18 @@ export const reviewService = {
   },
 
   // Additional missing methods for moderation dashboard
-  flagReviewForAdmin: async (reviewId: string, reason: string): Promise<void> => {
+  flagReviewForAdmin: async (
+    reviewId: string,
+    reason: string
+  ): Promise<void> => {
     await apiClient.post(`/reviews/${reviewId}/flag`, { reason });
   },
 
   extractErrorMessage: (error: any): string => {
-    if (typeof error === 'string') return error;
+    if (typeof error === "string") return error;
     if (error?.response?.data?.message) return error.response.data.message;
     if (error?.message) return error.message;
-    return 'An unexpected error occurred';
+    return "An unexpected error occurred";
   },
 
   hasPhotos: (review: Review): boolean => {
@@ -413,6 +418,6 @@ export const reviewService = {
   },
 
   getPhotoUrls: (review: Review): string[] => {
-    return review.photos?.map(photo => photo.url) || [];
+    return review.photos?.map((photo) => photo.url) || [];
   },
 };

@@ -24,6 +24,7 @@ import webhookRoutes from "@/routes/webhookRoutes";
 import emailRoutes from "@/routes/emailRoutes";
 import notificationRoutes from "@/routes/notificationRoutes";
 import refundRoutes from "@/routes/refundRoutes";
+import settingsRoutes from "@/routes/settingsRoutes";
 
 const app = express();
 
@@ -50,7 +51,7 @@ const corsOptions = {
     const allowedOrigins = [
       config.FRONTEND_URL, // http://localhost:3000
       "http://localhost:3000",
-      "https://localhost:3000"
+      "https://localhost:3000",
     ];
 
     // Development patterns (localhost)
@@ -127,6 +128,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/refunds", refundRoutes);
+app.use("/api/admin/settings", settingsRoutes);
 
 // 404 handler
 app.use(notFound);

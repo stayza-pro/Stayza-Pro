@@ -88,7 +88,7 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     title: property?.title || "",
     description: property?.description || "",
     type: property?.type || "APARTMENT",
-    pricePerNight: property?.pricePerNight || 0,
+    pricePerNight: property?.pricePerNight ?? 0,
     currency: property?.currency || "USD",
     maxGuests: property?.maxGuests || 1,
     bedrooms: property?.bedrooms || 1,
@@ -366,7 +366,7 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
               onChange={(e) =>
                 handleInputChange(
                   "pricePerNight",
-                  parseFloat(e.target.value) || 0
+                  parseFloat(e.target.value) ?? 0
                 )
               }
               disabled={isLoading}

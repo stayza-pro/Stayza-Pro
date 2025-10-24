@@ -15,6 +15,7 @@ import {
   sendEmailVerification,
   sendRealtorWelcomeEmail,
 } from "@/services/email";
+import { createAdminNotification } from "@/services/notificationService";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -338,6 +339,20 @@ export const registerRealtor = asyncHandler(
       dashboardUrl,
       verificationUrl
     ).catch((err) => console.error("Realtor welcome email failed", err));
+
+    // Create admin notification for new realtor registration
+    createAdminNotification({
+      type: "REALTOR_REGISTRATION",
+      title: "New Realtor Registration",
+      message: `${agencyName} (${businessEmail}) has registered and is awaiting approval.`,
+      data: {
+        realtorId: result.realtor.id,
+        businessName: agencyName,
+        email: businessEmail,
+        subdomain: slug,
+      },
+      priority: "normal",
+    }).catch((err) => console.error("Admin notification failed", err));
 
     // Store refresh token
     // MVP: refreshToken model not supported
@@ -1006,6 +1021,20 @@ export const appealCacRejection = asyncHandler(
     //   realtor.user.fullName,
     //   corporateRegNumber
     // );
+
+    // Create admin notification for CAC re-verification
+    createAdminNotification({
+      type: "CAC_VERIFICATION",
+      title: "CAC Re-Verification Request",
+      message: `${realtor.businessName} has submitted a CAC appeal and is awaiting re-verification.`,
+      data: {
+        realtorId: realtor.id,
+        businessName: realtor.businessName,
+        corporateRegNumber,
+        isAppeal: true,
+      },
+      priority: "normal",
+    }).catch((err) => console.error("Admin notification failed", err));
 
     res.json({
       success: true,

@@ -112,7 +112,7 @@ export const RatingDisplay: React.FC<RatingDisplayProps> = ({
           Rating Breakdown
         </h4>
         {[5, 4, 3, 2, 1].map((star) => {
-          const count = distribution[star] || 0;
+          const count = distribution[star] ?? 0;
           const percentage = total > 0 ? (count / total) * 100 : 0;
 
           return (
