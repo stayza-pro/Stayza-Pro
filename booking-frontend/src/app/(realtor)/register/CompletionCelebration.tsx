@@ -147,29 +147,38 @@ export function CompletionCelebration({
   const planFeatures = {
     free: {
       name: "Free Plan",
-      color: "text-gray-600",
-      features: ["Up to 3 properties", "Basic analytics", "Email support"],
-    },
-    professional: {
-      name: "Professional Plan",
-      color: "text-blue-600",
+      color: "text-green-600",
       features: [
-        "Unlimited properties",
-        "Advanced analytics",
-        "Priority support",
-        "Custom domain",
+        "Up to 5 property listings",
+        "Basic booking calendar",
+        "Email notifications",
+        "Client contact management",
+        "Payment processing",
+        "Basic analytics",
+        "Community support",
       ],
     },
-    premium: {
-      name: "Premium Plan",
-      color: "text-purple-600",
-      features: [
-        "Everything in Pro",
-        "White-label solution",
-        "24/7 phone support",
-        "API access",
-      ],
-    },
+    // TODO: Paid plans will be added later
+    // professional: {
+    //   name: "Professional Plan",
+    //   color: "text-blue-600",
+    //   features: [
+    //     "Unlimited properties",
+    //     "Advanced analytics",
+    //     "Priority support",
+    //     "Custom domain",
+    //   ],
+    // },
+    // premium: {
+    //   name: "Premium Plan",
+    //   color: "text-purple-600",
+    //   features: [
+    //     "Everything in Pro",
+    //     "White-label solution",
+    //     "24/7 phone support",
+    //     "API access",
+    //   ],
+    // },
   };
 
   const currentPlan =
@@ -334,12 +343,14 @@ export function CompletionCelebration({
             {/* Plan Badge */}
             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4 mb-8 text-center">
               <div className="flex items-center justify-center mb-2">
-                {realtorData.plan === "premium" && (
+                {/* TODO: Re-enable when paid plans are added */}
+                {/* {realtorData.plan === "premium" && (
                   <Crown className="w-5 h-5 text-purple-600 mr-2" />
                 )}
                 {realtorData.plan === "professional" && (
                   <Zap className="w-5 h-5 text-blue-600 mr-2" />
-                )}
+                )} */}
+                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
                 <span className={`font-semibold ${currentPlan.color}`}>
                   {currentPlan.name} Active
                 </span>

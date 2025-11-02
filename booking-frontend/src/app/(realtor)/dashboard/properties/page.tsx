@@ -7,6 +7,7 @@ import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 import { propertyService } from "@/services/properties";
 import { Property, PropertyStatus } from "@/types";
+import { useAlert } from "@/context/AlertContext";
 import {
   Building2,
   Plus,
@@ -27,6 +28,7 @@ export default function PropertiesPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { branding } = useBranding();
+  const { showSuccess, showError, showConfirm } = useAlert();
   const realtorSubdomain = getRealtorSubdomain();
 
   const [properties, setProperties] = useState<Property[]>([]);
@@ -44,7 +46,7 @@ export default function PropertiesPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copied to clipboard!");
+    showSuccess("Copied to clipboard!");
   };
 
   useEffect(() => {
@@ -70,15 +72,16 @@ export default function PropertiesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this property?")) return;
-
-    try {
-      await propertyService.deleteProperty(id);
-      fetchProperties(); // Refresh list
-    } catch (error) {
-      console.error("Error deleting property:", error);
-      alert("Failed to delete property");
-    }
+    showConfirm("Are you sure you want to delete this property?", async () => {
+      try {
+        await propertyService.deleteProperty(id);
+        showSuccess("Property deleted successfully!");
+        fetchProperties(); // Refresh list
+      } catch (error) {
+        console.error("Error deleting property:", error);
+        showError("Failed to delete property");
+      }
+    });
   };
 
   const handleSearch = (e: React.FormEvent) => {

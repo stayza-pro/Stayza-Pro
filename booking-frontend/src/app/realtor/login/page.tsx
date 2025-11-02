@@ -73,7 +73,8 @@ function RealtorLoginContent() {
     setError("");
 
     try {
-      await login(email, password);
+      console.log("🔐 Starting realtor login...");
+      const response = await login(email, password);
 
       // Check if user is a realtor after successful login
       const { user } = useAuthStore.getState();
@@ -84,10 +85,71 @@ function RealtorLoginContent() {
         return;
       }
 
+      console.log("✅ Realtor login successful:", {
+        user: user?.email,
+        role: user?.role,
+        isVerified: user?.isEmailVerified,
+        redirectUrl: (response as any)?.redirectUrl,
+      });
+
       toast.success(`Welcome back, ${user?.firstName}!`);
 
-      // Redirect to intended destination
-      router.push(returnTo);
+      // Enhanced multi-domain redirect handling
+      const loginResponse = response as any;
+      let redirectUrl = returnTo;
+
+      // Use backend-provided redirect URL if available
+      if (loginResponse?.redirectUrl) {
+        redirectUrl = loginResponse.redirectUrl;
+        console.log("🔄 Using backend redirect URL:", redirectUrl);
+      } else if (
+        user?.role === "REALTOR" &&
+        (user as any).realtor?.slug &&
+        user.isEmailVerified
+      ) {
+        // Fallback: Construct realtor subdomain URL
+        redirectUrl = `http://${(user as any).realtor.slug}.${
+          window.location.host
+        }/dashboard`;
+        console.log("🔄 Constructed realtor subdomain URL:", redirectUrl);
+      }
+
+      // Handle cross-domain navigation
+      setTimeout(() => {
+        console.log("🔄 Redirecting to:", redirectUrl);
+
+        const currentHost = window.location.host;
+        try {
+          const redirectHost = new URL(redirectUrl, window.location.origin)
+            .host;
+
+          if (currentHost !== redirectHost) {
+            // Cross-domain redirect (realtor subdomain)
+            console.log("🌐 Cross-domain redirect detected");
+
+            // Add authentication tokens to URL for cross-domain transfer
+            const { accessToken, refreshToken } = useAuthStore.getState();
+            if (accessToken && refreshToken) {
+              const redirectUrlObj = new URL(redirectUrl);
+              redirectUrlObj.searchParams.set("token", accessToken);
+              redirectUrlObj.searchParams.set("refresh", refreshToken);
+
+              console.log("🔐 Adding tokens to cross-domain redirect URL");
+              window.location.href = redirectUrlObj.toString();
+            } else {
+              window.location.href = redirectUrl;
+            }
+          } else {
+            // Same-domain redirect
+            console.log("🔗 Same-domain redirect");
+            router.push(redirectUrl);
+          }
+        } catch (urlError) {
+          // Fallback for relative URLs
+          console.log("🔗 Relative URL redirect");
+          router.push(redirectUrl);
+        }
+      }, 1000); // Small delay to show success message
     } catch (error: any) {
       console.error("Login error:", error);
 

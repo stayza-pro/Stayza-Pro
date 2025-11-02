@@ -14,7 +14,7 @@ interface AuthState {
 }
 
 interface AuthActions {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
   register: (userData: {
     email: string;
     password: string;
@@ -29,6 +29,10 @@ interface AuthActions {
   clearError: () => void;
   setLoading: (loading: boolean) => void;
   checkAuth: () => void;
+  autoLogin: (
+    tokens: { accessToken: string; refreshToken: string },
+    user: User
+  ) => void;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
@@ -47,7 +51,15 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         try {
           set({ isLoading: true, error: null });
 
+          console.log("🔐 Attempting login for:", email);
           const response = await authService.login({ email, password });
+
+          console.log("✅ Login response received:", {
+            user: response.user?.email,
+            role: response.user?.role,
+            hasRedirectUrl: !!(response as any).redirectUrl,
+            redirectUrl: (response as any).redirectUrl,
+          });
 
           // Set cookies for cross-subdomain access
           if (typeof window !== "undefined") {
@@ -63,6 +75,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
             error: null,
           });
+
+          // Return response data for navigation handling
+          return response;
         } catch (error: unknown) {
           const message = serviceUtils.extractErrorMessage(error);
           set({
@@ -184,23 +199,77 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: loading });
       },
 
+      autoLogin: (
+        tokens: { accessToken: string; refreshToken: string },
+        user: User
+      ) => {
+        console.log("🔐 Auto-login: Setting user and tokens in auth store");
+
+        // Set tokens in localStorage
+        localStorage.setItem("accessToken", tokens.accessToken);
+        localStorage.setItem("refreshToken", tokens.refreshToken);
+
+        // Set cookies for cross-subdomain access
+        setCookie("accessToken", tokens.accessToken, 7); // 7 days
+        setCookie("refreshToken", tokens.refreshToken, 30); // 30 days
+
+        // Update auth state
+        set({
+          user,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+
+        console.log("✅ Auto-login: User authenticated successfully", {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+        });
+      },
+
       checkAuth: async () => {
+        console.log("🔍 AuthStore: Starting checkAuth...");
         const state = get();
         let token = state.accessToken || authService.getAccessToken();
         let refreshToken = state.refreshToken || authService.getRefreshToken();
 
+        console.log("🔍 AuthStore: Initial token check", {
+          hasStateToken: !!state.accessToken,
+          hasServiceToken: !!authService.getAccessToken(),
+          hasStateRefresh: !!state.refreshToken,
+          hasServiceRefresh: !!authService.getRefreshToken(),
+        });
+
         // Fallback to cookies if localStorage doesn't have tokens (cross-subdomain case)
         if (typeof window !== "undefined" && (!token || !refreshToken)) {
+          console.log("🍪 AuthStore: Checking cookies for tokens...");
           const cookieToken = getCookie("accessToken");
           const cookieRefresh = getCookie("refreshToken");
+
+          console.log("🍪 AuthStore: Cookie token check", {
+            hasCookieToken: !!cookieToken,
+            hasCookieRefresh: !!cookieRefresh,
+          });
 
           if (cookieToken) token = cookieToken;
           if (cookieRefresh) refreshToken = cookieRefresh;
 
           // Also update localStorage for this subdomain
-          if (cookieToken) localStorage.setItem("accessToken", cookieToken);
-          if (cookieRefresh)
+          if (cookieToken) {
+            localStorage.setItem("accessToken", cookieToken);
+            console.log(
+              "💾 AuthStore: Restored access token to localStorage from cookie"
+            );
+          }
+          if (cookieRefresh) {
             localStorage.setItem("refreshToken", cookieRefresh);
+            console.log(
+              "💾 AuthStore: Restored refresh token to localStorage from cookie"
+            );
+          }
         }
 
         if (!token && !refreshToken) {

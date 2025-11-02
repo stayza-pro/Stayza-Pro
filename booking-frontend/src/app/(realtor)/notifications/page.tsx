@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 import { notificationApiService } from "@/services/notifications";
@@ -10,7 +11,6 @@ import {
   Bell,
   Check,
   MessageSquare,
-  DollarSign,
   Calendar,
   Star,
   Settings,
@@ -27,6 +27,7 @@ type FilterType = "all" | "unread" | "BOOKING" | "REVIEW" | "PAYMENT";
 export default function NotificationsPage() {
   const { user } = useAuth();
   const { branding } = useBranding();
+  const { showSuccess, showError } = useAlert();
   const realtorSubdomain = getRealtorSubdomain();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -43,7 +44,7 @@ export default function NotificationsPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copied to clipboard!");
+    showSuccess("Copied to clipboard!");
   };
 
   useEffect(() => {
@@ -83,7 +84,7 @@ export default function NotificationsPage() {
       await fetchNotifications();
       await fetchUnreadCount();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to mark as read");
+      showError(err.response?.data?.message || "Failed to mark as read");
     }
   };
 
@@ -92,20 +93,19 @@ export default function NotificationsPage() {
       await notificationApiService.markAllAsRead();
       await fetchNotifications();
       await fetchUnreadCount();
-      alert("All notifications marked as read!");
+      showSuccess("All notifications marked as read!");
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to mark all as read");
+      showError(err.response?.data?.message || "Failed to mark all as read");
     }
   };
 
   const handleDelete = async (notificationId: string) => {
-    if (!confirm("Are you sure you want to delete this notification?")) return;
-
     try {
       await notificationApiService.deleteNotification(notificationId);
       await fetchNotifications();
+      showSuccess("Notification deleted!");
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to delete notification");
+      showError(err.response?.data?.message || "Failed to delete notification");
     }
   };
 

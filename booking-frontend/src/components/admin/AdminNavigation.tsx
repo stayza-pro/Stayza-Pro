@@ -20,6 +20,7 @@ import {
   X,
   LogOut,
   ChevronDown,
+  Calendar,
 } from "lucide-react";
 import { getMainDomainUrl } from "@/utils/subdomain";
 import { deleteCookie } from "@/utils/cookies";
@@ -32,15 +33,11 @@ import { format } from "date-fns";
 
 const navigationItems = [
   { name: "Dashboard", href: "/admin", icon: Home },
-  { name: "Realtors", href: "/admin/realtors", icon: Users },
-  {
-    name: "CAC Verification",
-    href: "/admin/cac-verification",
-    icon: FileCheck,
-  },
+  { name: "Bookings", href: "/admin/bookings", icon: Calendar },
   { name: "Commission", href: "/admin/commission", icon: DollarSign },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 export function AdminNavigation() {
@@ -335,15 +332,10 @@ export function AdminNavigation() {
                         <div className="text-xs text-gray-500">
                           {user?.email}
                         </div>
+                        <div className="text-xs text-blue-600 mt-1">
+                          Administrator
+                        </div>
                       </div>
-                      <Link
-                        href="/admin/settings"
-                        className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setProfileMenuOpen(false)}
-                      >
-                        <Settings className="w-4 h-4" />
-                        <span>Settings</span>
-                      </Link>
                       <button
                         onClick={handleLogout}
                         className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"

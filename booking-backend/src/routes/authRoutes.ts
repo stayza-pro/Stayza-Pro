@@ -13,6 +13,11 @@ import {
 } from "@/controllers/authController";
 import { authenticate } from "@/middleware/auth";
 import { authLimiter } from "@/middleware/rateLimiter";
+import {
+  validateVerificationRequest,
+  handleCrossDomainVerification,
+  logVerificationSuccess,
+} from "@/middleware/verificationMiddleware";
 
 const router = express.Router();
 
@@ -325,7 +330,13 @@ router.post("/login", authLimiter, login);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.get("/verify-email", verifyEmail);
+router.get(
+  "/verify-email",
+  handleCrossDomainVerification,
+  validateVerificationRequest,
+  logVerificationSuccess,
+  verifyEmail
+);
 
 /**
  * @swagger

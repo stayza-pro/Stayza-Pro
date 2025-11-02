@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 import {
@@ -15,6 +16,7 @@ import {
 
 export default function ReviewModerationPage() {
   const { user } = useAuth();
+  const { showSuccess } = useAlert();
   const { branding } = useBranding();
   const realtorSubdomain = getRealtorSubdomain();
 
@@ -26,7 +28,7 @@ export default function ReviewModerationPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copied to clipboard!");
+    showSuccess("Copied to clipboard!");
   };
 
   return (

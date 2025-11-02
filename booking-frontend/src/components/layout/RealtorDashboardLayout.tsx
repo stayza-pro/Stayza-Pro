@@ -53,6 +53,16 @@ const navigationItems = [
     icon: StarIcon,
   },
   {
+    name: "Business Profile",
+    href: "/profile",
+    icon: UserIcon,
+  },
+  {
+    name: "Support",
+    href: "/support",
+    icon: BellIcon,
+  },
+  {
     name: "Settings",
     href: "/settings",
     icon: CogIcon,

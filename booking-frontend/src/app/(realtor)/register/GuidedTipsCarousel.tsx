@@ -90,7 +90,7 @@ export const GuidedTipsCarousel: React.FC<GuidedTipsCarouselProps> = ({
             <button
               key={index}
               onClick={() => setCurrentTip(index)}
-              className={`w-2 h-2 rounded-full transition-colors ${
+              className={`rounded-full transition-colors ${
                 index === currentTip ? "bg-blue-600" : "bg-gray-300"
               }`}
             />

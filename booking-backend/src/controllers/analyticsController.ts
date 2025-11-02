@@ -477,3 +477,153 @@ export const getPropertyAnalytics = asyncHandler(
     });
   }
 );
+
+/**
+ * @desc    Get revenue analytics for realtor
+ * @route   GET /api/realtors/analytics/revenue
+ * @access  Private (Realtor only)
+ */
+export const getRevenueAnalytics = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("User not authenticated", 401);
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    const { period = "30d" } = req.query;
+
+    // Calculate date range
+    const now = new Date();
+    const startDate = new Date();
+
+    switch (period) {
+      case "7d":
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case "30d":
+        startDate.setDate(now.getDate() - 30);
+        break;
+      case "90d":
+        startDate.setDate(now.getDate() - 90);
+        break;
+      case "1y":
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        startDate.setDate(now.getDate() - 30);
+    }
+
+    // Get completed bookings within the time range
+    const bookings = await prisma.booking.findMany({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        status: "COMPLETED",
+        createdAt: {
+          gte: startDate,
+          lte: now,
+        },
+      },
+      select: {
+        totalPrice: true,
+        createdAt: true,
+        checkInDate: true,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+
+    // Group data by date for chart
+    const revenueByDate: { [key: string]: number } = {};
+
+    bookings.forEach((booking) => {
+      const date = booking.createdAt.toISOString().split("T")[0];
+      revenueByDate[date] =
+        (revenueByDate[date] || 0) + parseFloat(booking.totalPrice.toString());
+    });
+
+    // Convert to array format
+    const chartData = Object.entries(revenueByDate).map(([date, revenue]) => ({
+      date,
+      revenue,
+      amount: revenue,
+    }));
+
+    // Calculate totals
+    const totalRevenue = bookings.reduce(
+      (sum, booking) => sum + parseFloat(booking.totalPrice.toString()),
+      0
+    );
+    const totalBookings = bookings.length;
+
+    // Calculate previous period for comparison
+    const previousStartDate = new Date(startDate);
+    const previousEndDate = new Date(startDate);
+    const daysDiff = Math.ceil(
+      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    previousStartDate.setDate(previousStartDate.getDate() - daysDiff);
+
+    const previousBookings = await prisma.booking.findMany({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        status: "COMPLETED",
+        createdAt: {
+          gte: previousStartDate,
+          lt: previousEndDate,
+        },
+      },
+      select: {
+        totalPrice: true,
+      },
+    });
+
+    const previousRevenue = previousBookings.reduce(
+      (sum, booking) => sum + parseFloat(booking.totalPrice.toString()),
+      0
+    );
+
+    // Calculate percentage change
+    const revenueChange =
+      previousRevenue > 0
+        ? ((totalRevenue - previousRevenue) / previousRevenue) * 100
+        : totalRevenue > 0
+        ? 100
+        : 0;
+
+    res.json({
+      success: true,
+      data: {
+        period,
+        totalRevenue,
+        totalBookings,
+        revenueChange: {
+          value: Math.abs(revenueChange),
+          type: revenueChange >= 0 ? "increase" : "decrease",
+        },
+        chartData:
+          chartData.length > 0
+            ? chartData
+            : [
+                {
+                  date: startDate.toISOString().split("T")[0],
+                  revenue: 0,
+                  amount: 0,
+                },
+              ],
+      },
+    });
+  }
+);

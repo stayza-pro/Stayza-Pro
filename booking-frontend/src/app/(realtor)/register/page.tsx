@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast, Toaster } from "react-hot-toast";
-import { Button, Input, Card } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 import {
   Eye,
   EyeOff,
@@ -46,47 +46,83 @@ import PreviewComponent from "./PreviewComponent";
 
 import { MobileStickyAction } from "./MobileStickyAction";
 
-import { ColorPaletteGenerator } from "./ColorPaletteGenerator";
+import { RadixColorSelector } from "./RadixColorSelector";
 import { PhoneNumberFormatter } from "./PhoneNumberFormatter";
 import { SocialMediaValidator } from "./SocialMediaValidator";
 
-import { AccessibilityEnhancer } from "./AccessibilityEnhancer";
 import { EnhancedErrorHandler } from "./EnhancedErrorHandler";
 import ConditionalLogic from "./ConditionalLogic";
-import SmartInput from "./SmartInput";
 import CompletionCelebration from "./CompletionCelebration";
 import { RealtorRegistrationApi, handleApiError, useApiState } from "./api";
+import { useMultiDomainNavigation } from "@/hooks/useMultiDomainNavigation";
 import {
   AnimatedButton,
   AnimatedInput,
   AnimatedProgress,
-  AnimatedCard,
   SuccessAnimation,
 } from "./SimpleAnimations";
 import "./accessibility.css";
 
 const colorOptions = [
-  palette.primary, // Marketing Primary
-  palette.secondary, // Marketing Secondary
-  palette.accent, // Marketing Accent
-  "#3B82F6", // Blue
-  "#EF4444", // Red
-  "#10B981", // Green
-  "#F59E0B", // Yellow
-  "#8B5CF6", // Purple
-  "#EC4899", // Pink
-  "#06B6D4", // Cyan
-  "#84CC16", // Lime
-  "#F97316", // Orange
-  "#6366F1", // Indigo
-  "#14B8A6", // Teal
-  "#F59E0B", // Amber
+  // Stayza Brand Colors
+  { color: palette.primary, name: "Stayza Primary", category: "brand" },
+  { color: palette.secondary, name: "Stayza Secondary", category: "brand" },
+  { color: palette.accent, name: "Stayza Accent", category: "brand" },
+
+  // Blues
+  { color: "#1E40AF", name: "Royal Blue", category: "blue" },
+  { color: "#3B82F6", name: "Bright Blue", category: "blue" },
+  { color: "#0EA5E9", name: "Sky Blue", category: "blue" },
+  { color: "#0284C7", name: "Light Blue", category: "blue" },
+  { color: "#1E3A8A", name: "Dark Blue", category: "blue" },
+
+  // Greens
+  { color: "#10B981", name: "Emerald", category: "green" },
+  { color: "#047857", name: "Dark Green", category: "green" },
+  { color: "#059669", name: "Forest Green", category: "green" },
+  { color: "#84CC16", name: "Lime", category: "green" },
+  { color: "#22C55E", name: "Green", category: "green" },
+
+  // Reds & Oranges
+  { color: "#EF4444", name: "Red", category: "red" },
+  { color: "#DC2626", name: "Dark Red", category: "red" },
+  { color: "#F97316", name: "Orange", category: "orange" },
+  { color: "#EA580C", name: "Dark Orange", category: "orange" },
+  { color: "#FB923C", name: "Light Orange", category: "orange" },
+
+  // Purples
+  { color: "#8B5CF6", name: "Purple", category: "purple" },
+  { color: "#7C3AED", name: "Violet", category: "purple" },
+  { color: "#6366F1", name: "Indigo", category: "purple" },
+  { color: "#A855F7", name: "Light Purple", category: "purple" },
+
+  // Pinks
+  { color: "#EC4899", name: "Pink", category: "pink" },
+  { color: "#DB2777", name: "Dark Pink", category: "pink" },
+  { color: "#F472B6", name: "Light Pink", category: "pink" },
+
+  // Teals & Cyans
+  { color: "#06B6D4", name: "Cyan", category: "teal" },
+  { color: "#14B8A6", name: "Teal", category: "teal" },
+  { color: "#0891B2", name: "Dark Cyan", category: "teal" },
+
+  // Yellows & Ambers
+  { color: "#F59E0B", name: "Amber", category: "yellow" },
+  { color: "#EAB308", name: "Yellow", category: "yellow" },
+  { color: "#D97706", name: "Dark Amber", category: "yellow" },
+
+  // Grays
+  { color: "#64748B", name: "Slate", category: "gray" },
+  { color: "#6B7280", name: "Gray", category: "gray" },
+  { color: "#374151", name: "Dark Gray", category: "gray" },
 ];
 
 function RealtorRegistrationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const plan = searchParams.get("plan") || "free";
+  const { handleRealtorRegistrationSuccess } = useMultiDomainNavigation();
+  // Fixed to free plan only for now - paid plans will be added later
+  const plan = "free"; // Always use free plan
   const formRef = useRef<HTMLFormElement>(null);
 
   // React Hook Form setup
@@ -106,9 +142,11 @@ function RealtorRegistrationContent() {
       tagline: "",
       customSubdomain: "",
       corporateRegNumber: "",
+      cacCertificate: null,
       businessAddress: "",
 
       // Branding (Step 3)
+      brandColor: palette.primary,
       primaryColor: palette.primary,
       secondaryColor: palette.secondary,
       accentColor: palette.accent,
@@ -160,7 +198,7 @@ function RealtorRegistrationContent() {
   const [previewMode, setPreviewMode] = useState<"guest" | "dashboard">(
     "guest"
   );
-  const [language, setLanguage] = useState<string>("en");
+  // Language state removed - using English only
   const [currency, setCurrency] = useState<string>("USD");
   const [showGuidedTips, setShowGuidedTips] = useState(true);
 
@@ -188,7 +226,9 @@ function RealtorRegistrationContent() {
   const subdomainApi = useApiState();
   const emailValidationApi = useApiState();
   const logoUploadApi = useApiState();
+  const cacUploadApi = useApiState();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [cacDocumentUrl, setCacDocumentUrl] = useState<string | null>(null);
 
   // Animation states
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
@@ -224,6 +264,7 @@ function RealtorRegistrationContent() {
         "tagline",
         "customSubdomain",
         "corporateRegNumber",
+        "cacCertificate",
         "businessAddress",
       ],
     },
@@ -599,6 +640,51 @@ function RealtorRegistrationContent() {
     }
   };
 
+  // CAC certificate upload handler
+  const handleCacCertificateChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("CAC certificate file size must be less than 10MB");
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/jpg",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Please upload a PDF or image file (JPG, PNG)");
+        return;
+      }
+
+      // Store the file temporarily for form submission
+      setValue("cacCertificate", file);
+
+      // Upload CAC certificate to server in background
+      try {
+        await cacUploadApi.execute(
+          () => RealtorRegistrationApi.uploadCacCertificate(file),
+          (data) => {
+            setCacDocumentUrl(data.url);
+            toast.success("CAC certificate uploaded successfully");
+          },
+          (error) => {
+            toast.error(`CAC certificate upload failed: ${error}`);
+          }
+        );
+      } catch (error) {
+        console.warn("CAC certificate upload failed:", error);
+      }
+    }
+  };
+
   // Social media validation is now handled by SocialMediaValidator component
 
   // Enhanced form submission with API integration
@@ -615,55 +701,122 @@ function RealtorRegistrationContent() {
       return;
     }
 
-    // Register realtor via API
-    const registrationResult = await registrationApi.execute(
-      () =>
-        RealtorRegistrationApi.registerRealtor({
+    // Register realtor via API with full response handling
+    try {
+      const response =
+        await RealtorRegistrationApi.registerRealtorWithFullResponse({
           ...formData,
+          // Include uploaded file URLs
+          logoUrl: logoUrl,
+          cacDocumentUrl: cacDocumentUrl,
           plan:
             new URLSearchParams(window.location.search).get("plan") || "free",
-        }),
-      async (data) => {
-        // Show success animation
-        setShowSuccessAnimation(true);
+        });
 
-        // Registration successful
-        toast.success("Registration completed successfully!");
+      // Show success animation
+      setShowSuccessAnimation(true);
 
-        // Send verification email
-        await RealtorRegistrationApi.sendVerificationEmail(data.email);
+      // Registration successful
+      toast.success("Registration completed successfully!");
 
-        // Store registration data and show completion celebration
-        setRegistrationSuccess(data);
+      // Debug: Log the complete response structure
+      console.log("🔍 Complete API response:", response);
+      console.log("🔍 Response data:", response.data);
+      console.log("🔍 Response email:", response.data?.email);
 
-        // Wait for celebration animation to complete, then show completion screen
-        setTimeout(() => {
-          setShowSuccessAnimation(false);
-          setShowCompletionCelebration(true);
-        }, 3000); // Allow 3 seconds for celebration
-      },
-      (error) => {
-        // Registration failed
-        setSubmitError(error);
-
-        // Use the enhanced error handler
-        if (typeof window !== "undefined" && (window as any).addError) {
-          const errorType =
-            error.includes("network") || error.includes("connection")
-              ? "network"
-              : error.includes("server") || error.includes("unavailable")
-              ? "server"
-              : error.includes("validation") || error.includes("invalid")
-              ? "validation"
-              : "unknown";
-
-          (window as any).addError(errorType, error, {
-            severity: "high",
-            context: { step: "registration-submission" },
-          });
-        }
+      // Send verification email with null check
+      if (response.data?.email) {
+        await RealtorRegistrationApi.sendVerificationEmail(response.data.email);
+      } else {
+        console.error("❌ No email found in response data");
       }
-    );
+
+      // Store registration data and show completion celebration
+      if (response.data) {
+        setRegistrationSuccess(response.data);
+      }
+
+      console.log("🎉 Realtor registration successful:", {
+        subdomain: response.data?.subdomain,
+        email: response.data?.email,
+        status: response.data?.status,
+        redirectUrls: response.redirectUrls,
+      });
+
+      // Wait for celebration animation to complete, then redirect
+      setTimeout(() => {
+        setShowSuccessAnimation(false);
+        setShowCompletionCelebration(true);
+
+        // After a brief celebration, redirect using backend-provided URLs
+        setTimeout(() => {
+          console.log("🔄 Redirecting after registration success");
+          console.log("📍 Using backend redirect URLs:", {
+            success: response.redirectUrls?.success,
+            verification: response.redirectUrls?.verification,
+            dashboard: response.redirectUrls?.dashboard,
+          });
+
+          // Use backend-provided redirect URL for consistent domain handling
+          let redirectUrl =
+            response.redirectUrls?.success || "/realtor/check-email";
+
+          // Add email parameter to check-email URL if not already present
+          if (
+            redirectUrl.includes("/realtor/check-email") &&
+            response.data?.email
+          ) {
+            const url = new URL(redirectUrl, window.location.origin);
+            if (!url.searchParams.has("email")) {
+              url.searchParams.set("email", response.data.email);
+              redirectUrl = url.toString();
+            }
+          }
+
+          console.log("🚀 Redirecting to:", redirectUrl);
+
+          // Check if it's a cross-domain redirect
+          const currentHost = window.location.host;
+          const redirectHost = new URL(redirectUrl, window.location.origin)
+            .host;
+
+          if (currentHost !== redirectHost) {
+            // Cross-domain redirect
+            console.log("🌐 Cross-domain redirect detected");
+            window.location.href = redirectUrl;
+          } else {
+            // Same-domain redirect, use Next.js router
+            console.log("🔗 Same-domain redirect");
+            window.location.href = redirectUrl; // Use window.location for simplicity
+          }
+        }, 2000); // Brief celebration time
+      }, 3000); // Allow 3 seconds for celebration
+    } catch (error: any) {
+      // Registration failed
+      const errorMessage = error.message || "Registration failed";
+      setSubmitError(errorMessage);
+      toast.error(errorMessage);
+
+      // Use the enhanced error handler
+      if (typeof window !== "undefined" && (window as any).addError) {
+        const errorType =
+          errorMessage.includes("network") ||
+          errorMessage.includes("connection")
+            ? "network"
+            : errorMessage.includes("server") ||
+              errorMessage.includes("unavailable")
+            ? "server"
+            : errorMessage.includes("validation") ||
+              errorMessage.includes("invalid")
+            ? "validation"
+            : "unknown";
+
+        (window as any).addError(errorType, errorMessage, {
+          severity: "high",
+          context: { step: "registration-submission" },
+        });
+      }
+    }
   };
 
   // Enhanced error handling functions
@@ -791,8 +944,8 @@ function RealtorRegistrationContent() {
                 id="businessEmail"
                 value={watchedData.businessEmail || ""}
                 onChange={(e) => setValue("businessEmail", e.target.value)}
-                placeholder="your.email@domain.com"
-                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="youremail@example.com"
+                className="w-full px-4 py-3 text-sm text-black border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -835,7 +988,11 @@ function RealtorRegistrationContent() {
                   {...register("password")}
                   type={showPassword ? "text" : "password"}
                   placeholder="Create a strong password"
-                  className={errors.password ? "border-red-500 pr-10" : "pr-10"}
+                  className={
+                    errors.password
+                      ? "border-red-500 pr-10 text-black"
+                      : "pr-10 text-black"
+                  }
                 />
                 <button
                   type="button"
@@ -865,7 +1022,9 @@ function RealtorRegistrationContent() {
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirm your password"
                   className={
-                    errors.confirmPassword ? "border-red-500 pr-10" : "pr-10"
+                    errors.confirmPassword
+                      ? "border-red-500 pr-10 text-black"
+                      : "pr-10 text-black"
                   }
                 />
                 <button
@@ -887,31 +1046,29 @@ function RealtorRegistrationContent() {
       case 1: // Business Info
         return (
           <div className="space-y-6">
-            <SmartInput
-              label="Agency/Company Name"
-              value={watchedData.agencyName || ""}
-              onChange={(value, metadata) => {
-                setValue("agencyName", value);
-
-                // Business type can be inferred from agency name for UI purposes only
-                if (metadata?.businessType) {
-                  console.log(
-                    `Detected business type: ${metadata.businessType}`
-                  );
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: palette.neutralDark }}
+              >
+                Agency/Company Name
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <Input
+                {...register("agencyName")}
+                type="text"
+                placeholder="Enter your company name (e.g., Premium Properties LLC)"
+                className={
+                  errors.agencyName ? "border-red-500 text-black" : "text-black"
                 }
-
-                // Website domain is auto-generated from subdomain
-                // No longer including it in social media profiles
-              }}
-              placeholder="Enter your company name (e.g., Premium Properties LLC)"
-              suggestionType="business"
-              required
-              error={errors.agencyName?.message}
-              disabled={isSubmitting || registrationApi.isLoading}
-              onSuggestionSelect={(suggestion) => {
-                console.log("Business type selected:", suggestion);
-              }}
-            />
+                disabled={isSubmitting || registrationApi.isLoading}
+              />
+              {errors.agencyName && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.agencyName.message}
+                </p>
+              )}
+            </div>
 
             <div>
               <label
@@ -924,7 +1081,9 @@ function RealtorRegistrationContent() {
                 {...register("tagline")}
                 type="text"
                 placeholder="Luxury stays, unforgettable experiences"
-                className={errors.tagline ? "border-red-500" : ""}
+                className={
+                  errors.tagline ? "border-red-500 text-black" : "text-black"
+                }
               />
             </div>
 
@@ -933,8 +1092,12 @@ function RealtorRegistrationContent() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: palette.neutralDark }}
               >
-                Custom Subdomain
+                Your Booking Website Address
+                <span className="text-red-500 ml-1">*</span>
               </label>
+              <p className="text-xs text-gray-600 mb-2">
+                We'll create your professional booking website at this address
+              </p>
               <div className="flex">
                 <Input
                   {...register("customSubdomain")}
@@ -944,16 +1107,22 @@ function RealtorRegistrationContent() {
                     // Normalize to lowercase as user types
                     const normalized = e.target.value.toLowerCase();
                     setValue("customSubdomain", normalized);
+
+                    // Trigger validation when subdomain changes
+                    if (normalized && normalized.length >= 3) {
+                      validateSubdomain(normalized);
+                    }
                   }}
                   className={
                     errors.customSubdomain
-                      ? "border-red-500 rounded-r-none"
+                      ? "border-red-500 rounded-r-none text-black"
                       : subdomainStatus?.status === "available"
-                      ? "border-green-500 rounded-r-none"
+                      ? "border-green-500 rounded-r-none text-black"
                       : subdomainStatus?.status === "unavailable"
-                      ? "border-red-500 rounded-r-none"
-                      : "rounded-r-none"
+                      ? "border-red-500 rounded-r-none text-black"
+                      : "rounded-r-none text-black"
                   }
+                  disabled={isSubmitting || registrationApi.isLoading}
                 />
                 <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
                   .stayza.pro
@@ -964,11 +1133,13 @@ function RealtorRegistrationContent() {
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Subdomain validation status */}
-              {subdomainStatus?.message && (
+            {/* Subdomain validation status */}
+            {subdomainStatus?.message && (
+              <div className="mt-2">
                 <p
-                  className={`text-sm mt-1 ${
+                  className={`text-sm ${
                     subdomainStatus?.status === "available"
                       ? "text-green-600"
                       : subdomainStatus?.status === "unavailable"
@@ -980,32 +1151,113 @@ function RealtorRegistrationContent() {
                 >
                   {subdomainStatus.message}
                 </p>
-              )}
 
-              {/* Subdomain suggestions */}
-              {subdomainStatus?.suggestions &&
-                subdomainStatus.suggestions.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-600 mb-1">Suggestions:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {subdomainStatus.suggestions
-                        .slice(0, 3)
-                        .map((suggestion: string) => (
-                          <button
-                            key={suggestion}
-                            type="button"
-                            onClick={() => {
-                              setValue("customSubdomain", suggestion);
-                              validateSubdomain(suggestion);
-                            }}
-                            className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                          >
-                            {suggestion}
-                          </button>
-                        ))}
+                {/* Additional subdomain suggestions if needed */}
+                {subdomainStatus?.suggestions &&
+                  subdomainStatus.suggestions.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-600 mb-1">
+                        Try these alternatives:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {subdomainStatus.suggestions
+                          .slice(0, 3)
+                          .map((suggestion: string) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => {
+                                setValue("customSubdomain", suggestion);
+                                validateSubdomain(suggestion);
+                              }}
+                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              {suggestion}.stayza.pro
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+              </div>
+            )}
+
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: palette.neutralDark }}
+              >
+                Corporate Registration Number
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <Input
+                {...register("corporateRegNumber")}
+                type="text"
+                placeholder="RC 123456"
+                className={
+                  errors.corporateRegNumber
+                    ? "border-red-500 text-black"
+                    : "text-black"
+                }
+              />
+              {errors.corporateRegNumber && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.corporateRegNumber.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label
+                className="block text-sm font-medium mb-4"
+                style={{ color: palette.neutralDark }}
+              >
+                CAC Certificate Upload
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                {watchedData.cacCertificate ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-black">
+                          CAC Certificate uploaded
+                        </p>
+                        <p className="text-xs text-gray-500">Click to change</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setValue("cacCertificate", null)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                    <div className="mt-4">
+                      <label className="cursor-pointer">
+                        <span className="mt-2 block text-sm font-medium text-gray-900">
+                          Upload CAC Certificate
+                        </span>
+                        <span className="mt-1 block text-xs text-gray-500">
+                          PDF, JPG, PNG up to 10MB
+                        </span>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleCacCertificateChange}
+                          className="sr-only"
+                        />
+                      </label>
                     </div>
                   </div>
                 )}
+              </div>
             </div>
 
             <div>
@@ -1013,43 +1265,26 @@ function RealtorRegistrationContent() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: palette.neutralDark }}
               >
-                Corporate Registration Number (Optional)
+                Business Address
+                <span className="text-red-500 ml-1">*</span>
               </label>
               <Input
-                {...register("corporateRegNumber")}
+                {...register("businessAddress")}
                 type="text"
-                placeholder="RC 123456"
-                className={errors.corporateRegNumber ? "border-red-500" : ""}
-              />
-            </div>
-
-            <SmartInput
-              label="Business Address"
-              value={watchedData.businessAddress || ""}
-              onChange={(value, metadata) => {
-                setValue("businessAddress", value);
-
-                // Auto-populate related fields if metadata is available
-                if (metadata) {
-                  // Location data can be used to enhance business address field
-                  if (metadata.city && metadata.state && metadata.country) {
-                    const currentAddress = watchedData.businessAddress || "";
-                    if (!currentAddress.trim()) {
-                      const fullAddress = `${metadata.city}, ${metadata.state}, ${metadata.country}`;
-                      setValue("businessAddress", fullAddress);
-                    }
-                  }
+                placeholder="Enter your complete business address"
+                className={
+                  errors.businessAddress
+                    ? "border-red-500 text-black"
+                    : "text-black"
                 }
-              }}
-              placeholder="Enter your business address (e.g., Lagos, Nigeria)"
-              suggestionType="location"
-              required
-              error={errors.businessAddress?.message}
-              disabled={isSubmitting || registrationApi.isLoading}
-              onSuggestionSelect={(suggestion) => {
-                console.log("Location selected:", suggestion);
-              }}
-            />
+                disabled={isSubmitting || registrationApi.isLoading}
+              />
+              {errors.businessAddress && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.businessAddress.message}
+                </p>
+              )}
+            </div>
           </div>
         );
 
@@ -1112,24 +1347,44 @@ function RealtorRegistrationContent() {
               </div>
             </div>
 
-            <div>
-              <ColorPaletteGenerator
-                businessType={watchedData.businessAddress || ""}
-                businessName={watchedData.agencyName || ""}
-                currentColors={{
-                  primary: watchedData.primaryColor,
-                  secondary: watchedData.secondaryColor,
-                  accent: watchedData.accentColor,
-                }}
-                onColorsChange={(colors) => {
-                  setValue("primaryColor", colors.primary);
-                  setValue("secondaryColor", colors.secondary);
-                  setValue("accentColor", colors.accent);
-                  clearErrors("primaryColor");
-                  clearErrors("secondaryColor");
-                  clearErrors("accentColor");
-                }}
-              />
+            {/* Choose Your Brand Colors */}
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Choose Your Brand Colors
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Select three colors for your brand palette: Primary (main
+                    brand color), Secondary (supporting color), and Accent
+                    (highlight color). These colors will create a cohesive and
+                    professional look throughout your booking website.
+                  </p>
+
+                  <RadixColorSelector
+                    selectedColors={{
+                      primary: watchedData.primaryColor,
+                      secondary: watchedData.secondaryColor,
+                      accent: watchedData.accentColor,
+                    }}
+                    onColorSelect={(colorType, hex, name) => {
+                      if (colorType === "primary") {
+                        setValue("primaryColor", hex);
+                        setValue("brandColor", hex); // Keep brandColor in sync
+                      } else if (colorType === "secondary") {
+                        setValue("secondaryColor", hex);
+                      } else if (colorType === "accent") {
+                        setValue("accentColor", hex);
+                      }
+
+                      clearErrors("brandColor");
+                      clearErrors("primaryColor");
+                      clearErrors("secondaryColor");
+                      clearErrors("accentColor");
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
             <div>
@@ -1137,13 +1392,15 @@ function RealtorRegistrationContent() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: palette.neutralDark }}
               >
-                Tagline
+                Business Tagline (Optional)
               </label>
               <Input
                 {...register("tagline")}
                 type="text"
                 placeholder="Your business tagline..."
-                className={errors.tagline ? "border-red-500" : ""}
+                className={
+                  errors.tagline ? "border-red-500 text-black" : "text-black"
+                }
               />
             </div>
           </div>
@@ -1204,7 +1461,7 @@ function RealtorRegistrationContent() {
               >
                 Review Your Information
               </h3>
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <div className="rounded-lg p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium">Full Name:</span>
@@ -1303,10 +1560,41 @@ function RealtorRegistrationContent() {
   return (
     <FormProvider {...methods}>
       <div
-        className="min-h-screen py-12 px-4"
-        style={{ backgroundColor: palette.neutralLight }}
+        className="marketing-theme p-10"
+        style={{ backgroundColor: palette.primary }}
       >
-        <Toaster position="top-right" />
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute right-[-18%] top-[-35%] h-[460px] w-[460px] rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)",
+            }}
+          />
+          <div
+            className="absolute bottom-[-30%] left-[-8%] h-[380px] w-[380px] rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(4,120,87,0.25) 0%, transparent 70%)",
+            }}
+          />
+        </div>
+
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: "var(--marketing-elevated)",
+              color: "var(--marketing-foreground)",
+              borderRadius: "12px",
+              boxShadow:
+                "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              border: "1px solid var(--marketing-border)",
+            },
+          }}
+        />
 
         {/* Enhanced Error Handler */}
         <EnhancedErrorHandler
@@ -1345,12 +1633,11 @@ function RealtorRegistrationContent() {
           </div>
 
           {/* Header */}
-          <header className="text-center mb-8" role="banner">
-            <nav aria-label="Breadcrumb">
+          <header className="text-center mb-12 pt-8 pb-16" role="banner">
+            <nav aria-label="Breadcrumb" className="mb-8">
               <Link
                 href="/get-started"
-                className="inline-flex items-center hover:opacity-80 mb-4"
-                style={{ color: palette.primary }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors duration-200 rounded-lg hover:bg-white/10"
                 aria-label="Go back to pricing plans"
               >
                 <svg
@@ -1371,31 +1658,27 @@ function RealtorRegistrationContent() {
               </Link>
             </nav>
 
-            <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="space-y-8 text-white">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]">
+                Booking made personal
+              </span>
+
               <h1
                 id="main-heading"
-                className="text-4xl font-bold"
-                style={{ color: palette.neutralDark }}
+                className="text-4xl font-bold leading-tight md:text-6xl text-white"
               >
                 Create Your Stayza Account
               </h1>
-            </div>
 
-            <p
-              className="text-xl"
-              style={{ color: palette.neutralDark + "CC" }}
-            >
-              Set up your real estate booking platform in minutes
-            </p>
-            <div
-              className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-4"
-              style={{
-                backgroundColor: palette.primary + "20",
-                color: palette.primary,
-              }}
-            >
-              Selected Plan:{" "}
-              <span className="ml-1 capitalize font-bold">{plan}</span>
+              <p className="max-w-xl text-lg text-white/80 md:text-xl mx-auto leading-relaxed">
+                Set up your real estate booking platform in minutes and start
+                accepting bookings instantly
+              </p>
+
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-sm font-semibold text-white/90">
+                <span className="w-2 h-2 bg-white/70 rounded-full"></span>
+                Selected Plan: <span className="font-bold">Free Tier</span>
+              </div>
             </div>
           </header>
 
@@ -1414,182 +1697,167 @@ function RealtorRegistrationContent() {
 
           <main
             id="main-content"
-            className="grid lg:grid-cols-5 gap-8"
+            className="grid lg:grid-cols-2 gap-12 px-6 pb-24"
             role="main"
           >
             {/* Registration Form */}
             <section
-              className="lg:col-span-2"
+              className="w-full"
               aria-labelledby="form-heading"
               role="form"
             >
-              <Card className="p-8 shadow-xl border-0">
-                <div className="flex items-center justify-between mb-6">
-                  <h2
-                    id="form-heading"
-                    className="text-2xl font-bold"
-                    style={{ color: palette.neutralDark }}
-                    aria-live="polite"
-                  >
-                    {formSteps[currentStep].title}
-                  </h2>
-                  <span
-                    className="text-sm text-gray-500"
-                    aria-label={`Step ${currentStep + 1} of ${
-                      formSteps.length
-                    }`}
-                  >
-                    {currentStep + 1} of {formSteps.length}
-                  </span>
-                </div>
-
-                <p
-                  className="text-gray-600 mb-6"
-                  id="step-description"
-                  aria-live="polite"
-                >
-                  {formSteps[currentStep].description}
-                </p>
-
-                <form
-                  id="form-content"
-                  onSubmit={handleSubmit(onSubmit as any)}
-                  aria-describedby="step-description"
-                  noValidate
-                >
-                  {renderStepContent()}
-
-                  {/* Conditional Logic & Smart Defaults */}
-                  <ConditionalLogic
-                    formMethods={methods}
-                    currentStep={currentStep}
-                    plan={plan || "free"}
-                  />
-
-                  {/* Animated Navigation Buttons */}
-                  <div className="flex justify-between mt-8">
-                    <AnimatedButton
-                      type="button"
-                      variant="secondary"
-                      onClick={prevStep}
-                      disabled={currentStep === 0}
-                      className="flex items-center gap-2"
+              <div className="rounded-[32px] border border-white/15 bg-white/10 p-8 shadow-2xl backdrop-blur">
+                <div className="space-y-6 rounded-[24px] border border-marketing-subtle bg-marketing-elevated p-6 shadow-xl">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2
+                      id="form-heading"
+                      className="text-2xl font-bold text-marketing-foreground"
+                      aria-live="polite"
                     >
-                      <ChevronLeft className="w-4 h-4" />
-                      Back
-                    </AnimatedButton>
+                      {formSteps[currentStep].title}
+                    </h2>
+                    <span
+                      className="rounded-full px-3 py-1 text-xs font-semibold"
+                      style={{
+                        backgroundColor: "var(--marketing-primary-mist)",
+                        color: palette.neutralDark,
+                      }}
+                    >
+                      Step {currentStep + 1} of {formSteps.length}
+                    </span>
+                  </div>
 
-                    {currentStep < formSteps.length - 1 ? (
+                  <div className="rounded-2xl border border-marketing-subtle bg-marketing-surface p-5">
+                    <p
+                      className="text-marketing-muted text-sm leading-relaxed"
+                      id="step-description"
+                      aria-live="polite"
+                    >
+                      {formSteps[currentStep].description}
+                    </p>
+                  </div>
+
+                  <form
+                    id="form-content"
+                    onSubmit={handleSubmit(onSubmit as any)}
+                    aria-describedby="step-description"
+                    noValidate
+                  >
+                    {renderStepContent()}
+
+                    {/* Conditional Logic & Smart Defaults */}
+                    <ConditionalLogic
+                      formMethods={methods}
+                      currentStep={currentStep}
+                      plan={plan || "free"}
+                    />
+
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-between mt-8 pt-6 border-t border-marketing-subtle">
                       <AnimatedButton
                         type="button"
-                        onClick={nextStep}
-                        variant="primary"
+                        variant="secondary"
+                        onClick={prevStep}
+                        disabled={currentStep === 0}
                         className="flex items-center gap-2"
                       >
-                        Next
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronLeft className="w-4 h-4" />
+                        Back
                       </AnimatedButton>
-                    ) : (
-                      <AnimatedButton
-                        type="submit"
-                        variant="primary"
-                        disabled={isSubmitting || registrationApi.isLoading}
-                        className="flex items-center justify-center gap-2"
-                      >
-                        {isSubmitting || registrationApi.isLoading ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            {logoUploadApi.isLoading
-                              ? "Uploading logo..."
-                              : registrationApi.isLoading
-                              ? "Creating account..."
-                              : "Processing..."}
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="w-4 h-4" />
-                            Complete Registration
-                          </>
-                        )}
-                      </AnimatedButton>
-                    )}
-                  </div>
-                </form>
-              </Card>
+
+                      {currentStep < formSteps.length - 1 ? (
+                        <AnimatedButton
+                          type="button"
+                          onClick={nextStep}
+                          variant="primary"
+                          className="flex items-center gap-2"
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4" />
+                        </AnimatedButton>
+                      ) : (
+                        <AnimatedButton
+                          type="submit"
+                          variant="primary"
+                          disabled={isSubmitting || registrationApi.isLoading}
+                          className="flex items-center justify-center gap-2"
+                        >
+                          {isSubmitting || registrationApi.isLoading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              {logoUploadApi.isLoading
+                                ? "Uploading logo..."
+                                : registrationApi.isLoading
+                                ? "Creating account..."
+                                : "Processing..."}
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Complete Registration
+                            </>
+                          )}
+                        </AnimatedButton>
+                      )}
+                    </div>
+                  </form>
+                </div>
+              </div>
             </section>
 
             {/* Preview Panel */}
             <aside
-              className="lg:col-span-3"
+              className="w-full"
               aria-labelledby="preview-heading"
               role="complementary"
             >
               <div className="sticky top-8">
-                <AnimatedCard className="overflow-hidden" hover={true}>
-                  <div id="preview-content" className="p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3
-                        id="preview-heading"
-                        className="text-xl font-bold"
-                        style={{ color: palette.neutralDark }}
+                <div className="rounded-[32px] border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur">
+                  <div className="space-y-6 rounded-[24px] border border-marketing-subtle bg-marketing-elevated p-6 shadow-xl">
+                    <div
+                      className="flex items-center justify-between"
+                      role="group"
+                      aria-label="Preview header"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="h-12 w-12 rounded-full"
+                          style={{ backgroundColor: palette.secondary }}
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-marketing-foreground">
+                            Live Preview
+                          </p>
+                          <p className="text-xs text-marketing-muted">
+                            yourbrand.stayza.pro
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className="rounded-full px-3 py-1 text-xs font-semibold"
+                        style={{
+                          backgroundColor: "var(--marketing-primary-mist)",
+                          color: palette.neutralDark,
+                        }}
                       >
                         Live Preview
-                      </h3>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => setPreviewMode("guest")}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            previewMode === "guest"
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                        >
-                          <Eye className="w-4 h-4 mr-1.5 inline" />
-                          Website
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPreviewMode("dashboard")}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            previewMode === "dashboard"
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                        >
-                          <User className="w-4 h-4 mr-1.5 inline" />
-                          Dashboard
-                        </button>
-                      </div>
+                      </span>
                     </div>
 
                     <PreviewComponent
                       data={watchedData}
                       previewMode={previewMode}
                       logoPreview={logoPreview}
-                      language={language}
                       currency={currency}
-                      onLanguageChange={setLanguage}
-                      onCurrencyChange={setCurrency}
                       highlightRegion={highlightRegion || undefined}
                       isLoading={isSubmitting}
                     />
                   </div>
-                </AnimatedCard>
+                </div>
               </div>
             </aside>
           </main>
         </div>
-
-        {/* Accessibility Enhancer */}
-        <AccessibilityEnhancer
-          primaryColor={watchedData.primaryColor || palette.primary}
-          backgroundColor="#FFFFFF"
-          textColor={palette.neutralDark}
-          onSettingsChange={(settings) => {
-            console.log("Accessibility settings changed:", settings);
-          }}
-        />
 
         {/* Success Animation Overlay */}
         {showSuccessAnimation && (

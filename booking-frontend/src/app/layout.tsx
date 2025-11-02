@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "../context/AuthContext";
 import { QueryProvider } from "../context/QueryProvider";
+import { AlertProvider } from "../context/AlertContext";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { NotificationProvider } from "@/providers/NotificationProvider";
 import "./globals.css";
@@ -24,9 +25,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <QueryProvider>
           <AuthProvider>
-            <NotificationProvider>
-              <AnalyticsProvider>{children}</AnalyticsProvider>
-            </NotificationProvider>
+            <AlertProvider>
+              <NotificationProvider>
+                <AnalyticsProvider>{children}</AnalyticsProvider>
+              </NotificationProvider>
+            </AlertProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

@@ -11,8 +11,7 @@ import {
   NotificationResponse,
 } from "@/types/notifications";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
 
 class NotificationApiService {
   private getAuthHeaders() {
@@ -38,7 +37,7 @@ class NotificationApiService {
       if (params?.type) queryParams.set("type", params.type);
 
       const response = await axios.get<NotificationsListResponse>(
-        `${API_BASE_URL}/notifications?${queryParams}`,
+        `${API_BASE_URL}/api/notifications?${queryParams}`,
         { headers: this.getAuthHeaders() }
       );
 
@@ -53,7 +52,7 @@ class NotificationApiService {
   async getUnreadCount(): Promise<number> {
     try {
       const response = await axios.get<UnreadCountResponse>(
-        `${API_BASE_URL}/notifications/unread-count`,
+        `${API_BASE_URL}/api/notifications/unread-count`,
         { headers: this.getAuthHeaders() }
       );
 
@@ -68,7 +67,7 @@ class NotificationApiService {
   async markAsRead(notificationId: string): Promise<Notification> {
     try {
       const response = await axios.put<NotificationResponse>(
-        `${API_BASE_URL}/notifications/${notificationId}/read`,
+        `${API_BASE_URL}/api/notifications/${notificationId}/read`,
         {},
         { headers: this.getAuthHeaders() }
       );
@@ -84,7 +83,7 @@ class NotificationApiService {
   async markAllAsRead(): Promise<void> {
     try {
       await axios.put(
-        `${API_BASE_URL}/notifications/mark-all-read`,
+        `${API_BASE_URL}/api/notifications/mark-all-read`,
         {},
         { headers: this.getAuthHeaders() }
       );
@@ -97,9 +96,12 @@ class NotificationApiService {
   // Delete notification
   async deleteNotification(notificationId: string): Promise<void> {
     try {
-      await axios.delete(`${API_BASE_URL}/notifications/${notificationId}`, {
-        headers: this.getAuthHeaders(),
-      });
+      await axios.delete(
+        `${API_BASE_URL}/api/notifications/${notificationId}`,
+        {
+          headers: this.getAuthHeaders(),
+        }
+      );
     } catch (error) {
       console.error("Error deleting notification:", error);
       throw error;
@@ -110,7 +112,7 @@ class NotificationApiService {
   async getPreferences(): Promise<NotificationPreferences> {
     try {
       const response = await axios.get<NotificationPreferencesResponse>(
-        `${API_BASE_URL}/notifications/preferences`,
+        `${API_BASE_URL}/api/notifications/preferences`,
         { headers: this.getAuthHeaders() }
       );
 
@@ -127,7 +129,7 @@ class NotificationApiService {
   ): Promise<NotificationPreferences> {
     try {
       const response = await axios.put<NotificationPreferencesResponse>(
-        `${API_BASE_URL}/notifications/preferences`,
+        `${API_BASE_URL}/api/notifications/preferences`,
         preferences,
         { headers: this.getAuthHeaders() }
       );
@@ -143,7 +145,7 @@ class NotificationApiService {
   async getStats(): Promise<NotificationStats> {
     try {
       const response = await axios.get<NotificationStatsResponse>(
-        `${API_BASE_URL}/notifications/stats`,
+        `${API_BASE_URL}/api/notifications/stats`,
         { headers: this.getAuthHeaders() }
       );
 

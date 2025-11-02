@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { propertyService } from "@/services/properties";
 import { Property, PropertyFormData } from "@/types";
+import { useAlert } from "@/context/AlertContext";
 import {
   ArrowLeft,
   Save,
@@ -17,6 +18,7 @@ export default function EditPropertyPage() {
   const router = useRouter();
   const params = useParams();
   const propertyId = params.id as string;
+  const { showSuccess, showError, showConfirm } = useAlert();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,7 +81,7 @@ export default function EditPropertyPage() {
       setExistingImages(data.images || []);
     } catch (error) {
       console.error("Error fetching property:", error);
-      alert("Failed to load property");
+      showError("Failed to load property");
     } finally {
       setLoading(false);
     }
@@ -99,18 +101,19 @@ export default function EditPropertyPage() {
   };
 
   const removeExistingImage = async (imageUrl: string, index: number) => {
-    if (!confirm("Are you sure you want to delete this image?")) return;
-
-    try {
-      // Extract image ID from the image object
-      const imageId = existingImages[index].id;
-      // For now, just remove from state
-      // TODO: Implement actual delete API call if available
-      setExistingImages((prev) => prev.filter((_, i) => i !== index));
-    } catch (error) {
-      console.error("Error deleting image:", error);
-      alert("Failed to delete image");
-    }
+    showConfirm("Are you sure you want to delete this image?", async () => {
+      try {
+        // Extract image ID from the image object
+        const imageId = existingImages[index].id;
+        // For now, just remove from state
+        // TODO: Implement actual delete API call if available
+        setExistingImages((prev) => prev.filter((_, i) => i !== index));
+        showSuccess("Image deleted successfully");
+      } catch (error) {
+        console.error("Error deleting image:", error);
+        showError("Failed to delete image");
+      }
+    });
   };
 
   const handleSave = async () => {
@@ -125,32 +128,27 @@ export default function EditPropertyPage() {
         await propertyService.uploadImages(propertyId, newImages);
       }
 
-      alert("Property updated successfully!");
+      showSuccess("Property updated successfully!");
       router.push("/dashboard/properties");
     } catch (error: any) {
       console.error("Error updating property:", error);
-      alert(error.message || "Failed to update property");
+      showError(error.message || "Failed to update property");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this property? This action cannot be undone."
-      )
-    )
-      return;
-
-    try {
-      await propertyService.deleteProperty(propertyId);
-      alert("Property deleted successfully!");
-      router.push("/dashboard/properties");
-    } catch (error) {
-      console.error("Error deleting property:", error);
-      alert("Failed to delete property");
-    }
+    showConfirm("Are you sure you want to delete this property? This action cannot be undone.", async () => {
+      try {
+        await propertyService.deleteProperty(propertyId);
+        showSuccess("Property deleted successfully!");
+        router.push("/dashboard/properties");
+      } catch (error) {
+        console.error("Error deleting property:", error);
+        showError("Failed to delete property");
+      }
+    });
   };
 
   if (loading) {

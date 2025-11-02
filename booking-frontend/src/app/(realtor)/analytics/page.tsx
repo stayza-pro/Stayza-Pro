@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 import { analyticsService, RealtorAnalytics } from "@/services/analytics";
@@ -17,12 +18,13 @@ import {
   Loader2,
   AlertCircle,
   Home,
-  DollarSign,
+  Wallet,
   Star,
 } from "lucide-react";
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
+  const { showSuccess } = useAlert();
   const { branding } = useBranding();
   const realtorSubdomain = getRealtorSubdomain();
 
@@ -39,7 +41,7 @@ export default function AnalyticsPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copied to clipboard!");
+    showSuccess("Copied to clipboard!");
   };
 
   useEffect(() => {
@@ -245,17 +247,17 @@ export default function AnalyticsPage() {
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="p-3 bg-purple-100 rounded-lg">
-                      <DollarSign className="w-6 h-6 text-purple-600" />
+                      <Wallet className="w-6 h-6 text-purple-600" />
                     </div>
                     {formatGrowth(analytics.overview.revenue.growth)}
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Total Revenue</p>
                     <p className="text-2xl font-bold text-gray-900 mt-1">
-                      ${analytics.overview.revenue.total.toLocaleString()}
+                      ₦{analytics.overview.revenue.total.toLocaleString()}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      ${analytics.overview.revenue.average?.toFixed(2) || "0"}{" "}
+                      ₦{analytics.overview.revenue.average?.toFixed(2) || "0"}{" "}
                       avg
                     </p>
                   </div>
@@ -402,7 +404,7 @@ export default function AnalyticsPage() {
                                 {trend.bookings}
                               </td>
                               <td className="py-3 text-sm text-gray-900 text-right">
-                                ${trend.revenue.toLocaleString()}
+                                ₦{trend.revenue.toLocaleString()}
                               </td>
                               <td className="py-3 text-sm text-gray-900 text-right">
                                 {trend.completed}
@@ -455,7 +457,7 @@ export default function AnalyticsPage() {
                           <div className="text-right">
                             <p className="text-gray-500">Revenue</p>
                             <p className="font-semibold text-gray-900">
-                              ${property.revenue.toLocaleString()}
+                              ₦{property.revenue.toLocaleString()}
                             </p>
                           </div>
                           <div className="text-right">

@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getSubdomainInfo, getRealtorSubdomain } from "../../utils/subdomain";
-import ProtectedRoute from "../../components/auth/ProtectedRoute";
+import ProtectedRouteWrapper from "../../components/auth/ProtectedRouteWrapper";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
+import { BrandProvider } from "@/components/realtor/context/BrandContext";
 import Image from "next/image";
 import {
   Building2,
@@ -117,6 +118,22 @@ export default function RealtorLayout({
     accent: "#F59E0B",
   };
 
+  // Create brand config for BrandProvider
+  const brandConfig = {
+    colors: {
+      primary: brandColors.primary || "#3B82F6",
+      secondary: brandColors.secondary || "#1E40AF",
+      accent: brandColors.accent || "#F59E0B",
+      success: "#10B981",
+      warning: "#F59E0B",
+      danger: "#EF4444",
+      muted: "#6B7280",
+    },
+    logo: branding?.logo,
+    businessName: branding?.businessName || "Your Business",
+    slug: tenantInfo.subdomain || "default",
+  };
+
   const navigationItems = [
     {
       id: "dashboard",
@@ -176,54 +193,43 @@ export default function RealtorLayout({
 
   // Apply ProtectedRoute for protected pages with sidebar layout
   return (
-    <ProtectedRoute requiredRole="REALTOR">
-      <div className="flex h-screen bg-gray-50 overflow-hidden">
-        {/* Sidebar */}
-        <div
-          className="w-72 text-white relative overflow-hidden flex-shrink-0 shadow-2xl"
-          style={{ backgroundColor: brandColors.primary }}
-        >
-          {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -mr-16 -mt-16"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full -ml-12 -mb-12"></div>
-            <div className="absolute top-1/2 right-0 w-20 h-20 bg-white rounded-full -mr-10"></div>
-          </div>
-
-          <div className="relative z-10 flex flex-col h-full">
+    <ProtectedRouteWrapper requiredRole="REALTOR">
+      <BrandProvider brand={brandConfig}>
+        <div className="flex h-screen bg-white overflow-hidden">
+          {/* Left Sidebar - Clean, Flat Design */}
+          <div className="w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col">
             {/* Logo & Brand */}
-            <div className="p-6 border-b border-white/20">
-              <div className="flex items-center space-x-4">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
                 {branding?.logo ? (
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center p-1 ring-2 ring-white/30">
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center overflow-hidden border border-gray-200">
                     <Image
                       src={branding.logo}
                       alt="Logo"
                       width={40}
                       height={40}
-                      className="rounded-lg object-cover"
+                      className="object-cover"
                     />
                   </div>
                 ) : (
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center ring-2 ring-white/30">
-                    <span className="text-lg font-bold">
-                      {branding?.businessName?.charAt(0).toUpperCase() || "S"}
-                    </span>
+                  <div
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-bold text-lg"
+                    style={{ backgroundColor: brandColors.primary }}
+                  >
+                    {branding?.businessName?.charAt(0).toUpperCase() || "S"}
                   </div>
                 )}
-                <div>
-                  <h2 className="font-bold text-lg">
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold text-gray-900 text-sm truncate">
                     {branding?.businessName || "Your Business"}
                   </h2>
-                  <p className="text-white/80 text-sm truncate max-w-36">
-                    {branding?.tagline || "Professional Dashboard"}
-                  </p>
+                  <p className="text-gray-500 text-xs truncate">Dashboard</p>
                 </div>
               </div>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeNav === item.id;
@@ -234,55 +240,46 @@ export default function RealtorLayout({
                       setActiveNav(item.id);
                       router.push(item.href);
                     }}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all group ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-colors ${
                       isActive
-                        ? "font-medium bg-white/20 backdrop-blur-sm border-l-4 border-white shadow-lg"
-                        : "text-white/80 hover:text-white hover:bg-white/10"
+                        ? "font-medium text-white"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     }`}
+                    style={
+                      isActive
+                        ? { backgroundColor: brandColors.primary }
+                        : undefined
+                    }
                   >
-                    <Icon
-                      className={`w-5 h-5 ${
-                        !isActive && "group-hover:scale-110"
-                      } transition-transform`}
-                    />
-                    <span className="flex-1 text-left">{item.label}</span>
+                    <Icon className="w-5 h-5" />
+                    <span className="flex-1 text-left text-sm">
+                      {item.label}
+                    </span>
                   </button>
                 );
               })}
             </nav>
 
-            {/* Footer - Powered by Stayza Pro */}
-            <div className="p-4 border-t border-white/20 mt-auto">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs text-white/60 font-medium">
-                      Powered by
-                    </p>
-                    <p className="text-sm font-bold text-white">Stayza Pro</p>
-                  </div>
-                </div>
-                <p className="text-xs text-white/50 mt-2">
-                  Professional Property Management Platform
+            {/* Footer - Powered by Stayza */}
+            <div className="px-4 py-4 border-t border-gray-200">
+              <div className="text-center">
+                <p className="text-xs text-gray-400">
+                  Powered by{" "}
+                  <span className="font-semibold text-gray-600">Stayza</span>
                 </p>
-                <div className="mt-3 pt-3 border-t border-white/10">
-                  <p className="text-xs text-white/40">
-                    Version 1.0.0 • {new Date().getFullYear()}
-                  </p>
-                </div>
+                <p className="text-xs text-gray-300 mt-1">
+                  v1.0.0 • {new Date().getFullYear()}
+                </p>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <main className="flex-1 overflow-y-auto bg-gray-50">{children}</main>
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
+            <main className="flex-1 overflow-y-auto p-8">{children}</main>
+          </div>
         </div>
-      </div>
-    </ProtectedRoute>
+      </BrandProvider>
+    </ProtectedRouteWrapper>
   );
 }

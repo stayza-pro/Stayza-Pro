@@ -4,7 +4,9 @@ import {
   createRealtorProfile,
   uploadLogo,
   uploadTempLogo,
+  uploadTempCac,
   uploadMiddleware,
+  cacUploadMiddleware,
   getRealtorProfile,
   updateRealtorProfile,
   getPublicRealtorProfile,
@@ -16,16 +18,31 @@ import {
   rejectCac,
   appealCacRejection,
   getAllRealtorsForAdmin,
+  getDashboardStats,
+  getRecentBookings,
 } from "@/controllers/realtorController";
+import {
+  submitCacVerification,
+  resubmitCacVerification,
+  getCacStatus,
+  processCacAppeal,
+  approveCac as adminApproveCac,
+  rejectCac as adminRejectCac,
+} from "@/controllers/cacController";
 import {
   getRealtorAnalytics,
   getPropertyAnalytics,
+  getRevenueAnalytics,
 } from "@/controllers/analyticsController";
 import {
   authenticate,
   requireRole,
   requireApprovedRealtor,
 } from "@/middleware/auth";
+import {
+  cacSubmissionLimiter,
+  cacAppealLimiter,
+} from "@/middleware/rateLimiter";
 
 const router = express.Router();
 
@@ -265,6 +282,48 @@ router.get("/subdomain/check", checkSubdomainAvailability);
  *         description: Upload failed
  */
 router.post("/upload-temp-logo", uploadMiddleware, uploadTempLogo);
+
+/**
+ * @swagger
+ * /api/realtors/upload-temp-cac:
+ *   post:
+ *     summary: Upload temporary CAC certificate during registration
+ *     description: Upload a CAC certificate file temporarily during registration process
+ *     tags: [Realtors]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cacCertificate:
+ *                 type: string
+ *                 format: binary
+ *                 description: CAC certificate file (JPG, PNG, PDF)
+ *     responses:
+ *       200:
+ *         description: CAC certificate uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         url:
+ *                           type: string
+ *                         id:
+ *                           type: string
+ *       400:
+ *         description: Bad request (no file or invalid format)
+ *       500:
+ *         description: Upload failed
+ */
+router.post("/upload-temp-cac", cacUploadMiddleware, uploadTempCac);
 
 /**
  * @swagger
@@ -535,61 +594,225 @@ router.put(
   updateRealtorProfile
 );
 
+// Dashboard endpoints
+router.get(
+  "/dashboard/stats",
+  authenticate,
+  requireRole("REALTOR"),
+  requireApprovedRealtor,
+  getDashboardStats
+);
+
+router.get(
+  "/bookings/recent",
+  authenticate,
+  requireRole("REALTOR"),
+  requireApprovedRealtor,
+  getRecentBookings
+);
+
+// CAC Verification Routes (Realtor)
 /**
  * @swagger
- * /api/realtors/{slug}:
+ * /api/realtors/cac:
+ *   post:
+ *     summary: Submit CAC verification
+ *     description: Submit Corporate Affairs Commission number and document for verification
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cacNumber
+ *               - cacDocumentUrl
+ *             properties:
+ *               cacNumber:
+ *                 type: string
+ *                 description: CAC registration number
+ *               cacDocumentUrl:
+ *                 type: string
+ *                 description: URL of the uploaded CAC document
+ *     responses:
+ *       200:
+ *         description: CAC verification submitted successfully
+ *       400:
+ *         description: CAC already approved or invalid data
+ *       404:
+ *         description: Realtor profile not found
  *   get:
- *     summary: Get public realtor profile by slug
- *     description: Get public realtor profile and their approved properties
+ *     summary: Get CAC verification status
+ *     description: Get current CAC verification status and details
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: CAC status retrieved successfully
+ *       404:
+ *         description: Realtor profile not found
+ */
+router.post(
+  "/cac",
+  cacSubmissionLimiter,
+  authenticate,
+  requireRole("REALTOR"),
+  submitCacVerification
+);
+router.get(
+  "/cac/status",
+  authenticate,
+  requireRole("REALTOR"),
+  getCacStatus
+);
+
+/**
+ * @swagger
+ * /api/realtors/cac/resubmit:
+ *   put:
+ *     summary: Resubmit CAC verification after rejection
+ *     description: Resubmit CAC documentation after appeal process
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cacNumber
+ *               - cacDocumentUrl
+ *             properties:
+ *               cacNumber:
+ *                 type: string
+ *                 description: Updated CAC registration number
+ *               cacDocumentUrl:
+ *                 type: string
+ *                 description: URL of the new/updated CAC document
+ *     responses:
+ *       200:
+ *         description: CAC verification resubmitted successfully
+ *       400:
+ *         description: Appeal not verified or invalid status
+ *       404:
+ *         description: Realtor profile not found
+ */
+router.put(
+  "/cac/resubmit",
+  cacSubmissionLimiter,
+  authenticate,
+  requireRole("REALTOR"),
+  resubmitCacVerification
+);
+
+/**
+ * @swagger
+ * /api/realtors/cac/appeal/{token}:
+ *   get:
+ *     summary: Process CAC appeal from email link
+ *     description: Verify appeal token from rejection email and enable resubmission
  *     tags: [Realtors]
  *     parameters:
  *       - in: path
- *         name: slug
+ *         name: token
  *         required: true
  *         schema:
  *           type: string
- *         description: Realtor's unique slug
+ *         description: Appeal token from rejection email
+ *     responses:
+ *       302:
+ *         description: Redirects to dashboard with appeal success message
+ *       400:
+ *         description: Invalid token or appeal not allowed
+ *       404:
+ *         description: Realtor not found
+ */
+router.get("/cac/appeal/:token", cacAppealLimiter, processCacAppeal);
+
+// CAC Verification Admin Routes
+/**
+ * @swagger
+ * /api/admin/realtor/{realtorId}/cac/approve:
+ *   put:
+ *     summary: Approve CAC verification (Admin)
+ *     description: Approve a realtor's CAC verification and send approval email
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: realtorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Realtor ID
  *     responses:
  *       200:
- *         description: Public realtor profile retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/SuccessResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: object
- *                       properties:
- *                         realtor:
- *                           type: object
- *                           properties:
- *                             id:
- *                               type: string
- *                             businessName:
- *                               type: string
- *                             slug:
- *                               type: string
- *                             logoUrl:
- *                               type: string
- *                             brandColorHex:
- *                               type: string
- *                             description:
- *                               type: string
- *                             website:
- *                               type: string
- *                             properties:
- *                               type: array
- *                               items:
- *                                 type: object
- *                                 description: Property details with average rating
+ *         description: CAC approved successfully
+ *       403:
+ *         description: Admin access required
  *       404:
- *         description: Realtor not found or not approved
+ *         description: Realtor not found
  */
-router.get("/:slug", getPublicRealtorProfile);
+router.put(
+  "/admin/realtor/:realtorId/cac/approve",
+  authenticate,
+  requireRole("ADMIN"),
+  adminApproveCac
+);
 
-// CAC Verification Routes (Admin only)
+/**
+ * @swagger
+ * /api/admin/realtor/{realtorId}/cac/reject:
+ *   put:
+ *     summary: Reject CAC verification (Admin)
+ *     description: Reject a realtor's CAC verification with reason and send rejection email with appeal link
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: realtorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Realtor ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for CAC rejection
+ *     responses:
+ *       200:
+ *         description: CAC rejected successfully
+ *       400:
+ *         description: Rejection reason required
+ *       403:
+ *         description: Admin access required
+ *       404:
+ *         description: Realtor not found
+ */
+router.put(
+  "/admin/realtor/:realtorId/cac/reject",
+  authenticate,
+  requireRole("ADMIN"),
+  adminRejectCac
+);
+
+// Old CAC Routes (keeping for backwards compatibility - can be removed later)
 router.post("/:id/approve-cac", authenticate, requireRole("ADMIN"), approveCac);
 router.post("/:id/reject-cac", authenticate, requireRole("ADMIN"), rejectCac);
 router.get(
@@ -599,7 +822,7 @@ router.get(
   getAllRealtorsForAdmin
 );
 
-// CAC Appeal Route (Realtor only)
+// CAC Appeal Route (Realtor only) - Old route
 router.post(
   "/appeal-cac",
   authenticate,
@@ -660,6 +883,7 @@ router.get(
   "/analytics",
   authenticate,
   requireRole("REALTOR"),
+  requireApprovedRealtor,
   getRealtorAnalytics
 );
 
@@ -701,7 +925,118 @@ router.get(
   "/properties/:id/analytics",
   authenticate,
   requireRole("REALTOR"),
+  requireApprovedRealtor,
   getPropertyAnalytics
 );
+
+/**
+ * @swagger
+ * /api/realtors/revenue-analytics:
+ *   get:
+ *     summary: Get revenue analytics
+ *     description: Get revenue analytics for the authenticated realtor with time-based data
+ *     tags: [Realtors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [7d, 30d, 90d, 1y]
+ *           default: 30d
+ *         description: Time period for revenue analytics
+ *     responses:
+ *       200:
+ *         description: Revenue analytics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalRevenue:
+ *                       type: number
+ *                     revenueChange:
+ *                       type: number
+ *                     chartData:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           date:
+ *                             type: string
+ *                           revenue:
+ *                             type: number
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Not a realtor
+ */
+router.get(
+  "/revenue-analytics",
+  authenticate,
+  requireRole("REALTOR"),
+  requireApprovedRealtor,
+  getRevenueAnalytics
+);
+
+/**
+ * @swagger
+ * /api/realtors/{slug}:
+ *   get:
+ *     summary: Get public realtor profile by slug
+ *     description: Get public realtor profile and their approved properties
+ *     tags: [Realtors]
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Realtor's unique slug
+ *     responses:
+ *       200:
+ *         description: Public realtor profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         realtor:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                             businessName:
+ *                               type: string
+ *                             slug:
+ *                               type: string
+ *                             logoUrl:
+ *                               type: string
+ *                             brandColorHex:
+ *                               type: string
+ *                             description:
+ *                               type: string
+ *                             website:
+ *                               type: string
+ *                             properties:
+ *                               type: array
+ *                               items:
+ *                                 type: object
+ *                                 description: Property details with average rating
+ *       404:
+ *         description: Realtor not found or not approved
+ */
+router.get("/:slug", getPublicRealtorProfile);
 
 export default router;

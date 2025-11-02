@@ -180,11 +180,11 @@ export const getAdminBookings = asyncHandler(
     const hasPrev = pageNum > 1;
 
     // Log admin action
-    await auditLogger.log({
+    await auditLogger.log("ADMIN_ACTION", "BOOKING", {
       adminId: req.user!.id,
-      action: "VIEW_BOOKINGS",
-      resourceType: "BOOKING",
-      details: { filters: req.query, total },
+      entityId: "bookings_list",
+      details: { action: "VIEW_BOOKINGS", filters: req.query, total },
+      req,
     });
 
     res.status(200).json({
@@ -287,11 +287,11 @@ export const getBookingStats = asyncHandler(
       totalBookings > 0 ? (cancelledBookings / totalBookings) * 100 : 0;
 
     // Log admin action
-    await auditLogger.log({
+    await auditLogger.log("ADMIN_ACTION", "BOOKING", {
       adminId: req.user!.id,
-      action: "VIEW_BOOKING_STATS",
-      resourceType: "BOOKING",
-      details: { period: daysBack },
+      entityId: "booking_stats",
+      details: { action: "VIEW_BOOKING_STATS", period: daysBack },
+      req,
     });
 
     res.status(200).json({
@@ -369,11 +369,11 @@ export const getAdminBookingById = asyncHandler(
     }
 
     // Log admin action
-    await auditLogger.log({
+    await auditLogger.log("ADMIN_ACTION", "BOOKING", {
       adminId: req.user!.id,
-      action: "VIEW_BOOKING_DETAILS",
-      resourceType: "BOOKING",
-      resourceId: id,
+      entityId: id,
+      details: { action: "VIEW_BOOKING_DETAILS" },
+      req,
     });
 
     res.status(200).json({
@@ -427,8 +427,11 @@ export const updateAdminBookingStatus = asyncHandler(
       const updatedBooking = await safeTransitionBookingStatus(
         booking.id,
         status,
-        req.user!.id,
-        true // Admin override
+        {
+          adminId: req.user!.id,
+          reason,
+          skipValidation: true, // Admin override
+        }
       );
 
       // Send notifications to relevant parties
@@ -441,28 +444,32 @@ export const updateAdminBookingStatus = asyncHandler(
       };
 
       // Notify guest
-      await NotificationService.sendToUser(
-        booking.guestId,
-        notificationHelpers.bookingStatusChanged(notificationData)
-      );
+      const guestNotificationData =
+        notificationHelpers.bookingStatusChanged(notificationData);
+      await NotificationService.getInstance().createAndSendNotification({
+        userId: booking.guestId,
+        ...guestNotificationData,
+      });
 
       // Notify realtor
-      await NotificationService.sendToUser(
-        booking.property.realtor.userId,
-        notificationHelpers.bookingStatusChanged(notificationData)
-      );
+      const realtorNotificationData =
+        notificationHelpers.bookingStatusChanged(notificationData);
+      await NotificationService.getInstance().createAndSendNotification({
+        userId: booking.property.realtor.userId,
+        ...realtorNotificationData,
+      });
 
       // Log admin action
-      await auditLogger.log({
+      await auditLogger.log("BOOKING_STATUS_UPDATE", "BOOKING", {
         adminId: req.user!.id,
-        action: "UPDATE_BOOKING_STATUS",
-        resourceType: "BOOKING",
-        resourceId: id,
+        entityId: id,
         details: {
+          action: "UPDATE_BOOKING_STATUS",
           fromStatus: booking.status,
           toStatus: status,
           reason,
         },
+        req,
       });
 
       res.status(200).json({
@@ -537,8 +544,11 @@ export const adminCancelBooking = asyncHandler(
       const updatedBooking = await safeTransitionBookingStatus(
         booking.id,
         BookingStatus.CANCELLED,
-        req.user!.id,
-        true // Admin override
+        {
+          adminId: req.user!.id,
+          reason,
+          skipValidation: true, // Admin override
+        }
       );
 
       // Process refund if payment exists and refund percentage > 0
@@ -565,27 +575,31 @@ export const adminCancelBooking = asyncHandler(
         adminName: `${req.user!.firstName} ${req.user!.lastName}`,
       };
 
-      await NotificationService.sendToUser(
-        booking.guestId,
-        notificationHelpers.adminBookingCancelled(notificationData)
-      );
+      const guestNotificationData =
+        notificationHelpers.adminBookingCancelled(notificationData);
+      await NotificationService.getInstance().createAndSendNotification({
+        userId: booking.guestId,
+        ...guestNotificationData,
+      });
 
-      await NotificationService.sendToUser(
-        booking.property.realtor.userId,
-        notificationHelpers.adminBookingCancelled(notificationData)
-      );
+      const realtorNotificationData =
+        notificationHelpers.adminBookingCancelled(notificationData);
+      await NotificationService.getInstance().createAndSendNotification({
+        userId: booking.property.realtor.userId,
+        ...realtorNotificationData,
+      });
 
       // Log admin action
-      await auditLogger.log({
+      await auditLogger.log("BOOKING_CANCEL", "BOOKING", {
         adminId: req.user!.id,
-        action: "CANCEL_BOOKING",
-        resourceType: "BOOKING",
-        resourceId: id,
+        entityId: id,
         details: {
+          action: "CANCEL_BOOKING",
           reason,
           refundAmount,
           refundPercentage,
         },
+        req,
       });
 
       res.status(200).json({

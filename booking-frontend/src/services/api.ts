@@ -6,11 +6,11 @@ import axios, {
 } from "axios";
 import { toast } from "react-hot-toast";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: `${API_URL}/api`,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
@@ -59,7 +59,7 @@ api.interceptors.response.use(
           throw new Error("No refresh token available");
         }
 
-        const response = await axios.post(`${API_URL}/auth/refresh`, {
+        const response = await axios.post(`${API_URL}/api/auth/refresh`, {
           refreshToken,
         });
 

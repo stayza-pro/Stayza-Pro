@@ -5,11 +5,17 @@ import { config } from "@/config";
 const transporter = nodemailer.createTransport({
   host: config.SMTP_HOST,
   port: config.SMTP_PORT,
-  secure: config.SMTP_SECURE,
+  secure: config.SMTP_SECURE, // true for port 465, false for other ports
   auth: {
     user: config.SMTP_USER,
     pass: config.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false, // Allow self-signed certificates
+  },
+  connectionTimeout: 60000, // 60 seconds
+  greetingTimeout: 30000, // 30 seconds
+  socketTimeout: 60000, // 60 seconds
 });
 
 // Stayza Brand Colors
@@ -766,8 +772,12 @@ export const sendEmail = async (
   attachments?: any[]
 ) => {
   try {
+    // Verify transporter connection before sending
+    await transporter.verify();
+    console.log("SMTP connection verified successfully");
+
     const mailOptions = {
-      from: `"Property Booking Platform" <${config.SMTP_USER}>`,
+      from: `"Stayza Pro" <${config.SMTP_USER}>`,
       to: Array.isArray(to) ? to.join(", ") : to,
       subject: template.subject,
       html: template.html,
@@ -777,9 +787,35 @@ export const sendEmail = async (
     const info = await transporter.sendMail(mailOptions);
     console.log("Email sent successfully:", info.messageId);
     return { success: true, messageId: info.messageId };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error sending email:", error);
-    throw new Error("Failed to send email");
+
+    // Provide more specific error messages
+    if (error.code === "EAUTH") {
+      console.error(
+        "SMTP Authentication failed. Please check your email credentials."
+      );
+      console.error(
+        "For Gmail, make sure you're using an App Password, not your regular password."
+      );
+      console.error(
+        "Visit https://myaccount.google.com/apppasswords to generate one."
+      );
+      throw new Error(
+        "Email authentication failed. Please check your email configuration."
+      );
+    } else if (error.code === "ETIMEDOUT" || error.code === "ECONNECTION") {
+      console.error(
+        "SMTP connection timeout. Please check your network and SMTP settings."
+      );
+      throw new Error("Email connection timeout. Please try again later.");
+    } else if (error.code === "EENVELOPE") {
+      console.error("Invalid email address format.");
+      throw new Error("Invalid email address provided.");
+    } else {
+      console.error("Unknown email error:", error.message);
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
   }
 };
 
@@ -935,22 +971,54 @@ export const sendRefundProcessed = async (
 };
 
 // Send CAC approval email
-export const sendCacApproval = async (
+export const sendCacApprovalEmail = async (
   to: string,
-  businessName: string,
-  dashboardUrl: string
+  name: string,
+  businessName: string
 ) => {
+  const dashboardUrl = `https://${businessName.toLowerCase().replace(/\s+/g, '-')}.stayza.pro/settings?tab=business`;
   const template = emailTemplates.cacApproved(businessName, dashboardUrl);
   return sendEmail(to, template);
 };
 
-// Send CAC rejection email
-export const sendCacRejection = async (
+// Send CAC rejection email with appeal link
+export const sendCacRejectionEmail = async (
   to: string,
+  name: string,
   businessName: string,
-  reason: string
+  reason: string,
+  appealUrl: string
 ) => {
-  const template = emailTemplates.cacRejected(businessName, reason);
+  const template = {
+    subject: "❌ CAC Verification Requires Attention - Appeal Available",
+    html: getEmailContainer(
+      `<h2 style="color: ${brandColors.warning}; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">CAC Verification Update Required</h2>` +
+      `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Hello ${name},</p>` +
+      `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">We've reviewed the CAC information for <strong>${businessName}</strong> and need additional documentation to complete verification.</p>` +
+      getInfoBox(
+        "Verification Issue",
+        reason || "The provided CAC information requires clarification or additional documentation.",
+        "warning"
+      ) +
+      `<h3 style="color: ${brandColors.primary}; font-size: 18px; margin: 30px 0 15px 0;">What Happens Next?</h3>` +
+      `<p style="font-size: 15px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Click the button below to start your appeal process. You'll be redirected to your dashboard where you can:</p>` +
+      `<ul style="font-size: 15px; color: ${brandColors.neutralDark}; line-height: 1.8;">
+        <li>Review the rejection reason in detail</li>
+        <li>Upload corrected CAC documentation</li>
+        <li>Resubmit for verification</li>
+      </ul>` +
+      getButton(appealUrl, "Start Appeal Process", "warning") +
+      `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;">
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Assistance?</strong></p>
+        <p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};">Contact us at <a href="mailto:verification@stayza.com" style="color: ${brandColors.primary};">verification@stayza.com</a> or reply to this email</p>
+      </div>` +
+      `<div style="margin-top: 20px; padding: 15px; background-color: ${brandColors.primary}15; border-radius: 8px; border-left: 4px solid ${brandColors.primary};">
+        <p style="margin: 0; font-size: 13px; color: ${brandColors.neutralDark};">
+          <strong>⏰ Appeal Link Expiry:</strong> This appeal link is valid for 7 days. After that, you'll need to contact support to request a new one.
+        </p>
+      </div>`
+    ),
+  };
   return sendEmail(to, template);
 };
 

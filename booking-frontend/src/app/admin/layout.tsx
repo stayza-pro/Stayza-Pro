@@ -2,7 +2,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import ProtectedRoute from "../../components/auth/ProtectedRoute";
+import ProtectedRouteWrapper from "../../components/auth/ProtectedRouteWrapper";
 
 export default function AdminLayout({
   children,
@@ -22,8 +22,8 @@ export default function AdminLayout({
 
   // For all other admin pages, require authentication but no wrapper layout
   return (
-    <ProtectedRoute requiredRole="ADMIN" redirectTo="/admin/login">
+    <ProtectedRouteWrapper requiredRole="ADMIN" redirectTo="/admin/login">
       {children}
-    </ProtectedRoute>
+    </ProtectedRouteWrapper>
   );
 }

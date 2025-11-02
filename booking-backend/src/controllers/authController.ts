@@ -21,6 +21,16 @@ import {
   sendPasswordReset,
 } from "@/services/email";
 import { config } from "@/config";
+import { getEmailVerificationUrl, getDashboardUrl } from "@/utils/domains";
+
+/**
+ * Helper function to build main domain URLs
+ */
+function buildMainDomainUrl(path: string, host?: string): string {
+  const isDev = config.NODE_ENV === "development";
+  const baseUrl = isDev ? config.DEV_DOMAIN : "https://stayza.pro";
+  return `${baseUrl}${path}`;
+}
 
 /**
  * @desc    Register new user
@@ -159,7 +169,35 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     role: user.role,
   });
 
-  // MVP: RefreshToken model not implemented, tokens are stateless
+  console.log("✅ Login successful:", {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    hasRealtor: !!user.realtor,
+    realtorSlug: user.realtor?.slug,
+  });
+
+  // Generate domain-aware redirect URLs for different user types
+  let dashboardUrl = "/";
+  let loginRedirectUrl = "/";
+
+  if (user.role === "REALTOR" && user.realtor && user.isEmailVerified) {
+    // Verified realtors go to their subdomain dashboard
+    dashboardUrl = getDashboardUrl("realtor", user.realtor.slug, true);
+    loginRedirectUrl = dashboardUrl;
+  } else if (user.role === "REALTOR" && user.realtor && !user.isEmailVerified) {
+    // Unverified realtors stay on main domain
+    loginRedirectUrl = buildMainDomainUrl(
+      "/realtor/check-email",
+      req.headers.host
+    );
+  } else if (user.role === "ADMIN") {
+    dashboardUrl = getDashboardUrl("admin");
+    loginRedirectUrl = dashboardUrl;
+  } else {
+    // Guests typically stay on main domain
+    loginRedirectUrl = buildMainDomainUrl("/", req.headers.host);
+  }
 
   // Remove password from response
   const { password: _, ...userWithoutPassword } = user;
@@ -171,6 +209,12 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       user: userWithoutPassword,
       accessToken,
       refreshToken,
+      redirectUrl: loginRedirectUrl,
+    },
+    // Additional navigation URLs for frontend
+    redirectUrls: {
+      dashboard: dashboardUrl,
+      primary: loginRedirectUrl,
     },
   });
 });
@@ -303,52 +347,152 @@ export const refreshToken = asyncHandler(
 export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   const { token, email } = req.query;
 
+  console.log("🔍 Email verification request:", {
+    token: token ? `${String(token).substring(0, 10)}...` : "missing",
+    email: email,
+    url: req.url,
+    query: req.query,
+  });
+
   if (!token || !email) {
     throw new AppError("Verification token and email are required", 400);
   }
 
   const user = await prisma.user.findUnique({
     where: { email: email as string },
+    include: {
+      realtor: true, // Include realtor data if user is a realtor
+    },
   });
 
   if (!user) {
+    console.log("❌ User not found for email:", email);
     throw new AppError("User not found", 404);
   }
 
+  console.log("✅ User found:", {
+    id: user.id,
+    email: user.email,
+    isEmailVerified: user.isEmailVerified,
+    hasVerificationToken: !!user.emailVerificationToken,
+    tokenMatch: user.emailVerificationToken === token,
+    tokenExpires: user.emailVerificationExpires,
+    isTokenExpired: user.emailVerificationExpires
+      ? user.emailVerificationExpires < new Date()
+      : "no expiry",
+    currentTime: new Date(),
+  });
+
   if (user.isEmailVerified) {
+    // Get appropriate dashboard URL for verified user
+    let dashboardUrl = "/";
+    if (user.role === "REALTOR" && user.realtor) {
+      dashboardUrl = getDashboardUrl("realtor", user.realtor.slug, true);
+    } else if (user.role === "ADMIN") {
+      dashboardUrl = getDashboardUrl("admin");
+    }
+
     return res.json({
       success: true,
       message: "Email is already verified",
+      redirectUrl: dashboardUrl,
     });
   }
 
-  if (
-    !user.emailVerificationToken ||
-    user.emailVerificationToken !== token ||
-    !user.emailVerificationExpires ||
-    user.emailVerificationExpires < new Date()
-  ) {
-    throw new AppError("Invalid or expired verification token", 400);
+  // Detailed token validation
+  if (!user.emailVerificationToken) {
+    console.log("❌ No verification token stored for user");
+    throw new AppError("No verification token found for this user", 400);
   }
 
+  if (user.emailVerificationToken !== token) {
+    console.log("❌ Token mismatch:", {
+      storedToken: user.emailVerificationToken
+        ? `${user.emailVerificationToken.substring(0, 10)}...`
+        : "null",
+      providedToken: `${String(token).substring(0, 10)}...`,
+      match: user.emailVerificationToken === token,
+    });
+    throw new AppError("Invalid verification token", 400);
+  }
+
+  if (!user.emailVerificationExpires) {
+    console.log("❌ No expiration date set for verification token");
+    throw new AppError("Verification token has no expiration date", 400);
+  }
+
+  if (user.emailVerificationExpires < new Date()) {
+    console.log("❌ Verification token expired:", {
+      expires: user.emailVerificationExpires,
+      now: new Date(),
+      expiredMinutesAgo: Math.round(
+        (new Date().getTime() - user.emailVerificationExpires.getTime()) /
+          (1000 * 60)
+      ),
+    });
+    throw new AppError("Verification token has expired", 400);
+  }
+
+  console.log("✅ Token validation passed");
+
   // Update user as verified
-  await prisma.user.update({
+  const verifiedUser = await prisma.user.update({
     where: { id: user.id },
     data: {
       isEmailVerified: true,
       emailVerificationToken: null,
       emailVerificationExpires: null,
     },
+    include: {
+      realtor: true, // Include realtor data for token generation
+    },
   });
 
+  console.log("✅ User email verified successfully:", {
+    id: verifiedUser.id,
+    email: verifiedUser.email,
+    role: verifiedUser.role,
+  });
+
+  // Generate authentication tokens for auto-login
+  const { accessToken, refreshToken } = generateTokens({
+    id: verifiedUser.id,
+    email: verifiedUser.email,
+    role: verifiedUser.role,
+  });
+
+  console.log("🔐 Generated authentication tokens for auto-login");
+
   // Send welcome email after successful verification
-  sendWelcomeEmail(user.email, user.firstName || "User").catch((err) =>
-    console.error("Welcome email failed", err)
+  sendWelcomeEmail(verifiedUser.email, verifiedUser.firstName || "User").catch(
+    (err) => console.error("Welcome email failed", err)
   );
+
+  // Get appropriate dashboard URL for newly verified user
+  let dashboardUrl = "/";
+  if (verifiedUser.role === "REALTOR" && verifiedUser.realtor) {
+    dashboardUrl = getDashboardUrl("realtor", verifiedUser.realtor.slug, true);
+  } else if (verifiedUser.role === "ADMIN") {
+    dashboardUrl = getDashboardUrl("admin");
+  }
 
   return res.json({
     success: true,
     message: "Email verified successfully",
+    redirectUrl: dashboardUrl,
+    // Auto-login tokens
+    authTokens: {
+      accessToken,
+      refreshToken,
+    },
+    user: {
+      id: verifiedUser.id,
+      email: verifiedUser.email,
+      firstName: verifiedUser.firstName,
+      lastName: verifiedUser.lastName,
+      role: verifiedUser.role,
+      isEmailVerified: true,
+    },
   });
 });
 
@@ -390,12 +534,30 @@ export const resendVerification = asyncHandler(
       },
     });
 
-    // Send verification email
-    const verificationUrl = `${
-      config.FRONTEND_URL
-    }/verify-email?token=${emailVerificationToken}&email=${encodeURIComponent(
+    // Get user's realtor data if they are a realtor
+    const userWithRealtor = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { realtor: true },
+    });
+
+    // Generate domain-aware verification URL
+    let userType: "admin" | "realtor" | "guest" = "guest";
+    let realtorSlug: string | undefined;
+
+    if (userWithRealtor?.role === "ADMIN") {
+      userType = "admin";
+    } else if (userWithRealtor?.role === "REALTOR" && userWithRealtor.realtor) {
+      userType = "realtor";
+      realtorSlug = userWithRealtor.realtor.slug;
+    }
+
+    const verificationUrl = getEmailVerificationUrl(
+      emailVerificationToken,
+      userType,
+      realtorSlug,
       user.email
-    )}`;
+    );
+
     await sendEmailVerification(
       user.email,
       user.firstName || "User",

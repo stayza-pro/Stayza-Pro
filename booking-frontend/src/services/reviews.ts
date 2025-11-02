@@ -124,8 +124,14 @@ export const reviewService = {
   },
 
   // Report a review (inappropriate content)
-  reportReview: async (reviewId: string, reason: string): Promise<void> => {
-    await apiClient.post(`/reviews/${reviewId}/report`, { reason });
+  reportReview: async (
+    reviewId: string,
+    reasonData: string | { reason: string }
+  ): Promise<void> => {
+    const payload =
+      typeof reasonData === "string" ? { reason: reasonData } : reasonData;
+
+    await apiClient.post(`/reviews/${reviewId}/report`, payload);
   },
 
   // Get review statistics for property
@@ -156,6 +162,31 @@ export const reviewService = {
       recentReviews: Review[];
     }>(`/reviews/property/${propertyId}/stats`);
     return response.data;
+  },
+
+  // Get host reviews (for realtor dashboard)
+  getHostReviews: async (params?: {
+    page?: number;
+    limit?: number;
+    rating?: number;
+    visible?: boolean;
+    searchQuery?: string;
+  }): Promise<PaginatedResponse<Review>> => {
+    const searchParams = new URLSearchParams();
+
+    if (params?.page) searchParams.append("page", params.page.toString());
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.rating) searchParams.append("rating", params.rating.toString());
+    if (params?.visible !== undefined)
+      searchParams.append("visible", params.visible.toString());
+    if (params?.searchQuery) searchParams.append("search", params.searchQuery);
+
+    const url = searchParams.toString()
+      ? `/reviews/realtor/reviews?${searchParams}`
+      : "/reviews/realtor/reviews";
+
+    const response = await apiClient.get<Review[]>(url);
+    return response as PaginatedResponse<Review>;
   },
 
   // Get host review statistics
@@ -276,11 +307,16 @@ export const reviewService = {
   // Respond to a review (realtor only)
   respondToReview: async (
     reviewId: string,
-    comment: string
+    responseData: string | { response: string }
   ): Promise<ReviewResponse> => {
+    const payload =
+      typeof responseData === "string"
+        ? { comment: responseData }
+        : { comment: responseData.response };
+
     const response = await apiClient.post<ReviewResponse>(
       `/reviews/${reviewId}/respond`,
-      { comment }
+      payload
     );
     return response.data;
   },

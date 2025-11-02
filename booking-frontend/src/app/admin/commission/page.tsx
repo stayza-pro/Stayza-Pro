@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { DataTable } from "@/components/admin/DataTable";
 import { ActionModal } from "@/components/admin/ActionModal";
-import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
+import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import {
   getPlatformCommissionReport,
   getPendingPayouts,
@@ -116,9 +116,13 @@ export default function CommissionPage() {
     fetchPendingPayouts();
   };
 
-  // Format currency
-  const formatCurrency = (amount: string) => {
-    return `₦${parseFloat(amount).toLocaleString(undefined, {
+  // Format currency with NaN protection
+  const formatCurrency = (amount: string | number) => {
+    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+    if (isNaN(numAmount) || numAmount === null || numAmount === undefined) {
+      return "₦0.00";
+    }
+    return `₦${numAmount.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
@@ -240,172 +244,182 @@ export default function CommissionPage() {
   ];
 
   return (
-    <AdminPageLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Commission & Payouts
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Manage platform commissions and process realtor payouts
-            </p>
-          </div>
-
-          <div className="mt-4 lg:mt-0 flex items-center space-x-3">
-            <button
-              onClick={handleRefresh}
-              disabled={isLoading}
-              className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
-              />
-              <span>Refresh</span>
-            </button>
-
-            <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              <Download className="w-4 h-4" />
-              <span>Export Report</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Platform Commission Report */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse"
-              >
-                <div className="h-12 bg-gray-200 rounded mb-4"></div>
-                <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded"></div>
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Commission & Payouts
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Manage platform commissions and process realtor payouts
+                </p>
               </div>
-            ))}
-          </div>
-        ) : platformReport ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MetricCard
-              title="Total Revenue"
-              value={formatCurrency(platformReport.totalRevenue)}
-              icon={DollarSign}
-              color="bg-blue-600"
-            />
-            <MetricCard
-              title="Platform Commission (7%)"
-              value={formatCurrency(platformReport.totalCommissions)}
-              icon={TrendingUp}
-              color="bg-green-600"
-            />
-            <MetricCard
-              title="Payouts Made"
-              value={formatCurrency(platformReport.totalPayouts)}
-              icon={CheckCircle}
-              color="bg-purple-600"
-            />
-            <MetricCard
-              title="Pending Payouts"
-              value={formatCurrency(platformReport.pendingPayouts)}
-              icon={Clock}
-              color="bg-orange-600"
-            />
-          </div>
-        ) : (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-            <p className="text-red-800">Failed to load commission report</p>
-          </div>
-        )}
 
-        {/* Commission Info Card */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
-          <div className="flex items-start space-x-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-blue-600" />
+              <div className="mt-4 lg:mt-0 flex items-center space-x-3">
+                <button
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                  />
+                  <span>Refresh</span>
+                </button>
+
+                <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  <Download className="w-4 h-4" />
+                  <span>Export Report</span>
+                </button>
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Platform Commission Rate
-              </h3>
-              <p className="text-gray-700 mb-4">
-                Stayza charges a <strong>7% commission</strong> on all completed
-                bookings. This commission is automatically calculated and
-                deducted from the booking amount before payout to realtors.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Booking Amount</p>
-                  <p className="text-lg font-bold text-gray-900">100%</p>
+
+            {/* Platform Commission Report */}
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse"
+                  >
+                    <div className="h-12 bg-gray-200 rounded mb-4"></div>
+                    <div className="h-8 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : platformReport ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <MetricCard
+                  title="Total Revenue"
+                  value={formatCurrency(platformReport.totalRevenue)}
+                  icon={DollarSign}
+                  color="bg-blue-600"
+                />
+                <MetricCard
+                  title="Platform Commission (7%)"
+                  value={formatCurrency(platformReport.totalCommissions)}
+                  icon={TrendingUp}
+                  color="bg-green-600"
+                />
+                <MetricCard
+                  title="Payouts Made"
+                  value={formatCurrency(platformReport.totalPayouts)}
+                  icon={CheckCircle}
+                  color="bg-purple-600"
+                />
+                <MetricCard
+                  title="Pending Payouts"
+                  value={formatCurrency(platformReport.pendingPayouts)}
+                  icon={Clock}
+                  color="bg-orange-600"
+                />
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                <p className="text-red-800">Failed to load commission report</p>
+              </div>
+            )}
+
+            {/* Commission Info Card */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <TrendingUp className="w-6 h-6 text-blue-600" />
                 </div>
-                <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">
-                    Platform Commission
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Platform Commission Rate
+                  </h3>
+                  <p className="text-gray-700 mb-4">
+                    Stayza charges a <strong>7% commission</strong> on all
+                    completed bookings. This commission is automatically
+                    calculated and deducted from the booking amount before
+                    payout to realtors.
                   </p>
-                  <p className="text-lg font-bold text-blue-600">7%</p>
-                </div>
-                <div className="bg-white rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Realtor Earnings</p>
-                  <p className="text-lg font-bold text-green-600">93%</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">
+                        Booking Amount
+                      </p>
+                      <p className="text-lg font-bold text-gray-900">100%</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">
+                        Platform Commission
+                      </p>
+                      <p className="text-lg font-bold text-blue-600">7%</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4">
+                      <p className="text-sm text-gray-600 mb-1">
+                        Realtor Earnings
+                      </p>
+                      <p className="text-lg font-bold text-green-600">93%</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Pending Payouts Section */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Pending Payouts
-            </h2>
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Clock className="w-4 h-4" />
-              <span>
-                {pagination.total} payout{pagination.total !== 1 ? "s" : ""}{" "}
-                awaiting processing
-              </span>
+            {/* Pending Payouts Section */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Pending Payouts
+                </h2>
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {pagination.total} payout{pagination.total !== 1 ? "s" : ""}{" "}
+                    awaiting processing
+                  </span>
+                </div>
+              </div>
+
+              <DataTable
+                columns={columns}
+                data={pendingPayouts}
+                keyExtractor={(payout) => payout.id}
+                isLoading={isPayoutsLoading}
+                pagination={{
+                  currentPage: pagination.page,
+                  totalPages: pagination.totalPages,
+                  total: pagination.total,
+                  onPageChange: setCurrentPage,
+                }}
+                emptyMessage="No pending payouts at the moment"
+              />
             </div>
+
+            {/* Process Payout Modal */}
+            <ActionModal
+              isOpen={payoutModal}
+              onClose={() => setPayoutModal(false)}
+              onConfirm={handleProcessPayout}
+              title="Process Payout"
+              description={
+                selectedPayout
+                  ? `Process payout of ${formatCurrency(
+                      selectedPayout.realtorEarnings
+                    )} to ${
+                      selectedPayout.booking.property.realtor.businessName
+                    }. Please enter the payment reference/transaction ID.`
+                  : ""
+              }
+              confirmText="Process Payout"
+              variant="success"
+              requiresInput
+              inputLabel="Payment Reference / Transaction ID"
+              inputPlaceholder="e.g., TRX-2024-001234, BANK-REF-123456"
+            />
           </div>
-
-          <DataTable
-            columns={columns}
-            data={pendingPayouts}
-            keyExtractor={(payout) => payout.id}
-            isLoading={isPayoutsLoading}
-            pagination={{
-              currentPage: pagination.page,
-              totalPages: pagination.totalPages,
-              total: pagination.total,
-              onPageChange: setCurrentPage,
-            }}
-            emptyMessage="No pending payouts at the moment"
-          />
         </div>
-
-        {/* Process Payout Modal */}
-        <ActionModal
-          isOpen={payoutModal}
-          onClose={() => setPayoutModal(false)}
-          onConfirm={handleProcessPayout}
-          title="Process Payout"
-          description={
-            selectedPayout
-              ? `Process payout of ${formatCurrency(
-                  selectedPayout.realtorEarnings
-                )} to ${
-                  selectedPayout.booking.property.realtor.businessName
-                }. Please enter the payment reference/transaction ID.`
-              : ""
-          }
-          confirmText="Process Payout"
-          variant="success"
-          requiresInput
-          inputLabel="Payment Reference / Transaction ID"
-          inputPlaceholder="e.g., TRX-2024-001234, BANK-REF-123456"
-        />
       </div>
-    </AdminPageLayout>
+    </>
   );
 }

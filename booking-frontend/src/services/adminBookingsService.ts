@@ -4,18 +4,91 @@ import { apiClient } from "./api";
 // TYPE DEFINITIONS
 // =====================================================
 
+// Additional types for BookingDetailsModal
+export interface AdminBookingDetails {
+  id: string;
+  bookingReference: string;
+  status: string;
+  checkInDate: string;
+  checkOutDate: string;
+  totalAmount: number;
+  paidAmount: number;
+  commissionAmount: number;
+  guest: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    verified: boolean;
+    totalBookings: number;
+  };
+  host: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    verified: boolean;
+    totalProperties: number;
+  };
+  property: {
+    id: string;
+    title: string;
+    address: string;
+    type: string;
+    images: string[];
+  };
+  paymentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  hasDisputes: boolean;
+  disputeCount: number;
+  lastActivity: string;
+  notes: string[];
+  tags: string[];
+}
+
+export interface BookingTimeline {
+  id: string;
+  timestamp: string;
+  event: string;
+  description: string;
+  actor: string;
+  details?: Record<string, any>;
+}
+
+export interface DisputeInfo {
+  id: string;
+  type: string;
+  description: string;
+  createdAt: string;
+}
+
 export interface AdminBooking {
   id: string;
   propertyId: string;
   guestId: string;
+  bookingReference: string;
   checkInDate: string;
   checkOutDate: string;
   totalGuests: number;
   totalPrice: number;
+  totalAmount: number; // Alias for totalPrice
+  commissionAmount: number;
   currency: string;
   status: BookingStatus;
+  hasDisputes: boolean;
+  disputeCount: number;
+  refundStatus?: "pending" | "completed" | "failed" | null;
+  refundAmount?: number;
   createdAt: string;
   updatedAt: string;
+
+  // Convenience getters for component compatibility
+  guestName: string;
+  guestEmail: string;
+  propertyTitle: string;
+  propertyLocation: string;
+
   property: {
     id: string;
     title: string;
@@ -63,6 +136,7 @@ export interface BookingSearchFilters {
   sortOrder?: "asc" | "desc";
   status?: BookingStatus;
   search?: string;
+  dateRange?: string;
   dateFrom?: string;
   dateTo?: string;
   realtorId?: string;

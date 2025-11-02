@@ -16,6 +16,11 @@ import {
   sendRealtorWelcomeEmail,
 } from "@/services/email";
 import { createAdminNotification } from "@/services/notificationService";
+import {
+  getEmailVerificationUrl,
+  getRegistrationSuccessUrl,
+  getDashboardUrl,
+} from "@/utils/domains";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -85,6 +90,70 @@ export const uploadTempLogo = asyncHandler(
     } catch (error) {
       console.error("Cloudinary upload error:", error);
       throw new AppError("Failed to upload logo", 500);
+    }
+  }
+);
+
+/**
+ * @desc    Upload temporary CAC certificate during registration
+ * @route   POST /api/realtors/upload-temp-cac
+ * @access  Public
+ */
+export const uploadTempCac = asyncHandler(
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      throw new AppError("Please upload a CAC certificate", 400);
+    }
+
+    try {
+      let resourceType = "auto";
+      let transformation = {};
+
+      // Handle different file types
+      if (req.file.mimetype.startsWith("image/")) {
+        resourceType = "image";
+        transformation = {
+          width: 1200,
+          height: 1600,
+          crop: "limit",
+          quality: "auto",
+        };
+      } else if (req.file.mimetype === "application/pdf") {
+        resourceType = "raw"; // For PDFs, use raw upload
+      }
+
+      // Create base64 data URL
+      const base64Data = `data:${
+        req.file.mimetype
+      };base64,${req.file.buffer.toString("base64")}`;
+
+      const uploadOptions: any = {
+        resource_type: resourceType,
+        folder: "temp-cac-certificates",
+        public_id: `temp-cac-${Date.now()}`,
+      };
+
+      // Add transformation only for images
+      if (resourceType === "image") {
+        uploadOptions.transformation = [transformation];
+      }
+
+      const result = await cloudinary.uploader.upload(
+        base64Data,
+        uploadOptions
+      );
+
+      res.json({
+        success: true,
+        message: "Temporary CAC certificate uploaded successfully",
+        data: {
+          url: result.secure_url,
+          id: result.public_id,
+        },
+      });
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      throw new AppError("Failed to upload CAC certificate", 500);
     }
   }
 );
@@ -203,6 +272,9 @@ export const registerRealtor = asyncHandler(
       // Social media
       socials,
       whatsappType,
+      // File uploads (URLs from temporary storage)
+      logoUrl,
+      cacDocumentUrl,
     } = req.body;
 
     if (
@@ -290,13 +362,17 @@ export const registerRealtor = asyncHandler(
           primaryColor: primaryColor || brandColorHex || "#3B82F6",
           secondaryColor: secondaryColor || "#1E40AF",
           accentColor: accentColor || "#F59E0B",
+          // File uploads
+          logoUrl: logoUrl || null,
+          cacDocumentUrl: cacDocumentUrl || null,
+          // Generate website URL from subdomain
+          websiteUrl: `https://${slug}.stayza.pro`,
           // Social media URLs
-          websiteUrl: socials?.websiteUrl,
-          instagramUrl: socials?.instagramUrl,
-          twitterUrl: socials?.twitterUrl,
-          linkedinUrl: socials?.linkedinUrl,
-          facebookUrl: socials?.facebookUrl,
-          youtubeUrl: socials?.youtubeUrl,
+          instagramUrl: socials?.instagram || socials?.instagramUrl,
+          twitterUrl: socials?.twitter || socials?.twitterUrl,
+          linkedinUrl: socials?.linkedin || socials?.linkedinUrl,
+          facebookUrl: socials?.facebook || socials?.facebookUrl,
+          youtubeUrl: socials?.youtube || socials?.youtubeUrl,
           whatsappType: whatsappType || "business",
         },
         include: {
@@ -323,13 +399,15 @@ export const registerRealtor = asyncHandler(
       role: result.user.role,
     });
 
-    // Send email verification and realtor welcome email
-    const verificationUrl = `${
-      config.FRONTEND_URL
-    }/verify-email?token=${emailVerificationToken}&email=${encodeURIComponent(
+    // Generate domain-aware URLs for email verification and dashboard
+    const verificationUrl = getEmailVerificationUrl(
+      emailVerificationToken,
+      "realtor",
+      slug,
       result.user.email
-    )}`;
-    const dashboardUrl = `${config.FRONTEND_URL}/dashboard`;
+    );
+    const dashboardUrl = getDashboardUrl("realtor", slug, false); // Not verified yet
+    const registrationSuccessUrl = getRegistrationSuccessUrl("realtor", slug);
 
     // Send realtor welcome email with verification link
     sendRealtorWelcomeEmail(
@@ -371,6 +449,11 @@ export const registerRealtor = asyncHandler(
         realtor: result.realtor,
         accessToken,
         refreshToken,
+      },
+      redirectUrls: {
+        success: registrationSuccessUrl,
+        verification: verificationUrl,
+        dashboard: dashboardUrl,
       },
     });
   }
@@ -781,6 +864,24 @@ export const uploadMiddleware = multer({
   },
 }).single("logo");
 
+// CAC certificate upload middleware (accepts images and PDFs)
+export const cacUploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype.startsWith("image/") ||
+      file.mimetype === "application/pdf"
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files (JPG, PNG) and PDF files are allowed"));
+    }
+  },
+}).single("cacCertificate");
+
 /**
  * @desc    Approve realtor CAC number (Admin only)
  * @route   POST /api/realtors/:id/approve-cac
@@ -1107,6 +1208,239 @@ export const getAllRealtorsForAdmin = asyncHandler(
         limit: limitNum,
         total,
         pages: Math.ceil(total / limitNum),
+      },
+    });
+  }
+);
+
+// Dashboard Statistics Endpoint
+export const getDashboardStats = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("User not authenticated", 401);
+    }
+
+    // Get realtor profile
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId },
+      include: {
+        properties: {
+          include: {
+            bookings: {
+              include: {
+                review: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    const now = new Date();
+    const lastMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      now.getDate()
+    );
+
+    // Calculate stats
+    const totalBookings = await prisma.booking.count({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+      },
+    });
+
+    const activeBookings = await prisma.booking.count({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        status: {
+          in: ["CONFIRMED", "COMPLETED"],
+        },
+      },
+    });
+
+    const totalRevenue = await prisma.booking.aggregate({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        status: "COMPLETED",
+      },
+      _sum: {
+        totalPrice: true,
+      },
+    });
+
+    const lastMonthRevenue = await prisma.booking.aggregate({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        status: "COMPLETED",
+        createdAt: {
+          gte: lastMonth,
+        },
+      },
+      _sum: {
+        totalPrice: true,
+      },
+    });
+
+    // Calculate ratings
+    const allReviews = await prisma.review.findMany({
+      where: {
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+        },
+      },
+    });
+
+    const averageRating =
+      allReviews.length > 0
+        ? allReviews.reduce((sum, review) => sum + review.rating, 0) /
+          allReviews.length
+        : 0;
+
+    // Today's stats
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayBookings = await prisma.booking.count({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    const todayCheckIns = await prisma.booking.count({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        checkInDate: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    // Mock unread messages for now
+    const unreadMessages = 0;
+
+    res.json({
+      success: true,
+      data: {
+        totalRevenue: parseFloat(
+          totalRevenue._sum.totalPrice?.toString() || "0"
+        ),
+        revenueChange: {
+          value: 12.5, // Calculate actual percentage change
+          type: "increase",
+        },
+        activeBookings,
+        bookingsChange: {
+          value: 8.3,
+          type: "increase",
+        },
+        propertiesCount: realtor?.properties?.length || 0,
+        propertiesChange: {
+          value: 2,
+          type: "increase",
+        },
+        averageRating,
+        ratingChange: {
+          value: 0.2,
+          type: "increase",
+        },
+        todayBookings,
+        todayCheckIns,
+        unreadMessages,
+      },
+    });
+  }
+);
+
+// Get Recent Bookings
+export const getRecentBookings = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("User not authenticated", 401);
+    }
+
+    const limit = parseInt(req.query.limit as string) || 5;
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+      },
+      include: {
+        guest: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        property: {
+          select: {
+            title: true,
+            address: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: limit,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        bookings: bookings.map((booking) => ({
+          id: booking.id,
+          guest: booking.guest,
+          property: booking.property,
+          checkInDate: booking.checkInDate,
+          checkOutDate: booking.checkOutDate,
+          status: booking.status,
+          totalAmount: parseFloat(booking.totalPrice.toString()),
+          nights: Math.ceil(
+            (new Date(booking.checkOutDate).getTime() -
+              new Date(booking.checkInDate).getTime()) /
+              (1000 * 60 * 60 * 24)
+          ),
+        })),
       },
     });
   }

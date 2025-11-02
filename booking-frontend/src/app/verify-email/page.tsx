@@ -6,15 +6,18 @@ import { CheckCircle, XCircle, Mail, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { palette } from "@/app/(marketing)/content";
 import toast from "react-hot-toast";
+import { useAuthStore } from "@/store/authStore";
 
 interface VerificationResult {
   success: boolean;
   message: string;
+  redirectUrl?: string;
 }
 
 function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { autoLogin } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const [result, setResult] = useState<VerificationResult | null>(null);
 
@@ -51,8 +54,40 @@ function VerifyEmailContent() {
           setResult({
             success: true,
             message: data.message || "Email verified successfully!",
+            redirectUrl: data.redirectUrl,
           });
           toast.success("Email verified successfully!");
+
+          // Auto-login: Use auth store for proper authentication
+          if (data.authTokens && data.user) {
+            console.log("🔐 Auto-login: Processing authentication tokens");
+            autoLogin(data.authTokens, data.user);
+            toast.success("You have been automatically logged in!");
+          }
+
+          // Auto-redirect after successful verification
+          if (data.redirectUrl) {
+            setTimeout(() => {
+              console.log("🔄 Auto-redirecting to:", data.redirectUrl);
+
+              // Check if it's a cross-domain redirect
+              const currentHost = window.location.host;
+              const redirectHost = new URL(
+                data.redirectUrl,
+                window.location.origin
+              ).host;
+
+              if (currentHost !== redirectHost) {
+                // Cross-domain redirect
+                console.log("🌐 Cross-domain redirect detected");
+                window.location.href = data.redirectUrl;
+              } else {
+                // Same-domain redirect
+                console.log("🔗 Same-domain redirect");
+                router.push(data.redirectUrl);
+              }
+            }, 3000); // Wait 3 seconds to show success message
+          }
         } else {
           setResult({
             success: false,
@@ -133,18 +168,46 @@ function VerifyEmailContent() {
               </h1>
               <p className="text-gray-600 mb-8">{result.message}</p>
               <div className="space-y-4">
-                <Link
-                  href="/dashboard"
-                  className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                >
-                  Go to Dashboard
-                </Link>
-                <Link
-                  href="/login"
-                  className="block w-full border border-gray-300 hover:border-gray-400 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
-                >
-                  Sign In
-                </Link>
+                {result.redirectUrl ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        const currentHost = window.location.host;
+                        const redirectHost = new URL(
+                          result.redirectUrl!,
+                          window.location.origin
+                        ).host;
+
+                        if (currentHost !== redirectHost) {
+                          window.location.href = result.redirectUrl!;
+                        } else {
+                          router.push(result.redirectUrl!);
+                        }
+                      }}
+                      className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      Go to Dashboard
+                    </button>
+                    <p className="text-sm text-gray-500">
+                      Redirecting automatically in a few seconds...
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      Go to Dashboard
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="block w-full border border-gray-300 hover:border-gray-400 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                  </>
+                )}
               </div>
             </>
           )}

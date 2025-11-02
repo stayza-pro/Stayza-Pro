@@ -412,7 +412,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {generatedPalettes.map((palette, index) => (
               <motion.button
@@ -420,7 +420,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                 type="button"
                 onClick={() => handlePaletteSelect(palette)}
                 className={cn(
-                  "p-4 rounded-xl border-2 transition-all text-left group hover:scale-105",
+                  "p-6 rounded-xl border-2 transition-all text-left group hover:scale-105 min-h-[180px]",
                   selectedPaletteId === palette.id
                     ? "border-purple-500 bg-purple-50"
                     : "border-gray-200 hover:border-gray-300"
@@ -573,7 +573,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
               Custom Colors
             </h4>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Primary Color
@@ -589,7 +589,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                         accent: currentColors?.accent || "#F59E0B",
                       })
                     }
-                    className="w-12 h-8 rounded border border-gray-300"
+                    className="w-16 h-12 rounded border border-gray-300 cursor-pointer"
                   />
                   <input
                     type="text"
@@ -622,7 +622,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                         accent: currentColors?.accent || "#F59E0B",
                       })
                     }
-                    className="w-12 h-8 rounded border border-gray-300"
+                    className="w-16 h-12 rounded border border-gray-300 cursor-pointer"
                   />
                   <input
                     type="text"
@@ -655,7 +655,7 @@ export const ColorPaletteGenerator: React.FC<ColorPaletteGeneratorProps> = ({
                         accent: e.target.value,
                       })
                     }
-                    className="w-12 h-8 rounded border border-gray-300"
+                    className="w-16 h-12 rounded border border-gray-300 cursor-pointer"
                   />
                   <input
                     type="text"

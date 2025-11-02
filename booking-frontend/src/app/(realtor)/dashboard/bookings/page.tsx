@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { bookingService } from "@/services/bookings";
 import { Booking } from "@/types";
+import { useAlert } from "@/context/AlertContext";
 import {
   Calendar,
   Clock,
@@ -42,6 +43,7 @@ const STATUS_FILTERS: { value: BookingStatus; label: string }[] = [
 ];
 
 export default function BookingsPage() {
+  const { showSuccess, showError } = useAlert();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<BookingStatus>("ALL");
@@ -86,10 +88,10 @@ export default function BookingsPage() {
       await bookingService.updateBookingStatus(bookingId, newStatus);
       fetchBookings(); // Refresh list
       setShowDetailModal(false);
-      alert(`Booking ${newStatus.toLowerCase()} successfully!`);
+      showSuccess(`Booking ${newStatus.toLowerCase()} successfully!`);
     } catch (error) {
       console.error("Error updating booking:", error);
-      alert("Failed to update booking status");
+      showError("Failed to update booking status");
     }
   };
 

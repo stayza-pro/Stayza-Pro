@@ -85,5 +85,6 @@ export const useBranding = () => {
     isLoading,
     error,
     refetch,
+    refreshBranding: refetch, // Alias for compatibility
   };
 };

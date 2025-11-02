@@ -24,6 +24,8 @@ export const authService = {
 
   // Login user
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    console.log("🔐 Auth Service: Starting login request...");
+
     // Clear any existing tokens to avoid interference
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
@@ -33,10 +35,31 @@ export const authService = {
       credentials
     );
 
-    // Store tokens
+    console.log("✅ Auth Service: Login response received:", {
+      hasAccessToken: !!response.data.accessToken,
+      hasRefreshToken: !!response.data.refreshToken,
+      userRole: response.data.user?.role,
+      hasRedirectUrl: !!(response.data as any).redirectUrl,
+      redirectUrl: (response.data as any).redirectUrl,
+    });
+
+    // Store tokens with cross-domain support
     if (response.data.accessToken) {
       localStorage.setItem("accessToken", response.data.accessToken);
       localStorage.setItem("refreshToken", response.data.refreshToken);
+
+      // Set cross-domain cookies for realtor subdomains
+      try {
+        const domain =
+          window.location.hostname === "localhost"
+            ? "localhost"
+            : ".stayza.pro";
+        document.cookie = `accessToken=${response.data.accessToken}; domain=${domain}; path=/; Secure; SameSite=None`;
+        document.cookie = `refreshToken=${response.data.refreshToken}; domain=${domain}; path=/; Secure; SameSite=None`;
+        console.log("🍪 Cross-domain cookies set for domain:", domain);
+      } catch (cookieError) {
+        console.warn("⚠️ Could not set cross-domain cookies:", cookieError);
+      }
     }
 
     return response.data;

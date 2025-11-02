@@ -52,6 +52,20 @@ export const realtorService = {
     return response.data;
   },
 
+  // Profile management functions
+  async getProfile(): Promise<Realtor> {
+    const response = await apiClient.get<Realtor>(`${BASE_PATH}/profile`);
+    return response.data;
+  },
+
+  async updateProfile(profileData: Partial<Realtor>): Promise<Realtor> {
+    const response = await apiClient.put<Realtor>(
+      `${BASE_PATH}/profile`,
+      profileData
+    );
+    return response.data;
+  },
+
   // Utility functions for error handling
   extractErrorMessage: serviceUtils.extractErrorMessage,
   isAuthError: serviceUtils.isAuthError,

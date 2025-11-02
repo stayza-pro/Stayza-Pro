@@ -17,6 +17,7 @@ import {
   TrendingUp,
   AlertTriangle,
 } from "lucide-react";
+import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import BookingDetailsModal from "@/components/admin/BookingDetailsModal";
 import DisputeResolutionModal from "@/components/admin/DisputeResolutionModal";
 import {
@@ -29,30 +30,35 @@ import {
   getBookingStatusColor,
   formatCurrency,
   getBookingDuration,
+  BookingStatsResponse,
   canCancelBooking,
   buildFilterSummary,
   type AdminBooking,
   type BookingSearchFilters,
   type BookingStatus,
 } from "@/services/adminBookingsService";
+import { getAnalytics, PlatformAnalytics } from "@/services/adminService";
 
 interface BookingsPageProps {}
 
 const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
   // State management
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<BookingStatsResponse["data"] | null>(null);
+  const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(
+    null
+  );
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Modal states
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string>("");
   const [selectedDisputeId, setSelectedDisputeId] = useState<string>("");
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -76,9 +82,9 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
       setError(null);
       const response = await getAdminBookings(filters);
       setBookings(response.data.bookings);
-      setCurrentPage(response.data.page);
-      setTotalPages(response.data.totalPages);
-      setTotalItems(response.data.total);
+      setCurrentPage(response.data.pagination.currentPage);
+      setTotalPages(response.data.pagination.totalPages);
+      setTotalItems(response.data.pagination.totalItems);
     } catch (error: any) {
       setError(error.message || "Failed to fetch bookings");
     } finally {
@@ -89,13 +95,20 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
   // Fetch stats data
   const fetchStats = async () => {
     try {
-      const response = await getBookingStats({
-        period: "30d",
-        includeDetails: true,
-      });
+      const response = await getBookingStats(30);
       setStats(response.data);
     } catch (error: any) {
       console.error("Failed to fetch stats:", error);
+    }
+  };
+
+  // Fetch analytics data for realtor counts
+  const fetchAnalytics = async () => {
+    try {
+      const data = await getAnalytics("30d");
+      setAnalytics(data);
+    } catch (error: any) {
+      console.error("Failed to fetch analytics:", error);
     }
   };
 
@@ -103,11 +116,21 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
   useEffect(() => {
     fetchBookings();
     fetchStats();
+    fetchAnalytics();
+
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(() => {
+      fetchBookings();
+      fetchStats();
+      fetchAnalytics();
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, [filters]);
 
   // Handle page changes
   const handlePageChange = (page: number) => {
-    setFilters(prev => ({ ...prev, page }));
+    setFilters((prev) => ({ ...prev, page }));
   };
 
   // Modal handlers
@@ -121,10 +144,17 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
     setShowDisputeModal(true);
   };
 
-  const handleBookingStatusUpdate = async (bookingId: string, status: string, reason?: string) => {
+  const handleBookingStatusUpdate = async (
+    bookingId: string,
+    status: string,
+    reason?: string
+  ) => {
     try {
       setActionLoading(bookingId);
-      await updateBookingStatus(bookingId, { status: status as BookingStatus, reason: reason || '' });
+      await updateBookingStatus(bookingId, {
+        status: status as BookingStatus,
+        reason: reason || "",
+      });
       await fetchBookings();
     } catch (error: any) {
       setError(error.message);
@@ -133,12 +163,18 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
     }
   };
 
-  const handleBookingCancellation = async (bookingId: string, reason: string, refundAmount: number) => {
+  const handleBookingCancellation = async (
+    bookingId: string,
+    reason: string,
+    refundAmount: number
+  ) => {
     try {
       setActionLoading(bookingId);
       // Convert refund amount to percentage for the service call
-      const booking = bookings.find(b => b.id === bookingId);
-      const refundPercentage = booking ? (refundAmount / booking.totalAmount) * 100 : 100;
+      const booking = bookings.find((b) => b.id === bookingId);
+      const refundPercentage = booking
+        ? (refundAmount / booking.totalPrice) * 100
+        : 100;
       await cancelBooking(bookingId, { reason, refundPercentage });
       await fetchBookings();
     } catch (error: any) {
@@ -151,7 +187,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
   const handleResolveDispute = async (disputeId: string, resolution: any) => {
     try {
       // This would be an API call to resolve the dispute
-      console.log('Resolving dispute:', disputeId, resolution);
+      console.log("Resolving dispute:", disputeId, resolution);
       // For now, just refresh the bookings
       await fetchBookings();
     } catch (error: any) {
@@ -173,24 +209,28 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
       },
       {
         title: "Total Revenue",
-        value: formatCurrency(stats.revenue.total),
+        value: formatCurrency(stats.metrics.totalRevenue),
         icon: <DollarSign className="h-6 w-6" />,
         color: "bg-green-500",
-        change: `+${formatCurrency(stats.revenue.recent)} this period`,
+        change: `Commission: ${formatCurrency(
+          stats.metrics.totalRevenue * 0.05
+        )}`,
       },
       {
-        title: "Active Bookings",
-        value: stats.status.active.toLocaleString(),
+        title: "Active Realtors",
+        value: (analytics?.overview?.activeRealtors ?? 0).toString(),
         icon: <Users className="h-6 w-6" />,
         color: "bg-orange-500",
-        change: `${stats.status.pendingReview} pending review`,
+        change: `${
+          analytics?.overview?.pendingRealtors ?? 0
+        } pending approvals`,
       },
       {
-        title: "Growth Rate",
-        value: `${stats.growth.percentage}%`,
-        icon: <TrendingUp className="h-6 w-6" />,
-        color: "bg-purple-500",
-        change: stats.growth.trend,
+        title: "Cancellation Rate",
+        value: `${stats.metrics.cancellationRate.toFixed(1)}%`,
+        icon: <AlertTriangle className="h-6 w-6" />,
+        color: "bg-red-500",
+        change: `${stats.overview.cancelled} cancelled bookings`,
       },
     ];
 
@@ -223,13 +263,17 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
             {/* Search Input */}
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Search className="absolute left-3 top-3 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
                   placeholder="Search bookings by reference, guest name, or property..."
                   value={filters.search || ""}
                   onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, search: e.target.value, page: 1 }))
+                    setFilters((prev) => ({
+                      ...prev,
+                      search: e.target.value,
+                      page: 1,
+                    }))
                   }
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -240,10 +284,10 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 border rounded-lg ${
                   showFilters
-                    ? "bg-blue-50 border-blue-200 text-blue-700"
-                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                    ? "border-blue-500 text-blue-600 bg-blue-50"
+                    : "border-gray-300 text-gray-700 bg-gray-50"
                 }`}
               >
                 <Filter className="h-4 w-4" />
@@ -263,7 +307,11 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                   <select
                     value={filters.status || ""}
                     onChange={(e) =>
-                      setFilters((prev) => ({ ...prev, status: e.target.value as BookingStatus, page: 1 }))
+                      setFilters((prev) => ({
+                        ...prev,
+                        status: e.target.value as BookingStatus,
+                        page: 1,
+                      }))
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
@@ -284,7 +332,11 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                   <select
                     value={filters.dateRange || ""}
                     onChange={(e) =>
-                      setFilters((prev) => ({ ...prev, dateRange: e.target.value, page: 1 }))
+                      setFilters((prev) => ({
+                        ...prev,
+                        dateRange: e.target.value,
+                        page: 1,
+                      }))
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
@@ -306,14 +358,27 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                     value={`${filters.sortBy}-${filters.sortOrder}`}
                     onChange={(e) => {
                       const [sortBy, sortOrder] = e.target.value.split("-");
-                      setFilters((prev) => ({ ...prev, sortBy, sortOrder, page: 1 }));
+                      setFilters((prev) => ({
+                        ...prev,
+                        sortBy: sortBy as
+                          | "createdAt"
+                          | "checkInDate"
+                          | "totalPrice"
+                          | "status",
+                        sortOrder: sortOrder as "asc" | "desc",
+                        page: 1,
+                      }));
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="createdAt-desc">Newest First</option>
                     <option value="createdAt-asc">Oldest First</option>
-                    <option value="checkInDate-desc">Check-in Date (Latest)</option>
-                    <option value="checkInDate-asc">Check-in Date (Earliest)</option>
+                    <option value="checkInDate-desc">
+                      Check-in Date (Latest)
+                    </option>
+                    <option value="checkInDate-asc">
+                      Check-in Date (Earliest)
+                    </option>
                     <option value="totalAmount-desc">Amount (Highest)</option>
                     <option value="totalAmount-asc">Amount (Lowest)</option>
                   </select>
@@ -329,7 +394,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                         sortOrder: "desc",
                       })
                     }
-                    className="w-full px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="w-full px-4 py-2 text-gray-600 bg-gray-100 rounded-lg"
                   >
                     Clear Filters
                   </button>
@@ -339,7 +404,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
               {/* Active Filter Summary */}
               <div className="mt-4">
                 <div className="text-sm text-gray-600">
-                  {buildFilterSummary(filters, totalItems)}
+                  {buildFilterSummary(filters)} • {totalItems} bookings found
                 </div>
               </div>
             </div>
@@ -371,7 +436,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
             <p className="text-gray-500 text-sm mt-1">{error}</p>
             <button
               onClick={() => fetchBookings()}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg"
             >
               Try Again
             </button>
@@ -419,13 +484,16 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Refund Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {bookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-gray-50">
+                <tr key={booking.id}>
                   {/* Booking Details */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -440,7 +508,8 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                           <div className="flex items-center mt-1">
                             <AlertTriangle className="h-4 w-4 text-red-500 mr-1" />
                             <span className="text-xs text-red-600">
-                              {booking.disputeCount} dispute{booking.disputeCount !== 1 ? 's' : ''}
+                              {booking.disputeCount} dispute
+                              {booking.disputeCount !== 1 ? "s" : ""}
                             </span>
                           </div>
                         )}
@@ -453,7 +522,9 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                     <div className="text-sm font-medium text-gray-900">
                       {booking.guestName}
                     </div>
-                    <div className="text-sm text-gray-500">{booking.guestEmail}</div>
+                    <div className="text-sm text-gray-500">
+                      {booking.guestEmail}
+                    </div>
                   </td>
 
                   {/* Property */}
@@ -461,7 +532,9 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                     <div className="text-sm font-medium text-gray-900 max-w-xs truncate">
                       {booking.propertyTitle}
                     </div>
-                    <div className="text-sm text-gray-500">{booking.propertyLocation}</div>
+                    <div className="text-sm text-gray-500">
+                      {booking.propertyLocation}
+                    </div>
                   </td>
 
                   {/* Dates */}
@@ -473,7 +546,10 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                       to {new Date(booking.checkOutDate).toLocaleDateString()}
                     </div>
                     <div className="text-xs text-gray-400">
-                      {getBookingDuration(booking.checkInDate, booking.checkOutDate)}
+                      {getBookingDuration(
+                        booking.checkInDate,
+                        booking.checkOutDate
+                      )}
                     </div>
                   </td>
 
@@ -489,12 +565,44 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
 
                   {/* Status */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBookingStatusColor(booking.status)}`}>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBookingStatusColor(
+                        booking.status
+                      )}`}
+                    >
                       {formatBookingStatus(booking.status)}
                     </span>
                     <div className="text-xs text-gray-500 mt-1">
                       Updated {new Date(booking.updatedAt).toLocaleString()}
                     </div>
+                  </td>
+
+                  {/* Refund Status */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {booking.refundStatus ? (
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          booking.refundStatus === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : booking.refundStatus === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {booking.refundStatus === "completed"
+                          ? "Refunded"
+                          : booking.refundStatus === "pending"
+                          ? "Pending"
+                          : "Failed"}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">No refund</span>
+                    )}
+                    {booking.refundAmount && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {formatCurrency(booking.refundAmount)}
+                      </div>
+                    )}
                   </td>
 
                   {/* Actions */}
@@ -503,7 +611,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                       <button
                         onClick={() => handleViewBooking(booking.id)}
                         disabled={actionLoading === booking.id}
-                        className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
+                        className="text-blue-600 p-1 rounded"
                         title="View Details"
                       >
                         <Eye className="h-4 w-4" />
@@ -511,8 +619,10 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
 
                       {booking.hasDisputes && (
                         <button
-                          onClick={() => handleViewDispute(`dispute-${booking.id}`)}
-                          className="text-orange-600 hover:text-orange-900 p-1 hover:bg-orange-50 rounded"
+                          onClick={() =>
+                            handleViewDispute(`dispute-${booking.id}`)
+                          }
+                          className="text-orange-600 p-1 rounded"
                           title="View Dispute"
                         >
                           <AlertTriangle className="h-4 w-4" />
@@ -522,7 +632,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                       {canCancelBooking(booking) && (
                         <button
                           onClick={() => handleViewBooking(booking.id)}
-                          className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded"
+                          className="text-green-600 p-1 rounded"
                           title="Update Status"
                         >
                           <Edit className="h-4 w-4" />
@@ -532,7 +642,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                       {canCancelBooking(booking) && (
                         <button
                           onClick={() => handleViewBooking(booking.id)}
-                          className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded"
+                          className="text-red-600 p-1 rounded"
                           title="Cancel Booking"
                         >
                           <Ban className="h-4 w-4" />
@@ -551,16 +661,16 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
           <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
-                onClick={() => handlePageChange(currentPage - 1)}
+                onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <button
-                onClick={() => handlePageChange(currentPage + 1)}
+                onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -584,11 +694,11 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
-                  
+
                   {/* Page Numbers */}
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNumber;
@@ -609,7 +719,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                         className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                           currentPage === pageNumber
                             ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                            : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                            : "bg-white border-gray-300 text-gray-500"
                         }`}
                       >
                         {pageNumber}
@@ -620,7 +730,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>
@@ -634,42 +744,50 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Booking Management</h1>
-          <p className="text-gray-600 mt-2">
-            Monitor and manage all platform bookings from this central dashboard
-          </p>
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">
+                Booking Management
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Monitor and manage all platform bookings from this central
+                dashboard
+              </p>
+            </div>
+
+            {/* Statistics cards */}
+            <StatsCards />
+
+            {/* Search and filters */}
+            <SearchAndFilters />
+
+            {/* Bookings table */}
+            <BookingsTable />
+
+            {/* Modals */}
+            <BookingDetailsModal
+              isOpen={showDetailsModal}
+              onClose={() => setShowDetailsModal(false)}
+              bookingId={selectedBookingId}
+              onStatusUpdate={handleBookingStatusUpdate}
+              onCancelBooking={handleBookingCancellation}
+            />
+
+            <DisputeResolutionModal
+              isOpen={showDisputeModal}
+              onClose={() => setShowDisputeModal(false)}
+              disputeId={selectedDisputeId}
+              // onResolveDispute={handleResolveDispute}
+            />
+          </div>
         </div>
-
-        {/* Statistics cards */}
-        <StatsCards />
-
-        {/* Search and filters */}
-        <SearchAndFilters />
-
-        {/* Bookings table */}
-        <BookingsTable />
-
-        {/* Modals */}
-        <BookingDetailsModal
-          isOpen={showDetailsModal}
-          onClose={() => setShowDetailsModal(false)}
-          bookingId={selectedBookingId}
-          onStatusUpdate={handleBookingStatusUpdate}
-          onCancelBooking={handleBookingCancellation}
-        />
-
-        <DisputeResolutionModal
-          isOpen={showDisputeModal}
-          onClose={() => setShowDisputeModal(false)}
-          disputeId={selectedDisputeId}
-          onResolveDispute={handleResolveDispute}
-        />
       </div>
-    </div>
+    </>
   );
 };
 

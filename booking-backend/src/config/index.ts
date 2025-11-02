@@ -48,10 +48,15 @@ export const config = {
   // Frontend
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
 
+  // Domain Configuration
+  MAIN_DOMAIN: process.env.MAIN_DOMAIN || "stayza.pro",
+  DEV_DOMAIN: process.env.DEV_DOMAIN || "localhost:3000",
+  NODE_ENV_DOMAIN: process.env.NODE_ENV_DOMAIN || "development",
+
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: parseInt(
     process.env.RATE_LIMIT_WINDOW_MS || "900000",
-    10
+    1000000
   ),
   RATE_LIMIT_MAX_REQUESTS: parseInt(
     process.env.RATE_LIMIT_MAX_REQUESTS || "100",

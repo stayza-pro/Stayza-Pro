@@ -44,7 +44,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
   const [disputes, setDisputes] = useState<DisputeInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "details" | "timeline" | "disputes"
+    "details" | "timeline" | "disputes" | "refund"
   >("details");
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
   const [showCancelBooking, setShowCancelBooking] = useState(false);
@@ -196,10 +196,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
               </p>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
+          <button onClick={onClose} className="text-gray-400">
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -215,33 +212,43 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
             <div className="flex border-b border-gray-200">
               <button
                 onClick={() => setActiveTab("details")}
-                className={`px-6 py-3 font-medium text-sm transition-colors ${
+                className={`px-6 py-3 font-medium text-sm ${
                   activeTab === "details"
                     ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
+                    : "text-gray-500"
                 }`}
               >
                 Details
               </button>
               <button
                 onClick={() => setActiveTab("timeline")}
-                className={`px-6 py-3 font-medium text-sm transition-colors ${
+                className={`px-6 py-3 font-medium text-sm ${
                   activeTab === "timeline"
                     ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
+                    : "text-gray-500"
                 }`}
               >
-                Timeline ({timeline.length})
+                Timeline
               </button>
               <button
                 onClick={() => setActiveTab("disputes")}
-                className={`px-6 py-3 font-medium text-sm transition-colors ${
+                className={`px-6 py-3 font-medium text-sm ${
                   activeTab === "disputes"
                     ? "border-b-2 border-blue-600 text-blue-600"
-                    : "text-gray-500 hover:text-gray-700"
+                    : "text-gray-500"
                 } ${disputes.length > 0 ? "text-red-600" : ""}`}
               >
                 Disputes ({disputes.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("refund")}
+                className={`px-6 py-3 font-medium text-sm ${
+                  activeTab === "refund"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500"
+                }`}
+              >
+                Refund Control
               </button>
             </div>
 
@@ -387,7 +394,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
                           <div className="grid grid-cols-2 gap-2 mt-3">
                             {booking.property.images
                               .slice(0, 4)
-                              .map((image, index) => (
+                              .map((image: string, index: number) => (
                                 <div
                                   key={index}
                                   className="aspect-video bg-gray-200 rounded-lg overflow-hidden"
@@ -415,7 +422,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
                           Tags
                         </h3>
                         <div className="flex flex-wrap gap-2">
-                          {booking.tags.map((tag, index) => (
+                          {booking.tags.map((tag: string, index: number) => (
                             <span
                               key={index}
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
@@ -454,13 +461,13 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
                         <div className="flex gap-2">
                           <button
                             onClick={() => setShowStatusUpdate(true)}
-                            className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                            className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium"
                           >
                             Update Status
                           </button>
                           <button
                             onClick={() => setShowCancelBooking(true)}
-                            className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                            className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium"
                           >
                             Cancel Booking
                           </button>
@@ -542,6 +549,155 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
                       </div>
                     ))
                   )}
+                </div>
+              )}
+
+              {activeTab === "refund" && (
+                <div className="space-y-6">
+                  {/* Current Refund Status */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3">
+                      Current Refund Status
+                    </h3>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          Booking Total:{" "}
+                          <span className="font-medium">
+                            ₦{booking?.totalAmount?.toLocaleString()}
+                          </span>
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Refund Status:{" "}
+                          <span className="font-medium text-orange-600">
+                            No refund processed
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Refund Actions */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button
+                      onClick={() => {
+                        if (booking) {
+                          onCancelBooking(
+                            booking.id,
+                            "Full refund approved by admin",
+                            booking.totalAmount
+                          );
+                          onClose();
+                        }
+                      }}
+                      className="p-4 bg-green-50 border border-green-200 rounded-lg"
+                    >
+                      <div className="text-center">
+                        <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                        <h4 className="font-medium text-green-900">
+                          Full Refund
+                        </h4>
+                        <p className="text-sm text-green-700">100% refund</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (booking) {
+                          const halfAmount = Math.round(
+                            booking.totalAmount * 0.5
+                          );
+                          onCancelBooking(
+                            booking.id,
+                            "Partial refund (50%) approved by admin",
+                            halfAmount
+                          );
+                          onClose();
+                        }
+                      }}
+                      className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+                    >
+                      <div className="text-center">
+                        <DollarSign className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
+                        <h4 className="font-medium text-yellow-900">
+                          Partial Refund
+                        </h4>
+                        <p className="text-sm text-yellow-700">50% refund</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (booking) {
+                          onCancelBooking(
+                            booking.id,
+                            "No refund - admin decision",
+                            0
+                          );
+                          onClose();
+                        }
+                      }}
+                      className="p-4 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                    >
+                      <div className="text-center">
+                        <X className="h-8 w-8 text-red-600 mx-auto mb-2" />
+                        <h4 className="font-medium text-red-900">No Refund</h4>
+                        <p className="text-sm text-red-700">0% refund</p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Custom Refund */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-3">
+                      Custom Refund Amount
+                    </h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Refund Amount (₦)
+                        </label>
+                        <input
+                          type="number"
+                          value={refundAmount}
+                          onChange={(e) =>
+                            setRefundAmount(Number(e.target.value))
+                          }
+                          min={0}
+                          max={booking?.totalAmount || 0}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Refund Reason
+                        </label>
+                        <textarea
+                          value={cancelReason}
+                          onChange={(e) => setCancelReason(e.target.value)}
+                          placeholder="Reason for this refund amount..."
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (booking && cancelReason) {
+                            onCancelBooking(
+                              booking.id,
+                              cancelReason,
+                              refundAmount
+                            );
+                            onClose();
+                          }
+                        }}
+                        disabled={!cancelReason || refundAmount < 0}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Process Custom Refund
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

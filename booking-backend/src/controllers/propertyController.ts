@@ -237,15 +237,19 @@ export const createProperty = asyncHandler(
       throw new AppError(error.details[0].message, 400);
     }
 
+    // Get realtor ID - use req.realtor.id for realtors, fallback to admin creating for others
+    const realtorId = req.realtor?.id || req.user!.id;
+
     const property = await prisma.property.create({
       data: {
         ...value,
-        realtorId: req.user!.id,
+        realtorId,
       },
       include: {
         realtor: {
           select: {
             id: true,
+            businessName: true,
           },
         },
       },
@@ -282,11 +286,8 @@ export const updateProperty = asyncHandler(
       throw new AppError("Property not found", 404);
     }
 
-    // Check ownership
-    if (
-      existingProperty.realtorId !== req.user!.id &&
-      req.user!.role !== "ADMIN"
-    ) {
+    // Realtors can modify their own properties without admin approval
+    if (existingProperty.realtorId !== req.realtor!.id) {
       throw new AppError("Not authorized to update this property", 403);
     }
 
@@ -339,7 +340,8 @@ export const uploadPropertyImages = asyncHandler(
       throw new AppError("Property not found", 404);
     }
 
-    if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
+    // Realtors can modify their own properties without admin approval
+    if (property.realtorId !== req.realtor!.id) {
       throw new AppError("Not authorized to modify this property", 403);
     }
 
@@ -362,10 +364,7 @@ export const uploadPropertyImages = asyncHandler(
       data: uploads.map((upload, index) => ({
         propertyId: property.id,
         url: upload.secure_url,
-        width: upload.width || null,
-        height: upload.height || null,
         order: startingOrder + index,
-        publicId: upload.public_id,
       })),
     });
 
@@ -400,7 +399,8 @@ export const deletePropertyImage = asyncHandler(
       throw new AppError("Property not found", 404);
     }
 
-    if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
+    // Realtors can modify their own properties without admin approval
+    if (property.realtorId !== req.realtor!.id) {
       throw new AppError("Not authorized to modify this property", 403);
     }
 
@@ -464,7 +464,8 @@ export const reorderPropertyImages = asyncHandler(
       throw new AppError("Property not found", 404);
     }
 
-    if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
+    // Realtors can modify their own properties without admin approval
+    if (property.realtorId !== req.realtor!.id) {
       throw new AppError("Not authorized to modify this property", 403);
     }
 
@@ -530,8 +531,8 @@ export const deleteProperty = asyncHandler(
       throw new AppError("Property not found", 404);
     }
 
-    // Check ownership
-    if (property.realtorId !== req.user!.id && req.user!.role !== "ADMIN") {
+    // Realtors can delete their own properties without admin approval
+    if (property.realtorId !== req.realtor!.id) {
       throw new AppError("Not authorized to delete this property", 403);
     }
 
@@ -558,8 +559,8 @@ export const deleteProperty = asyncHandler(
  */
 export const getPropertiesByHost = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    // If realtorId is not in params, use the authenticated user's ID
-    const realtorId = req.params.realtorId || req.user?.id;
+    // If realtorId is not in params, use the authenticated realtor's ID
+    const realtorId = req.params.realtorId || req.realtor?.id;
 
     if (!realtorId) {
       return res.status(400).json({

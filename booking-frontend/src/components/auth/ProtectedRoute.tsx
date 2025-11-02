@@ -64,8 +64,8 @@ export default function ProtectedRoute({
           newUrl.searchParams.delete("refresh");
           window.history.replaceState({}, "", newUrl.toString());
 
-          // Give a small delay to ensure localStorage is fully written
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          // Give more time for all storage operations to complete
+          await new Promise((resolve) => setTimeout(resolve, 500));
 
           // Now verify tokens by fetching user profile
           try {

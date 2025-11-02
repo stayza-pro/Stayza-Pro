@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { paymentService } from "@/services/payments";
 import { Payment } from "@/types";
+import { useAlert } from "@/context/AlertContext";
 import {
   DollarSign,
   TrendingUp,
@@ -18,17 +19,17 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-type PaymentStatus = "ALL" | "SUCCESS" | "PENDING" | "FAILED" | "REFUNDED";
+type PaymentStatus = "ALL" | "COMPLETED" | "PENDING" | "FAILED" | "REFUNDED";
 
 const STATUS_COLORS = {
-  SUCCESS: "text-green-600 bg-green-100",
+  COMPLETED: "text-green-600 bg-green-100",
   PENDING: "text-yellow-600 bg-yellow-100",
   FAILED: "text-red-600 bg-red-100",
   REFUNDED: "text-gray-600 bg-gray-100",
 };
 
 const STATUS_ICONS = {
-  SUCCESS: CheckCircle,
+  COMPLETED: CheckCircle,
   PENDING: Clock,
   FAILED: XCircle,
   REFUNDED: FileText,
@@ -36,7 +37,7 @@ const STATUS_ICONS = {
 
 const STATUS_FILTERS: { value: PaymentStatus; label: string }[] = [
   { value: "ALL", label: "All Payments" },
-  { value: "SUCCESS", label: "Successful" },
+  { value: "COMPLETED", label: "Successful" },
   { value: "PENDING", label: "Pending" },
   { value: "FAILED", label: "Failed" },
   { value: "REFUNDED", label: "Refunded" },
@@ -50,6 +51,7 @@ interface RevenueStats {
 }
 
 export default function PaymentsPage() {
+  const { showError } = useAlert();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<PaymentStatus>("ALL");
@@ -96,14 +98,14 @@ export default function PaymentsPage() {
     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
     const totalEarnings = paymentsData
-      .filter((p) => p.status === "SUCCESS")
+      .filter((p) => p.status === "COMPLETED")
       .reduce((sum, p) => sum + p.amount, 0);
 
     const thisMonth = paymentsData
       .filter((p) => {
         const paymentDate = new Date(p.createdAt);
         return (
-          p.status === "SUCCESS" &&
+          p.status === "COMPLETED" &&
           paymentDate.getMonth() === currentMonth &&
           paymentDate.getFullYear() === currentYear
         );
@@ -114,7 +116,7 @@ export default function PaymentsPage() {
       .filter((p) => {
         const paymentDate = new Date(p.createdAt);
         return (
-          p.status === "SUCCESS" &&
+          p.status === "COMPLETED" &&
           paymentDate.getMonth() === lastMonth &&
           paymentDate.getFullYear() === lastMonthYear
         );
@@ -146,7 +148,7 @@ export default function PaymentsPage() {
       document.body.removeChild(a);
     } catch (error) {
       console.error("Error downloading receipt:", error);
-      alert("Failed to download receipt");
+      showError("Failed to download receipt");
     }
   };
 
@@ -155,7 +157,7 @@ export default function PaymentsPage() {
     const query = searchQuery.toLowerCase();
     return (
       payment.reference?.toLowerCase().includes(query) ||
-      payment.booking?.property?.name?.toLowerCase().includes(query) ||
+      payment.booking?.property?.title?.toLowerCase().includes(query) ||
       payment.booking?.guest?.email?.toLowerCase().includes(query)
     );
   });
@@ -372,7 +374,7 @@ export default function PaymentsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900">
-                          {payment.booking?.property?.name || "N/A"}
+                          {payment.booking?.property?.title || "N/A"}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -406,7 +408,7 @@ export default function PaymentsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {payment.status === "SUCCESS" && (
+                        {payment.status === "COMPLETED" && (
                           <button
                             onClick={() => handleDownloadReceipt(payment.id)}
                             className="text-blue-600 hover:text-blue-900 inline-flex items-center gap-1"

@@ -87,7 +87,7 @@ export function AnimatedInput({
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
       className={`
-        w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2
+        w-full px-3 py-2 text-black border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2
         ${
           error
             ? "border-red-500 focus:ring-red-200"

@@ -14,10 +14,24 @@ export interface ApiResponse<T = any> {
 export interface RegistrationResponse {
   id: string;
   email: string;
-  verificationToken: string;
   subdomain: string;
   status: "pending_verification" | "active" | "suspended";
   createdAt: string;
+  user: any;
+  realtor: any;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RegistrationApiResponse {
+  success: boolean;
+  message: string;
+  data: RegistrationResponse;
+  redirectUrls: {
+    success: string;
+    verification: string;
+    dashboard: string;
+  };
 }
 
 export interface SubdomainCheckResponse {
@@ -39,8 +53,7 @@ export interface EmailVerificationResponse {
 }
 
 // API Configuration
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
 const API_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 
@@ -143,7 +156,7 @@ export class RealtorRegistrationApi {
       // Normalize subdomain before sending to API
       const normalizedSubdomain = normalizeSubdomain(subdomain);
       const response = await fetchWithRetry(
-        `${API_BASE_URL}/realtors/subdomain/check?subdomain=${encodeURIComponent(
+        `${API_BASE_URL}/api/realtors/subdomain/check?subdomain=${encodeURIComponent(
           normalizedSubdomain
         )}`,
         {
@@ -170,7 +183,7 @@ export class RealtorRegistrationApi {
   ): Promise<ApiResponse<EmailVerificationResponse>> {
     try {
       const response = await fetchWithRetry(
-        `${API_BASE_URL}/realtors/email/validate`,
+        `${API_BASE_URL}/api/realtors/email/validate`,
         {
           method: "POST",
           body: JSON.stringify({ email }),
@@ -195,7 +208,7 @@ export class RealtorRegistrationApi {
       formData.append("logo", file);
 
       const response = await fetchWithRetry(
-        `${API_BASE_URL}/realtors/upload-temp-logo`,
+        `${API_BASE_URL}/api/realtors/upload-temp-logo`,
         {
           method: "POST",
           body: formData,
@@ -212,10 +225,40 @@ export class RealtorRegistrationApi {
     }
   }
 
+  // Upload CAC certificate file
+  static async uploadCacCertificate(
+    file: File
+  ): Promise<ApiResponse<{ url: string; id: string }>> {
+    try {
+      const formData = new FormData();
+      formData.append("cacCertificate", file);
+
+      const response = await fetchWithRetry(
+        `${API_BASE_URL}/api/realtors/upload-temp-cac`,
+        {
+          method: "POST",
+          body: formData,
+          headers: {}, // Don't set Content-Type for FormData
+        }
+      );
+
+      return handleApiResponse<{ url: string; id: string }>(response);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(
+        500,
+        "UPLOAD_ERROR",
+        "Failed to upload CAC certificate"
+      );
+    }
+  }
+
   // Register realtor
   static async registerRealtor(
     data: any
-  ): Promise<ApiResponse<RegistrationResponse>> {
+  ): Promise<ApiResponse<RegistrationApiResponse>> {
     try {
       // Prepare registration data
       const registrationData = {
@@ -229,14 +272,80 @@ export class RealtorRegistrationApi {
       };
 
       const response = await fetchWithRetry(
-        `${API_BASE_URL}/realtors/register`,
+        `${API_BASE_URL}/api/realtors/register`,
         {
           method: "POST",
           body: JSON.stringify(registrationData),
         }
       );
 
-      return handleApiResponse<RegistrationResponse>(response);
+      return handleApiResponse<RegistrationApiResponse>(response);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(
+        500,
+        "REGISTRATION_ERROR",
+        "Failed to register realtor"
+      );
+    }
+  }
+
+  // Register realtor with full response handling
+  static async registerRealtorWithFullResponse(
+    data: any
+  ): Promise<RegistrationApiResponse> {
+    try {
+      // Prepare registration data
+      const registrationData = {
+        ...data,
+        // Convert File objects to URLs if they exist
+        logo: data.logo instanceof File ? undefined : data.logo, // Logo should be uploaded separately
+        registrationSource: "web_form",
+        userAgent: navigator.userAgent,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        locale: navigator.language,
+      };
+
+      // Make direct fetch to preserve full response structure
+      const response = await fetchWithRetry(
+        `${API_BASE_URL}/api/realtors/register`,
+        {
+          method: "POST",
+          body: JSON.stringify(registrationData),
+        }
+      );
+
+      let responseData: any;
+      try {
+        const text = await response.text();
+        responseData = text ? JSON.parse(text) : {};
+      } catch (error) {
+        throw new ApiError(
+          500,
+          "PARSE_ERROR",
+          "Failed to parse server response"
+        );
+      }
+
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          responseData.code || "API_ERROR",
+          responseData.message || "An error occurred",
+          responseData.errors
+        );
+      }
+
+      // Debug logging
+      console.log("🔍 Raw backend response:", responseData);
+      console.log("🔍 Response has data:", !!responseData.data);
+      console.log("🔍 Response has redirectUrls:", !!responseData.redirectUrls);
+      console.log("🔍 Response data email:", responseData.data?.email);
+
+      // Return the complete backend response which includes both data and redirectUrls
+      return responseData as RegistrationApiResponse;
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
@@ -255,7 +364,7 @@ export class RealtorRegistrationApi {
   ): Promise<ApiResponse<{ sent: boolean }>> {
     try {
       const response = await fetchWithRetry(
-        `${API_BASE_URL}/auth/resend-verification`,
+        `${API_BASE_URL}/api/auth/resend-verification`,
         {
           method: "POST",
           body: JSON.stringify({ email, type: "realtor" }),
@@ -281,7 +390,7 @@ export class RealtorRegistrationApi {
   ): Promise<ApiResponse<{ received: boolean }>> {
     try {
       const response = await fetchWithRetry(
-        `${API_BASE_URL}/analytics/events`,
+        `${API_BASE_URL}/api/analytics/events`,
         {
           method: "POST",
           body: JSON.stringify(data),
@@ -301,7 +410,7 @@ export class RealtorRegistrationApi {
     errorData: any
   ): Promise<ApiResponse<{ reported: boolean }>> {
     try {
-      const response = await fetchWithRetry(`${API_BASE_URL}/errors/report`, {
+      const response = await fetchWithRetry(`${API_BASE_URL}/api/errors/report`, {
         method: "POST",
         body: JSON.stringify({
           ...errorData,
@@ -324,7 +433,7 @@ export class RealtorRegistrationApi {
     ApiResponse<{ status: string; timestamp: string }>
   > {
     try {
-      const response = await fetchWithRetry(`${API_BASE_URL}/health`, {
+      const response = await fetchWithRetry(`${API_BASE_URL}/api/health`, {
         method: "GET",
       });
 

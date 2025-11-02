@@ -428,7 +428,18 @@ router.get("/host/:realtorId", getPropertiesByHost);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.get("/my-properties", authenticate, getPropertiesByHost);
+router.get(
+  "/my-properties",
+  authenticate,
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
+  getPropertiesByHost
+);
 
 /**
  * @swagger
@@ -764,11 +775,30 @@ router.delete(
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.put("/:id", authenticate, authorize("REALTOR", "ADMIN"), updateProperty);
+router.put(
+  "/:id",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users, admins bypass this check
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
+  updateProperty
+);
 router.delete(
   "/:id",
   authenticate,
   authorize("REALTOR", "ADMIN"),
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users, admins bypass this check
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
   deleteProperty
 );
 
@@ -851,6 +881,13 @@ router.post(
   "/:id/images",
   authenticate,
   authorize("REALTOR", "ADMIN"),
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users, admins bypass this check
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
   upload.array("images", 8),
   uploadPropertyImages
 );
@@ -920,6 +957,13 @@ router.delete(
   "/:id/images/:imageId",
   authenticate,
   authorize("REALTOR", "ADMIN"),
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users, admins bypass this check
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
   deletePropertyImage
 );
 
@@ -993,6 +1037,13 @@ router.put(
   "/:id/images/reorder",
   authenticate,
   authorize("REALTOR", "ADMIN"),
+  (req: any, res: any, next: any) => {
+    // Only check realtor approval for realtor users, admins bypass this check
+    if (req.user?.role === "REALTOR") {
+      return requireApprovedRealtor(req, res, next);
+    }
+    return next();
+  },
   reorderPropertyImages
 );
 

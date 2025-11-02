@@ -24,6 +24,7 @@ import {
 import { User as UserType } from "@/types";
 import Image from "next/image";
 import { getAnalytics, PlatformAnalytics } from "@/services/adminService";
+import AdminActionsWidget from "@/components/admin/AdminActionsWidget";
 import toast from "react-hot-toast";
 
 interface ModernAdminDashboardProps {
@@ -141,7 +142,7 @@ export const ModernAdminDashboard: React.FC<ModernAdminDashboardProps> = ({
         >
           <Icon className="w-6 h-6 text-white" />
         </div>
-        {trend !== undefined && (
+        {trend !== undefined && !isNaN(trend) && (
           <div
             className={`flex items-center space-x-1 px-2 py-1 rounded-lg ${
               trend >= 0
@@ -154,7 +155,9 @@ export const ModernAdminDashboard: React.FC<ModernAdminDashboardProps> = ({
             ) : (
               <ArrowDownRight className="w-4 h-4" />
             )}
-            <span className="text-sm font-semibold">{Math.abs(trend)}%</span>
+            <span className="text-sm font-semibold">
+              {Math.abs(trend).toFixed(1)}%
+            </span>
           </div>
         )}
       </div>
@@ -220,37 +223,57 @@ export const ModernAdminDashboard: React.FC<ModernAdminDashboardProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Users"
-          value={stats.totalUsers}
-          trend={stats.revenueGrowth}
+          value={stats.totalUsers || 0}
+          trend={(() => {
+            const growth = stats.revenueGrowth || 0;
+            return isNaN(growth) ? undefined : growth;
+          })()}
           icon={Users}
           color="bg-blue-500"
-          description={`${stats.activeRealtors} active realtors`}
+          description={`${stats.activeRealtors || 0} active realtors`}
         />
         <StatCard
           title="Properties"
-          value={stats.totalProperties}
-          trend={stats.revenueGrowth * 0.7}
+          value={stats.totalProperties || 0}
+          trend={(() => {
+            const growth = (stats.revenueGrowth || 0) * 0.7;
+            return isNaN(growth) ? undefined : growth;
+          })()}
           icon={Home}
           color="bg-green-500"
-          description={`${stats.pendingRealtors} pending approval`}
+          description={`${stats.activeProperties || 0} active properties`}
         />
         <StatCard
           title="Bookings"
-          value={stats.totalBookings}
-          trend={stats.revenueGrowth * 0.5}
+          value={stats.totalBookings || 0}
+          trend={(() => {
+            const growth = (stats.revenueGrowth || 0) * 0.5;
+            return isNaN(growth) ? undefined : growth;
+          })()}
           icon={Calendar}
           color="bg-purple-500"
-          description={`${stats.completedBookings} completed`}
+          description={`${stats.completedBookings || 0} completed`}
         />
         <StatCard
           title="Revenue"
-          value={`₦${(parseFloat(stats.totalRevenue) / 1000000).toFixed(1)}M`}
-          trend={stats.revenueGrowth}
+          value={(() => {
+            const revenue = parseFloat(stats.totalRevenue || "0");
+            return isNaN(revenue)
+              ? "₦0.0M"
+              : `₦${(revenue / 1000000).toFixed(1)}M`;
+          })()}
+          trend={(() => {
+            const growth = stats.revenueGrowth || 0;
+            return isNaN(growth) ? undefined : growth;
+          })()}
           icon={DollarSign}
           color="bg-orange-500"
           description="Total platform revenue"
         />
       </div>
+
+      {/* Admin Actions Widget */}
+      <AdminActionsWidget />
 
       {/* Alerts and Quick Actions */}
       {stats.pendingRealtors > 0 && (
@@ -424,7 +447,14 @@ export const ModernAdminDashboard: React.FC<ModernAdminDashboardProps> = ({
 
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900">
-                      ₦{(parseFloat(realtor.totalRevenue) / 1000).toFixed(0)}K
+                      {(() => {
+                        const revenue = parseFloat(
+                          realtor.totalRevenue?.toString() || "0"
+                        );
+                        return isNaN(revenue) || revenue === 0
+                          ? "₦0K"
+                          : `₦${(revenue / 1000).toFixed(0)}K`;
+                      })()}
                     </p>
                     <p className="text-xs text-gray-500">revenue</p>
                   </div>

@@ -403,3 +403,78 @@ export const markNotificationAsRead = async (
 export const markAllNotificationsAsRead = async (): Promise<void> => {
   await apiClient.put("/admin/notifications/mark-all-read");
 };
+
+// =====================================================
+// PROPERTY MANAGEMENT API
+// =====================================================
+
+export interface Property {
+  id: string;
+  title: string;
+  address: string;
+  city: string;
+  state: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+  pricePerNight: number;
+  bedrooms: number;
+  bathrooms: number;
+  maxGuests: number;
+  images: string[];
+  amenities: string[];
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  realtor: {
+    id: string;
+    businessName: string;
+    user: {
+      email: string;
+    };
+  };
+}
+
+export interface PropertyListResponse {
+  properties: Property[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export const getAllProperties = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+}): Promise<PropertyListResponse> => {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append("page", params.page.toString());
+  if (params?.limit) queryParams.append("limit", params.limit.toString());
+  if (params?.status) queryParams.append("status", params.status);
+  if (params?.search) queryParams.append("search", params.search);
+
+  const response = await apiClient.get(
+    `/admin/properties?${queryParams.toString()}`
+  );
+  return response.data as PropertyListResponse;
+};
+
+export const approveProperty = async (propertyId: string): Promise<void> => {
+  await apiClient.post(`/admin/properties/${propertyId}/approve`);
+};
+
+export const rejectProperty = async (
+  propertyId: string,
+  reason: string
+): Promise<void> => {
+  await apiClient.post(`/admin/properties/${propertyId}/reject`, { reason });
+};
+
+export const suspendProperty = async (
+  propertyId: string,
+  reason: string
+): Promise<void> => {
+  await apiClient.post(`/admin/properties/${propertyId}/suspend`, { reason });
+};

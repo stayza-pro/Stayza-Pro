@@ -179,8 +179,26 @@ export const realtorRegistrationSchema = z
 
     corporateRegNumber: z
       .string()
-      .regex(/^[A-Z0-9-]+$/, "Invalid registration number format")
-      .optional(),
+      .min(1, "Corporate registration number is required")
+      .regex(/^[A-Z0-9-]+$/, "Invalid registration number format"),
+
+    cacCertificate: z
+      .instanceof(File)
+      .refine(
+        (file) => file && file.size <= 10 * 1024 * 1024,
+        "CAC certificate file size must be less than 10MB"
+      )
+      .refine(
+        (file) =>
+          file &&
+          (file.type === "application/pdf" || file.type.startsWith("image/")),
+        "CAC certificate must be a PDF or image file"
+      )
+      .refine(
+        (file) => file !== undefined && file !== null,
+        "CAC certificate is required"
+      )
+      .nullable(),
 
     businessAddress: z
       .string()
@@ -188,6 +206,7 @@ export const realtorRegistrationSchema = z
       .max(500, "Business address must be less than 500 characters"),
 
     // Step 3: Branding
+    brandColor: z.string().regex(hexColorRegex, "Invalid color format"),
     primaryColor: z.string().regex(hexColorRegex, "Invalid color format"),
     secondaryColor: z.string().regex(hexColorRegex, "Invalid color format"),
     accentColor: z
@@ -280,13 +299,21 @@ export const formSteps = [
     id: "business",
     title: "Business Information",
     description: "Tell us about your real estate business",
-    fields: ["agencyName", "tagline", "customSubdomain", "corporateRegNumber"],
+    fields: [
+      "agencyName",
+      "tagline",
+      "customSubdomain",
+      "corporateRegNumber",
+      "cacCertificate",
+      "businessAddress",
+    ],
   },
   {
     id: "branding",
     title: "Brand Customization",
     description: "Design your property booking site",
     fields: [
+      "brandColor",
       "primaryColor",
       "secondaryColor",
       "accentColor",

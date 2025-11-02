@@ -244,6 +244,7 @@ export default function AddPropertyPage() {
     type: "APARTMENT" as PropertyType,
     currency: "NGN",
     amenities: [],
+    customAmenities: [],
     houseRules: [],
     country: "Nigeria",
     bedrooms: 1,
@@ -310,6 +311,14 @@ export default function AddPropertyPage() {
           );
           return false;
         }
+        if (formData.title.length < 10) {
+          toast.error("Title must be at least 10 characters long");
+          return false;
+        }
+        if (formData.description.length < 50) {
+          toast.error("Description must be at least 50 characters long");
+          return false;
+        }
         return true;
       case "location":
         if (!formData.address || !formData.city || !formData.state) {
@@ -365,9 +374,27 @@ export default function AddPropertyPage() {
         return;
       }
 
+      // Filter out fields not supported by backend
+      const propertyData = {
+        title: formData.title,
+        description: formData.description,
+        type: formData.type,
+        pricePerNight: formData.pricePerNight,
+        currency: formData.currency || "NGN",
+        maxGuests: formData.maxGuests,
+        bedrooms: formData.bedrooms,
+        bathrooms: formData.bathrooms,
+        amenities: formData.amenities || [],
+        customAmenities: formData.customAmenities || [],
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        country: formData.country || "Nigeria",
+      };
+
       // Create property
       const property = await propertyService.createProperty(
-        formData as PropertyFormData
+        propertyData as PropertyFormData
       );
 
       // Upload images if any
@@ -461,13 +488,31 @@ export default function AddPropertyPage() {
                 value={formData.title || ""}
                 onChange={(e) => updateFormData("title", e.target.value)}
                 placeholder="e.g., Luxury Downtown Apartment with City View"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:border-transparent transition-all"
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all ${
+                  formData.title && formData.title.length < 10
+                    ? "border-red-300 focus:ring-red-200"
+                    : "border-gray-300 focus:ring-[#c7a162]"
+                }`}
                 required
+                minLength={10}
+                maxLength={200}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Choose a catchy name that highlights your property's best
-                features
-              </p>
+              <div className="flex justify-between items-center mt-1">
+                <p
+                  className={`text-xs ${
+                    formData.title && formData.title.length < 10
+                      ? "text-red-500 font-medium"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {formData.title && formData.title.length < 10
+                    ? `${10 - formData.title.length} more characters required`
+                    : "Minimum 10 characters required"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formData.title?.length || 0} / 200
+                </p>
+              </div>
             </div>
 
             <div>
@@ -499,12 +544,33 @@ export default function AddPropertyPage() {
                 onChange={(e) => updateFormData("description", e.target.value)}
                 placeholder="Describe your property in detail... Include nearby attractions, unique features, and what makes it special."
                 rows={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:border-transparent transition-all resize-none"
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all resize-none ${
+                  formData.description && formData.description.length < 50
+                    ? "border-red-300 focus:ring-red-200"
+                    : "border-gray-300 focus:ring-[#c7a162]"
+                }`}
                 required
+                minLength={50}
+                maxLength={2000}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Minimum 50 characters recommended
-              </p>
+              <div className="flex justify-between items-center mt-1">
+                <p
+                  className={`text-xs ${
+                    formData.description && formData.description.length < 50
+                      ? "text-red-500 font-medium"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {formData.description && formData.description.length < 50
+                    ? `${
+                        50 - formData.description.length
+                      } more characters required`
+                    : "Minimum 50 characters required"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formData.description?.length || 0} / 2000
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -863,6 +929,96 @@ export default function AddPropertyPage() {
               })}
             </div>
 
+            {/* Custom Amenities Section */}
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <span
+                  className="w-2 h-2 rounded-full mr-2"
+                  style={{ backgroundColor: brandColors.primary }}
+                ></span>
+                Other Amenities (Custom)
+              </h4>
+              <p className="text-xs text-gray-600 mb-4">
+                Add any unique amenities not listed above. Separate each with
+                Enter/Return.
+              </p>
+
+              {/* Input for new custom amenity */}
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  placeholder="e.g., Beach Access, Mountain View, Private Chef..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#c7a162] focus:border-transparent text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                      e.preventDefault();
+                      const value = e.currentTarget.value.trim();
+                      if (value && !formData.customAmenities?.includes(value)) {
+                        updateFormData("customAmenities", [
+                          ...(formData.customAmenities || []),
+                          value,
+                        ]);
+                        e.currentTarget.value = "";
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const input = e.currentTarget
+                      .previousElementSibling as HTMLInputElement;
+                    const value = input.value.trim();
+                    if (value && !formData.customAmenities?.includes(value)) {
+                      updateFormData("customAmenities", [
+                        ...(formData.customAmenities || []),
+                        value,
+                      ]);
+                      input.value = "";
+                    }
+                  }}
+                  className="px-4 py-2 text-white rounded-lg transition-colors text-sm font-medium"
+                  style={{ backgroundColor: brandColors.primary }}
+                >
+                  Add
+                </button>
+              </div>
+
+              {/* Display custom amenities */}
+              {formData.customAmenities &&
+                formData.customAmenities.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.customAmenities.map((amenity, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border-2"
+                        style={{
+                          borderColor: brandColors.primary,
+                          backgroundColor: brandColors.primary + "10",
+                          color: brandColors.primary,
+                        }}
+                      >
+                        <span className="font-medium">{amenity}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateFormData(
+                              "customAmenities",
+                              formData.customAmenities!.filter(
+                                (_, i) => i !== index
+                              )
+                            );
+                          }}
+                          className="hover:opacity-70 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
+
             <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-4 shadow-sm">
               <div className="flex items-start space-x-3">
                 <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
@@ -873,7 +1029,10 @@ export default function AddPropertyPage() {
                   <p className="text-xs text-yellow-700 mt-1">
                     Properties with more amenities typically receive more
                     bookings. Select all that apply to your property. Selected:{" "}
-                    {formData.amenities?.length ?? 0}
+                    {(formData.amenities?.length ?? 0) +
+                      (formData.customAmenities?.length ?? 0)}{" "}
+                    total ({formData.amenities?.length ?? 0} standard +{" "}
+                    {formData.customAmenities?.length ?? 0} custom)
                   </p>
                 </div>
               </div>

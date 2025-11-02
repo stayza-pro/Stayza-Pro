@@ -99,6 +99,7 @@ export interface Realtor {
   brandColorHex: string;
   status: RealtorStatus;
   corporateRegNumber?: string;
+  cacDocumentUrl?: string; // CAC certificate document URL
   cacStatus: CacStatus;
   cacVerifiedAt?: Date;
   cacRejectedAt?: Date;
@@ -133,6 +134,7 @@ export interface Property {
   latitude?: number;
   longitude?: number;
   amenities: PropertyAmenity[];
+  customAmenities?: string[];
   houseRules: string[];
   checkInTime: string;
   checkOutTime: string;
@@ -148,9 +150,11 @@ export interface Property {
   bookings?: Booking[];
   reviews?: Review[];
 
-  // Computed fields
+  // Computed/Analytics fields
   averageRating?: number;
   reviewCount?: number;
+  views?: number; // Total property views
+  bookingCount?: number; // Total bookings for this property
 }
 
 export interface PropertyImage {
@@ -199,6 +203,7 @@ export interface Payment {
   amount: number;
   currency: string;
   method: PaymentMethod;
+  reference?: string;
   providerId?: string;
   providerTransactionId?: string;
   status: PaymentStatus;
@@ -394,6 +399,7 @@ export interface PropertyFormData {
   bedrooms: number;
   bathrooms: number;
   amenities: PropertyAmenity[];
+  customAmenities?: string[];
   houseRules: string[];
   address: string;
   city: string;
@@ -583,3 +589,59 @@ export type DeepPartial<T> = {
 export type RequiredBy<T, K extends keyof T> = T & Required<Pick<T, K>>;
 
 export type OptionalBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+// Support System Types
+export interface SupportTicket {
+  id: string;
+  realtorId: string;
+  category: "TECHNICAL" | "BILLING" | "DISPUTE" | "GENERAL";
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  status:
+    | "OPEN"
+    | "IN_PROGRESS"
+    | "WAITING_FOR_RESPONSE"
+    | "RESOLVED"
+    | "CLOSED";
+  subject: string;
+  description: string;
+  messages?: SupportMessage[];
+  attachments?: SupportAttachment[];
+  assignedTo?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt?: Date;
+}
+
+export interface SupportMessage {
+  id: string;
+  ticketId: string;
+  userId: string;
+  message: string;
+  isFromSupport: boolean;
+  attachments?: SupportAttachment[];
+  createdAt: Date;
+}
+
+export interface SupportAttachment {
+  id: string;
+  filename: string;
+  url: string;
+  size: number;
+  mimetype: string;
+}
+
+export interface Dispute {
+  id: string;
+  bookingId: string;
+  realtorId: string;
+  guestId: string;
+  category: "REFUND" | "DAMAGE" | "CANCELLATION" | "QUALITY" | "OTHER";
+  status: "PENDING" | "UNDER_REVIEW" | "RESOLVED" | "ESCALATED";
+  amount?: number;
+  description: string;
+  evidence?: string[];
+  resolution?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt?: Date;
+}

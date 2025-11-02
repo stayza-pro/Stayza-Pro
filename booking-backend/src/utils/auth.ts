@@ -42,8 +42,7 @@ export const comparePassword = async (
 };
 
 export const generateRandomToken = (): string => {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
-  );
+  // Use crypto.randomBytes for cryptographically secure tokens
+  const crypto = require("crypto");
+  return crypto.randomBytes(32).toString("hex").substring(0, 26);
 };

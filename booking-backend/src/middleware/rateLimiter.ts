@@ -48,3 +48,27 @@ export const bookingLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// CAC submission rate limiting
+export const cacSubmissionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // limit each IP to 5 CAC submissions per hour
+  message: {
+    success: false,
+    message: "Too many CAC submission attempts. Please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// CAC appeal rate limiting
+export const cacAppealLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  max: 3, // limit each IP to 3 appeal attempts per day
+  message: {
+    success: false,
+    message: "Too many appeal attempts. Please contact support if you need assistance.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
