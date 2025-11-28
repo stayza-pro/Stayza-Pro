@@ -101,22 +101,19 @@ export default function EditPropertyPage() {
   };
 
   const removeExistingImage = async (imageUrl: string, index: number) => {
-    showConfirm(
-      "Are you sure you want to delete this image?",
-      async () => {
-        try {
-          // Extract image ID from the image object
-          const imageId = existingImages[index].id;
-          // For now, just remove from state
-          // TODO: Implement actual delete API call if available
-          setExistingImages((prev) => prev.filter((_, i) => i !== index));
-          showSuccess("Image deleted successfully");
-        } catch (error) {
-          console.error("Error deleting image:", error);
-          showError("Failed to delete image");
-        }
+    showConfirm("Are you sure you want to delete this image?", async () => {
+      try {
+        // Extract image ID from the image object
+        const imageId = existingImages[index].id;
+        // For now, just remove from state
+        // TODO: Implement actual delete API call if available
+        setExistingImages((prev) => prev.filter((_, i) => i !== index));
+        showSuccess("Image deleted successfully");
+      } catch (error) {
+        console.error("Error deleting image:", error);
+        showError("Failed to delete image");
       }
-    );
+    });
   };
 
   const handleSave = async () => {
@@ -132,7 +129,7 @@ export default function EditPropertyPage() {
       }
 
       showSuccess("Property updated successfully!");
-      router.push("/dashboard/properties");
+      router.push("/properties");
     } catch (error: any) {
       console.error("Error updating property:", error);
       showError(error.message || "Failed to update property");
@@ -142,16 +139,19 @@ export default function EditPropertyPage() {
   };
 
   const handleDelete = async () => {
-    showConfirm("Are you sure you want to delete this property? This action cannot be undone.", async () => {
-      try {
-        await propertyService.deleteProperty(propertyId);
-        showSuccess("Property deleted successfully!");
-        router.push("/dashboard/properties");
-      } catch (error) {
-        console.error("Error deleting property:", error);
-        showError("Failed to delete property");
+    showConfirm(
+      "Are you sure you want to delete this property? This action cannot be undone.",
+      async () => {
+        try {
+          await propertyService.deleteProperty(propertyId);
+          showSuccess("Property deleted successfully!");
+          router.push("/properties");
+        } catch (error) {
+          console.error("Error deleting property:", error);
+          showError("Failed to delete property");
+        }
       }
-    });
+    );
   };
 
   if (loading) {
@@ -173,7 +173,7 @@ export default function EditPropertyPage() {
           The property you're looking for doesn't exist.
         </p>
         <button
-          onClick={() => router.push("/dashboard/properties")}
+          onClick={() => router.push("/properties")}
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
         >
           Back to Properties

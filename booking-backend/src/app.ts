@@ -25,6 +25,7 @@ import emailRoutes from "@/routes/emailRoutes";
 import notificationRoutes from "@/routes/notificationRoutes";
 import refundRoutes from "@/routes/refundRoutes";
 import settingsRoutes from "@/routes/settingsRoutes";
+import brandingRoutes from "@/routes/brandingRoutes";
 
 const app = express();
 
@@ -129,6 +130,7 @@ app.use("/api/email", emailRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/refunds", refundRoutes);
 app.use("/api/admin/settings", settingsRoutes);
+app.use("/api/branding", brandingRoutes);
 
 // 404 handler
 app.use(notFound);

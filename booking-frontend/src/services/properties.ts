@@ -72,6 +72,18 @@ export const propertyService = {
     await apiClient.delete(`/properties/${id}`);
   },
 
+  // Toggle property status (DRAFT, ACTIVE, INACTIVE)
+  togglePropertyStatus: async (
+    id: string,
+    status: "DRAFT" | "ACTIVE" | "INACTIVE"
+  ): Promise<Property> => {
+    const response = await apiClient.patch<Property>(
+      `/properties/${id}/status`,
+      { status }
+    );
+    return response.data;
+  },
+
   // Upload property images
   uploadImages: async (
     propertyId: string,

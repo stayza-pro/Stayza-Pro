@@ -13,6 +13,7 @@ import {
   XCircle,
   Copy,
   Eye,
+  Wallet,
 } from "lucide-react";
 
 export default function RefundRequestsPage() {
@@ -140,7 +141,7 @@ export default function RefundRequestsPage() {
                   <p className="text-2xl font-bold text-gray-900 mt-1">$0</p>
                 </div>
                 <div className="p-3 bg-blue-100 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-blue-600" />
+                  <Wallet className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
             </div>

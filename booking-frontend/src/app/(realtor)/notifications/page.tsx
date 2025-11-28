@@ -19,6 +19,7 @@ import {
   Eye,
   Loader2,
   AlertCircle,
+  Wallet,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -116,7 +117,7 @@ export default function NotificationsPage() {
       case "REVIEW":
         return <Star className="w-5 h-5 text-yellow-600" />;
       case "PAYMENT":
-        return <DollarSign className="w-5 h-5 text-green-600" />;
+        return <Wallet className="w-5 h-5 text-green-600" />;
       default:
         return <Bell className="w-5 h-5 text-gray-600" />;
     }

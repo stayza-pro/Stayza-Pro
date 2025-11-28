@@ -24,6 +24,29 @@ import { config } from "@/config";
 import { getEmailVerificationUrl, getDashboardUrl } from "@/utils/domains";
 
 /**
+ * Helper function to clean up expired pending registrations
+ * This prevents the database from filling up with unverified registrations
+ */
+async function cleanupExpiredPendingRegistrations() {
+  try {
+    const deleted = await prisma.pendingRegistration.deleteMany({
+      where: {
+        otpExpires: {
+          lt: new Date(), // Less than current time = expired
+        },
+      },
+    });
+    if (deleted.count > 0) {
+      console.log(
+        `🧹 Cleaned up ${deleted.count} expired pending registrations`
+      );
+    }
+  } catch (error) {
+    console.error("Error cleaning up expired pending registrations:", error);
+  }
+}
+
+/**
  * Helper function to build main domain URLs
  */
 function buildMainDomainUrl(path: string, host?: string): string {
@@ -44,7 +67,16 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError(error.details[0].message, 400);
   }
 
-  const { email, password, firstName, lastName, phone, role = "GUEST" } = value;
+  const {
+    email,
+    password,
+    firstName,
+    lastName,
+    phone,
+    role = "GUEST",
+    realtorId, // The realtor ID if registering via subdomain
+    referralSource, // e.g., "subdomain:akin-ma-lofa"
+  } = value;
 
   // Validate role
   if (!["GUEST", "REALTOR", "ADMIN"].includes(role)) {
@@ -88,6 +120,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       isEmailVerified: false,
       emailVerificationToken,
       emailVerificationExpires,
+      referredByRealtorId: realtorId || null, // Link guest to realtor
+      referralSource: referralSource || null, // Track referral source
     },
     select: {
       id: true,
@@ -97,6 +131,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       role: true,
       phone: true,
       isEmailVerified: true,
+      referredByRealtorId: true,
+      referralSource: true,
       createdAt: true,
     },
   });
@@ -660,3 +696,380 @@ export const resetPassword = asyncHandler(
     });
   }
 );
+
+/**
+ * @desc    Register user without password (passwordless) - sends OTP
+ * @route   POST /api/auth/register-passwordless
+ * @access  Public
+ */
+export const registerPasswordless = asyncHandler(
+  async (req: Request, res: Response) => {
+    const {
+      email,
+      firstName,
+      lastName,
+      role = "GUEST",
+      realtorId,
+      referralSource,
+    } = req.body;
+
+    // Clean up expired pending registrations (run asynchronously, don't wait)
+    cleanupExpiredPendingRegistrations().catch(console.error);
+
+    // Validate required fields
+    if (!email || !firstName || !lastName) {
+      throw new AppError("Email, first name, and last name are required", 400);
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new AppError("Please provide a valid email address", 400);
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      // If user is VERIFIED, they should use login instead
+      if (existingUser.isEmailVerified) {
+        throw new AppError(
+          "User with this email already exists. Please login instead.",
+          400
+        );
+      }
+
+      // If user is UNVERIFIED (from old flow or expired registration),
+      // delete them and allow re-registration with new flow
+      console.log(`🧹 Cleaning up unverified user: ${email}`);
+      await prisma.user.delete({
+        where: { id: existingUser.id },
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Store registration data temporarily - user will only be created after OTP verification
+    // Delete any existing pending registration for this email first
+    await prisma.pendingRegistration.deleteMany({
+      where: { email },
+    });
+
+    // Create new pending registration
+    await prisma.pendingRegistration.create({
+      data: {
+        email,
+        firstName,
+        lastName,
+        role,
+        referredByRealtorId: realtorId || null,
+        referralSource: referralSource || null,
+        otp,
+        otpExpires,
+      },
+    });
+
+    // Send OTP email
+    try {
+      await sendEmailVerification(email, otp, `${firstName} ${lastName}`);
+    } catch (emailError) {
+      // Log OTP to console in development if email fails
+      if (config.NODE_ENV === "development") {
+        console.log("\n========================================");
+        console.log("📧 EMAIL SENDING FAILED - DEVELOPMENT MODE");
+        console.log("========================================");
+        console.log(`Email: ${email}`);
+        console.log(`OTP Code: ${otp}`);
+        console.log(`Expires: ${otpExpires.toLocaleString()}`);
+        console.log("========================================\n");
+      }
+      // Don't throw error - allow registration to continue
+    }
+
+    res.status(201).json({
+      success: true,
+      message:
+        config.NODE_ENV === "development"
+          ? `Verification code: ${otp} (Check console - email service unavailable)`
+          : "Verification code sent to your email",
+      data: {
+        email,
+        expiresIn: "10 minutes",
+        ...(config.NODE_ENV === "development" && { otp }), // Include OTP in dev mode
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Request OTP for login (passwordless)
+ * @route   POST /api/auth/request-otp
+ * @access  Public
+ */
+export const requestOTP = asyncHandler(async (req: Request, res: Response) => {
+  const { email, type = "login" } = req.body;
+
+  if (!email) {
+    throw new AppError("Email is required", 400);
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new AppError("Please provide a valid email address", 400);
+  }
+
+  // Check if user exists
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new AppError("No account found with this email address", 404);
+  }
+
+  // Check if user is a GUEST
+  if (user.role !== "GUEST") {
+    throw new AppError(
+      "Passwordless login is only available for guest accounts",
+      400
+    );
+  }
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  // Store OTP in user record
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerificationToken: otp,
+      emailVerificationExpires: otpExpires,
+    },
+  });
+
+  // Send OTP email
+  try {
+    await sendEmailVerification(
+      email,
+      otp,
+      user.fullName || `${user.firstName} ${user.lastName}`
+    );
+  } catch (emailError) {
+    // Log OTP to console in development if email fails
+    if (config.NODE_ENV === "development") {
+      console.log("\n========================================");
+      console.log("📧 EMAIL SENDING FAILED - DEVELOPMENT MODE");
+      console.log("========================================");
+      console.log(`Email: ${email}`);
+      console.log(`OTP Code: ${otp}`);
+      console.log(`Expires: ${otpExpires.toLocaleString()}`);
+      console.log("========================================\n");
+    }
+    // Don't throw error - allow login to continue
+  }
+
+  res.json({
+    success: true,
+    message:
+      config.NODE_ENV === "development"
+        ? `Verification code: ${otp} (Check console - email service unavailable)`
+        : "Verification code sent to your email",
+    data: {
+      email,
+      expiresIn: "10 minutes",
+      ...(config.NODE_ENV === "development" && { otp }), // Include OTP in dev mode
+    },
+  });
+});
+
+/**
+ * @desc    Verify OTP for registration
+ * @route   POST /api/auth/verify-registration
+ * @access  Public
+ */
+export const verifyRegistration = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      throw new AppError("Email and OTP are required", 400);
+    }
+
+    // Find pending registration with this email and OTP
+    const pendingReg = await prisma.pendingRegistration.findFirst({
+      where: {
+        email,
+        otp,
+      },
+    });
+
+    if (!pendingReg) {
+      throw new AppError("Invalid or expired verification code", 400);
+    }
+
+    // Check if OTP is expired
+    if (pendingReg.otpExpires < new Date()) {
+      throw new AppError("Verification code has expired", 400);
+    }
+
+    // Check if user already exists (in case they verified after registering elsewhere)
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      // Clean up pending registration
+      await prisma.pendingRegistration.delete({
+        where: { id: pendingReg.id },
+      });
+      throw new AppError("User with this email already exists", 400);
+    }
+
+    // NOW create the actual user in the database (verified from the start)
+    const user = await prisma.user.create({
+      data: {
+        email: pendingReg.email,
+        password: "", // Empty password for passwordless
+        firstName: pendingReg.firstName,
+        lastName: pendingReg.lastName,
+        fullName: `${pendingReg.firstName} ${pendingReg.lastName}`,
+        role: pendingReg.role,
+        isEmailVerified: true, // Already verified via OTP
+        referredByRealtorId: pendingReg.referredByRealtorId,
+        referralSource: pendingReg.referralSource,
+      },
+      include: {
+        realtor: {
+          select: {
+            status: true,
+            businessName: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    // Delete the pending registration
+    await prisma.pendingRegistration.delete({
+      where: { id: pendingReg.id },
+    });
+
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    // Send welcome email (non-blocking - don't fail registration if email fails)
+    try {
+      await sendWelcomeEmail(
+        email,
+        user.fullName || `${user.firstName} ${user.lastName}`
+      );
+    } catch (emailError) {
+      // Log error but don't block registration
+      console.log(
+        "⚠️  Welcome email failed to send, but registration completed successfully"
+      );
+      if (config.NODE_ENV === "development") {
+        console.log("Email error:", emailError);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Account verified successfully",
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: user.fullName,
+          role: user.role,
+          isEmailVerified: user.isEmailVerified,
+          realtor: user.realtor,
+        },
+        accessToken,
+        refreshToken,
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Verify OTP for login
+ * @route   POST /api/auth/verify-login
+ * @access  Public
+ */
+export const verifyLogin = asyncHandler(async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    throw new AppError("Email and OTP are required", 400);
+  }
+
+  // Find user with this email and OTP
+  const user = await prisma.user.findFirst({
+    where: {
+      email,
+      emailVerificationToken: otp,
+      role: "GUEST", // Only guests can use passwordless login
+    },
+    include: {
+      realtor: {
+        select: {
+          status: true,
+          businessName: true,
+          slug: true,
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    throw new AppError("Invalid or expired verification code", 400);
+  }
+
+  // Check if OTP is expired
+  if (
+    user.emailVerificationExpires &&
+    user.emailVerificationExpires < new Date()
+  ) {
+    throw new AppError("Verification code has expired", 400);
+  }
+
+  // Clear OTP
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerificationToken: null,
+      emailVerificationExpires: null,
+    },
+  });
+
+  // Generate tokens
+  const { accessToken, refreshToken } = generateTokens(user);
+
+  res.json({
+    success: true,
+    message: "Login successful",
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+        realtor: user.realtor,
+      },
+      accessToken,
+      refreshToken,
+    },
+  });
+});

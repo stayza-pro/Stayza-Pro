@@ -5,7 +5,7 @@
 export type UserRole = "GUEST" | "REALTOR" | "ADMIN";
 export type RealtorStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 export type CacStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
-export type PropertyStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
+export type PropertyStatus = "DRAFT" | "ACTIVE" | "INACTIVE";
 export type PropertyType =
   | "APARTMENT"
   | "HOUSE"
@@ -78,17 +78,24 @@ export interface User {
   emailVerificationToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+
+  // Guest-Realtor relationship
+  referredByRealtorId?: string;
+  referralSource?: string;
+
   createdAt: Date;
   updatedAt: Date;
 
   // Relations
   realtor?: Realtor;
+  referredByRealtor?: Realtor; // The realtor who referred this guest
 }
 
 export interface Realtor {
   id: string;
   userId: string;
   businessName: string;
+  tagline?: string;
   slug: string;
   description?: string;
   logoUrl?: string;
@@ -96,7 +103,22 @@ export interface Realtor {
   businessPhone?: string;
   businessEmail?: string;
   businessAddress?: string;
-  brandColorHex: string;
+
+  // Branding colors
+  primaryColor: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  brandColorHex: string; // Legacy field
+
+  // Social media
+  websiteUrl?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  linkedinUrl?: string;
+  facebookUrl?: string;
+  youtubeUrl?: string;
+  whatsappType?: string;
+
   status: RealtorStatus;
   corporateRegNumber?: string;
   cacDocumentUrl?: string; // CAC certificate document URL

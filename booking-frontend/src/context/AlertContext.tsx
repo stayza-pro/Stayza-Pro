@@ -18,11 +18,7 @@ interface AlertContextType {
   showError: (message: string, title?: string) => void;
   showWarning: (message: string, title?: string) => void;
   showInfo: (message: string, title?: string) => void;
-  showConfirm: (
-    message: string,
-    onConfirm: () => void,
-    title?: string
-  ) => void;
+  showConfirm: (message: string, onConfirm: () => void, title?: string) => void;
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);

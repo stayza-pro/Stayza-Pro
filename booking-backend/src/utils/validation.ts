@@ -10,6 +10,8 @@ export const registerSchema = Joi.object({
   role: Joi.string().valid("GUEST", "REALTOR").optional(),
   country: Joi.string().optional(),
   city: Joi.string().optional(),
+  realtorId: Joi.string().optional(), // Realtor ID for guest referrals
+  referralSource: Joi.string().optional(), // Referral source (e.g., "subdomain:akin-ma-lofa")
 });
 
 export const loginSchema = Joi.object({

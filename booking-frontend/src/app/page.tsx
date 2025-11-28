@@ -1,6 +1,40 @@
-import { redirect } from "next/navigation";
+"use client";
 
-// This page only renders when the app is built statically (output: 'export')
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getRealtorSubdomain, isAdminSubdomain } from "@/utils/subdomain";
+
+// Root page router - directs based on subdomain
 export default function RootPage() {
-  redirect("/en");
+  const router = useRouter();
+
+  useEffect(() => {
+    const subdomain = getRealtorSubdomain();
+    const isAdmin = isAdminSubdomain();
+
+    // Admin subdomain -> admin login
+    if (isAdmin) {
+      router.push("/admin/login");
+      return;
+    }
+
+    // Realtor subdomain -> guest landing with realtor branding
+    if (subdomain) {
+      router.push("/guest-landing");
+      return;
+    }
+
+    // Main domain -> marketing site
+    router.push("/en");
+  }, [router]);
+
+  // Loading state
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
 }

@@ -273,20 +273,10 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
       {/* Map Container */}
       <div
         ref={mapRef}
-        className="w-full h-full bg-gray-100 rounded-lg overflow-hidden relative"
-        style={{
-          backgroundImage: `
-            linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
-            linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
-            linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)
-          `,
-          backgroundSize: "20px 20px",
-          backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
-        }}
+        className="w-full h-full bg-gray-200 rounded-lg overflow-hidden relative"
       >
         {/* Mock Map Tiles */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-green-100 opacity-30" />
+        <div className="absolute inset-0 bg-blue-50 opacity-40" />
 
         {/* Map Controls */}
         <div className="absolute top-4 right-4 z-20 space-y-2">
@@ -396,7 +386,7 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
             onClose={() => onPropertySelect?.(null)}
             onViewDetails={() => {
               // Navigate to property details
-              window.location.href = `/properties/${selectedProperty.id}`;
+              window.location.href = `/browse/${selectedProperty.id}`;
             }}
           />
         )}

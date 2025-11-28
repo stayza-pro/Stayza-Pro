@@ -139,16 +139,19 @@ export default function EditPropertyPage() {
   };
 
   const handleDelete = async () => {
-    showConfirm("Are you sure you want to delete this property? This action cannot be undone.", async () => {
-      try {
-        await propertyService.deleteProperty(propertyId);
-        showSuccess("Property deleted successfully!");
-        router.push("/dashboard/properties");
-      } catch (error) {
-        console.error("Error deleting property:", error);
-        showError("Failed to delete property");
+    showConfirm(
+      "Are you sure you want to delete this property? This action cannot be undone.",
+      async () => {
+        try {
+          await propertyService.deleteProperty(propertyId);
+          showSuccess("Property deleted successfully!");
+          router.push("/dashboard/properties");
+        } catch (error) {
+          console.error("Error deleting property:", error);
+          showError("Failed to delete property");
+        }
       }
-    });
+    );
   };
 
   if (loading) {

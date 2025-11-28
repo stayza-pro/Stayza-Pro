@@ -10,6 +10,10 @@ import {
   resendVerification,
   forgotPassword,
   resetPassword,
+  registerPasswordless,
+  requestOTP,
+  verifyRegistration,
+  verifyLogin,
 } from "@/controllers/authController";
 import { authenticate } from "@/middleware/auth";
 import { authLimiter } from "@/middleware/rateLimiter";
@@ -602,5 +606,11 @@ router.put("/profile", authenticate, updateProfile);
  *               $ref: '#/components/schemas/ApiError'
  */
 router.post("/logout", authenticate, logout);
+
+// Passwordless auth routes
+router.post("/register-passwordless", authLimiter, registerPasswordless);
+router.post("/request-otp", authLimiter, requestOTP);
+router.post("/verify-registration", authLimiter, verifyRegistration);
+router.post("/verify-login", authLimiter, verifyLogin);
 
 export default router;

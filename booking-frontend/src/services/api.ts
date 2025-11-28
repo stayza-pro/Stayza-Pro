@@ -54,6 +54,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
+        console.log("🔄 API: Attempting token refresh...");
         const refreshToken = localStorage.getItem("refreshToken");
         if (!refreshToken) {
           throw new Error("No refresh token available");
@@ -65,6 +66,7 @@ api.interceptors.response.use(
 
         const { accessToken } = response.data;
         localStorage.setItem("accessToken", accessToken);
+        console.log("✅ API: Token refresh successful");
 
         // Retry original request with new token
         if (originalRequest.headers) {
@@ -72,10 +74,32 @@ api.interceptors.response.use(
         }
         return api(originalRequest);
       } catch (refreshError) {
-        // Refresh failed, clear tokens but don't redirect
-        // Let the calling component handle the redirect appropriately
+        // Refresh failed, clear tokens and update auth store
+        console.log("❌ API: Token refresh failed:", refreshError);
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
+
+        // Update auth store to reflect logout state
+        if (typeof window !== "undefined") {
+          // Clear cookies as well
+          import("@/utils/cookies").then(({ deleteCookie }) => {
+            deleteCookie("accessToken");
+            deleteCookie("refreshToken");
+          });
+
+          // Dynamically import to avoid SSR issues
+          import("@/store/authStore").then(({ useAuthStore }) => {
+            useAuthStore.setState({
+              user: null,
+              accessToken: null,
+              refreshToken: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: "Session expired. Please login again.",
+            });
+          });
+        }
+
         return Promise.reject(refreshError);
       }
     }
@@ -91,7 +115,7 @@ api.interceptors.response.use(
       "An error occurred";
 
     // Don't show toast for certain errors
-    const silentErrors = [400, 401, 404];
+    const silentErrors = [400, 401, 403, 404];
     if (
       error.response?.status &&
       !silentErrors.includes(error.response.status)

@@ -277,7 +277,10 @@ export default function PropertiesPage() {
                           <div className="flex items-center text-sm text-gray-600">
                             <DollarSign className="h-4 w-4 mr-2" />
                             <span>
-                              ${property.pricePerNight?.toLocaleString()}/night
+                              $
+                              {Math.round((property.pricePerNight || 0) * 100) /
+                                100}
+                              /night
                             </span>
                           </div>
 

@@ -23,17 +23,28 @@ import { useRealtorStats } from "@/hooks/realtor/useRealtorStats";
 import { useBusinessInsights } from "@/hooks/realtor/useBusinessInsights";
 import { useBookingsData } from "@/hooks/realtor/useBookingsData";
 import { useRevenueData } from "@/hooks/realtor/useRevenueData";
+import { useApprovalStatus } from "@/hooks/useApprovalStatus";
 import { useAuth } from "@/context/AuthContext";
 import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 import { format } from "date-fns";
+import { ApprovalStatusPage } from "@/components/realtor/ApprovalStatusPage";
 
 export default function RealtorDashboardPage() {
   const { user } = useAuth();
   const { showSuccess } = useAlert();
   const { branding } = useBranding();
   const realtorSubdomain = getRealtorSubdomain();
+
+  // Check approval status first
+  const {
+    data: approvalData,
+    isLoading: approvalLoading,
+    error: approvalError,
+  } = useApprovalStatus();
+
+  // Always call hooks (React rules), but conditionally enable them
   const {
     data: statsData,
     isLoading: statsLoading,
@@ -55,6 +66,24 @@ export default function RealtorDashboardPage() {
     showSuccess("Copied to clipboard!");
   };
 
+  // Show loading state while checking approval
+  if (approvalLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 mx-auto mb-4 text-gray-400 animate-spin" />
+          <p className="text-gray-600 font-medium">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is not fully approved, show approval page
+  if (approvalData && !approvalData.isFullyApproved) {
+    return <ApprovalStatusPage {...approvalData} />;
+  }
+
+  // Show loading state for dashboard stats
   if (statsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -124,10 +153,7 @@ export default function RealtorDashboardPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <span className="text-gray-600 text-sm">Your website:</span>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="relative group"
-            >
+            <motion.div whileHover={{ scale: 1.05 }} className="relative group">
               <span
                 className="font-bold px-4 py-2 rounded-lg text-sm border-2 cursor-pointer"
                 style={{
@@ -183,7 +209,7 @@ export default function RealtorDashboardPage() {
         {[
           {
             label: "Total Revenue",
-            value: `₦${stats.totalRevenue.toLocaleString()}`,
+            value: `₦${Math.round(stats.totalRevenue * 100) / 100}`,
             icon: TrendingUp,
             iconBg: "bg-green-50",
             iconColor: "text-green-600",
@@ -484,7 +510,7 @@ export default function RealtorDashboardPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-gray-900">
-                    ₦{booking.totalPrice?.toLocaleString()}
+                    ₦{Math.round((booking.totalPrice || 0) * 100) / 100}
                   </p>
                   <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded">
                     {booking.status}

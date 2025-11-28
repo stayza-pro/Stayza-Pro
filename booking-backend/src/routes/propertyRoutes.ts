@@ -9,6 +9,7 @@ import {
   uploadPropertyImages,
   deletePropertyImage,
   reorderPropertyImages,
+  togglePropertyStatus,
 } from "@/controllers/propertyController";
 import {
   authenticate,
@@ -655,6 +656,50 @@ router.put(
   },
   updateProperty
 );
+
+/**
+ * @swagger
+ * /api/properties/{id}/status:
+ *   patch:
+ *     summary: Toggle property status (DRAFT, ACTIVE, INACTIVE)
+ *     tags: [Properties]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [DRAFT, ACTIVE, INACTIVE]
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ *       400:
+ *         description: Invalid status or property not complete
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Property not found
+ */
+router.patch(
+  "/:id/status",
+  authenticate,
+  authorize("REALTOR"),
+  requireApprovedRealtor,
+  togglePropertyStatus
+);
+
 router.delete(
   "/:id",
   authenticate,

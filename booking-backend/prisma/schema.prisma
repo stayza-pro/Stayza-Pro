@@ -22,6 +22,12 @@ enum PropertyType {
    OTHER
 }
 
+enum PropertyStatus {
+   DRAFT // Being created, not visible to guests
+   ACTIVE // Published and bookable
+   INACTIVE // Temporarily hidden (maintenance, etc.)
+}
+
 enum BookingStatus {
    PENDING
    CONFIRMED
@@ -73,11 +79,16 @@ model User {
    emailVerificationToken   String?
    emailVerificationExpires DateTime?
 
+   // Guest-Realtor relationship (for guests registered via realtor subdomains)
+   referredByRealtorId String? // Tracks which realtor referred this guest
+   referralSource      String? // e.g., "subdomain:akin-ma-lofa" or "direct"
+
    createdAt DateTime @default(now())
    updatedAt DateTime @updatedAt
 
    // Relations
    realtor                Realtor?
+   referredByRealtor      Realtor?                @relation("ReferredGuests", fields: [referredByRealtorId], references: [id])
    bookings               Booking[]
    reviews                Review[]
    reviewResponses        ReviewResponse[]
@@ -138,6 +149,7 @@ model Realtor {
 
    // Relations
    user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+   referredGuests User[]          @relation("ReferredGuests")
    properties     Property[]
    refundRequests RefundRequest[]
 
@@ -145,13 +157,13 @@ model Realtor {
 }
 
 model Property {
-   id              String       @id @default(cuid())
+   id              String         @id @default(cuid())
    realtorId       String
    title           String
    description     String
    type            PropertyType
-   pricePerNight   Decimal      @db.Decimal(10, 2)
-   currency        String       @default("NGN")
+   pricePerNight   Decimal        @db.Decimal(10, 2)
+   currency        String         @default("NGN")
    maxGuests       Int
    bedrooms        Int
    bathrooms       Int
@@ -159,11 +171,12 @@ model Property {
    city            String
    state           String?
    country         String
-   amenities       String[]     @default([])
-   customAmenities String[]     @default([])
-   isActive        Boolean      @default(true)
-   createdAt       DateTime     @default(now())
-   updatedAt       DateTime     @updatedAt
+   amenities       String[]       @default([])
+   customAmenities String[]       @default([])
+   status          PropertyStatus @default(DRAFT)
+   isActive        Boolean        @default(true) // Deprecated: Use status instead
+   createdAt       DateTime       @default(now())
+   updatedAt       DateTime       @updatedAt
 
    // Relations
    realtor       Realtor         @relation(fields: [realtorId], references: [id], onDelete: Cascade)
@@ -509,4 +522,22 @@ model PlatformSettings {
    @@index([category])
    @@index([isActive])
    @@map("platform_settings")
+}
+
+model PendingRegistration {
+   id                  String   @id @default(cuid())
+   email               String   @unique
+   firstName           String
+   lastName            String
+   role                UserRole @default(GUEST)
+   referredByRealtorId String?
+   referralSource      String?
+   otp                 String
+   otpExpires          DateTime
+   createdAt           DateTime @default(now())
+   updatedAt           DateTime @updatedAt
+
+   @@index([email])
+   @@index([otpExpires])
+   @@map("pending_registrations")
 }

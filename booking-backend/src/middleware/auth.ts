@@ -38,6 +38,19 @@ export const authenticate = async (
         phone: true,
         createdAt: true,
         updatedAt: true,
+        referredByRealtorId: true,
+        referredByRealtor: {
+          select: {
+            id: true,
+            businessName: true,
+            tagline: true,
+            logoUrl: true,
+            primaryColor: true,
+            secondaryColor: true,
+            accentColor: true,
+            description: true,
+          },
+        },
       },
     });
 
@@ -134,6 +147,19 @@ export const optionalAuth = async (
         phone: true,
         createdAt: true,
         updatedAt: true,
+        referredByRealtorId: true,
+        referredByRealtor: {
+          select: {
+            id: true,
+            businessName: true,
+            tagline: true,
+            logoUrl: true,
+            primaryColor: true,
+            secondaryColor: true,
+            accentColor: true,
+            description: true,
+          },
+        },
       },
     });
 
@@ -323,6 +349,7 @@ export const requireRealtorDashboardAccess = async (
         suspendedAt: true,
         suspensionExpiresAt: true,
         canAppeal: true,
+        cacRejectionReason: true,
       },
     });
 
@@ -348,13 +375,17 @@ export const requireRealtorDashboardAccess = async (
       }
     }
 
-    // Allow dashboard access even with pending CAC
-    // Attach realtor info to request for later use
+    // Allow dashboard access for all approval states
+    // Attach full realtor info to request for later use
     req.realtor = {
       id: realtor.id,
       status: realtor.status,
       businessName: realtor.businessName,
-    };
+      cacStatus: realtor.cacStatus,
+      canAppeal: realtor.canAppeal,
+      cacRejectionReason: realtor.cacRejectionReason,
+      isApproved: realtor.status === 'APPROVED' && realtor.cacStatus === 'APPROVED' && !realtor.suspendedAt
+    } as any;
 
     next();
   } catch (error) {

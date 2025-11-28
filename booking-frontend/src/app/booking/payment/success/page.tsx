@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { Footer } from "@/components/guest/sections";
 import { PaymentStatus } from "@/components/payment";
 import { Card, Button, Loading } from "@/components/ui";
 import { paymentService, serviceUtils } from "@/services";
@@ -125,7 +125,10 @@ const PaymentSuccessContent = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
+      <GuestHeader
+        currentPage="profile"
+        searchPlaceholder="Search location..."
+      />
       <main className="flex-1 flex items-center">
         <div className="w-full max-w-3xl mx-auto px-4 py-10">
           {!reference ? (
@@ -209,7 +212,10 @@ const PaymentSuccessPage = () => {
     <Suspense
       fallback={
         <div className="min-h-screen flex flex-col bg-gray-50">
-          <Header />
+          <GuestHeader
+            currentPage="profile"
+            searchPlaceholder="Search location..."
+          />
           <main className="flex-1 flex items-center justify-center">
             <Loading size="lg" />
           </main>

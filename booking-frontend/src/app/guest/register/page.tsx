@@ -2,35 +2,11 @@
 
 import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-// UI components replaced with marketing theme classes
-import {
-  User,
-  Mail,
-  Lock,
-  ArrowLeft,
-  Shield,
-  CheckCircle,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { User, Mail, ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
-import { palette } from "@/app/(marketing)/content";
 import toast from "react-hot-toast";
-// Simple phone validation function
-const validatePhoneNumber = (phone: string) => {
-  if (!phone || !phone.trim()) {
-    return { isValid: false, errorMessage: "Phone number is required" };
-  }
-  // Basic phone validation - accepts most common formats
-  const phoneRegex = /^[\+]?[\d\s\-\(\)]{7,15}$/;
-  return {
-    isValid: phoneRegex.test(phone.replace(/\s/g, "")),
-    errorMessage: phoneRegex.test(phone.replace(/\s/g, ""))
-      ? undefined
-      : "Invalid phone number format",
-  };
-};
-import PhoneNumberFormatter from "@/components/ui/PhoneNumberFormatter";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { getRealtorSubdomain } from "@/utils/subdomain";
 
 // Force dynamic rendering since this page uses search params
 export const dynamic = "force-dynamic";
@@ -38,67 +14,67 @@ export const dynamic = "force-dynamic";
 interface GuestRegistrationData {
   fullName: string;
   email: string;
-  password: string;
-  confirmPassword: string;
-  phoneNumber: string;
 }
 
 function GuestRegistrationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnTo = searchParams.get("returnTo") || "/dashboard";
+  const returnTo = searchParams.get("returnTo") || "/guest-landing";
   const propertyId = searchParams.get("propertyId");
+
+  // Use the reusable realtor branding hook
+  const {
+    realtorBranding,
+    brandColor: primaryColor, // 60% - Primary brand color for backgrounds and dominant elements
+    secondaryColor, // 30% - Secondary color for text and borders
+    accentColor, // 10% - Accent color for CTAs and highlights
+    realtorName,
+    logoUrl,
+    tagline,
+    isLoading: brandingLoading,
+  } = useRealtorBranding();
+
+  // State for hydration-safe subdomain detection
+  const [realtorSubdomain, setRealtorSubdomain] = useState<string | null>(null);
+  const [realtorId, setRealtorId] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Handle client-side hydration
+  React.useEffect(() => {
+    setIsClient(true);
+    const subdomain = getRealtorSubdomain();
+    setRealtorSubdomain(subdomain);
+  }, []);
+
+  // Extract realtorId from branding data
+  React.useEffect(() => {
+    if (realtorBranding && "id" in realtorBranding) {
+      setRealtorId((realtorBranding as any).id);
+    }
+  }, [realtorBranding]);
 
   const [data, setData] = useState<GuestRegistrationData>({
     fullName: "",
     email: "",
-    password: "",
-    confirmPassword: "",
-    phoneNumber: "",
   });
 
   const [errors, setErrors] = useState<Partial<GuestRegistrationData>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<GuestRegistrationData> = {};
 
-    // Full name validation
     if (!data.fullName.trim()) {
       newErrors.fullName = "Full name is required";
     } else if (data.fullName.trim().length < 2) {
       newErrors.fullName = "Full name must be at least 2 characters";
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!data.email) {
       newErrors.email = "Email is required";
     } else if (!emailRegex.test(data.email)) {
       newErrors.email = "Please enter a valid email address";
-    }
-
-    // Phone validation
-    const phoneValidation = validatePhoneNumber(data.phoneNumber);
-    if (!phoneValidation.isValid) {
-      newErrors.phoneNumber =
-        phoneValidation.errorMessage || "Invalid phone number";
-    }
-
-    // Password validation
-    if (!data.password) {
-      newErrors.password = "Password is required";
-    } else if (data.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-    }
-
-    // Confirm password validation
-    if (!data.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (data.password !== data.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
     }
 
     setErrors(newErrors);
@@ -122,18 +98,25 @@ function GuestRegistrationContent() {
         firstName,
         lastName,
         email: data.email,
-        password: data.password,
-        phone: data.phoneNumber,
         role: "GUEST",
+        realtorId: realtorId || undefined,
+        referralSource: realtorSubdomain
+          ? `subdomain:${realtorSubdomain}`
+          : undefined,
       };
 
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+      const response = await fetch(
+        `${backendUrl}/api/auth/register-passwordless`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       const result = await response.json();
 
@@ -141,12 +124,30 @@ function GuestRegistrationContent() {
         throw new Error(result.message || "Registration failed");
       }
 
-      toast.success(
-        "Registration successful! Please check your email to verify your account."
-      );
+      // Show OTP in toast if in development mode
+      if (result.data?.otp) {
+        toast.success(`Dev Mode: Your OTP is ${result.data.otp}`, {
+          duration: 10000,
+        });
+      } else {
+        toast.success(
+          result.message || "Verification code sent! Check your email."
+        );
+      }
 
-      // Redirect to email verification or login
-      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+      // Redirect to OTP verification page with email and context
+      const otpParams = new URLSearchParams({
+        email: data.email,
+        type: "register",
+        firstName,
+        lastName,
+        ...(realtorId && { realtorId }),
+        ...(realtorSubdomain && {
+          referralSource: `subdomain:${realtorSubdomain}`,
+        }),
+      });
+
+      router.push(`/auth/verify-otp?${otpParams.toString()}`);
     } catch (error: any) {
       console.error("Registration error:", error);
       toast.error(error.message || "Registration failed. Please try again.");
@@ -160,261 +161,487 @@ function GuestRegistrationContent() {
     value: string
   ) => {
     setData((prev) => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
+  // Use realtor branding colors or defaults
+  const businessName = realtorName;
+  const logo = logoUrl || "";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center space-x-2">
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-              <span className="text-gray-600 hover:text-gray-900">
-                Back to Home
-              </span>
-            </Link>
-            <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Stayza
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#FFF8F0", // Warm beige/off-white background
+      }}
+    >
+      {/* Header - Minimal & Clean */}
+      <div
+        style={{
+          background: "white",
+          borderBottom: "1px solid #e5e7eb",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1200px",
+            margin: "0 auto",
+            padding: "1.5rem 2rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* Logo/Brand */}
+          <Link
+            href="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+              textDecoration: "none",
+            }}
+          >
+            {logo && logo.trim() !== "" ? (
+              <img
+                src={logo}
+                alt={businessName}
+                style={{
+                  height: 48,
+                  width: 48,
+                  borderRadius: 12,
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: primaryColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.5rem",
+                  fontWeight: 700,
+                  color: "white",
+                }}
+              >
+                {businessName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <h1
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: 700,
+                  color: secondaryColor, // 30% - Secondary for brand name
+                  margin: 0,
+                }}
+              >
+                {businessName}
+              </h1>
+              <p
+                style={{
+                  fontSize: "0.75rem",
+                  color: `${secondaryColor}99`, // 30% - Secondary with opacity
+                  margin: 0,
+                }}
+              >
+                {tagline}
+              </p>
             </div>
-          </div>
+          </Link>
+
+          {/* Login Link */}
+          <Link
+            href="/guest/login"
+            style={{
+              color: accentColor, // 10% - Accent for CTA link
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textDecoration: "none",
+              padding: "0.5rem 1rem",
+              borderRadius: 8,
+              transition: "all 0.2s",
+            }}
+          >
+            Already have an account? Sign in
+          </Link>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <User className="h-6 w-6 text-blue-600" />
+      <div
+        style={{
+          maxWidth: "480px",
+          margin: "0 auto",
+          padding: "3rem 1.5rem",
+        }}
+      >
+        {/* Title Section */}
+        <div
+          style={{
+            position: "relative",
+            textAlign: "center",
+            marginBottom: "2.5rem",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "2rem",
+              fontWeight: 700,
+              color: secondaryColor, // 30% - Secondary for heading
+              marginBottom: "0.75rem",
+            }}
+          >
+            Create Your Account
+          </h2>
+          <p style={{ color: `${secondaryColor}80`, fontSize: "0.9375rem" }}>
+            {" "}
+            {/* 30% - Secondary with opacity */}
+            {isClient && realtorSubdomain
+              ? `Join ${businessName} to book amazing properties`
+              : "Get started with your booking journey"}
+          </p>
+          {isClient && realtorSubdomain && (
+            <div
+              style={{
+                marginTop: "1rem",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.5rem 1rem",
+                background: `${primaryColor}10`,
+                borderRadius: 999,
+                fontSize: "0.8125rem",
+                color: primaryColor,
+                fontWeight: 500,
+              }}
+            >
+              <Check size={14} />
+              Registering with {businessName}
             </div>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              Create Guest Account
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Join Stayza to book amazing properties
-            </p>
-          </div>
+          )}
+        </div>
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              {/* Full Name */}
-              <div>
-                <label
-                  htmlFor="fullName"
-                  className="block text-sm font-medium text-gray-700"
+        {/* Registration Form Card */}
+        <div
+          style={{
+            background: "white",
+            borderRadius: 20,
+            padding: "2.5rem",
+            boxShadow:
+              "0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
+            border: "1px solid rgba(0, 0, 0, 0.05)",
+          }}
+        >
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
+          >
+            {/* Full Name */}
+            <div>
+              <label
+                htmlFor="fullName"
+                style={{
+                  display: "block",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  color: secondaryColor, // 30% - Secondary for labels
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Full Name
+              </label>
+              <div style={{ position: "relative" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "1rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: `${secondaryColor}60`, // 30% - Secondary for icon
+                  }}
                 >
-                  Full Name
-                </label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="fullName"
-                    type="text"
-                    value={data.fullName}
-                    onChange={(e) =>
-                      handleInputChange("fullName", e.target.value)
-                    }
-                    className={`block w-full pl-10 pr-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.fullName ? "border-red-300" : "border-gray-300"
-                    }`}
-                    placeholder="Enter your full name"
-                  />
+                  <User size={18} />
                 </div>
-                {errors.fullName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
-                )}
-              </div>
-
-              {/* Email */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Email Address
-                </label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    value={data.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={`block w-full pl-10 pr-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.email ? "border-red-300" : "border-gray-300"
-                    }`}
-                    placeholder="Enter your email"
-                  />
-                </div>
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                )}
-              </div>
-
-              {/* Phone Number */}
-              <div>
-                <label
-                  htmlFor="phoneNumber"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Phone Number
-                </label>
-                <PhoneNumberFormatter
-                  value={data.phoneNumber}
-                  onChange={(value) => handleInputChange("phoneNumber", value)}
-                  placeholder="Enter your phone number"
+                <input
+                  id="fullName"
+                  type="text"
+                  value={data.fullName}
+                  onChange={(e) =>
+                    handleInputChange("fullName", e.target.value)
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "0.875rem 1rem 0.875rem 2.75rem",
+                    border: `1.5px solid ${
+                      errors.fullName ? "#ef4444" : "#e5e7eb"
+                    }`,
+                    borderRadius: 12,
+                    fontSize: "0.9375rem",
+                    outline: "none",
+                    transition: "all 0.2s",
+                    boxSizing: "border-box",
+                  }}
+                  placeholder="Enter your full name"
+                  onFocus={(e) => {
+                    e.target.style.borderColor = errors.fullName
+                      ? "#ef4444"
+                      : secondaryColor; // 30% - Secondary on focus
+                    e.target.style.boxShadow = `0 0 0 3px ${secondaryColor}15`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = errors.fullName
+                      ? "#ef4444"
+                      : "#e5e7eb";
+                    e.target.style.boxShadow = "none";
+                  }}
                 />
               </div>
-
-              {/* Password */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700"
+              {errors.fullName && (
+                <p
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "0.8125rem",
+                    marginTop: "0.375rem",
+                  }}
                 >
-                  Password
-                </label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={data.password}
-                    onChange={(e) =>
-                      handleInputChange("password", e.target.value)
-                    }
-                    className={`block w-full pl-10 pr-10 py-2 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.password ? "border-red-300" : "border-gray-300"
-                    }`}
-                    placeholder="Create a password"
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                )}
-              </div>
+                  {errors.fullName}
+                </p>
+              )}
+            </div>
 
-              {/* Confirm Password */}
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-sm font-medium text-gray-700"
+            {/* Email */}
+            <div>
+              <label
+                htmlFor="email"
+                style={{
+                  display: "block",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  color: secondaryColor, // 30% - Secondary for labels
+                  marginBottom: "0.5rem",
+                }}
+              >
+                Email Address
+              </label>
+              <div style={{ position: "relative" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "1rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: `${secondaryColor}60`, // 30% - Secondary for icon
+                  }}
                 >
-                  Confirm Password
-                </label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Shield className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={data.confirmPassword}
-                    onChange={(e) =>
-                      handleInputChange("confirmPassword", e.target.value)
-                    }
-                    className={`block w-full pl-10 pr-10 py-2 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.confirmPassword
-                        ? "border-red-300"
-                        : "border-gray-300"
-                    }`}
-                    placeholder="Confirm your password"
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
-                    )}
-                  </button>
+                  <Mail size={18} />
                 </div>
-                {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.confirmPassword}
-                  </p>
-                )}
+                <input
+                  id="email"
+                  type="email"
+                  value={data.email}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "0.875rem 1rem 0.875rem 2.75rem",
+                    border: `1.5px solid ${
+                      errors.email ? "#ef4444" : "#e5e7eb"
+                    }`,
+                    borderRadius: 12,
+                    fontSize: "0.9375rem",
+                    outline: "none",
+                    transition: "all 0.2s",
+                    boxSizing: "border-box",
+                  }}
+                  placeholder="you@example.com"
+                  onFocus={(e) => {
+                    e.target.style.borderColor = errors.email
+                      ? "#ef4444"
+                      : secondaryColor; // 30% - Secondary on focus
+                    e.target.style.boxShadow = `0 0 0 3px ${secondaryColor}15`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = errors.email
+                      ? "#ef4444"
+                      : "#e5e7eb";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
               </div>
+              {errors.email && (
+                <p
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "0.8125rem",
+                    marginTop: "0.375rem",
+                  }}
+                >
+                  {errors.email}
+                </p>
+              )}
+            </div>
+
+            {/* Security Note */}
+            <div
+              style={{
+                padding: "1rem",
+                background: `${primaryColor}08`, // 60% - Primary for subtle background
+                borderRadius: 8,
+                border: `1px solid ${primaryColor}30`,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "0.8125rem",
+                  color: secondaryColor,
+                  margin: 0,
+                }}
+              >
+                {" "}
+                {/* 30% - Secondary for text */}
+                🔐 We'll send a verification code to your email. No password
+                needed!
+              </p>
             </div>
 
             {/* Submit Button */}
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <CheckCircle className="h-5 w-5 mr-2" />
-                    Create Guest Account
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Login Link */}
-            <div className="text-center">
-              <p className="text-sm text-gray-600">
-                Already have an account?{" "}
-                <Link
-                  href="/guest/login"
-                  className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
-                >
-                  Sign in here
-                </Link>
-              </p>
-            </div>
-
-            {/* Role Switch */}
-            <div className="text-center pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mb-2">
-                Are you a property owner?
-              </p>
-              <Link
-                href="/realtor/register"
-                className="text-sm font-medium text-purple-600 hover:text-purple-500 transition-colors"
-              >
-                Register as a Realtor →
-              </Link>
-            </div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{
+                width: "100%",
+                padding: "1rem",
+                background: accentColor, // 10% - Accent for primary CTA
+                color: "white",
+                border: "none",
+                borderRadius: 12,
+                fontSize: "1rem",
+                fontWeight: 600,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.7 : 1,
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.boxShadow = `0 8px 20px ${accentColor}40`;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              {isLoading ? (
+                <div
+                  style={{
+                    display: "inline-block",
+                    width: 20,
+                    height: 20,
+                    border: "2px solid rgba(255, 255, 255, 0.3)",
+                    borderTop: "2px solid white",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight size={18} />
+                </>
+              )}
+            </button>
           </form>
         </div>
+
+        {/* Footer Note */}
+        <p
+          style={{
+            textAlign: "center",
+            color: `${secondaryColor}60`, // 30% - Secondary for footer text
+            fontSize: "0.8125rem",
+            marginTop: "1.5rem",
+          }}
+        >
+          By creating an account, you agree to our{" "}
+          <Link href="/legal/terms" style={{ color: accentColor }}>
+            {" "}
+            {/* 10% - Accent for link CTAs */}
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/legal/privacy" style={{ color: accentColor }}>
+            Privacy Policy
+          </Link>
+        </p>
+
+        {/* Footer Branding */}
+        <p
+          style={{
+            textAlign: "center",
+            color: `${secondaryColor}60`, // 30% - Secondary for footer text
+            fontSize: "0.8125rem",
+            marginTop: "1rem",
+          }}
+        >
+          Powered by Stayza Pro
+        </p>
       </div>
+
+      {/* CSS Animation for spinner */}
+      <style jsx>{`
+        @keyframes spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
 export default function GuestRegisterPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: "100vh",
+            backgroundColor: "#FFF8F0", // Warm beige/off-white background
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              border: "3px solid #e5e7eb",
+              borderTop: "3px solid #3B82F6",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+        </div>
+      }
+    >
       <GuestRegistrationContent />
     </Suspense>
   );

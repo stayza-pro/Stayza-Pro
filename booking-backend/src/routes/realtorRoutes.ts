@@ -9,6 +9,7 @@ import {
   cacUploadMiddleware,
   getRealtorProfile,
   updateRealtorProfile,
+  deleteRealtorAccount,
   getPublicRealtorProfile,
   startStripeOnboarding,
   getStripeAccountStatusController,
@@ -21,6 +22,7 @@ import {
   getDashboardStats,
   getRecentBookings,
 } from "@/controllers/realtorController";
+import { getApprovalStatus } from "@/controllers/approvalController";
 import {
   submitCacVerification,
   resubmitCacVerification,
@@ -35,9 +37,16 @@ import {
   getRevenueAnalytics,
 } from "@/controllers/analyticsController";
 import {
+  getBankList,
+  verifyBankAccount,
+  saveBankAccount,
+  getPayoutSettings,
+} from "@/controllers/payoutController";
+import {
   authenticate,
   requireRole,
   requireApprovedRealtor,
+  requireRealtorDashboardAccess,
 } from "@/middleware/auth";
 import {
   cacSubmissionLimiter,
@@ -422,7 +431,6 @@ router.post(
   "/upload-logo",
   authenticate,
   requireRole("REALTOR"),
-  requireApprovedRealtor,
   uploadMiddleware,
   uploadLogo
 );
@@ -590,16 +598,88 @@ router.put(
   "/profile",
   authenticate,
   requireRole("REALTOR"),
-  requireApprovedRealtor,
   updateRealtorProfile
 );
 
-// Dashboard endpoints
+/**
+ * @swagger
+ * /api/realtors/approval-status:
+ *   get:
+ *     summary: Get realtor approval status
+ *     description: Get detailed approval status including business and CAC verification stages
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Approval status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     approvalStage:
+ *                       type: string
+ *                       enum: [pending, business_review, cac_review, cac_rejected, approved, rejected, suspended]
+ *                     isFullyApproved:
+ *                       type: boolean
+ *                     message:
+ *                       type: string
+ *                     nextSteps:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     estimatedTimeframe:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Realtor profile not found
+ */
+router.get(
+  "/approval-status",
+  authenticate,
+  requireRole("REALTOR"),
+  getApprovalStatus
+);
+
+/**
+ * @swagger
+ * /api/realtors/profile:
+ *   delete:
+ *     summary: Delete realtor account and all associated data
+ *     description: Permanently deletes the realtor account, all properties, bookings, reviews, and related data. This action cannot be undone.
+ *     tags: [Realtors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Account successfully deleted
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Realtor profile not found
+ */
+router.delete(
+  "/profile",
+  authenticate,
+  requireRole("REALTOR"),
+  deleteRealtorAccount
+);
+
+// Dashboard endpoints - Allow access for pending approval
 router.get(
   "/dashboard/stats",
   authenticate,
   requireRole("REALTOR"),
-  requireApprovedRealtor,
+  requireRealtorDashboardAccess,
   getDashboardStats
 );
 
@@ -607,7 +687,7 @@ router.get(
   "/bookings/recent",
   authenticate,
   requireRole("REALTOR"),
-  requireApprovedRealtor,
+  requireRealtorDashboardAccess,
   getRecentBookings
 );
 
@@ -663,12 +743,7 @@ router.post(
   requireRole("REALTOR"),
   submitCacVerification
 );
-router.get(
-  "/cac/status",
-  authenticate,
-  requireRole("REALTOR"),
-  getCacStatus
-);
+router.get("/cac/status", authenticate, requireRole("REALTOR"), getCacStatus);
 
 /**
  * @swagger
@@ -883,7 +958,7 @@ router.get(
   "/analytics",
   authenticate,
   requireRole("REALTOR"),
-  requireApprovedRealtor,
+  requireRealtorDashboardAccess,
   getRealtorAnalytics
 );
 
@@ -981,7 +1056,7 @@ router.get(
   "/revenue-analytics",
   authenticate,
   requireRole("REALTOR"),
-  requireApprovedRealtor,
+  requireRealtorDashboardAccess,
   getRevenueAnalytics
 );
 
@@ -1038,5 +1113,118 @@ router.get(
  *         description: Realtor not found or not approved
  */
 router.get("/:slug", getPublicRealtorProfile);
+
+// ===========================
+// Payout Settings Routes
+// ===========================
+
+/**
+ * @swagger
+ * /api/realtors/payout/banks:
+ *   get:
+ *     summary: Get list of Nigerian banks
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Banks list retrieved successfully
+ */
+router.get("/payout/banks", authenticate, requireRole("REALTOR"), getBankList);
+
+/**
+ * @swagger
+ * /api/realtors/payout/verify:
+ *   post:
+ *     summary: Verify bank account details
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - accountNumber
+ *               - bankCode
+ *             properties:
+ *               accountNumber:
+ *                 type: string
+ *               bankCode:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Account verified successfully
+ *       400:
+ *         description: Invalid account details
+ */
+router.post(
+  "/payout/verify",
+  authenticate,
+  requireRole("REALTOR"),
+  verifyBankAccount
+);
+
+/**
+ * @swagger
+ * /api/realtors/payout/account:
+ *   post:
+ *     summary: Save bank account and create Paystack subaccount
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - bankCode
+ *               - bankName
+ *               - accountNumber
+ *               - accountName
+ *             properties:
+ *               bankCode:
+ *                 type: string
+ *               bankName:
+ *                 type: string
+ *               accountNumber:
+ *                 type: string
+ *               accountName:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Bank account set up successfully
+ *       403:
+ *         description: CAC verification required
+ */
+router.post(
+  "/payout/account",
+  authenticate,
+  requireRole("REALTOR"),
+  saveBankAccount
+);
+
+/**
+ * @swagger
+ * /api/realtors/payout/settings:
+ *   get:
+ *     summary: Get payout settings
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payout settings retrieved successfully
+ */
+router.get(
+  "/payout/settings",
+  authenticate,
+  requireRole("REALTOR"),
+  getPayoutSettings
+);
 
 export default router;

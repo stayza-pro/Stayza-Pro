@@ -25,11 +25,17 @@ interface FiltersState {
 interface SearchFiltersProps {
   onFiltersChange?: (filters: FiltersState) => void;
   className?: string;
+  primaryColor?: string; // 60% - Main theme color
+  secondaryColor?: string; // 30% - Secondary elements
+  accentColor?: string; // 10% - CTAs and highlights
 }
 
 export const SearchFilters: React.FC<SearchFiltersProps> = ({
   onFiltersChange,
   className = "",
+  primaryColor = "#3B82F6", // Default blue
+  secondaryColor = "#059669", // Default green
+  accentColor = "#D97706", // Default orange
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [filters, setFilters] = useState<FiltersState>({
@@ -87,8 +93,13 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
     <Card className={`p-6 ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
-          <Filter className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+          <Filter className="h-5 w-5" style={{ color: secondaryColor }} />
+          <h3
+            className="text-lg font-semibold"
+            style={{ color: secondaryColor }}
+          >
+            Filters
+          </h3>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -96,7 +107,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
             variant="ghost"
             size="sm"
             onClick={clearFilters}
-            className="text-gray-600"
+            className="transition-colors"
+            style={{ color: secondaryColor }}
           >
             Clear All
           </Button>
@@ -105,7 +117,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-gray-600"
+            style={{ color: secondaryColor }}
           >
             {isExpanded ? (
               <X className="h-4 w-4" />
@@ -120,7 +132,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
         {/* Price Range */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            className="block text-sm font-medium mb-2"
+            style={{ color: secondaryColor }}
+          >
             <DollarSign className="h-4 w-4 inline mr-1" />
             Price Range
           </label>
@@ -135,10 +150,11 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
                   min: parseInt(e.target.value) ?? 0,
                 })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              className="w-full px-3 py-2 border rounded-md text-sm"
+              style={{ borderColor: `${secondaryColor}40` }}
               placeholder="Min"
             />
-            <span className="text-gray-500">-</span>
+            <span style={{ color: `${secondaryColor}60` }}>-</span>
             <input
               type="number"
               min="0"
@@ -149,7 +165,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
                   max: parseInt(e.target.value) || 1000,
                 })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              className="w-full px-3 py-2 border rounded-md text-sm"
+              style={{ borderColor: `${secondaryColor}40` }}
               placeholder="Max"
             />
           </div>
@@ -157,14 +174,18 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 
         {/* Property Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            className="block text-sm font-medium mb-2"
+            style={{ color: secondaryColor }}
+          >
             <Home className="h-4 w-4 inline mr-1" />
             Property Type
           </label>
           <select
             value={filters.propertyType}
             onChange={(e) => handleFilterChange("propertyType", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-3 py-2 border rounded-md text-sm"
+            style={{ borderColor: `${secondaryColor}40` }}
           >
             <option value="">All Types</option>
             {propertyTypes.map((type) => (
@@ -177,7 +198,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 
         {/* Rating */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            className="block text-sm font-medium mb-2"
+            style={{ color: secondaryColor }}
+          >
             <Star className="h-4 w-4 inline mr-1" />
             Minimum Rating
           </label>
@@ -186,7 +210,8 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
             onChange={(e) =>
               handleFilterChange("minRating", parseFloat(e.target.value))
             }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            className="w-full px-3 py-2 border rounded-md text-sm"
+            style={{ borderColor: `${secondaryColor}40` }}
           >
             <option value={0}>Any Rating</option>
             <option value={3}>3+ Stars</option>
@@ -197,7 +222,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 
         {/* Instant Book */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label
+            className="block text-sm font-medium mb-2"
+            style={{ color: secondaryColor }}
+          >
             Quick Options
           </label>
           <label className="flex items-center">
@@ -207,34 +235,59 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
               onChange={(e) =>
                 handleFilterChange("instantBook", e.target.checked)
               }
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+              className="rounded mr-2"
+              style={{
+                color: accentColor,
+                accentColor: accentColor,
+                borderColor: `${secondaryColor}40`,
+              }}
             />
-            <span className="text-sm text-gray-700">Instant Book</span>
+            <span className="text-sm" style={{ color: secondaryColor }}>
+              Instant Book
+            </span>
           </label>
         </div>
       </div>
 
       {/* Expanded filters */}
       {isExpanded && (
-        <div className="border-t border-gray-200 pt-4">
+        <div
+          className="border-t pt-4"
+          style={{ borderColor: `${secondaryColor}20` }}
+        >
           <div className="space-y-4">
             {/* Amenities */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label
+                className="block text-sm font-medium mb-3"
+                style={{ color: secondaryColor }}
+              >
                 Amenities
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {amenities.map((amenity) => {
                   const IconComponent = amenity.icon;
+                  const isSelected = filters.amenities.includes(amenity.value);
                   return (
                     <button
                       key={amenity.value}
                       onClick={() => toggleAmenity(amenity.value)}
                       className={`flex items-center space-x-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                        filters.amenities.includes(amenity.value)
-                          ? "bg-blue-100 border-blue-300 text-blue-700"
-                          : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                        !isSelected ? "" : ""
                       }`}
+                      style={
+                        isSelected
+                          ? {
+                              backgroundColor: `${accentColor}20`,
+                              borderColor: `${accentColor}60`,
+                              color: accentColor,
+                            }
+                          : {
+                              backgroundColor: "white",
+                              borderColor: `${secondaryColor}30`,
+                              color: secondaryColor,
+                            }
+                      }
                     >
                       <IconComponent className="h-4 w-4" />
                       <span>{amenity.label}</span>

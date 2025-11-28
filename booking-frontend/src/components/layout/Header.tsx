@@ -1,16 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui";
 import { useAuthStore } from "../../store/authStore";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 
 export const Header: React.FC = () => {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Get realtor branding
+  const { brandColor, realtorName, logoUrl } = useRealtorBranding();
+
+  // Add scroll listener
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -37,17 +52,34 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header
+      className={`bg-white border-b border-gray-200 transition-all duration-300 sticky top-0 z-50 ${
+        isScrolled ? "shadow-md" : "shadow-sm"
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">B</span>
-              </div>
+            <Link href="/guest-landing" className="flex items-center space-x-2">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={realtorName}
+                  className="w-8 h-8 rounded-lg object-cover"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  <span className="text-white font-bold text-lg">
+                    {realtorName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
               <span className="text-xl font-bold text-gray-900">
-                BookingHub
+                {realtorName}
               </span>
             </Link>
           </div>
@@ -55,15 +87,17 @@ export const Header: React.FC = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link
-              href="/properties"
-              className="text-gray-600 hover:text-gray-900 transition-colors"
+              href="/browse"
+              className="transition-colors hover:opacity-80"
+              style={{ color: brandColor }}
             >
               Browse Properties
             </Link>
             {isAuthenticated && user?.role === "REALTOR" && (
               <Link
                 href="/realtor/properties"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="transition-colors hover:opacity-80"
+                style={{ color: brandColor }}
               >
                 My Properties
               </Link>
@@ -109,7 +143,10 @@ export const Header: React.FC = () => {
                         unoptimized
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: brandColor }}
+                      >
                         <span className="text-white text-sm font-medium">
                           {user?.firstName?.charAt(0) || "U"}
                         </span>
@@ -118,24 +155,26 @@ export const Header: React.FC = () => {
                   </button>
 
                   {/* Dropdown Menu */}
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                    <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform group-hover:translate-y-0 translate-y-1">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-gray-900">
                         {user?.firstName} {user?.lastName}
                       </p>
-                      <p className="text-sm text-gray-500">{user?.email}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {user?.email}
+                      </p>
                     </div>
 
                     <Link
                       href={getDashboardLink()}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-medium"
                     >
                       Dashboard
                     </Link>
 
                     <Link
                       href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Profile Settings
                     </Link>
@@ -144,13 +183,13 @@ export const Header: React.FC = () => {
                       <>
                         <Link
                           href="/realtor/bookings"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           My Bookings
                         </Link>
                         <Link
                           href="/realtor/properties"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           My Properties
                         </Link>
@@ -158,18 +197,44 @@ export const Header: React.FC = () => {
                     )}
 
                     {user?.role === "GUEST" && (
-                      <Link
-                        href="/bookings"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        My Bookings
-                      </Link>
+                      <>
+                        <Link
+                          href="/guest/profile"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Profile
+                        </Link>
+                        <Link
+                          href="/guest/bookings"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          My Bookings
+                        </Link>
+                        <Link
+                          href="/guest/favorites"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Favourites
+                        </Link>
+                        <Link
+                          href="/guest/history"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          History
+                        </Link>
+                        <Link
+                          href="/guest/messages"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Messages
+                        </Link>
+                      </>
                     )}
 
-                    <div className="border-t border-gray-100">
+                    <div className="border-t border-gray-100 mt-2 pt-2">
                       <button
                         onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium"
                       >
                         Sign Out
                       </button>
@@ -298,7 +363,11 @@ export const Header: React.FC = () => {
                   </Link>
                   <Link
                     href="/guest/register"
-                    className="block px-4 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors font-medium"
+                    className="block px-4 py-2 font-medium rounded-md transition-colors"
+                    style={{
+                      color: brandColor,
+                      backgroundColor: `${brandColor}10`,
+                    }}
                   >
                     Sign Up
                   </Link>

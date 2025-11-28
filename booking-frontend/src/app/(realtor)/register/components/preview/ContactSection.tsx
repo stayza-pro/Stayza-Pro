@@ -110,7 +110,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
   deviceType = "desktop",
 }) => {
   const { showSuccess, showInfo } = useAlert();
-  
+
   const contactMethods = [
     {
       icon: Phone,

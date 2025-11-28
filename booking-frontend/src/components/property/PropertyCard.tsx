@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Property } from "../../types";
 import { Card } from "../ui";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 
 interface PropertyCardProps {
   property: Property;
@@ -13,6 +14,9 @@ interface PropertyCardProps {
   className?: string;
   layout?: "vertical" | "horizontal";
   onHover?: (hovered: boolean) => void;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
 }
 
 export const PropertyCard: React.FC<PropertyCardProps> = ({
@@ -22,7 +26,17 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   className = "",
   layout = "vertical",
   onHover,
+  primaryColor,
+  secondaryColor,
+  accentColor,
 }) => {
+  const { brandColor } = useRealtorBranding();
+
+  // Use provided colors or fall back to brandColor/defaults
+  const effectivePrimaryColor: string = primaryColor || brandColor || "#3B82F6";
+  const effectiveSecondaryColor: string = secondaryColor || "#1F2937";
+  const effectiveAccentColor: string = accentColor || "#F59E0B";
+
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -39,27 +53,43 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
   const getRatingDisplay = () => {
     if (!property.averageRating || !property.reviewCount) {
-      return <span className="text-gray-500 text-sm">New</span>;
+      return (
+        <span
+          className="text-sm"
+          style={{ color: `${effectiveSecondaryColor}80` }}
+        >
+          New
+        </span>
+      );
     }
 
     return (
       <div className="flex items-center space-x-1">
         <svg
-          className="w-4 h-4 text-yellow-400 fill-current"
+          className="w-4 h-4 fill-current"
           viewBox="0 0 20 20"
+          style={{ color: effectiveAccentColor }}
         >
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.518 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
         </svg>
-        <span className="text-sm font-medium text-gray-900">
+        <span
+          className="text-sm font-medium"
+          style={{ color: effectiveSecondaryColor }}
+        >
           {property.averageRating.toFixed(1)}
         </span>
-        <span className="text-sm text-gray-500">({property.reviewCount})</span>
+        <span
+          className="text-sm"
+          style={{ color: `${effectiveSecondaryColor}80` }}
+        >
+          ({property.reviewCount})
+        </span>
       </div>
     );
   };
 
   return (
-    <Link href={`/properties/${property.id}`}>
+    <Link href={`/browse/${property.id}`}>
       <Card
         className={`group hover:shadow-lg transition-shadow duration-200 overflow-hidden ${
           layout === "horizontal" ? "flex" : ""
@@ -87,12 +117,14 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
               />
             ) : (
               <div
-                className={`bg-gray-200 flex items-center justify-center ${
+                className={`flex items-center justify-center ${
                   layout === "horizontal" ? "w-full h-full" : "w-full h-48"
                 }`}
+                style={{ backgroundColor: `${effectiveSecondaryColor}10` }}
               >
                 <svg
-                  className="w-12 h-12 text-gray-400"
+                  className="w-12 h-12"
+                  style={{ color: `${effectiveSecondaryColor}40` }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -114,9 +146,12 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             className="absolute top-3 right-3 p-2 rounded-full bg-white bg-opacity-80 hover:bg-opacity-100 transition-all duration-200 shadow-sm"
           >
             <svg
-              className={`w-5 h-5 ${
-                isFavorited ? "text-red-500 fill-current" : "text-gray-600"
-              }`}
+              className="w-5 h-5 fill-current"
+              style={{
+                color: isFavorited
+                  ? effectiveAccentColor
+                  : `${effectiveSecondaryColor}60`,
+              }}
               fill={isFavorited ? "currentColor" : "none"}
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -132,7 +167,13 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
           {/* Property Type Badge */}
           <div className="absolute top-3 left-3">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-90 text-gray-800 capitalize">
+            <span
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+              style={{
+                backgroundColor: `${effectiveSecondaryColor}20`,
+                color: effectiveSecondaryColor,
+              }}
+            >
               {property.type.toLowerCase().replace("_", " ")}
             </span>
           </div>
@@ -169,7 +210,10 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
         >
           <div>
             {/* Location */}
-            <div className="flex items-center text-sm text-gray-600 mb-2">
+            <div
+              className="flex items-center text-sm mb-2"
+              style={{ color: `${effectiveSecondaryColor}99` }}
+            >
               <svg
                 className="w-4 h-4 mr-1"
                 fill="none"
@@ -196,18 +240,29 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
             {/* Title */}
             <h3
-              className={`font-semibold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors ${
+              className={`font-semibold line-clamp-2 transition-colors ${
                 layout === "horizontal" ? "text-lg mb-2" : "text-lg mb-2"
               }`}
+              style={{
+                color: effectiveSecondaryColor,
+                transition: "color 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = effectivePrimaryColor)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = effectiveSecondaryColor)
+              }
             >
               {property.title}
             </h3>
 
             {/* Property Details */}
             <div
-              className={`flex items-center text-sm text-gray-600 ${
+              className={`flex items-center text-sm ${
                 layout === "horizontal" ? "space-x-4 mb-2" : "space-x-4 mb-3"
               }`}
+              style={{ color: `${effectiveSecondaryColor}99` }}
             >
               <div className="flex items-center">
                 <svg
@@ -276,26 +331,41 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
           >
             {getRatingDisplay()}
             <div className="text-right">
-              <div className="text-xl font-bold text-gray-900">
+              <div
+                className="text-xl font-bold"
+                style={{ color: effectiveAccentColor }}
+              >
                 {formatPrice(property.pricePerNight, property.currency)}
               </div>
-              <div className="text-sm text-gray-600">per night</div>
+              <div
+                className="text-sm"
+                style={{ color: `${effectiveSecondaryColor}80` }}
+              >
+                per night
+              </div>
             </div>
           </div>
 
           {/* Realtor Info */}
           {property.realtor && (
             <div
-              className={`flex items-center border-t border-gray-100 ${
+              className={`flex items-center border-t ${
                 layout === "horizontal" ? "mt-2 pt-2" : "mt-3 pt-3"
               }`}
+              style={{ borderColor: `${effectiveSecondaryColor}20` }}
             >
-              <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: effectivePrimaryColor }}
+              >
                 <span className="text-white text-xs font-medium">
                   {property.realtor.businessName}
                 </span>
               </div>
-              <span className="ml-2 text-sm text-gray-600">
+              <span
+                className="ml-2 text-sm"
+                style={{ color: `${effectiveSecondaryColor}80` }}
+              >
                 By {property.realtor.businessName}
               </span>
             </div>

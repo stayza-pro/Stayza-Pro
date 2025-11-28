@@ -61,6 +61,9 @@ export default function PropertiesPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [quickViewProperty, setQuickViewProperty] = useState<Property | null>(
+    null
+  );
 
   const brandColors = branding?.colors || {
     primary: "#3B82F6",
@@ -85,6 +88,9 @@ export default function PropertiesPage() {
         limit: 12,
         query: searchQuery || undefined,
       });
+
+      console.log("Properties response:", response);
+      console.log("First property images:", response.data?.[0]?.images);
 
       setProperties(response.data || []);
       setTotalPages(response.pagination?.totalPages || 1);
@@ -112,6 +118,46 @@ export default function PropertiesPage() {
     );
   };
 
+  const handleToggleStatus = async (
+    id: string,
+    currentStatus: PropertyStatus
+  ) => {
+    try {
+      // Determine next status
+      let newStatus: PropertyStatus;
+      if (currentStatus === "DRAFT" || currentStatus === "INACTIVE") {
+        newStatus = "ACTIVE";
+      } else {
+        newStatus = "INACTIVE";
+      }
+
+      console.log("Toggling property:", { id, currentStatus, newStatus });
+      await propertyService.togglePropertyStatus(id, newStatus);
+      showSuccess(
+        `Property ${
+          newStatus === "ACTIVE" ? "activated" : "deactivated"
+        } successfully!`
+      );
+      fetchProperties();
+    } catch (error: any) {
+      console.error("Error toggling property status:", error);
+      console.error("Error response:", error.response?.data);
+
+      // Show specific validation errors if available
+      const errorData = error.response?.data;
+      const errorMessage =
+        typeof errorData === "string"
+          ? errorData
+          : typeof errorData?.message === "string"
+          ? errorData.message
+          : typeof errorData?.error === "string"
+          ? errorData.error
+          : "Failed to update property status. Please try again.";
+
+      showError(errorMessage);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
@@ -119,19 +165,26 @@ export default function PropertiesPage() {
   };
 
   const statusConfig = {
-    active: {
+    DRAFT: {
+      label: "Draft",
+      icon: Clock,
+      bg: "bg-gray-50",
+      text: "text-gray-700",
+      border: "border-gray-200",
+    },
+    ACTIVE: {
       label: "Active",
       icon: CheckCircle2,
       bg: "bg-green-50",
       text: "text-green-700",
       border: "border-green-200",
     },
-    inactive: {
+    INACTIVE: {
       label: "Inactive",
       icon: XCircle,
-      bg: "bg-red-50",
-      text: "text-red-700",
-      border: "border-red-200",
+      bg: "bg-orange-50",
+      text: "text-orange-700",
+      border: "border-orange-200",
     },
   };
 
@@ -265,15 +318,24 @@ export default function PropertiesPage() {
                   },
                   {
                     label: "Total Views",
-                    value: properties.reduce((total, p) => total + (p.views || 0), 0),
+                    value: properties.reduce(
+                      (total, p) => total + (p.views || 0),
+                      0
+                    ),
                     icon: Eye,
                     color: "#8B5CF6", // purple
                   },
                   {
                     label: "Avg. Rating",
-                    value: properties.length > 0
-                      ? (properties.reduce((total, p) => total + (p.averageRating || 0), 0) / properties.length).toFixed(1)
-                      : "0.0",
+                    value:
+                      properties.length > 0
+                        ? (
+                            properties.reduce(
+                              (total, p) => total + (p.averageRating || 0),
+                              0
+                            ) / properties.length
+                          ).toFixed(1)
+                        : "0.0",
                     icon: Star,
                     color: "#F59E0B", // amber
                   },
@@ -517,15 +579,30 @@ export default function PropertiesPage() {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-8"
                   >
                     {properties.map((property, index) => {
-                      const statusKey = property.isActive
-                        ? "active"
-                        : "inactive";
-                      const status = statusConfig[statusKey];
-                      const StatusIcon = status.icon;
+                      // Safely get property status with fallback
+                      const propertyStatus =
+                        (property.status as PropertyStatus) || "DRAFT";
+                      const status =
+                        statusConfig[propertyStatus] || statusConfig.DRAFT;
+                      const StatusIcon = status?.icon || Clock;
                       const isHovered = hoveredProperty === property.id;
+
+                      // Debug logging for first property
+                      if (index === 0) {
+                        console.log("First property in grid:", {
+                          id: property.id,
+                          title: property.title,
+                          status: property.status,
+                          propertyStatus,
+                          hasImages: property.images?.length || 0,
+                          price: property.pricePerNight,
+                          address: property.address,
+                          city: property.city,
+                        });
+                      }
 
                       return (
                         <motion.div
@@ -558,10 +635,16 @@ export default function PropertiesPage() {
                             <div className="absolute top-3 right-3">
                               <motion.div
                                 whileHover={{ scale: 1.1 }}
-                                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${status.bg} ${status.text} ${status.border} border-2 shadow-lg backdrop-blur-sm`}
+                                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                                  status?.bg || "bg-gray-50"
+                                } ${status?.text || "text-gray-700"} ${
+                                  status?.border || "border-gray-200"
+                                } border-2 shadow-lg backdrop-blur-sm`}
                               >
-                                <StatusIcon className="w-3.5 h-3.5" />
-                                <span>{status.label}</span>
+                                {StatusIcon && (
+                                  <StatusIcon className="w-3.5 h-3.5" />
+                                )}
+                                <span>{status?.label || "Draft"}</span>
                               </motion.div>
                             </div>
 
@@ -574,10 +657,18 @@ export default function PropertiesPage() {
                                   exit={{ opacity: 0, scale: 0 }}
                                   className="absolute top-3 left-3"
                                 >
-                                  <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white/90 text-gray-800 shadow-lg backdrop-blur-sm">
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setQuickViewProperty(property);
+                                    }}
+                                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white/90 text-gray-800 shadow-lg backdrop-blur-sm hover:bg-white transition-all"
+                                  >
                                     <Eye className="w-3.5 h-3.5" />
                                     <span>Quick View</span>
-                                  </div>
+                                  </motion.button>
                                 </motion.div>
                               )}
                             </AnimatePresence>
@@ -611,7 +702,9 @@ export default function PropertiesPage() {
                               <div className="flex items-center text-sm font-bold text-green-600">
                                 <span className="mr-1">₦</span>
                                 <span>
-                                  {property.pricePerNight?.toLocaleString()}
+                                  {Number(
+                                    property.pricePerNight || 0
+                                  ).toLocaleString()}
                                   <span className="text-gray-500 font-normal">
                                     /night
                                   </span>
@@ -665,7 +758,8 @@ export default function PropertiesPage() {
                                 <div className="flex items-center justify-center">
                                   <Star className="w-3.5 h-3.5 text-yellow-400 fill-current mr-0.5" />
                                   <p className="text-sm font-bold text-gray-900">
-                                    {property.averageRating?.toFixed(1) || "0.0"}
+                                    {property.averageRating?.toFixed(1) ||
+                                      "0.0"}
                                   </p>
                                 </div>
                               </div>
@@ -691,14 +785,28 @@ export default function PropertiesPage() {
                                 whileTap={{ scale: 0.95 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.open(
-                                    `/properties/${property.id}`,
-                                    "_blank"
+                                  handleToggleStatus(
+                                    property.id,
+                                    propertyStatus
                                   );
                                 }}
-                                className="flex items-center justify-center px-4 py-2.5 border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 text-sm font-bold text-gray-700 shadow-md hover:shadow-lg transition-all"
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all text-sm font-bold shadow-md hover:shadow-xl ${
+                                  propertyStatus === "ACTIVE"
+                                    ? "bg-orange-500 hover:bg-orange-600 text-white"
+                                    : "bg-green-500 hover:bg-green-600 text-white"
+                                }`}
                               >
-                                <Eye className="h-4 w-4" />
+                                {propertyStatus === "ACTIVE" ? (
+                                  <>
+                                    <XCircle className="h-4 w-4" />
+                                    Deactivate
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Activate
+                                  </>
+                                )}
                               </motion.button>
                               <motion.button
                                 whileHover={{ scale: 1.05 }}
@@ -727,11 +835,12 @@ export default function PropertiesPage() {
                     className="space-y-4"
                   >
                     {properties.map((property, index) => {
-                      const statusKey = property.isActive
-                        ? "active"
-                        : "inactive";
-                      const status = statusConfig[statusKey];
-                      const StatusIcon = status.icon;
+                      // Safely get property status with fallback
+                      const propertyStatus =
+                        (property.status as PropertyStatus) || "DRAFT";
+                      const status =
+                        statusConfig[propertyStatus] || statusConfig.DRAFT;
+                      const StatusIcon = status?.icon || Clock;
                       const isHovered = hoveredProperty === property.id;
 
                       return (
@@ -777,10 +886,16 @@ export default function PropertiesPage() {
                                     </div>
                                   </div>
                                   <div
-                                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${status.bg} ${status.text} ${status.border} border-2`}
+                                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                                      status?.bg || "bg-gray-50"
+                                    } ${status?.text || "text-gray-700"} ${
+                                      status?.border || "border-gray-200"
+                                    } border-2`}
                                   >
-                                    <StatusIcon className="w-3.5 h-3.5" />
-                                    <span>{status.label}</span>
+                                    {StatusIcon && (
+                                      <StatusIcon className="w-3.5 h-3.5" />
+                                    )}
+                                    <span>{status?.label || "Draft"}</span>
                                   </div>
                                 </div>
 
@@ -806,7 +921,10 @@ export default function PropertiesPage() {
                                   <div className="flex items-center text-sm font-bold text-green-600">
                                     <span className="mr-1">₦</span>
                                     <span>
-                                      {property.pricePerNight?.toLocaleString()}
+                                      {Math.round(
+                                        Number(property.pricePerNight || 0) *
+                                          100
+                                      ) / 100}
                                       /night
                                     </span>
                                   </div>
@@ -838,7 +956,8 @@ export default function PropertiesPage() {
                                     <div className="flex items-center">
                                       <Star className="w-3.5 h-3.5 text-yellow-400 fill-current mr-1" />
                                       <p className="text-sm font-bold text-gray-900">
-                                        {property.averageRating?.toFixed(1) || "0.0"}
+                                        {property.averageRating?.toFixed(1) ||
+                                          "0.0"}
                                       </p>
                                     </div>
                                   </div>
@@ -863,14 +982,28 @@ export default function PropertiesPage() {
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() =>
-                                      window.open(
-                                        `/properties/${property.id}`,
-                                        "_blank"
+                                      handleToggleStatus(
+                                        property.id,
+                                        propertyStatus
                                       )
                                     }
-                                    className="flex items-center gap-2 px-4 py-2.5 border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 text-sm font-bold text-gray-700"
+                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all text-sm font-bold shadow-md hover:shadow-xl ${
+                                      propertyStatus === "ACTIVE"
+                                        ? "bg-orange-500 hover:bg-orange-600 text-white"
+                                        : "bg-green-500 hover:bg-green-600 text-white"
+                                    }`}
                                   >
-                                    <Eye className="h-4 w-4" />
+                                    {propertyStatus === "ACTIVE" ? (
+                                      <>
+                                        <XCircle className="h-4 w-4" />
+                                        Deactivate
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        Activate
+                                      </>
+                                    )}
                                   </motion.button>
                                   <motion.button
                                     whileHover={{ scale: 1.05 }}
@@ -965,6 +1098,202 @@ export default function PropertiesPage() {
           </div>
         </div>
       </div>
+
+      {/* Quick View Modal */}
+      <AnimatePresence>
+        {quickViewProperty && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setQuickViewProperty(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="sticky top-0 bg-white border-b-2 border-gray-100 px-6 py-4 flex items-center justify-between z-10 rounded-t-3xl">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Property Preview
+                </h2>
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setQuickViewProperty(null)}
+                  className="p-2 rounded-xl hover:bg-gray-100 transition-all"
+                >
+                  <X className="w-6 h-6 text-gray-600" />
+                </motion.button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                {/* Images Gallery */}
+                {quickViewProperty.images &&
+                  quickViewProperty.images.length > 0 && (
+                    <div className="mb-6">
+                      <div className="relative h-96 rounded-2xl overflow-hidden bg-gray-200">
+                        <img
+                          src={quickViewProperty.images[0].url}
+                          alt={quickViewProperty.title}
+                          className="w-full h-full object-cover"
+                        />
+                        {quickViewProperty.images.length > 1 && (
+                          <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1.5 rounded-lg text-sm font-bold">
+                            {quickViewProperty.images.length} photos
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Property Info */}
+                <div className="space-y-6">
+                  {/* Title and Status */}
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="text-3xl font-bold text-gray-900 flex-1">
+                      {quickViewProperty.title}
+                    </h3>
+                    {(() => {
+                      const propertyStatus =
+                        (quickViewProperty.status as PropertyStatus) || "DRAFT";
+                      const status =
+                        statusConfig[propertyStatus] || statusConfig.DRAFT;
+                      const StatusIcon = status?.icon || Clock;
+                      return (
+                        <div
+                          className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-bold ${
+                            status?.bg || "bg-gray-50"
+                          } ${status?.text || "text-gray-700"} ${
+                            status?.border || "border-gray-200"
+                          } border-2`}
+                        >
+                          {StatusIcon && <StatusIcon className="w-4 h-4" />}
+                          <span>{status?.label || "Draft"}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Location */}
+                  <div className="flex items-center text-gray-600">
+                    <MapPin className="w-5 h-5 mr-2 text-gray-400" />
+                    <span className="font-medium">
+                      {quickViewProperty.address}, {quickViewProperty.city},{" "}
+                      {quickViewProperty.state}
+                    </span>
+                  </div>
+
+                  {/* Price */}
+                  <div className="flex items-center text-3xl font-bold text-green-600">
+                    <span className="mr-2">₦</span>
+                    <span>
+                      {Number(
+                        quickViewProperty.pricePerNight || 0
+                      ).toLocaleString()}
+                    </span>
+                    <span className="text-lg text-gray-500 font-normal ml-2">
+                      /night
+                    </span>
+                  </div>
+
+                  {/* Property Details Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-gray-50 rounded-2xl">
+                    <div className="flex flex-col items-center">
+                      <Users className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-500">Guests</span>
+                      <span className="text-xl font-bold text-gray-900">
+                        {quickViewProperty.maxGuests}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <Bed className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-500">Bedrooms</span>
+                      <span className="text-xl font-bold text-gray-900">
+                        {quickViewProperty.bedrooms}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <Bath className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-500">Bathrooms</span>
+                      <span className="text-xl font-bold text-gray-900">
+                        {quickViewProperty.bathrooms}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <Home className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-500">Type</span>
+                      <span className="text-xl font-bold text-gray-900">
+                        {quickViewProperty.type}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900 mb-3">
+                      Description
+                    </h4>
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {quickViewProperty.description}
+                    </p>
+                  </div>
+
+                  {/* Amenities */}
+                  {quickViewProperty.amenities &&
+                    quickViewProperty.amenities.length > 0 && (
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900 mb-3">
+                          Amenities
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {quickViewProperty.amenities.map((amenity, index) => (
+                            <span
+                              key={index}
+                              className="px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium border border-blue-200"
+                            >
+                              {amenity}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setQuickViewProperty(null);
+                        router.push(`/properties/${quickViewProperty.id}`);
+                      }}
+                      className="flex-1 px-6 py-3 text-white rounded-xl font-bold shadow-lg"
+                      style={{ backgroundColor: brandColors.primary }}
+                    >
+                      <Edit className="w-5 h-5 inline mr-2" />
+                      Edit Property
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setQuickViewProperty(null)}
+                      className="px-6 py-3 border-2 border-gray-200 rounded-xl font-bold text-gray-700 hover:bg-gray-50"
+                    >
+                      Close
+                    </motion.button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

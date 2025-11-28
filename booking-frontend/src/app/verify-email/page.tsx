@@ -7,6 +7,7 @@ import Link from "next/link";
 import { palette } from "@/app/(marketing)/content";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/store/authStore";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 
 interface VerificationResult {
   success: boolean;
@@ -18,6 +19,8 @@ function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { autoLogin } = useAuthStore();
+  const { brandColor, secondaryColor, accentColor, realtorName, logoUrl } =
+    useRealtorBranding();
   const [isLoading, setIsLoading] = useState(true);
   const [result, setResult] = useState<VerificationResult | null>(null);
 
@@ -139,14 +142,37 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={realtorName}
+                className="w-16 h-16 rounded-lg object-cover"
+              />
+            ) : (
+              <div
+                className="w-16 h-16 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: brandColor }}
+              >
+                <span className="text-white font-bold text-2xl">
+                  {realtorName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Loading State */}
           {isLoading && (
             <>
               <div className="flex justify-center mb-6">
-                <Loader2 className="h-16 w-16 text-blue-600 animate-spin" />
+                <Loader2
+                  className="h-16 w-16 animate-spin"
+                  style={{ color: brandColor }}
+                />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 Verifying Your Email
@@ -161,7 +187,10 @@ function VerifyEmailContent() {
           {!isLoading && result?.success && (
             <>
               <div className="flex justify-center mb-6">
-                <CheckCircle className="h-16 w-16 text-green-500" />
+                <CheckCircle
+                  className="h-16 w-16"
+                  style={{ color: secondaryColor }}
+                />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 Email Verified Successfully!
@@ -184,7 +213,8 @@ function VerifyEmailContent() {
                           router.push(result.redirectUrl!);
                         }
                       }}
-                      className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                      className="block w-full text-white font-semibold py-3 px-6 rounded-lg transition-colors hover:opacity-90"
+                      style={{ backgroundColor: brandColor }}
                     >
                       Go to Dashboard
                     </button>
@@ -196,7 +226,8 @@ function VerifyEmailContent() {
                   <>
                     <Link
                       href="/dashboard"
-                      className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                      className="block w-full text-white font-semibold py-3 px-6 rounded-lg transition-colors hover:opacity-90"
+                      style={{ backgroundColor: brandColor }}
                     >
                       Go to Dashboard
                     </Link>
@@ -226,7 +257,8 @@ function VerifyEmailContent() {
                 {email && (
                   <button
                     onClick={handleResendVerification}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="w-full text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 hover:opacity-90"
+                    style={{ backgroundColor: brandColor }}
                   >
                     <Mail className="h-5 w-5" />
                     Resend Verification Email
@@ -246,10 +278,15 @@ function VerifyEmailContent() {
           <div className="mt-8 pt-6 border-t border-gray-200">
             <p className="text-sm text-gray-500">
               Need help?{" "}
-              <Link href="/contact" className="text-blue-600 hover:underline">
+              <Link
+                href="/contact"
+                className="hover:underline"
+                style={{ color: brandColor }}
+              >
                 Contact Support
               </Link>
             </p>
+            <p className="text-xs text-gray-400 mt-2">Powered by Stayza Pro</p>
           </div>
         </div>
       </div>
@@ -261,7 +298,7 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-blue-50 flex items-center justify-center p-4">
           <div className="max-w-md w-full">
             <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
               <div className="flex justify-center mb-6">

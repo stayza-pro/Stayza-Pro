@@ -23,13 +23,16 @@ export default function CheckEmailPage() {
     try {
       const API_BASE_URL =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
-      const response = await fetch(`${API_BASE_URL}/api/auth/resend-verification`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: searchParams.get("email") }),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/resend-verification`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: searchParams.get("email") }),
+        }
+      );
 
       const data = await response.json();
 
@@ -47,7 +50,7 @@ export default function CheckEmailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-blue-50 flex items-center justify-center px-4">
       <Card className="w-full max-w-lg" padding="lg">
         <Card.Header className="text-center">
           <div className="flex justify-center mb-4">

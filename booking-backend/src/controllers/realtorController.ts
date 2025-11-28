@@ -5,7 +5,7 @@ import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
 import { config } from "@/config";
-import { sendCacApproval, sendCacRejection } from "@/services/email";
+import { sendCacApprovalEmail, sendCacRejectionEmail } from "@/services/email";
 import {
   hashPassword,
   generateTokens,
@@ -554,24 +554,24 @@ export const uploadLogo = asyncHandler(
 
     try {
       // Upload to Cloudinary
-      const result = await cloudinary.uploader.upload(
-        req.file.buffer.toString("base64"),
-        {
-          resource_type: "image",
-          folder: "realtor-logos",
-          public_id: `${realtor.slug}-logo`,
-          transformation: [
-            {
-              width: 300,
-              height: 300,
-              crop: "fill",
-              quality: "auto",
-              format: "auto",
-            },
-          ],
-          allowed_formats: ["jpg", "png", "jpeg", "webp"],
-        }
-      );
+      const base64Data = `data:${
+        req.file.mimetype
+      };base64,${req.file.buffer.toString("base64")}`;
+      const result = await cloudinary.uploader.upload(base64Data, {
+        resource_type: "image",
+        folder: "realtor-logos",
+        public_id: `${realtor.slug}-logo`,
+        transformation: [
+          {
+            width: 300,
+            height: 300,
+            crop: "fill",
+            quality: "auto",
+            format: "auto",
+          },
+        ],
+        allowed_formats: ["jpg", "png", "jpeg", "webp"],
+      });
 
       // Update realtor with logo URL
       const updatedRealtor = await prisma.realtor.update({
@@ -701,12 +701,22 @@ export const updateRealtorProfile = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const {
       businessName,
+      tagline,
       description,
-      website,
       businessPhone,
-      businessEmail,
-      businessAddress,
+      corporateRegNumber,
+      logoUrl,
       brandColorHex,
+      primaryColor,
+      secondaryColor,
+      accentColor,
+      websiteUrl,
+      instagramUrl,
+      twitterUrl,
+      linkedinUrl,
+      facebookUrl,
+      youtubeUrl,
+      whatsappType,
     } = req.body;
 
     const realtor = await prisma.realtor.findUnique({
@@ -717,23 +727,44 @@ export const updateRealtorProfile = asyncHandler(
       throw new AppError("Realtor profile not found", 404);
     }
 
-    // Validate brand color hex if provided
-    if (brandColorHex) {
-      const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-      if (!colorRegex.test(brandColorHex)) {
-        throw new AppError("Invalid brand color hex format", 400);
-      }
+    // Validate color hex formats if provided
+    const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (brandColorHex && !colorRegex.test(brandColorHex)) {
+      throw new AppError("Invalid brand color hex format", 400);
+    }
+    if (primaryColor && !colorRegex.test(primaryColor)) {
+      throw new AppError("Invalid primary color hex format", 400);
+    }
+    if (secondaryColor && !colorRegex.test(secondaryColor)) {
+      throw new AppError("Invalid secondary color hex format", 400);
+    }
+    if (accentColor && !colorRegex.test(accentColor)) {
+      throw new AppError("Invalid accent color hex format", 400);
     }
 
     const updateData: any = {};
     if (businessName) updateData.businessName = businessName;
+    if (tagline !== undefined) updateData.tagline = tagline;
     if (description !== undefined) updateData.description = description;
-    if (website !== undefined) updateData.website = website;
     if (businessPhone !== undefined) updateData.businessPhone = businessPhone;
-    if (businessEmail !== undefined) updateData.businessEmail = businessEmail;
-    if (businessAddress !== undefined)
-      updateData.businessAddress = businessAddress;
-    if (brandColorHex) updateData.brandColorHex = brandColorHex;
+    if (corporateRegNumber !== undefined)
+      updateData.corporateRegNumber = corporateRegNumber;
+    if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
+
+    // Social media URLs
+    if (websiteUrl !== undefined) updateData.websiteUrl = websiteUrl;
+    if (instagramUrl !== undefined) updateData.instagramUrl = instagramUrl;
+    if (twitterUrl !== undefined) updateData.twitterUrl = twitterUrl;
+    if (linkedinUrl !== undefined) updateData.linkedinUrl = linkedinUrl;
+    if (facebookUrl !== undefined) updateData.facebookUrl = facebookUrl;
+    if (youtubeUrl !== undefined) updateData.youtubeUrl = youtubeUrl;
+    if (whatsappType !== undefined) updateData.whatsappType = whatsappType;
+
+    // Support both old brandColorHex and new color system
+    if (brandColorHex) updateData.primaryColor = brandColorHex;
+    if (primaryColor) updateData.primaryColor = primaryColor;
+    if (secondaryColor) updateData.secondaryColor = secondaryColor;
+    if (accentColor) updateData.accentColor = accentColor;
 
     // Generate new slug if business name changed
     if (businessName && businessName !== realtor.businessName) {
@@ -942,7 +973,7 @@ export const approveCac = asyncHandler(
 
     // Send CAC approval email notification
     try {
-      await sendCacApproval(
+      await sendCacApprovalEmail(
         updatedRealtor.user.email,
         updatedRealtor.businessName,
         `${config.FRONTEND_URL}/dashboard`
@@ -1030,10 +1061,13 @@ export const rejectCac = asyncHandler(
 
     // Send CAC rejection email notification with appeal process
     try {
-      await sendCacRejection(
+      const appealUrl = `${process.env.FRONTEND_URL}/settings?tab=business&appeal=true`;
+      await sendCacRejectionEmail(
         updatedRealtor.user.email,
+        updatedRealtor.user.firstName || "Realtor",
         updatedRealtor.businessName,
-        reason
+        reason,
+        appealUrl
       );
     } catch (emailError) {
       console.error("Error sending CAC rejection email:", emailError);
@@ -1241,6 +1275,38 @@ export const getDashboardStats = asyncHandler(
       throw new AppError("Realtor profile not found", 404);
     }
 
+    // Check if realtor is fully approved
+    const isApproved =
+      realtor.status === "APPROVED" &&
+      realtor.cacStatus === "APPROVED" &&
+      !realtor.suspendedAt;
+
+    // If not approved, return minimal stats with approval info
+    if (!isApproved) {
+      return res.json({
+        success: true,
+        message: "Dashboard stats retrieved successfully",
+        data: {
+          isPendingApproval: true,
+          approvalStatus: {
+            businessStatus: realtor.status,
+            cacStatus: realtor.cacStatus,
+            businessName: realtor.businessName,
+          },
+          stats: {
+            totalProperties: 0,
+            totalBookings: 0,
+            totalRevenue: 0,
+            averageRating: 0,
+            occupancyRate: 0,
+          },
+          recentActivity: [],
+          message:
+            "Complete your approval process to access full dashboard features.",
+        },
+      });
+    }
+
     const now = new Date();
     const lastMonth = new Date(
       now.getFullYear(),
@@ -1345,7 +1411,7 @@ export const getDashboardStats = asyncHandler(
     // Mock unread messages for now
     const unreadMessages = 0;
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         totalRevenue: parseFloat(
@@ -1441,6 +1507,87 @@ export const getRecentBookings = asyncHandler(
               (1000 * 60 * 60 * 24)
           ),
         })),
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Delete realtor account and all associated data
+ * @route   DELETE /api/realtors/profile
+ * @access  Private (Realtor only)
+ */
+export const deleteRealtorAccount = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new AppError("User not authenticated", 401);
+    }
+
+    // Get the realtor to ensure they exist
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            fullName: true,
+          },
+        },
+        properties: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    // Log the deletion for audit purposes before deletion
+    await prisma.auditLog.create({
+      data: {
+        userId: userId,
+        action: "ACCOUNT_DELETION",
+        entityType: "User",
+        entityId: userId,
+        details: {
+          realtorId: realtor.id,
+          businessName: realtor.businessName,
+          email: realtor.user.email,
+          propertiesCount: realtor.properties.length,
+          deletedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    // Delete the user (which will cascade delete everything else due to schema relations)
+    // This includes:
+    // - Realtor profile
+    // - All properties
+    // - All bookings
+    // - All reviews
+    // - All payments
+    // - All notifications
+    // - All audit logs
+    // - All refund requests
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    res.json({
+      success: true,
+      message: "Account and all associated data deleted successfully",
+      data: {
+        deletedAt: new Date().toISOString(),
+        email: realtor.user.email,
+        businessName: realtor.businessName,
       },
     });
   }

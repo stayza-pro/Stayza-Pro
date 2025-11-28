@@ -201,21 +201,16 @@ function RealtorLoginContent() {
         <motion.div
           className="relative lg:w-1/2 p-8 lg:p-12 flex flex-col justify-between overflow-hidden"
           style={{
-            background:
-              "linear-gradient(to bottom right, var(--marketing-primary), #2563EB, #3B82F6)",
+            background: "var(--marketing-primary)",
           }}
           initial={{ x: -100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.8 }}
         >
-          {/* Animated Gradient Mesh Background */}
-          <div className="absolute inset-0 opacity-30">
+          {/* Animated Mesh Background */}
+          <div className="absolute inset-0 opacity-20">
             <motion.div
-              className="absolute top-0 right-0 w-96 h-96 rounded-full"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%)",
-              }}
+              className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white/30"
               animate={{
                 x: [0, 50, 0],
                 y: [0, -30, 0],
@@ -224,11 +219,7 @@ function RealtorLoginContent() {
               transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
             />
             <motion.div
-              className="absolute bottom-0 left-0 w-80 h-80 rounded-full"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(251,146,60,0.3) 0%, transparent 70%)",
-              }}
+              className="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-orange-400/20"
               animate={{
                 x: [0, -40, 0],
                 y: [0, 40, 0],
@@ -237,11 +228,7 @@ function RealtorLoginContent() {
               transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
             />
             <motion.div
-              className="absolute top-1/2 left-1/2 w-64 h-64 rounded-full"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(34,211,238,0.2) 0%, transparent 70%)",
-              }}
+              className="absolute top-1/2 left-1/2 w-64 h-64 rounded-full bg-cyan-400/15"
               animate={{
                 x: [-30, 30, -30],
                 y: [-20, 20, -20],
@@ -280,9 +267,7 @@ function RealtorLoginContent() {
                 <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
                   Your Branded
                   <br />
-                  <span className="bg-gradient-to-r from-blue-200 via-blue-100 to-white bg-clip-text text-transparent">
-                    Booking Platform
-                  </span>
+                  <span className="text-blue-100">Booking Platform</span>
                 </h1>
 
                 <p className="text-xl text-white/80 font-normal leading-relaxed">
@@ -370,8 +355,8 @@ function RealtorLoginContent() {
           >
             {/* Card with Glassmorphism */}
             <div className="relative marketing-card-elevated p-8 lg:p-10">
-              {/* Decorative Gradient Border */}
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-200/30 via-indigo-200/30 to-purple-200/30 rounded-3xl -z-10 blur-xl" />
+              {/* Decorative Border */}
+              <div className="absolute inset-0 bg-blue-200/20 rounded-3xl -z-10 blur-xl" />
 
               {/* Logo Badge */}
               <motion.div
@@ -502,7 +487,7 @@ function RealtorLoginContent() {
                   disabled={isLoading}
                   className="marketing-button-primary relative w-full py-4 px-6 font-bold rounded-xl overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-orange-500 opacity-0 hover:opacity-20 transition-opacity" />
                   <span className="relative flex items-center justify-center space-x-2">
                     {isLoading ? (
                       <>
@@ -596,12 +581,33 @@ function StatCard({
   trend: string;
   color: string;
 }) {
-  const colorClasses = {
-    emerald: "from-emerald-400 to-emerald-600",
-    blue: "from-blue-400 to-blue-600",
-    orange: "from-orange-400 to-orange-600",
-    cyan: "from-cyan-400 to-cyan-600",
-  }[color];
+  const colorClasses =
+    {
+      emerald: "from-emerald-400 to-emerald-600",
+      blue: "from-blue-400 to-blue-600",
+      orange: "from-orange-400 to-orange-600",
+      cyan: "from-cyan-400 to-cyan-600",
+    }[color] || "from-blue-400 to-blue-600"; // Default to blue if color not found
+
+  const getBackgroundColor = () => {
+    const colorKey = colorClasses
+      .replace("from-", "")
+      .replace(" to-*", "")
+      .split("-")[0];
+
+    switch (colorKey) {
+      case "blue":
+        return "#3B82F6";
+      case "emerald":
+        return "#10B981";
+      case "orange":
+        return "#F59E0B";
+      case "cyan":
+        return "#06B6D4";
+      default:
+        return "#3B82F6";
+    }
+  };
 
   return (
     <motion.div
@@ -619,7 +625,10 @@ function StatCard({
         }}
       >
         <div
-          className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClasses} flex items-center justify-center mb-3 shadow-lg`}
+          className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 shadow-lg"
+          style={{
+            backgroundColor: getBackgroundColor(),
+          }}
         >
           <Icon className="w-5 h-5 text-white" />
         </div>
@@ -642,8 +651,7 @@ export default function RealtorLoginPage() {
         <div
           className="min-h-screen flex items-center justify-center"
           style={{
-            background:
-              "linear-gradient(to bottom right, var(--marketing-primary), #2563EB)",
+            background: "var(--marketing-primary)",
           }}
         >
           <div className="text-white text-xl">Loading...</div>

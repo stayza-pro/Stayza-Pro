@@ -3,11 +3,12 @@
 import { useProperties } from "../../hooks/useProperties";
 
 export const dynamic = "force-dynamic";
-import { Header } from "../../components/layout/Header";
-import { Footer } from "../../components/layout/Footer";
+import { GuestHeader } from "../../components/guest/sections/GuestHeader";
+import { Footer } from "../../components/guest/sections/Footer";
 import { PropertyGrid } from "../../components/property/PropertyGrid";
 import { SearchFilters } from "../../components/property/SearchFilters";
 import { useState } from "react";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import type {
   PropertyFilters,
   PropertyType,
@@ -24,6 +25,15 @@ interface FiltersState {
 
 export default function BrowsePropertiesPage() {
   const [filters, setFilters] = useState<PropertyFilters>({});
+  const {
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
+    realtorName,
+    logoUrl,
+    tagline,
+    description,
+  } = useRealtorBranding(); // 60-30-10 color rule
 
   const { data: propertiesResponse, isLoading } = useProperties(filters, {
     page: 1,
@@ -56,30 +66,58 @@ export default function BrowsePropertiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: `${primaryColor}05` }}
+    >
+      <GuestHeader
+        currentPage="profile"
+        searchPlaceholder="Search location..."
+      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1
+              className="text-3xl font-bold"
+              style={{ color: secondaryColor }} // 30% - Secondary color for heading
+            >
               Browse Properties
             </h1>
-            <p className="mt-2 text-gray-600">
+            <p
+              className="mt-2"
+              style={{ color: `${secondaryColor}99` }} // 30% - Secondary color for description text
+            >
               Discover amazing places to stay around the world
             </p>
           </div>
 
-          <SearchFilters onFiltersChange={handleFiltersChange} />
+          <SearchFilters
+            onFiltersChange={handleFiltersChange}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            accentColor={accentColor}
+          />
 
           <PropertyGrid
             properties={propertiesResponse?.data || []}
             loading={isLoading}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            accentColor={accentColor}
           />
         </div>
       </main>
 
-      <Footer />
+      <Footer
+        realtorName={realtorName || "Stayza"}
+        tagline={tagline || "Your Trusted Property Partner"}
+        logo={logoUrl}
+        description={description || "Find your perfect stay with us"}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
+      />
     </div>
   );
 }

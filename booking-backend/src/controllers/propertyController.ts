@@ -311,6 +311,95 @@ export const updateProperty = asyncHandler(
   }
 );
 
+/**
+ * @desc    Toggle property status (DRAFT, ACTIVE, INACTIVE)
+ * @route   PATCH /api/properties/:id/status
+ * @access  Private (Owner only)
+ */
+export const togglePropertyStatus = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ["DRAFT", "ACTIVE", "INACTIVE"];
+    if (!status || !validStatuses.includes(status)) {
+      throw new AppError(
+        `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+        400
+      );
+    }
+
+    // Find property
+    const existingProperty = await prisma.property.findUnique({
+      where: { id },
+      include: { images: true },
+    });
+
+    if (!existingProperty) {
+      throw new AppError("Property not found", 404);
+    }
+
+    // Only property owner can toggle status
+    if (existingProperty.realtorId !== req.realtor!.id) {
+      throw new AppError("Not authorized to update this property", 403);
+    }
+
+    // Validate property is complete before activating
+    if (status === "ACTIVE") {
+      const errors: string[] = [];
+
+      if (!existingProperty.title) errors.push("Title is required");
+      if (!existingProperty.description) errors.push("Description is required");
+      if (
+        !existingProperty.pricePerNight ||
+        Number(existingProperty.pricePerNight) <= 0
+      ) {
+        errors.push("Price per night must be greater than 0");
+      }
+      if (!existingProperty.images || existingProperty.images.length === 0) {
+        errors.push("At least one image is required");
+      }
+      if (!existingProperty.address) errors.push("Address is required");
+      if (!existingProperty.city) errors.push("City is required");
+      if (!existingProperty.country) errors.push("Country is required");
+
+      if (errors.length > 0) {
+        throw new AppError(
+          `Cannot activate property. Please complete the following: ${errors.join(
+            ", "
+          )}`,
+          400
+        );
+      }
+    }
+
+    // Update status
+    const property = await prisma.property.update({
+      where: { id },
+      data: {
+        status,
+        isActive: status === "ACTIVE", // Keep isActive in sync
+      },
+      include: {
+        realtor: {
+          select: {
+            id: true,
+            businessName: true,
+          },
+        },
+        images: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Property ${status.toLowerCase()} successfully`,
+      data: property,
+    });
+  }
+);
+
 const MAX_PROPERTY_IMAGES = 8;
 
 /**
@@ -584,12 +673,23 @@ export const getPropertiesByHost = asyncHandler(
       prisma.property.findMany({
         where: {
           realtorId,
-          isActive: true,
+          // Show all properties for the realtor (DRAFT, ACTIVE, INACTIVE)
+          // Don't filter by isActive since we want to show all statuses
         },
         include: {
           realtor: {
             select: {
               id: true,
+            },
+          },
+          images: {
+            select: {
+              id: true,
+              url: true,
+              order: true,
+            },
+            orderBy: {
+              order: "asc",
             },
           },
           reviews: {
@@ -612,17 +712,19 @@ export const getPropertiesByHost = asyncHandler(
       prisma.property.count({
         where: {
           realtorId,
-          isActive: true,
+          // Count all properties regardless of status
         },
       }),
     ]);
 
     // Calculate average ratings
-    const propertiesWithRatings = properties.map((property) => {
+    const propertiesWithRatings = properties.map((property: any) => {
       const averageRating =
-        property.reviews.length > 0
-          ? property.reviews.reduce((sum, review) => sum + review.rating, 0) /
-            property.reviews.length
+        property.reviews && property.reviews.length > 0
+          ? property.reviews.reduce(
+              (sum: number, review: any) => sum + review.rating,
+              0
+            ) / property.reviews.length
           : 0;
 
       return {

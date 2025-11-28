@@ -28,7 +28,12 @@ export const Layout: React.FC<LayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {showHeader && <Header />}
+      {showHeader && (
+        <GuestHeader
+          currentPage="profile"
+          searchPlaceholder="Search location..."
+        />
+      )}
 
       <div className="flex flex-1">
         {showSidebar && (

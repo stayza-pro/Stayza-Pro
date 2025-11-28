@@ -366,7 +366,9 @@ export default function RealtorBookingsPage() {
                           </div>
 
                           <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-400 text-lg font-bold">₦</span>
+                            <span className="text-gray-400 text-lg font-bold">
+                              ₦
+                            </span>
                             <div>
                               <p className="text-gray-600">Total Price</p>
                               <p className="font-bold text-gray-900">

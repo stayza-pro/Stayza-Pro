@@ -67,7 +67,8 @@ export const cacAppealLimiter = rateLimit({
   max: 3, // limit each IP to 3 appeal attempts per day
   message: {
     success: false,
-    message: "Too many appeal attempts. Please contact support if you need assistance.",
+    message:
+      "Too many appeal attempts. Please contact support if you need assistance.",
   },
   standardHeaders: true,
   legacyHeaders: false,

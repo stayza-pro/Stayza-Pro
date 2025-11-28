@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { Button, Card } from "../ui";
 import { ChevronLeft, ChevronRight, Calendar, Ban } from "lucide-react";
 
@@ -32,6 +33,13 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
   isLoading = false,
   className = "",
 }) => {
+  // Realtor branding colors - 60% Primary, 30% Secondary, 10% Accent
+  const {
+    brandColor: primaryColor, // Primary brand color (60%) for selected dates
+    secondaryColor, // Secondary color (30%) for text and labels
+    accentColor, // Accent color (10%) for indicators and CTAs
+  } = useRealtorBranding();
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [showRuleForm, setShowRuleForm] = useState(false);
@@ -264,8 +272,8 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                   relative p-2 min-h-[40px] text-center text-sm cursor-pointer border transition-colors
                   ${isCurrentMonth ? "text-gray-900" : "text-gray-400"}
                   ${isPast ? "cursor-not-allowed opacity-50" : ""}
-                  ${isToday ? "bg-blue-100 border-blue-300" : "border-gray-200"}
-                  ${isSelected ? "bg-blue-600 text-white" : ""}
+                  ${isToday ? "border-gray-300" : "border-gray-200"}
+                  ${isSelected ? "text-white" : ""}
                   ${
                     rule && !isSelected
                       ? rule.isAvailable
@@ -273,9 +281,22 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                         : "bg-red-100"
                       : ""
                   }
-                  ${!isPast && isCurrentMonth ? "hover:bg-gray-100" : ""}
-                  ${isSelected ? "hover:bg-blue-700" : ""}
+                  ${
+                    !isPast && isCurrentMonth && !isSelected
+                      ? "hover:bg-gray-100"
+                      : ""
+                  }
                 `}
+                style={
+                  isToday && !isSelected
+                    ? {
+                        backgroundColor: `${primaryColor}10`,
+                        borderColor: `${primaryColor}30`,
+                      }
+                    : isSelected
+                    ? { backgroundColor: primaryColor }
+                    : {}
+                }
               >
                 <div>{date.getDate()}</div>
 
@@ -295,7 +316,10 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                   rule.priceOverride &&
                   rule.priceOverride !== basePrice &&
                   !isSelected && (
-                    <div className="absolute top-0 right-0 w-2 h-2 bg-yellow-500 rounded-full" />
+                    <div
+                      className="absolute top-0 right-0 w-2 h-2 rounded-full"
+                      style={{ backgroundColor: accentColor }}
+                    />
                   )}
               </div>
             );
@@ -313,12 +337,18 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
             <span>Blocked</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-blue-600 rounded" />
+            <div
+              className="w-3 h-3 rounded"
+              style={{ backgroundColor: primaryColor }}
+            />
             <span>Selected</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-gray-200 border border-gray-300 rounded relative">
-              <div className="absolute top-0 right-0 w-1 h-1 bg-yellow-500 rounded-full" />
+              <div
+                className="absolute top-0 right-0 w-1 h-1 rounded-full"
+                style={{ backgroundColor: accentColor }}
+              />
             </div>
             <span>Custom Price</span>
           </div>
@@ -346,7 +376,11 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                         isAvailable: e.target.checked,
                       })
                     }
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 border-gray-300 rounded"
+                    style={{
+                      accentColor: accentColor,
+                      outline: "none",
+                    }}
                   />
                   <span className="text-sm font-medium text-gray-700">
                     Available for booking
@@ -372,7 +406,18 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                             minStay: parseInt(e.target.value) || 1,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-transparent"
+                        style={{
+                          outline: "2px solid transparent",
+                          transition: "outline 0.2s",
+                        }}
+                        onFocus={(e) =>
+                          (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                        }
+                        onBlur={(e) =>
+                          (e.currentTarget.style.outline =
+                            "2px solid transparent")
+                        }
                       />
                     </div>
 
@@ -390,7 +435,18 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                             maxStay: parseInt(e.target.value) || 30,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-transparent"
+                        style={{
+                          outline: "2px solid transparent",
+                          transition: "outline 0.2s",
+                        }}
+                        onFocus={(e) =>
+                          (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                        }
+                        onBlur={(e) =>
+                          (e.currentTarget.style.outline =
+                            "2px solid transparent")
+                        }
                       />
                     </div>
                   </div>
@@ -412,7 +468,18 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                             parseFloat(e.target.value) || basePrice,
                         })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-transparent"
+                      style={{
+                        outline: "2px solid transparent",
+                        transition: "outline 0.2s",
+                      }}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.outline =
+                          "2px solid transparent")
+                      }
                     />
                     <p className="text-xs text-gray-600 mt-1">
                       Base price: {currency} {basePrice}
@@ -434,7 +501,17 @@ export const PropertyAvailability: React.FC<PropertyAvailabilityProps> = ({
                       setRuleForm({ ...ruleForm, reason: e.target.value })
                     }
                     placeholder="e.g., Maintenance, Personal use"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-transparent"
+                    style={{
+                      outline: "2px solid transparent",
+                      transition: "outline 0.2s",
+                    }}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.outline = "2px solid transparent")
+                    }
                   />
                 </div>
               )}

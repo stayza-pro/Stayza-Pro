@@ -191,7 +191,10 @@ export const processCacAppeal = asyncHandler(async (req, res: Response) => {
     decoded = jwt.verify(token, config.JWT_SECRET);
   } catch (error: any) {
     if (error.name === "TokenExpiredError") {
-      throw new AppError("Appeal link has expired. Please contact support.", 410);
+      throw new AppError(
+        "Appeal link has expired. Please contact support.",
+        410
+      );
     }
     throw new AppError("Invalid or tampered appeal token", 400);
   }
@@ -215,7 +218,10 @@ export const processCacAppeal = asyncHandler(async (req, res: Response) => {
 
   // Check if CAC was rejected
   if (realtor.cacStatus !== "REJECTED") {
-    throw new AppError("Appeal only allowed for rejected CAC verification", 400);
+    throw new AppError(
+      "Appeal only allowed for rejected CAC verification",
+      400
+    );
   }
 
   // Enable appeal
@@ -227,9 +233,10 @@ export const processCacAppeal = asyncHandler(async (req, res: Response) => {
   });
 
   // Redirect to dashboard with success message
-  const dashboardUrl = config.NODE_ENV === "development"
-    ? `http://${realtor.slug}.localhost:3000/settings?tab=business&appeal=success`
-    : `https://${realtor.slug}.stayza.pro/settings?tab=business&appeal=success`;
+  const dashboardUrl =
+    config.NODE_ENV === "development"
+      ? `http://${realtor.slug}.localhost:3000/settings?tab=business&appeal=success`
+      : `https://${realtor.slug}.stayza.pro/settings?tab=business&appeal=success`;
 
   res.redirect(dashboardUrl);
 });
@@ -349,9 +356,10 @@ export const rejectCac = asyncHandler(
     });
 
     // Generate appeal link with JWT token
-    const appealUrl = config.NODE_ENV === "development"
-      ? `http://localhost:5000/api/realtor/cac/appeal/${appealToken}`
-      : `https://api.stayza.pro/api/realtor/cac/appeal/${appealToken}`;
+    const appealUrl =
+      config.NODE_ENV === "development"
+        ? `http://localhost:5000/api/realtor/cac/appeal/${appealToken}`
+        : `https://api.stayza.pro/api/realtor/cac/appeal/${appealToken}`;
 
     // Send rejection email with appeal link
     await sendCacRejectionEmail(

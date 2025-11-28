@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { Button, Card } from "../ui";
 import {
   Filter,
@@ -78,6 +79,13 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
   className = "",
   showMap = true,
 }) => {
+  // Realtor branding colors - 60% Primary, 30% Secondary, 10% Accent
+  const {
+    brandColor: primaryColor, // Primary brand color (60%) for dominant elements
+    secondaryColor, // Secondary color (30%) for text, labels, icons
+    accentColor, // Accent color (10%) for CTAs and highlights
+  } = useRealtorBranding();
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeFilterTab, setActiveFilterTab] = useState("general");
   const [searchQuery, setSearchQuery] = useState("");
@@ -269,7 +277,17 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
               placeholder="Search by location, property name, or landmark..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:border-transparent"
+              style={{
+                outline: `2px solid transparent`,
+                transition: "outline 0.2s",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.outline = `2px solid ${accentColor}`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.outline = "2px solid transparent";
+              }}
             />
           </div>
 
@@ -281,9 +299,12 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                   onClick={() => onViewModeChange?.("list")}
                   className={`px-3 py-2 text-sm transition-colors ${
                     viewMode === "list"
-                      ? "bg-blue-600 text-white"
+                      ? "text-white"
                       : "bg-white text-gray-700 hover:bg-gray-50"
                   }`}
+                  style={
+                    viewMode === "list" ? { backgroundColor: primaryColor } : {}
+                  }
                 >
                   <List className="h-4 w-4" />
                 </button>
@@ -291,9 +312,12 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                   onClick={() => onViewModeChange?.("grid")}
                   className={`px-3 py-2 text-sm transition-colors ${
                     viewMode === "grid"
-                      ? "bg-blue-600 text-white"
+                      ? "text-white"
                       : "bg-white text-gray-700 hover:bg-gray-50"
                   }`}
+                  style={
+                    viewMode === "grid" ? { backgroundColor: primaryColor } : {}
+                  }
                 >
                   <Grid3X3 className="h-4 w-4" />
                 </button>
@@ -301,9 +325,12 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                   onClick={() => onViewModeChange?.("map")}
                   className={`px-3 py-2 text-sm transition-colors ${
                     viewMode === "map"
-                      ? "bg-blue-600 text-white"
+                      ? "text-white"
                       : "bg-white text-gray-700 hover:bg-gray-50"
                   }`}
+                  style={
+                    viewMode === "map" ? { backgroundColor: primaryColor } : {}
+                  }
                 >
                   <Map className="h-4 w-4" />
                 </button>
@@ -322,7 +349,17 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                   handleFilterChange("sortBy", sortBy);
                   handleFilterChange("sortOrder", sortOrder);
                 }}
-                className="appearance-none bg-white border border-gray-300 rounded-lg px-3 py-2 pr-8 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="appearance-none bg-white border border-gray-300 rounded-lg px-3 py-2 pr-8 text-sm focus:border-transparent"
+                style={{
+                  outline: `2px solid transparent`,
+                  transition: "outline 0.2s",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.outline = `2px solid ${accentColor}`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.outline = "2px solid transparent";
+                }}
               >
                 {sortOptions.map((option) => (
                   <React.Fragment key={option.value}>
@@ -347,7 +384,10 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
               <Filter className="h-4 w-4 mr-2" />
               Filters
               {activeFiltersCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <span
+                  className="absolute -top-2 -right-2 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                  style={{ backgroundColor: accentColor }}
+                >
                   {activeFiltersCount}
                 </span>
               )}
@@ -377,9 +417,14 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                       onClick={() => setActiveFilterTab(tab.id)}
                       className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         activeFilterTab === tab.id
-                          ? "bg-white text-blue-600 shadow-sm"
+                          ? "bg-white shadow-sm"
                           : "text-gray-600 hover:text-gray-900"
                       }`}
+                      style={
+                        activeFilterTab === tab.id
+                          ? { color: secondaryColor }
+                          : {}
+                      }
                     >
                       <Icon className="h-4 w-4" />
                       <span>{tab.label}</span>
@@ -406,7 +451,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                           onChange={(e) =>
                             handleFilterChange("location", e.target.value)
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         />
                       </div>
                       <div>
@@ -421,7 +477,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                               parseInt(e.target.value)
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         >
                           <option value={5}>5 km</option>
                           <option value={10}>10 km</option>
@@ -444,7 +511,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                           onChange={(e) =>
                             handleFilterChange("propertyType", e.target.value)
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         >
                           <option value="">All Types</option>
                           {propertyTypes.map((type) => (
@@ -468,7 +546,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                               e.target.value ? parseInt(e.target.value) : null
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         >
                           <option value="">Any</option>
                           <option value={1}>1+</option>
@@ -492,7 +581,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                               e.target.value ? parseInt(e.target.value) : null
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         >
                           <option value="">Any</option>
                           <option value={1}>1+</option>
@@ -515,7 +615,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                               e.target.value ? parseInt(e.target.value) : null
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         >
                           <option value="">Any</option>
                           <option value={1}>1</option>
@@ -545,7 +656,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                 min: parseInt(e.target.value) ?? 0,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                            style={{
+                              outline: "2px solid transparent",
+                              transition: "outline 0.2s",
+                            }}
+                            onFocus={(e) =>
+                              (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                            }
+                            onBlur={(e) =>
+                              (e.currentTarget.style.outline =
+                                "2px solid transparent")
+                            }
                             placeholder="Min price"
                           />
                         </div>
@@ -561,7 +683,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                 max: parseInt(e.target.value) || 1000,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                            style={{
+                              outline: "2px solid transparent",
+                              transition: "outline 0.2s",
+                            }}
+                            onFocus={(e) =>
+                              (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                            }
+                            onBlur={(e) =>
+                              (e.currentTarget.style.outline =
+                                "2px solid transparent")
+                            }
                             placeholder="Max price"
                           />
                         </div>
@@ -590,7 +723,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                 : undefined
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         />
                       </div>
 
@@ -613,7 +757,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                 : undefined
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         />
                       </div>
 
@@ -629,7 +784,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                               e.target.value ? parseInt(e.target.value) : null
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                          style={{
+                            outline: "2px solid transparent",
+                            transition: "outline 0.2s",
+                          }}
+                          onFocus={(e) =>
+                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          }
+                          onBlur={(e) =>
+                            (e.currentTarget.style.outline =
+                              "2px solid transparent")
+                          }
                         >
                           <option value="">Any</option>
                           <option value={1}>1 night</option>
@@ -660,7 +826,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                 parseFloat(e.target.value)
                               )
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
+                            style={{
+                              outline: "2px solid transparent",
+                              transition: "outline 0.2s",
+                            }}
+                            onFocus={(e) =>
+                              (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                            }
+                            onBlur={(e) =>
+                              (e.currentTarget.style.outline =
+                                "2px solid transparent")
+                            }
                           >
                             <option value={0}>Any Rating</option>
                             <option value={3}>3+ Stars</option>
@@ -680,7 +857,11 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                   e.target.checked
                                 )
                               }
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                              className="rounded border-gray-300 mr-2"
+                              style={{
+                                accentColor: accentColor,
+                                outline: "none",
+                              }}
                             />
                             <span className="text-sm text-gray-700">
                               Instant Book
@@ -697,7 +878,11 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                   e.target.checked
                                 )
                               }
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                              className="rounded border-gray-300 mr-2"
+                              style={{
+                                accentColor: accentColor,
+                                outline: "none",
+                              }}
                             />
                             <span className="text-sm text-gray-700">
                               Superhost Only
@@ -732,9 +917,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                   }
                                   className={`flex items-center space-x-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
                                     filters.amenities.includes(amenity.value)
-                                      ? "bg-blue-100 border-blue-300 text-blue-700"
+                                      ? "border-gray-300"
                                       : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
                                   }`}
+                                  style={
+                                    filters.amenities.includes(amenity.value)
+                                      ? {
+                                          backgroundColor: `${primaryColor}15`,
+                                          borderColor: `${primaryColor}50`,
+                                          color: secondaryColor,
+                                        }
+                                      : {}
+                                  }
                                 >
                                   <Icon className="h-4 w-4" />
                                   <span>{amenity.label}</span>
@@ -769,7 +963,11 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                                 feature.value
                               )
                             }
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-gray-300"
+                            style={{
+                              accentColor: accentColor,
+                              outline: "none",
+                            }}
                           />
                           <span className="text-sm text-gray-700">
                             {feature.label}
@@ -795,9 +993,18 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                             }
                             className={`px-3 py-2 rounded-lg border text-sm transition-colors ${
                               filters.hostLanguages.includes(language.value)
-                                ? "bg-blue-100 border-blue-300 text-blue-700"
+                                ? "border-gray-300"
                                 : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
                             }`}
+                            style={
+                              filters.hostLanguages.includes(language.value)
+                                ? {
+                                    backgroundColor: `${primaryColor}15`,
+                                    borderColor: `${primaryColor}50`,
+                                    color: secondaryColor,
+                                  }
+                                : {}
+                            }
                           >
                             {language.label}
                           </button>

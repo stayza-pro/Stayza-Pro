@@ -845,11 +845,72 @@ export const sendRealtorWelcomeEmail = async (
 // Send email verification
 export const sendEmailVerification = async (
   to: string,
-  name: string,
-  verificationUrl: string
+  tokenOrUrl: string,
+  name?: string
 ) => {
-  const template = emailTemplates.emailVerification(name, verificationUrl);
-  return sendEmail(to, template);
+  // Check if it's an OTP (6 digits) or a URL
+  const isOTP = /^\d{6}$/.test(tokenOrUrl);
+
+  if (isOTP) {
+    // Send OTP email
+    const template = {
+      subject: "Your Stayza Verification Code",
+      html: getEmailContainer(`
+        <h2 style="color: ${
+          brandColors.primary
+        }; font-size: 24px; font-weight: 600; margin: 0 0 20px 0;">
+          ${name ? `Hi ${name}` : "Hello"}! 👋
+        </h2>
+        <p style="margin: 0 0 30px 0; font-size: 16px; color: ${
+          brandColors.neutralDark
+        };">
+          Your verification code is ready. Enter this code to complete your ${
+            name ? "registration" : "login"
+          }:
+        </p>
+        <div style="text-align: center; margin: 40px 0;">
+          <div style="display: inline-block; background: ${
+            brandColors.neutralLight
+          }; border: 2px solid ${
+        brandColors.primary
+      }; border-radius: 12px; padding: 20px 40px;">
+            <div style="font-size: 36px; font-weight: 700; color: ${
+              brandColors.primary
+            }; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+              ${tokenOrUrl}
+            </div>
+          </div>
+        </div>
+        <p style="margin: 30px 0 20px 0; font-size: 14px; color: ${
+          brandColors.neutralDark
+        };">
+          ⏰ This code will expire in <strong>10 minutes</strong>.
+        </p>
+        <div style="background: ${
+          brandColors.neutralLight
+        }; border-left: 4px solid ${
+        brandColors.warning
+      }; padding: 16px 20px; margin: 30px 0; border-radius: 4px;">
+          <p style="margin: 0; font-size: 14px; color: ${
+            brandColors.neutralDark
+          };">
+            <strong>🔒 Security Tip:</strong> Never share this code with anyone. Stayza will never ask for your verification code via email, phone, or chat.
+          </p>
+        </div>
+        <p style="margin: 30px 0 0 0; font-size: 14px; color: #6B7280;">
+          If you didn't request this code, you can safely ignore this email.
+        </p>
+      `),
+    };
+    return sendEmail(to, template);
+  } else {
+    // Send traditional verification URL
+    const template = emailTemplates.emailVerification(
+      name || "User",
+      tokenOrUrl
+    );
+    return sendEmail(to, template);
+  }
 };
 
 // Send password reset
@@ -976,7 +1037,9 @@ export const sendCacApprovalEmail = async (
   name: string,
   businessName: string
 ) => {
-  const dashboardUrl = `https://${businessName.toLowerCase().replace(/\s+/g, '-')}.stayza.pro/settings?tab=business`;
+  const dashboardUrl = `https://${businessName
+    .toLowerCase()
+    .replace(/\s+/g, "-")}.stayza.pro/settings?tab=business`;
   const template = emailTemplates.cacApproved(businessName, dashboardUrl);
   return sendEmail(to, template);
 };
@@ -993,26 +1056,27 @@ export const sendCacRejectionEmail = async (
     subject: "❌ CAC Verification Requires Attention - Appeal Available",
     html: getEmailContainer(
       `<h2 style="color: ${brandColors.warning}; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">CAC Verification Update Required</h2>` +
-      `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Hello ${name},</p>` +
-      `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">We've reviewed the CAC information for <strong>${businessName}</strong> and need additional documentation to complete verification.</p>` +
-      getInfoBox(
-        "Verification Issue",
-        reason || "The provided CAC information requires clarification or additional documentation.",
-        "warning"
-      ) +
-      `<h3 style="color: ${brandColors.primary}; font-size: 18px; margin: 30px 0 15px 0;">What Happens Next?</h3>` +
-      `<p style="font-size: 15px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Click the button below to start your appeal process. You'll be redirected to your dashboard where you can:</p>` +
-      `<ul style="font-size: 15px; color: ${brandColors.neutralDark}; line-height: 1.8;">
+        `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Hello ${name},</p>` +
+        `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">We've reviewed the CAC information for <strong>${businessName}</strong> and need additional documentation to complete verification.</p>` +
+        getInfoBox(
+          "Verification Issue",
+          reason ||
+            "The provided CAC information requires clarification or additional documentation.",
+          "warning"
+        ) +
+        `<h3 style="color: ${brandColors.primary}; font-size: 18px; margin: 30px 0 15px 0;">What Happens Next?</h3>` +
+        `<p style="font-size: 15px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Click the button below to start your appeal process. You'll be redirected to your dashboard where you can:</p>` +
+        `<ul style="font-size: 15px; color: ${brandColors.neutralDark}; line-height: 1.8;">
         <li>Review the rejection reason in detail</li>
         <li>Upload corrected CAC documentation</li>
         <li>Resubmit for verification</li>
       </ul>` +
-      getButton(appealUrl, "Start Appeal Process", "warning") +
-      `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;">
+        getButton(appealUrl, "Start Appeal Process", "warning") +
+        `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;">
         <p style="margin: 0 0 10px 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Assistance?</strong></p>
         <p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};">Contact us at <a href="mailto:verification@stayza.com" style="color: ${brandColors.primary};">verification@stayza.com</a> or reply to this email</p>
       </div>` +
-      `<div style="margin-top: 20px; padding: 15px; background-color: ${brandColors.primary}15; border-radius: 8px; border-left: 4px solid ${brandColors.primary};">
+        `<div style="margin-top: 20px; padding: 15px; background-color: ${brandColors.primary}15; border-radius: 8px; border-left: 4px solid ${brandColors.primary};">
         <p style="margin: 0; font-size: 13px; color: ${brandColors.neutralDark};">
           <strong>⏰ Appeal Link Expiry:</strong> This appeal link is valid for 7 days. After that, you'll need to contact support to request a new one.
         </p>
