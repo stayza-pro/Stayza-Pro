@@ -243,7 +243,10 @@ export default function BookingsPage() {
                       <div className="text-sm text-gray-500">
                         to{" "}
                         {booking.checkOutDate &&
-                          format(new Date(booking.checkOutDate), "MMM dd, yyyy")}
+                          format(
+                            new Date(booking.checkOutDate),
+                            "MMM dd, yyyy"
+                          )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

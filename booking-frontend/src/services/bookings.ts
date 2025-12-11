@@ -190,6 +190,9 @@ export const bookingService = {
     guests: number
   ): Promise<{
     subtotal: number;
+    serviceFee: number;
+    cleaningFee: number;
+    securityDeposit: number;
     taxes: number;
     fees: number;
     total: number;
@@ -201,6 +204,9 @@ export const bookingService = {
       message: string;
       data: {
         subtotal: number;
+        serviceFee: number;
+        cleaningFee: number;
+        securityDeposit: number;
         taxes: number;
         fees: number;
         total: number;
@@ -209,7 +215,10 @@ export const bookingService = {
         breakdown?: {
           pricePerNight: number;
           serviceFee: number;
+          cleaningFee: number;
+          securityDeposit: number;
           platformCommission: number;
+          realtorPayout: number;
         };
       };
     }>("/bookings/calculate", {

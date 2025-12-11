@@ -130,19 +130,9 @@ export default function BookingCheckoutPage() {
         console.log("✅ Booking calculation received:", calculation);
         console.log("✅ Calculation type:", typeof calculation);
         console.log("✅ Calculation keys:", Object.keys(calculation || {}));
-        
-        // Transform calculation to match state type
-        setBookingCalculation({
-          subtotal: calculation.subtotal,
-          serviceFee: calculation.serviceFee || 0,
-          cleaningFee: calculation.cleaningFee || 0,
-          securityDeposit: calculation.securityDeposit || 0,
-          taxes: calculation.taxes,
-          fees: calculation.fees,
-          total: calculation.total,
-          currency: calculation.currency,
-          nights: calculation.nights,
-        });
+
+        // Backend returns all fields we need
+        setBookingCalculation(calculation);
       } catch (error: any) {
         console.error("❌ Error calculating booking:", error);
         console.error("❌ Error message:", error?.message);

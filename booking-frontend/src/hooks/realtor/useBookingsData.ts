@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { bookingService } from "@/services";
-import type { Booking } from "@/types";
+import type { Booking, BookingStatus } from "@/types";
 
 /**
  * Hook to fetch bookings data with status filtering and pagination
- * Supports filtering by: pending, confirmed, cancelled, completed
+ * Supports filtering by all booking statuses
  */
 
 interface UseBookingsDataParams {
-  status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "ALL";
+  status?: BookingStatus | "ALL";
   page?: number;
   limit?: number;
   autoFetch?: boolean;
@@ -26,9 +26,7 @@ interface UseBookingsDataReturn {
   error: string | null;
   refetch: () => Promise<void>;
   setPage: (page: number) => void;
-  setStatus: (
-    status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "ALL"
-  ) => void;
+  setStatus: (status: BookingStatus | "ALL") => void;
   confirmBooking: (bookingId: string) => Promise<boolean>;
   cancelBooking: (bookingId: string, reason?: string) => Promise<boolean>;
 }
@@ -45,9 +43,9 @@ export function useBookingsData(
   const [hasPrev, setHasPrev] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentStatus, setCurrentStatus] = useState<
-    "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "ALL"
-  >(status);
+  const [currentStatus, setCurrentStatus] = useState<BookingStatus | "ALL">(
+    status
+  );
   const { accessToken, user } = useAuthStore();
 
   const fetchBookings = useCallback(async () => {
@@ -101,15 +99,10 @@ export function useBookingsData(
     setCurrentPage(newPage);
   }, []);
 
-  const setStatus = useCallback(
-    (
-      newStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "ALL"
-    ) => {
-      setCurrentStatus(newStatus);
-      setCurrentPage(1); // Reset to first page on status change
-    },
-    []
-  );
+  const setStatus = useCallback((newStatus: BookingStatus | "ALL") => {
+    setCurrentStatus(newStatus);
+    setCurrentPage(1); // Reset to first page on status change
+  }, []);
 
   const confirmBooking = useCallback(
     async (bookingId: string): Promise<boolean> => {

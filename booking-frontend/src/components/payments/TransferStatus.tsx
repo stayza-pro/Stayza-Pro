@@ -86,30 +86,17 @@ export const TransferStatusBadge: React.FC<TransferStatusBadgeProps> = ({
   );
 };
 
-interface EscrowEventWithStatus {
-  id: string;
-  eventType: string;
-  amount: number;
-  executedAt: string;
-  transactionReference?: string;
-  providerResponse?: {
-    transferConfirmed?: boolean;
-    transferConfirmedAt?: string;
-    transferFailed?: boolean;
-    transferReversed?: boolean;
-    failureReason?: string;
-  };
-}
+import { EscrowEvent } from '@/services/escrow';
 
 interface TransferTimelineProps {
-  events: EscrowEventWithStatus[];
+  events: EscrowEvent[];
 }
 
 export const TransferTimeline: React.FC<TransferTimelineProps> = ({
   events,
 }) => {
   const getConfirmationStatus = (
-    event: EscrowEventWithStatus
+    event: EscrowEvent
   ): TransferConfirmation => {
     const response = event.providerResponse;
 

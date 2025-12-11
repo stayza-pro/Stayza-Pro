@@ -49,7 +49,7 @@ export default function RealtorBookingsPage() {
   } = useBookingsData({
     page: currentPage,
     limit: 10,
-    status: statusFilter !== "all" ? statusFilter : undefined,
+    status: (statusFilter !== "all" ? statusFilter : "ALL") as BookingStatus | "ALL" | undefined,
   });
 
   const brandColor = branding?.colors?.primary || "#3B82F6";
@@ -81,7 +81,10 @@ export default function RealtorBookingsPage() {
     );
   };
 
-  const statusConfig: Record<BookingStatus, { label: string; color: string; icon: any }> = {
+  const statusConfig: Record<
+    BookingStatus,
+    { label: string; color: string; icon: any }
+  > = {
     PENDING: {
       label: "Pending",
       color: "bg-amber-50 text-amber-700 border-amber-200",
@@ -291,7 +294,9 @@ export default function RealtorBookingsPage() {
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "all")}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as BookingStatus | "all")
+            }
             className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium"
           >
             <option value="all">All Status</option>
@@ -383,8 +388,15 @@ export default function RealtorBookingsPage() {
                                 Check-in / Check-out
                               </p>
                               <p className="font-medium text-gray-900">
-                                {format(new Date(booking.checkInDate), "MMM dd")} -{" "}
-                                {format(new Date(booking.checkOutDate), "MMM dd")}
+                                {format(
+                                  new Date(booking.checkInDate),
+                                  "MMM dd"
+                                )}{" "}
+                                -{" "}
+                                {format(
+                                  new Date(booking.checkOutDate),
+                                  "MMM dd"
+                                )}
                               </p>
                             </div>
                           </div>
