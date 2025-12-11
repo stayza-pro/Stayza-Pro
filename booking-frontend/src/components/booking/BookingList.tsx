@@ -63,8 +63,8 @@ export const BookingList: React.FC<BookingListProps> = ({
       const now = new Date();
 
       filtered = filtered.filter((booking) => {
-        const checkIn = new Date(booking.checkIn);
-        const checkOut = new Date(booking.checkOut);
+        const checkIn = new Date(booking.checkInDate);
+        const checkOut = new Date(booking.checkOutDate);
 
         switch (filterType) {
           case "upcoming":
@@ -127,8 +127,8 @@ export const BookingList: React.FC<BookingListProps> = ({
     };
 
     bookings.forEach((booking) => {
-      const checkIn = new Date(booking.checkIn);
-      const checkOut = new Date(booking.checkOut);
+      const checkIn = new Date(booking.checkInDate);
+      const checkOut = new Date(booking.checkOutDate);
 
       if (checkIn > now && booking.status === "CONFIRMED") {
         counts.upcoming++;

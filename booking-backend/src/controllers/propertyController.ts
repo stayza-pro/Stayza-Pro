@@ -112,16 +112,17 @@ export const getProperties = asyncHandler(
       prisma.property.findMany({
         where,
         include: {
+          images: {
+            orderBy: {
+              order: "asc",
+            },
+          },
           realtor: {
             select: {
               id: true,
             },
           },
-          reviews: {
-            select: {
-              rating: true,
-            },
-          },
+          reviews: false, // We don't need reviews since we have pre-calculated ratings
           _count: {
             select: {
               reviews: true,
@@ -137,20 +138,14 @@ export const getProperties = asyncHandler(
       prisma.property.count({ where }),
     ]);
 
-    // Calculate average ratings
-    const propertiesWithRatings = properties.map((property) => {
-      const averageRating =
-        property.reviews.length > 0
-          ? property.reviews.reduce((sum, review) => sum + review.rating, 0) /
-            property.reviews.length
-          : 0;
-
-      return {
-        ...property,
-        averageRating: Math.round(averageRating * 10) / 10,
-        reviewCount: 0, // MVP: Review count disabled
-      };
-    });
+    // Use pre-calculated ratings from database
+    const propertiesWithRatings = properties.map((property) => ({
+      ...property,
+      averageRating: property.averageRating
+        ? Number(property.averageRating)
+        : 0,
+      reviewCount: property.reviewCount,
+    }));
 
     const response: ApiResponse = {
       success: true,
@@ -180,6 +175,11 @@ export const getProperty = asyncHandler(
     const property = await prisma.property.findUnique({
       where: { id },
       include: {
+        images: {
+          orderBy: {
+            order: "asc",
+          },
+        },
         realtor: {
           select: {
             id: true,
@@ -192,6 +192,9 @@ export const getProperty = asyncHandler(
             author: {
               select: {
                 id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
               },
             },
           },
@@ -207,13 +210,13 @@ export const getProperty = asyncHandler(
       throw new AppError("Property not found", 404);
     }
 
-    // Calculate average rating
-    const averageRating = 0; // MVP: Rating calculation disabled temporarily
-
+    // Use pre-calculated ratings from database
     const propertyWithRating = {
       ...property,
-      averageRating: Math.round(averageRating * 10) / 10,
-      reviewCount: 0, // MVP: Review count disabled
+      averageRating: property.averageRating
+        ? Number(property.averageRating)
+        : 0,
+      reviewCount: property.reviewCount,
     };
 
     res.json({

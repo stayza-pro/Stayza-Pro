@@ -92,7 +92,7 @@ export function useReviewsData(
       setError(null);
 
       const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
       // If propertyId is provided, fetch reviews for that property
       // Otherwise, fetch all reviews for the realtor's properties

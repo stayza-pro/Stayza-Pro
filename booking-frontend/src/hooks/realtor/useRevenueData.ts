@@ -57,7 +57,7 @@ export function useRevenueData(
       setError(null);
 
       const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
       const response = await fetch(
         `${baseUrl}/api/realtors/revenue-analytics?period=${timeFilter}`,

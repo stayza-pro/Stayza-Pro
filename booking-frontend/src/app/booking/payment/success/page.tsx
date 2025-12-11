@@ -2,13 +2,16 @@
 
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CheckCircle, XCircle, Clock, AlertCircle, Check } from "lucide-react";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections";
-import { PaymentStatus } from "@/components/payment";
 import { Card, Button, Loading } from "@/components/ui";
 import { paymentService, serviceUtils } from "@/services";
 import { Payment } from "@/types";
 import { toast } from "react-hot-toast";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { TransferStatusBadge } from "@/components/payments/TransferStatus";
+import { useTransferStatus } from "@/hooks/useEscrow";
 
 const mapPaymentStatus = (status?: Payment["status"]) => {
   switch (status) {
@@ -30,6 +33,17 @@ const PaymentSuccessContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference") || searchParams.get("trxref");
+
+  // Get realtor branding
+  const {
+    brandColor,
+    secondaryColor,
+    accentColor,
+    realtorName,
+    logoUrl,
+    tagline,
+    description,
+  } = useRealtorBranding();
 
   const [status, setStatus] = useState<
     "processing" | "success" | "failed" | "pending" | "refunded"
@@ -104,7 +118,15 @@ const PaymentSuccessContent = () => {
             storedPaymentId
           );
           setPayment(paymentRecord);
-          setBookingId(paymentRecord.booking?.id || storedBookingId);
+          const bookingIdToUse = paymentRecord.booking?.id || storedBookingId;
+          setBookingId(bookingIdToUse);
+
+          // Redirect to confirmation page after 2 seconds
+          if (bookingIdToUse) {
+            setTimeout(() => {
+              router.push(`/booking/confirmation/${bookingIdToUse}`);
+            }, 2000);
+          }
         } else {
           setStatus("pending");
         }
@@ -123,109 +145,309 @@ const PaymentSuccessContent = () => {
     verifyPayment();
   }, [reference, hasAttemptedVerification]);
 
+  const getStatusIcon = () => {
+    switch (effectiveStatus) {
+      case "success":
+        return (
+          <div
+            className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 shadow-lg"
+            style={{
+              backgroundColor: `${secondaryColor}15`,
+              border: `2px solid ${secondaryColor}`,
+            }}
+          >
+            <CheckCircle
+              className="h-12 w-12"
+              style={{ color: secondaryColor }}
+            />
+          </div>
+        );
+      case "failed":
+        return (
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-red-50 border-2 border-red-500">
+            <XCircle className="h-12 w-12 text-red-500" />
+          </div>
+        );
+      case "processing":
+        return (
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-blue-50 border-2 border-blue-500">
+            <Clock className="h-12 w-12 text-blue-500 animate-pulse" />
+          </div>
+        );
+      default:
+        return (
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 bg-yellow-50 border-2 border-yellow-500">
+            <AlertCircle className="h-12 w-12 text-yellow-500" />
+          </div>
+        );
+    }
+  };
+
+  const getStatusMessage = () => {
+    switch (effectiveStatus) {
+      case "success":
+        return {
+          title: "Payment Successful!",
+          description:
+            "Your payment has been processed successfully. Redirecting to your booking confirmation...",
+        };
+      case "failed":
+        return {
+          title: "Payment Failed",
+          description:
+            errorMessage ||
+            "We couldn't process your payment. Please try again.",
+        };
+      case "processing":
+        return {
+          title: "Processing Payment",
+          description: "Please wait while we verify your payment...",
+        };
+      default:
+        return {
+          title: "Payment Status Unknown",
+          description: "Please contact support if you need assistance.",
+        };
+    }
+  };
+
+  const statusMessage = getStatusMessage();
+
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <GuestHeader
         currentPage="profile"
         searchPlaceholder="Search location..."
       />
-      <main className="flex-1 flex items-center">
-        <div className="w-full max-w-3xl mx-auto px-4 py-10">
-          {!reference ? (
-            <Card className="p-8 text-center space-y-4">
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Missing payment reference
-              </h1>
-              <p className="text-gray-600">
-                We couldn&apos;t find a Paystack payment reference in the URL.
-                If you just completed a payment, return to the checkout page and
-                try again.
-              </p>
-              <div className="flex justify-center gap-3">
-                <Button
-                  variant="primary"
-                  onClick={() => router.push("/dashboard")}
-                >
-                  Go to dashboard
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/properties")}
-                >
-                  Browse properties
-                </Button>
-              </div>
-            </Card>
-          ) : (
-            <Card className="p-6">
-              {status === "processing" && !payment ? (
-                <div className="flex flex-col items-center space-y-4">
-                  <Loading size="lg" />
-                  <p className="text-gray-600">
-                    Verifying your payment. Please don&apos;t close this page.
-                  </p>
-                </div>
-              ) : (
-                <PaymentStatus
-                  payment={payment || undefined}
-                  status={effectiveStatus}
-                  amount={payment?.amount}
-                  currency={payment?.currency}
-                  paymentMethod={payment?.method}
-                  transactionId={payment?.providerTransactionId}
-                  errorMessage={errorMessage || undefined}
-                  onDownloadReceipt={
-                    effectiveStatus === "success"
-                      ? handleDownloadReceipt
-                      : undefined
-                  }
-                  onContinue={() => router.push("/dashboard")}
-                  onGoBack={
-                    effectiveStatus === "failed"
-                      ? () => router.push("/properties")
-                      : undefined
-                  }
-                />
-              )}
 
-              {bookingId && (
-                <div className="mt-6 text-center">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Progress Indicator */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center space-x-4">
+            <div className="flex items-center">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
+                style={{ backgroundColor: brandColor }}
+              >
+                <Check className="h-6 w-6" />
+              </div>
+              <span className="ml-2 font-medium text-gray-900">
+                Guest Details
+              </span>
+            </div>
+            <div
+              className="w-16 h-1"
+              style={{ backgroundColor: brandColor }}
+            ></div>
+            <div className="flex items-center">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+                  effectiveStatus === "success"
+                    ? "text-white"
+                    : "text-gray-600 bg-gray-200"
+                }`}
+                style={
+                  effectiveStatus === "success"
+                    ? { backgroundColor: brandColor }
+                    : {}
+                }
+              >
+                {effectiveStatus === "success" ? (
+                  <Check className="h-6 w-6" />
+                ) : (
+                  "2"
+                )}
+              </div>
+              <span
+                className={`ml-2 font-medium ${
+                  effectiveStatus === "success"
+                    ? "text-gray-900"
+                    : "text-gray-500"
+                }`}
+              >
+                Payment
+              </span>
+            </div>
+            <div
+              className={`w-16 h-1 ${
+                effectiveStatus === "success" ? "" : "bg-gray-300"
+              }`}
+              style={
+                effectiveStatus === "success"
+                  ? { backgroundColor: brandColor }
+                  : {}
+              }
+            ></div>
+            <div className="flex items-center">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+                  effectiveStatus === "success"
+                    ? "text-white"
+                    : "bg-gray-200 text-gray-600"
+                }`}
+                style={
+                  effectiveStatus === "success"
+                    ? { backgroundColor: brandColor }
+                    : {}
+                }
+              >
+                {effectiveStatus === "success" ? (
+                  <Check className="h-6 w-6" />
+                ) : (
+                  "3"
+                )}
+              </div>
+              <span
+                className={`ml-2 font-medium ${
+                  effectiveStatus === "success"
+                    ? "text-gray-900"
+                    : "text-gray-500"
+                }`}
+              >
+                Confirmation
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {!reference ? (
+          <Card
+            className="p-6 border border-gray-200 !bg-white shadow-sm max-w-2xl mx-auto text-center"
+            style={{ backgroundColor: "#ffffff", color: "#111827" }}
+          >
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mx-auto mb-6">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+            </div>
+            <h1
+              className="text-3xl font-bold mb-2"
+              style={{ color: secondaryColor }}
+            >
+              Missing payment reference
+            </h1>
+            <p className="text-gray-600 mb-6">
+              Unable to verify your payment. Please check your email for
+              confirmation or contact support.
+            </p>
+            <Button onClick={() => router.push("/guest/bookings")}>
+              Go to My Bookings
+            </Button>
+          </Card>
+        ) : (
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              {getStatusIcon()}
+              <h1
+                className="text-3xl font-bold mb-2"
+                style={{ color: secondaryColor }}
+              >
+                {statusMessage.title}
+              </h1>
+              <p className="text-gray-600">{statusMessage.description}</p>
+            </div>
+
+            {effectiveStatus === "success" && bookingId && (
+              <Card
+                className="p-6 border border-gray-200 !bg-white shadow-sm"
+                style={{ backgroundColor: "#ffffff", color: "#111827" }}
+              >
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center space-x-2 text-gray-600">
+                    <Clock className="h-5 w-5" />
+                    <span>Redirecting to your booking confirmation...</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-2000 ease-linear"
+                      style={{
+                        backgroundColor: brandColor,
+                        width: "100%",
+                        animation: "progress 2s linear",
+                      }}
+                    ></div>
+                  </div>
                   <Button
-                    variant="outline"
-                    onClick={() => router.push("/dashboard")}
+                    onClick={() =>
+                      router.push(`/booking/confirmation/${bookingId}`)
+                    }
+                    className="w-full mt-4"
+                    style={{ backgroundColor: brandColor }}
                   >
-                    View my bookings
+                    Go to Confirmation Now
                   </Button>
                 </div>
-              )}
-            </Card>
-          )}
-        </div>
+              </Card>
+            )}
+
+            {effectiveStatus === "failed" && (
+              <Card
+                className="p-6 border border-gray-200 !bg-white shadow-sm"
+                style={{ backgroundColor: "#ffffff", color: "#111827" }}
+              >
+                <div className="space-y-4">
+                  <Button
+                    onClick={() => router.push("/guest/bookings")}
+                    className="w-full"
+                    style={{ backgroundColor: brandColor }}
+                  >
+                    Return to My Bookings
+                  </Button>
+                  <Button
+                    onClick={() => router.push("/browse")}
+                    variant="outline"
+                    className="w-full border-2 border-gray-300"
+                  >
+                    Browse Properties
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {effectiveStatus === "processing" && (
+              <Card
+                className="p-6 border border-gray-200 !bg-white shadow-sm"
+                style={{ backgroundColor: "#ffffff", color: "#111827" }}
+              >
+                <div className="flex items-center justify-center space-y-4">
+                  <Loading size="lg" />
+                </div>
+              </Card>
+            )}
+          </div>
+        )}
       </main>
-      <Footer />
+
+      <Footer
+        realtorName={realtorName}
+        tagline={tagline}
+        logo={logoUrl}
+        description={description}
+        primaryColor={brandColor}
+      />
+
+      <style jsx>{`
+        @keyframes progress {
+          from {
+            width: 0%;
+          }
+          to {
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   );
 };
 
-const PaymentSuccessPage = () => {
+export default function PaymentSuccessPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex flex-col bg-gray-50">
-          <GuestHeader
-            currentPage="profile"
-            searchPlaceholder="Search location..."
-          />
-          <main className="flex-1 flex items-center justify-center">
-            <Loading size="lg" />
-          </main>
-          <Footer />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Loading size="lg" />
         </div>
       }
     >
       <PaymentSuccessContent />
     </Suspense>
   );
-};
-
-export default PaymentSuccessPage;
+}

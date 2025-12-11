@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { Request, Response } from "express";
 import { prisma } from "@/config/database";
 import { AppError } from "@/middleware/errorHandler";
@@ -138,7 +139,7 @@ export const requestRefund = asyncHandler(
         priority: "high",
       });
     } catch (notificationError) {
-      console.error(
+      logger.error(
         "Failed to send refund request notification:",
         notificationError
       );
@@ -352,7 +353,7 @@ export const realtorDecision = asyncHandler(
         }
       }
     } catch (notificationError) {
-      console.error(
+      logger.error(
         "Failed to send refund decision notification:",
         notificationError
       );
@@ -571,7 +572,7 @@ export const processRefund = asyncHandler(
           priority: "high",
         });
       } catch (notificationError) {
-        console.error(
+        logger.error(
           "Failed to send refund processed notification:",
           notificationError
         );
@@ -588,7 +589,7 @@ export const processRefund = asyncHandler(
         },
       });
     } catch (error) {
-      console.error("Refund processing error:", error);
+      logger.error("Refund processing error:", error);
       throw new AppError("Failed to process refund", 500);
     }
   }

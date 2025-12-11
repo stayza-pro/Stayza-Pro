@@ -237,17 +237,17 @@ export default function BookingsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {booking.checkIn &&
-                          format(new Date(booking.checkIn), "MMM dd, yyyy")}
+                        {booking.checkInDate &&
+                          format(new Date(booking.checkInDate), "MMM dd, yyyy")}
                       </div>
                       <div className="text-sm text-gray-500">
                         to{" "}
-                        {booking.checkOut &&
-                          format(new Date(booking.checkOut), "MMM dd, yyyy")}
+                        {booking.checkOutDate &&
+                          format(new Date(booking.checkOutDate), "MMM dd, yyyy")}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {booking.guests}
+                      {booking.totalGuests}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
@@ -415,9 +415,9 @@ export default function BookingsPage() {
                           Check-in
                         </p>
                         <p className="text-sm text-gray-900">
-                          {selectedBooking.checkIn &&
+                          {selectedBooking.checkInDate &&
                             format(
-                              new Date(selectedBooking.checkIn),
+                              new Date(selectedBooking.checkInDate),
                               "MMMM dd, yyyy"
                             )}
                         </p>
@@ -430,9 +430,9 @@ export default function BookingsPage() {
                           Check-out
                         </p>
                         <p className="text-sm text-gray-900">
-                          {selectedBooking.checkOut &&
+                          {selectedBooking.checkOutDate &&
                             format(
-                              new Date(selectedBooking.checkOut),
+                              new Date(selectedBooking.checkOutDate),
                               "MMMM dd, yyyy"
                             )}
                         </p>
@@ -441,8 +441,8 @@ export default function BookingsPage() {
                   </div>
                   <div className="mt-4">
                     <p className="text-sm text-gray-600">
-                      {selectedBooking.guests} guest
-                      {selectedBooking.guests !== 1 ? "s" : ""}
+                      {selectedBooking.totalGuests} guest
+                      {selectedBooking.totalGuests !== 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>

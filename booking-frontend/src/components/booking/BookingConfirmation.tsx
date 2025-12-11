@@ -41,8 +41,8 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
   };
 
   const nights = Math.ceil(
-    (new Date(booking.checkOut).getTime() -
-      new Date(booking.checkIn).getTime()) /
+    (new Date(booking.checkOutDate).getTime() -
+      new Date(booking.checkInDate).getTime()) /
       (1000 * 60 * 60 * 24)
   );
 
@@ -87,7 +87,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <div>
                 <div className="font-medium text-gray-900">Check-in</div>
                 <div className="text-gray-600">
-                  {formatDate(booking.checkIn)}
+                  {formatDate(booking.checkInDate)}
                 </div>
                 <div className="text-sm text-gray-500">After 3:00 PM</div>
               </div>
@@ -98,7 +98,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <div>
                 <div className="font-medium text-gray-900">Check-out</div>
                 <div className="text-gray-600">
-                  {formatDate(booking.checkOut)}
+                  {formatDate(booking.checkOutDate)}
                 </div>
                 <div className="text-sm text-gray-500">Before 11:00 AM</div>
               </div>
@@ -109,7 +109,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
               <div>
                 <div className="font-medium text-gray-900">Guests</div>
                 <div className="text-gray-600">
-                  {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
+                  {booking.totalGuests} {booking.totalGuests === 1 ? "guest" : "guests"}
                 </div>
               </div>
             </div>

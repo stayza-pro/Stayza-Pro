@@ -118,12 +118,12 @@ function OTPVerificationContent() {
 
     try {
       const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
       const endpoint =
         type === "register"
-          ? "/api/auth/verify-registration"
-          : "/api/auth/verify-login";
+          ? "/auth/verify-registration"
+          : "/auth/verify-login";
 
       const payload: any = {
         email,
@@ -138,6 +138,14 @@ function OTPVerificationContent() {
         payload.referralSource = referralSource;
       }
 
+      console.log("🔐 Sending OTP verification:", {
+        endpoint,
+        email,
+        otpLength: code.length,
+        type,
+        payload,
+      });
+
       const response = await fetch(`${backendUrl}${endpoint}`, {
         method: "POST",
         headers: {
@@ -147,6 +155,12 @@ function OTPVerificationContent() {
       });
 
       const result = await response.json();
+
+      console.log("📥 OTP verification response:", {
+        ok: response.ok,
+        status: response.status,
+        result,
+      });
 
       if (!response.ok) {
         throw new Error(result.message || "Verification failed");
@@ -190,12 +204,12 @@ function OTPVerificationContent() {
 
     try {
       const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
       const endpoint =
         type === "register"
-          ? "/api/auth/register-passwordless"
-          : "/api/auth/request-otp";
+          ? "/auth/register-passwordless"
+          : "/auth/request-otp";
 
       // Build payload based on type
       let payload: any = { email };

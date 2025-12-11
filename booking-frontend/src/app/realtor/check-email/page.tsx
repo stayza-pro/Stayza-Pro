@@ -22,17 +22,14 @@ export default function CheckEmailPage() {
     setIsResending(true);
     try {
       const API_BASE_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
-      const response = await fetch(
-        `${API_BASE_URL}/api/auth/resend-verification`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email: searchParams.get("email") }),
-        }
-      );
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: searchParams.get("email") }),
+      });
 
       const data = await response.json();
 

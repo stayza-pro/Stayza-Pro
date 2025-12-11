@@ -84,7 +84,7 @@ export function useDashboardData(): DashboardData {
 
       // API endpoints
       const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
       const headers = {
         Authorization: `Bearer ${accessToken}`,

@@ -500,11 +500,11 @@ export default function RealtorDashboardPage() {
                       {booking.guest?.firstName} {booking.guest?.lastName}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {booking.checkIn &&
-                        format(new Date(booking.checkIn), "MMM dd")}{" "}
+                      {booking.checkInDate &&
+                        format(new Date(booking.checkInDate), "MMM dd")}{" "}
                       -
-                      {booking.checkOut &&
-                        format(new Date(booking.checkOut), "MMM dd")}
+                      {booking.checkOutDate &&
+                        format(new Date(booking.checkOutDate), "MMM dd")}
                     </p>
                   </div>
                 </div>

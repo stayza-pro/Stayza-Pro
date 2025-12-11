@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { Response } from "express";
 import { BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/config/database";
@@ -20,6 +21,98 @@ import {
   NotificationService,
   notificationHelpers,
 } from "@/services/notificationService";
+import escrowService from "@/services/escrowService";
+
+/**
+ * @desc    Calculate booking price
+ * @route   POST /api/bookings/calculate
+ * @access  Public
+ */
+export const calculateBooking = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { propertyId, checkInDate, checkOutDate, guests } = req.body;
+
+    if (!propertyId || !checkInDate || !checkOutDate) {
+      throw new AppError(
+        "Property ID, check-in date, and check-out date are required",
+        400
+      );
+    }
+
+    // Check if property exists and is active
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId, isActive: true },
+    });
+
+    if (!property) {
+      throw new AppError("Property not found", 404);
+    }
+
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+
+    // Validate dates
+    if (checkIn >= checkOut) {
+      throw new AppError("Check-out date must be after check-in date", 400);
+    }
+
+    // Compare dates only (ignore time) - allow same-day bookings
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInDateOnly = new Date(checkIn);
+    checkInDateOnly.setHours(0, 0, 0, 0);
+
+    if (checkInDateOnly < today) {
+      throw new AppError("Check-in date cannot be in the past", 400);
+    }
+
+    // Calculate nights
+    const nights = Math.ceil(
+      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    const pricePerNight = Number(property.pricePerNight);
+    const subtotal = pricePerNight * nights;
+
+    // Get optional fees set by realtor
+    const serviceFee = property.serviceFee ? Number(property.serviceFee) : 0;
+    const cleaningFee = property.cleaningFee ? Number(property.cleaningFee) : 0;
+    const securityDeposit = property.securityDeposit
+      ? Number(property.securityDeposit)
+      : 0;
+
+    // Calculate platform commission (10% of subtotal - taken from realtor payout, not shown to guest)
+    const platformCommission =
+      subtotal * config.DEFAULT_PLATFORM_COMMISSION_RATE;
+
+    // Total guest pays = subtotal + realtor's optional fees
+    const total = subtotal + serviceFee + cleaningFee + securityDeposit;
+
+    res.json({
+      success: true,
+      message: "Booking calculation successful",
+      data: {
+        subtotal: Number(subtotal.toFixed(2)),
+        serviceFee: Number(serviceFee.toFixed(2)),
+        cleaningFee: Number(cleaningFee.toFixed(2)),
+        securityDeposit: Number(securityDeposit.toFixed(2)),
+        taxes: 0, // MVP: No separate tax calculation
+        fees: Number((serviceFee + cleaningFee).toFixed(2)), // Combined fees for backward compatibility
+        total: Number(total.toFixed(2)),
+        currency: property.currency,
+        nights,
+        breakdown: {
+          pricePerNight: Number(pricePerNight.toFixed(2)),
+          serviceFee: Number(serviceFee.toFixed(2)),
+          cleaningFee: Number(cleaningFee.toFixed(2)),
+          securityDeposit: Number(securityDeposit.toFixed(2)),
+          platformCommission: Number(platformCommission.toFixed(2)), // For internal tracking only
+          realtorPayout: Number((subtotal - platformCommission).toFixed(2)), // What realtor gets after commission
+        },
+      },
+    });
+  }
+);
 
 /**
  * @desc    Check property availability for given dates
@@ -45,7 +138,13 @@ export const checkAvailability = asyncHandler(
       throw new AppError("Check-out date must be after check-in date", 400);
     }
 
-    if (checkInDate < new Date()) {
+    // Compare dates only (ignore time) - allow same-day bookings
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInDateOnly = new Date(checkInDate);
+    checkInDateOnly.setHours(0, 0, 0, 0);
+
+    if (checkInDateOnly < today) {
       throw new AppError("Check-in date cannot be in the past", 400);
     }
 
@@ -169,7 +268,13 @@ export const createBooking = asyncHandler(
       throw new AppError("Check-out date must be after check-in date", 400);
     }
 
-    if (checkIn < new Date()) {
+    // Compare dates only (ignore time) - allow same-day bookings
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInDateOnly = new Date(checkIn);
+    checkInDateOnly.setHours(0, 0, 0, 0);
+
+    if (checkInDateOnly < today) {
       throw new AppError("Check-in date cannot be in the past", 400);
     }
 
@@ -227,45 +332,54 @@ export const createBooking = asyncHandler(
       const pricePerNight = Number(property.pricePerNight);
       const propertyPrice = pricePerNight * nights; // Base property amount
 
-      // Commission rate: realtor specific override if present else default
-      // (Realtor relation was not fully selected earlier; relying on property.realtorId commission not fetched.
-      // For MVP we use default commission. In later enhancement include realtor.commissionRate.)
-      const platformCommissionRate = config.DEFAULT_PLATFORM_COMMISSION_RATE;
-      const platformCommission = propertyPrice * platformCommissionRate;
+      // Get optional fees set by realtor
+      const cleaningFee = property.cleaningFee
+        ? Number(property.cleaningFee)
+        : 0;
+      const securityDeposit = property.securityDeposit
+        ? Number(property.securityDeposit)
+        : 0;
 
-      const serviceFee = propertyPrice * config.SERVICE_FEE_RATE;
-      const realtorPayout = propertyPrice - platformCommission; // Commission taken from property price portion
-      const totalPrice = propertyPrice + serviceFee;
-
-      // Refund deadline (baseline full refund window)
-      const refundDeadline = new Date(
-        Date.now() + config.REFUND_WINDOW_HOURS * 60 * 60 * 1000
+      // Use escrow service to calculate fee breakdown
+      const feeBreakdown = escrowService.calculateFeeBreakdown(
+        pricePerNight,
+        nights,
+        cleaningFee,
+        securityDeposit
       );
 
-      // Escrow / payout release date (check-in + offset hours if configured)
-      const payoutReleaseDate = new Date(checkIn.getTime());
-      if (config.ESCROW_RELEASE_OFFSET_HOURS > 0) {
-        payoutReleaseDate.setHours(
-          payoutReleaseDate.getHours() + config.ESCROW_RELEASE_OFFSET_HOURS
-        );
-      }
+      const totalPrice = feeBreakdown.totalAmount;
 
-      // Create booking with corrected financial breakdown
+      // Platform commission (10% of property price only - taken from realtor payout)
+      const platformCommissionRate = config.DEFAULT_PLATFORM_COMMISSION_RATE;
+      const platformCommission = propertyPrice * platformCommissionRate;
+      const realtorPayout = propertyPrice - platformCommission;
+
+      // Escrow system: Calculate refund cutoff (24 hours before check-in)
+      const refundCutoffTime = new Date(checkIn);
+      refundCutoffTime.setHours(refundCutoffTime.getHours() - 24);
+
+      // Payout eligible time (when check-in time is reached)
+      const payoutEligibleAt = new Date(checkIn);
+
+      // Create booking with escrow tracking
       const booking = await tx.booking.create({
         data: {
           checkInDate: checkIn,
           checkOutDate: checkOut,
           totalGuests,
           totalPrice: new Prisma.Decimal(totalPrice.toFixed(2)),
-          // MVP: propertyPrice removed from simplified Booking model
-          // MVP: serviceFee removed from simplified Booking model
-          // MVP: platformCommission removed from simplified Booking model
-          // MVP: realtorPayout removed from simplified Booking model
           currency: property.currency,
-          // MVP: specialRequests removed from simplified Booking model
-          // MVP: isRefundable removed from simplified Booking model
-          // MVP: refundDeadline removed from simplified Booking model
-          // MVP: payoutReleaseDate removed from simplified Booking model
+          specialRequests: specialRequests || "",
+          refundCutoffTime,
+          payoutEligibleAt,
+          payoutStatus: "PENDING", // Funds in escrow
+          // Fee breakdown
+          roomFee: new Prisma.Decimal(feeBreakdown.roomFee),
+          cleaningFee: new Prisma.Decimal(feeBreakdown.cleaningFee),
+          securityDeposit: new Prisma.Decimal(feeBreakdown.securityDeposit),
+          serviceFee: new Prisma.Decimal(feeBreakdown.serviceFee),
+          platformFee: new Prisma.Decimal(feeBreakdown.platformFee),
           guestId: req.user!.id,
           propertyId,
         },
@@ -326,7 +440,7 @@ export const createBooking = asyncHandler(
 
       await notificationService.createAndSendNotification(realtorNotification);
     } catch (notificationError) {
-      console.error(
+      logger.error(
         "Failed to send booking creation notifications:",
         notificationError
       );
@@ -605,6 +719,24 @@ export const getBooking = asyncHandler(
             realtor: {
               select: {
                 id: true,
+                businessName: true,
+                businessPhone: true,
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            images: {
+              select: {
+                id: true,
+                url: true,
+              },
+              orderBy: {
+                order: "asc",
               },
             },
           },
@@ -612,6 +744,10 @@ export const getBooking = asyncHandler(
         guest: {
           select: {
             id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
           },
         },
         payment: true,
@@ -625,7 +761,7 @@ export const getBooking = asyncHandler(
 
     // Check authorization
     const isOwner = booking.guestId === req.user!.id;
-    const isHost = booking.property.realtorId === req.user!.id;
+    const isHost = booking.property.realtor.id === req.user!.id;
     const isAdmin = req.user!.role === "ADMIN";
 
     if (!isOwner && !isHost && !isAdmin) {
@@ -721,7 +857,7 @@ export const getBooking = asyncHandler(
 //         //     );
 //         //   }
 //         // } catch (err) {
-//         //   console.error(
+//         //   logger.error(
 //         //     "Provider refund failed; proceeding with internal record",
 //         //     err
 //         //   );
@@ -803,7 +939,7 @@ export const getBooking = asyncHandler(
 //         );
 //       }
 //     } catch (e) {
-//       console.error("Failed to send booking cancellation email", e);
+//       logger.error("Failed to send booking cancellation email", e);
 //     }
 
 //     res.json({
@@ -920,7 +1056,7 @@ export const updateBookingStatus = asyncHandler(
         await notificationService.createAndSendNotification(notification);
       }
     } catch (notificationError) {
-      console.error(
+      logger.error(
         "Failed to send booking status update notifications:",
         notificationError
       );
@@ -1030,26 +1166,57 @@ export const cancelBooking = asyncHandler(
       booking.payment?.status === "COMPLETED"
     ) {
       try {
-        // Calculate refund based on cancellation policy
-        const refundAmount = booking.payment.amount; // Simple: full refund if eligible
-
-        // Process refund through payment service
-        const refundResult = await paystackService.processRefund(
-          booking.payment.reference ||
-            booking.payment.providerTransactionId ||
-            "",
-          refundAmount.toNumber()
+        // Import refund service
+        const { processBookingRefund, calculateRefundSplit } = await import(
+          "@/services/refund"
         );
+
+        // Calculate tiered refund split
+        const refundSplit = calculateRefundSplit(
+          booking.checkInDate,
+          Number(booking.totalPrice)
+        );
+
+        // Process the refund with split
+        const refundResult = await processBookingRefund(id);
 
         refundInfo = {
           eligible: true,
-          amount: refundAmount,
-          currency: booking.payment.currency,
-          status: "processing",
-          reference: refundResult.reference,
+          tier: refundResult.tier,
+          totalAmount: refundResult.totalAmount,
+          customerRefund: refundSplit.customerRefund,
+          realtorPayout: refundSplit.realtorPayout,
+          stayzaPayout: refundSplit.stayzaPayout,
+          breakdown: {
+            customer: `${
+              refundSplit.tier === "EARLY"
+                ? "90%"
+                : refundSplit.tier === "MEDIUM"
+                ? "70%"
+                : "0%"
+            }`,
+            realtor: `${
+              refundSplit.tier === "EARLY"
+                ? "7%"
+                : refundSplit.tier === "MEDIUM"
+                ? "20%"
+                : "80%"
+            }`,
+            stayza: `${
+              refundSplit.tier === "EARLY"
+                ? "3%"
+                : refundSplit.tier === "MEDIUM"
+                ? "10%"
+                : "20%"
+            }`,
+          },
+          status: "processed",
         };
+
+        // TODO: Actually transfer funds via Paystack/Flutterwave APIs
+        // For now, we've recorded the split in the database
       } catch (refundError) {
-        console.error("Refund processing failed:", refundError);
+        logger.error("Refund processing failed:", refundError);
         refundInfo = {
           eligible: true,
           error: "Refund processing failed - please contact support",
@@ -1071,7 +1238,7 @@ export const cancelBooking = asyncHandler(
         refundInfo?.amount
       );
     } catch (emailError) {
-      console.error("Failed to send cancellation email:", emailError);
+      logger.error("Failed to send cancellation email:", emailError);
     }
 
     // Send real-time notifications
@@ -1099,7 +1266,7 @@ export const cancelBooking = asyncHandler(
       };
       await notificationService.createAndSendNotification(realtorNotification);
     } catch (notificationError) {
-      console.error(
+      logger.error(
         "Failed to send cancellation notifications:",
         notificationError
       );
@@ -1116,6 +1283,230 @@ export const cancelBooking = asyncHandler(
           cancelledBy: isAdmin ? "admin" : "guest",
           cancelledAt: new Date(),
           refundEligible: cancellationCheck.refundEligible,
+        },
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Check-in booking
+ * @route   POST /api/bookings/:id/check-in
+ * @access  Private (Guest or Admin)
+ */
+export const checkInBooking = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const isAdmin = req.user!.role === "ADMIN";
+
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        guest: true,
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+        payment: true,
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    // Authorization: Only guest or admin can check in
+    if (!isAdmin && booking.guestId !== userId) {
+      throw new AppError("Unauthorized to check in this booking", 403);
+    }
+
+    // Verify booking status
+    if (
+      booking.status !== BookingStatus.PAID &&
+      booking.status !== "CONFIRMED"
+    ) {
+      throw new AppError(
+        `Cannot check in. Booking status is ${booking.status}`,
+        400
+      );
+    }
+
+    // Verify it's check-in day or after
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkInDate = new Date(booking.checkInDate);
+    checkInDate.setHours(0, 0, 0, 0);
+
+    if (checkInDate > today) {
+      throw new AppError("Check-in date has not arrived yet", 400);
+    }
+
+    // Set check-in time and dispute window (1 hour from now)
+    const checkInTime = new Date();
+    const disputeWindowClosesAt = new Date(
+      checkInTime.getTime() + 60 * 60 * 1000
+    ); // 1 hour
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id },
+      data: {
+        status: BookingStatus.CHECKED_IN,
+        checkInTime,
+        disputeWindowClosesAt,
+      },
+      include: {
+        guest: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        property: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            city: true,
+            realtor: {
+              select: {
+                id: true,
+                businessName: true,
+              },
+            },
+          },
+        },
+        payment: true,
+      },
+    });
+
+    // Log audit
+    await auditLogger.log("BOOKING_CHECKED_IN" as any, "BOOKING" as any, {
+      userId,
+      entityId: id,
+      details: {
+        checkInTime: checkInTime.toISOString(),
+        disputeWindowClosesAt: disputeWindowClosesAt.toISOString(),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Check-in successful",
+      data: {
+        booking: updatedBooking,
+        disputeWindow: {
+          closesAt: disputeWindowClosesAt,
+          remainingMinutes: 60,
+        },
+      },
+    });
+  }
+);
+
+/**
+ * @desc    Check-out booking
+ * @route   POST /api/bookings/:id/check-out
+ * @access  Private (Guest or Admin)
+ */
+export const checkOutBooking = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const isAdmin = req.user!.role === "ADMIN";
+
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        guest: true,
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+        payment: true,
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    // Authorization: Only guest or admin can check out
+    if (!isAdmin && booking.guestId !== userId) {
+      throw new AppError("Unauthorized to check out this booking", 403);
+    }
+
+    // Verify booking status
+    if (booking.status !== BookingStatus.CHECKED_IN) {
+      throw new AppError(
+        `Cannot check out. Booking status is ${booking.status}. Must be checked in first.`,
+        400
+      );
+    }
+
+    // Set check-out time and realtor dispute window (2 hours from now)
+    const checkOutTime = new Date();
+    const realtorDisputeClosesAt = new Date(
+      checkOutTime.getTime() + 2 * 60 * 60 * 1000
+    ); // 2 hours
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id },
+      data: {
+        status: BookingStatus.CHECKED_OUT,
+        checkOutTime,
+        realtorDisputeClosesAt,
+      },
+      include: {
+        guest: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        property: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            city: true,
+            realtor: {
+              select: {
+                id: true,
+                businessName: true,
+                userId: true,
+              },
+            },
+          },
+        },
+        payment: true,
+      },
+    });
+
+    // Log audit
+    await auditLogger.log("BOOKING_CHECKED_OUT" as any, "BOOKING" as any, {
+      userId,
+      entityId: id,
+      details: {
+        checkOutTime: checkOutTime.toISOString(),
+        realtorDisputeClosesAt: realtorDisputeClosesAt.toISOString(),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Check-out successful",
+      data: {
+        booking: updatedBooking,
+        realtorDisputeWindow: {
+          closesAt: realtorDisputeClosesAt,
+          remainingMinutes: 120,
         },
       },
     });

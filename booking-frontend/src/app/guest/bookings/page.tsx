@@ -103,8 +103,8 @@ export default function GuestBookingsPage() {
   // Filter bookings based on active tab
   const filteredBookings = bookings.filter((booking: Booking) => {
     const now = new Date();
-    const checkIn = new Date(booking.checkIn);
-    const checkOut = new Date(booking.checkOut);
+    const checkIn = new Date(booking.checkInDate);
+    const checkOut = new Date(booking.checkOutDate);
 
     // Apply tab filter
     if (activeTab === "upcoming") {
@@ -180,8 +180,8 @@ export default function GuestBookingsPage() {
 
   const isOngoing = (booking: any) => {
     const now = new Date();
-    const checkIn = new Date(booking.checkIn);
-    const checkOut = new Date(booking.checkOut);
+    const checkIn = new Date(booking.checkInDate);
+    const checkOut = new Date(booking.checkOutDate);
     return checkIn <= now && checkOut >= now && booking.status === "CONFIRMED";
   };
 
@@ -233,7 +233,10 @@ export default function GuestBookingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div
+      className="min-h-screen bg-gray-50 flex flex-col"
+      style={{ colorScheme: "light" }}
+    >
       <GuestHeader
         currentPage="bookings"
         searchPlaceholder="Search your bookings..."
@@ -262,7 +265,10 @@ export default function GuestBookingsPage() {
         {/* Stats Overview */}
         {bookings.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-            <Card className="p-6 text-center border border-gray-200 hover:shadow-md transition-shadow duration-200">
+            <Card
+              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <div
                 className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
                 style={{ backgroundColor: `${primaryColor}15` }} // Lighter touch - primary for stat icon
@@ -278,7 +284,10 @@ export default function GuestBookingsPage() {
               <p className="text-sm text-gray-600">Total Bookings</p>
             </Card>
 
-            <Card className="p-6 text-center border border-gray-200 hover:shadow-md transition-shadow duration-200">
+            <Card
+              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <div
                 className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
                 style={{ backgroundColor: `${secondaryColor || "#059669"}15` }}
@@ -299,7 +308,10 @@ export default function GuestBookingsPage() {
               <p className="text-sm text-gray-600">Confirmed</p>
             </Card>
 
-            <Card className="p-6 text-center border border-gray-200 hover:shadow-md transition-shadow duration-200">
+            <Card
+              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <div
                 className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
                 style={{ backgroundColor: `${accentColor || "#D97706"}15` }}
@@ -315,7 +327,10 @@ export default function GuestBookingsPage() {
               <p className="text-sm text-gray-600">Pending</p>
             </Card>
 
-            <Card className="p-6 text-center border border-gray-200 hover:shadow-md transition-shadow duration-200">
+            <Card
+              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <div
                 className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
                 style={{ backgroundColor: `${primaryColor}15` }} // Lighter touch - primary for stat icon
@@ -346,7 +361,10 @@ export default function GuestBookingsPage() {
         )}
 
         {/* Navigation & Search */}
-        <Card className="p-6 mb-8 border border-gray-200 shadow-sm">
+        <Card
+          className="p-6 mb-8 border border-gray-200 !bg-white shadow-sm"
+          style={{ backgroundColor: "#ffffff", color: "#111827" }}
+        >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             {/* Navigation Tabs */}
             <div className="flex flex-wrap gap-2">
@@ -444,7 +462,7 @@ export default function GuestBookingsPage() {
                 placeholder="Search bookings..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full lg:w-80 border border-gray-300 focus:border-red-500 focus:ring-0"
+                className="pl-10 pr-4 py-2 w-full lg:w-80 border bg-gray-50"
               />
             </div>
           </div>
@@ -452,7 +470,10 @@ export default function GuestBookingsPage() {
 
         {/* Empty State */}
         {filteredBookings.length === 0 ? (
-          <Card className="p-16 text-center border border-gray-200 shadow-sm">
+          <Card
+            className="p-16 text-center border border-gray-200 !bg-white shadow-sm"
+            style={{ backgroundColor: "#ffffff", color: "#111827" }}
+          >
             <div className="max-w-md mx-auto">
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-lg mb-6">
                 <Home className="h-10 w-10 text-gray-600" />
@@ -485,13 +506,14 @@ export default function GuestBookingsPage() {
             {filteredBookings.map((booking: Booking, index) => {
               const status = getStatusConfig(booking.status);
               const StatusIcon = status.icon;
-              const nights = calculateNights(booking.checkIn, booking.checkOut);
+              const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
               const ongoing = isOngoing(booking);
 
               return (
                 <Card
                   key={booking.id}
-                  className="p-0 hover:shadow-lg transition-shadow duration-200 cursor-pointer border border-gray-200 overflow-hidden"
+                  className="p-0 hover:shadow-lg transition-shadow duration-200 cursor-pointer border border-gray-200 !bg-white overflow-hidden"
+                  style={{ backgroundColor: "#ffffff", color: "#111827" }}
                   onClick={() => router.push(`/guest/bookings/${booking.id}`)}
                 >
                   <div className="flex flex-col lg:flex-row">
@@ -587,7 +609,7 @@ export default function GuestBookingsPage() {
                                 Check-in
                               </p>
                               <p className="text-lg font-bold text-gray-700">
-                                {formatDate(booking.checkIn)}
+                                {formatDate(booking.checkInDate)}
                               </p>
                             </div>
                           </div>
@@ -609,7 +631,7 @@ export default function GuestBookingsPage() {
                                 Check-out
                               </p>
                               <p className="text-lg font-bold text-gray-700">
-                                {formatDate(booking.checkOut)}
+                                {formatDate(booking.checkOutDate)}
                               </p>
                             </div>
                           </div>
@@ -631,8 +653,8 @@ export default function GuestBookingsPage() {
                                 Guests
                               </p>
                               <p className="text-lg font-bold text-gray-700">
-                                {booking.guests}{" "}
-                                {booking.guests === 1 ? "Guest" : "Guests"}
+                                {booking.totalGuests}{" "}
+                                {booking.totalGuests === 1 ? "Guest" : "Guests"}
                               </p>
                             </div>
                           </div>
@@ -659,7 +681,7 @@ export default function GuestBookingsPage() {
                       <div className="flex items-center justify-between pt-6 border-t border-gray-200">
                         <div className="text-sm text-gray-500">
                           Booked on{" "}
-                          {formatDate(booking.createdAt || booking.checkIn)}
+                          {formatDate(booking.createdAt || booking.checkInDate)}
                         </div>
 
                         <Button
@@ -684,7 +706,10 @@ export default function GuestBookingsPage() {
 
         {/* Support Section */}
         {bookings.length > 0 && (
-          <Card className="p-8 mt-8 border border-gray-200 shadow-sm">
+          <Card
+            className="p-8 mt-8 border border-gray-200 !bg-white shadow-sm"
+            style={{ backgroundColor: "#ffffff", color: "#111827" }}
+          >
             <div className="text-center max-w-2xl mx-auto">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-lg mb-6">
                 <MessageCircle className="h-8 w-8 text-red-600" />

@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true, // Start as true to prevent flash of unauthenticated content
       error: null,
 
       // Actions
@@ -241,7 +241,47 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           hasServiceToken: !!authService.getAccessToken(),
           hasStateRefresh: !!state.refreshToken,
           hasServiceRefresh: !!authService.getRefreshToken(),
+          hasStateUser: !!state.user,
+          isAuthenticated: state.isAuthenticated,
         });
+
+        // If we already have a valid user and tokens from persistence, just verify
+        if (state.user && state.accessToken && state.isAuthenticated) {
+          console.log(
+            "✅ AuthStore: User already authenticated from persisted state"
+          );
+
+          // Set loading to false immediately for persisted state
+          set({ isLoading: false });
+
+          try {
+            // Verify the token is still valid in the background
+            const user = await authService.getProfile();
+            set({
+              user,
+            });
+            console.log("✅ AuthStore: Token validated successfully");
+            return;
+          } catch (error: any) {
+            console.warn(
+              "⚠️ AuthStore: Token validation failed, will attempt refresh"
+            );
+            // Don't clear auth yet, try to refresh first
+            // Continue to refresh logic below if we have a refresh token
+            if (!state.refreshToken) {
+              // No refresh token, clear state
+              set({
+                user: null,
+                accessToken: null,
+                refreshToken: null,
+                isAuthenticated: false,
+                isLoading: false,
+              });
+              return;
+            }
+            // Will continue to refresh logic below
+          }
+        }
 
         // Fallback to cookies if localStorage doesn't have tokens (cross-subdomain case)
         if (typeof window !== "undefined" && (!token || !refreshToken)) {
@@ -270,10 +310,19 @@ export const useAuthStore = create<AuthState & AuthActions>()(
               "💾 AuthStore: Restored refresh token to localStorage from cookie"
             );
           }
+
+          // Update state with tokens from cookies
+          if (cookieToken || cookieRefresh) {
+            set({
+              accessToken: token,
+              refreshToken: refreshToken,
+            });
+          }
         }
 
         if (!token && !refreshToken) {
           // No tokens available, user is not authenticated
+          console.log("❌ AuthStore: No tokens found, user not authenticated");
           set({
             user: null,
             accessToken: null,
@@ -298,10 +347,13 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
             error: null,
           });
+
+          console.log("✅ AuthStore: User authenticated successfully");
         } catch (error: any) {
           // If profile fetch fails, try to refresh token
           if (refreshToken && error?.response?.status === 401) {
             try {
+              console.log("🔄 AuthStore: Access token expired, refreshing...");
               await get().refreshUserToken();
               // After successful refresh, try to get profile again
               const user = await authService.getProfile();
@@ -314,9 +366,12 @@ export const useAuthStore = create<AuthState & AuthActions>()(
                 isLoading: false,
                 error: null,
               });
+              console.log(
+                "✅ AuthStore: Token refreshed and user authenticated"
+              );
             } catch (refreshError) {
               // Refresh failed, clear auth state
-              console.error("Token refresh failed:", refreshError);
+              console.error("❌ Token refresh failed:", refreshError);
               set({
                 user: null,
                 accessToken: null,
@@ -325,13 +380,17 @@ export const useAuthStore = create<AuthState & AuthActions>()(
                 isLoading: false,
                 error: null,
               });
-              // Clear tokens from localStorage
+              // Clear tokens from localStorage and cookies
               localStorage.removeItem("accessToken");
               localStorage.removeItem("refreshToken");
+              if (typeof window !== "undefined") {
+                deleteCookie("accessToken");
+                deleteCookie("refreshToken");
+              }
             }
           } else {
             // Token is invalid and no refresh token, clear state
-            console.error("Auth check failed:", error);
+            console.error("❌ Auth check failed:", error);
             set({
               user: null,
               accessToken: null,
@@ -340,9 +399,13 @@ export const useAuthStore = create<AuthState & AuthActions>()(
               isLoading: false,
               error: null,
             });
-            // Clear tokens from localStorage
+            // Clear tokens from localStorage and cookies
             localStorage.removeItem("accessToken");
             localStorage.removeItem("refreshToken");
+            if (typeof window !== "undefined") {
+              deleteCookie("accessToken");
+              deleteCookie("refreshToken");
+            }
           }
         }
       },

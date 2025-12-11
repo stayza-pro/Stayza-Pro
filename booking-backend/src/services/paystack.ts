@@ -1,6 +1,8 @@
 import axios from "axios";
 import crypto from "crypto";
 import { config } from "@/config";
+import { logger } from "@/utils/logger";
+import { withPaymentRetry } from "@/utils/retry";
 
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
 
@@ -39,10 +41,10 @@ export const createSubAccount = async (realtor: {
 
     return response.data.data;
   } catch (error: any) {
-    console.error(
-      "Error creating Paystack subaccount:",
-      error.response?.data || error.message
-    );
+    logger.error("Error creating Paystack subaccount", {
+      error: error.response?.data || error.message,
+      stack: error.stack,
+    });
     throw new Error("Failed to create payment account");
   }
 };
@@ -116,10 +118,11 @@ export const initializeSplitPayment = async (booking: {
       split_code: splitCode,
     };
   } catch (error: any) {
-    console.error(
-      "Error initializing Paystack split payment:",
-      error.response?.data || error.message
-    );
+    logger.error("Error initializing Paystack split payment", {
+      error: error.response?.data || error.message,
+      bookingId: booking.id,
+      stack: error.stack,
+    });
     throw new Error("Failed to initialize payment");
   }
 };
@@ -134,7 +137,7 @@ export const verifyTransaction = async (reference: string) => {
     );
     return response.data.data;
   } catch (error: any) {
-    console.error(
+    logger.error(
       "Error verifying Paystack transaction:",
       error.response?.data || error.message
     );
@@ -150,10 +153,11 @@ export const getTransaction = async (transactionId: string) => {
     const response = await paystackClient.get(`/transaction/${transactionId}`);
     return response.data.data;
   } catch (error: any) {
-    console.error(
-      "Error getting Paystack transaction:",
-      error.response?.data || error.message
-    );
+    logger.error("Error getting Paystack transaction", {
+      error: error.response?.data || error.message,
+      transactionId,
+      stack: error.stack,
+    });
     throw new Error("Failed to get transaction details");
   }
 };
@@ -175,13 +179,19 @@ export const processRefund = async (
       payload.amount = Math.round(refundAmount * 100); // Convert to kobo
     }
 
-    const response = await paystackClient.post("/refund", payload);
+    const response = await withPaymentRetry(
+      () => paystackClient.post("/refund", payload),
+      "processRefund",
+      "paystack"
+    );
     return response.data.data;
   } catch (error: any) {
-    console.error(
-      "Error processing Paystack refund:",
-      error.response?.data || error.message
-    );
+    logger.error("Error processing Paystack refund", {
+      error: error.response?.data || error.message,
+      transactionReference,
+      refundAmount,
+      stack: error.stack,
+    });
     throw new Error("Failed to process refund");
   }
 };
@@ -194,10 +204,11 @@ export const getSubAccount = async (subAccountCode: string) => {
     const response = await paystackClient.get(`/subaccount/${subAccountCode}`);
     return response.data.data;
   } catch (error: any) {
-    console.error(
-      "Error getting Paystack subaccount:",
-      error.response?.data || error.message
-    );
+    logger.error("Error getting Paystack subaccount", {
+      error: error.response?.data || error.message,
+      subAccountCode,
+      stack: error.stack,
+    });
     throw new Error("Failed to get subaccount details");
   }
 };
@@ -210,10 +221,10 @@ export const listBanks = async () => {
     const response = await paystackClient.get("/bank?country=nigeria");
     return response.data.data;
   } catch (error: any) {
-    console.error(
-      "Error listing banks:",
-      error.response?.data || error.message
-    );
+    logger.error("Error listing banks", {
+      error: error.response?.data || error.message,
+      stack: error.stack,
+    });
     throw new Error("Failed to get bank list");
   }
 };
@@ -231,10 +242,12 @@ export const resolveAccount = async (
     );
     return response.data.data;
   } catch (error: any) {
-    console.error(
-      "Error resolving account:",
-      error.response?.data || error.message
-    );
+    logger.error("Error resolving account", {
+      error: error.response?.data || error.message,
+      accountNumber,
+      bankCode,
+      stack: error.stack,
+    });
     throw new Error("Failed to resolve account details");
   }
 };
@@ -287,7 +300,7 @@ export const initializePaystackTransaction = async (data: {
     );
     return response.data;
   } catch (error: any) {
-    console.error(
+    logger.error(
       "Paystack initialization error:",
       error.response?.data || error
     );
@@ -307,12 +320,102 @@ export const verifyPaystackTransaction = async (reference: string) => {
     );
     return response.data;
   } catch (error: any) {
-    console.error(
-      "Paystack verification error:",
-      error.response?.data || error
-    );
+    logger.error("Paystack verification error:", error.response?.data || error);
     throw new Error(
       error.response?.data?.message || "Payment verification failed"
+    );
+  }
+};
+
+/**
+ * Transfer funds to recipient (for escrow payouts)
+ */
+export const initiateTransfer = async (data: {
+  amount: number;
+  recipient: string;
+  reason: string;
+  reference?: string;
+}) => {
+  try {
+    const payload = {
+      source: "balance",
+      amount: Math.round(data.amount * 100), // Convert to kobo
+      recipient: data.recipient,
+      reason: data.reason,
+      reference: data.reference || `transfer_${Date.now()}`,
+    };
+
+    const response = await withPaymentRetry(
+      () => paystackClient.post("/transfer", payload),
+      "initiateTransfer",
+      "paystack"
+    );
+    return response.data.data;
+  } catch (error: any) {
+    logger.error("Paystack transfer error", {
+      error: error.response?.data || error.message,
+      amount: data.amount,
+      recipient: data.recipient,
+      reference: data.reference,
+      stack: error.stack,
+    });
+    throw new Error(
+      error.response?.data?.message || "Failed to initiate transfer"
+    );
+  }
+};
+
+/**
+ * Create transfer recipient (for realtor payouts)
+ */
+export const createTransferRecipient = async (data: {
+  type: string;
+  name: string;
+  account_number: string;
+  bank_code: string;
+  currency?: string;
+  metadata?: any;
+}) => {
+  try {
+    const payload = {
+      type: data.type || "nuban",
+      name: data.name,
+      account_number: data.account_number,
+      bank_code: data.bank_code,
+      currency: data.currency || "NGN",
+      metadata: data.metadata,
+    };
+
+    const response = await paystackClient.post("/transferrecipient", payload);
+    return response.data.data;
+  } catch (error: any) {
+    logger.error("Paystack create recipient error", {
+      error: error.response?.data || error.message,
+      accountNumber: data.account_number,
+      bankCode: data.bank_code,
+      stack: error.stack,
+    });
+    throw new Error(
+      error.response?.data?.message || "Failed to create transfer recipient"
+    );
+  }
+};
+
+/**
+ * Verify transfer status
+ */
+export const verifyTransfer = async (reference: string) => {
+  try {
+    const response = await paystackClient.get(`/transfer/verify/${reference}`);
+    return response.data.data;
+  } catch (error: any) {
+    logger.error("Paystack verify transfer error", {
+      error: error.response?.data || error.message,
+      reference,
+      stack: error.stack,
+    });
+    throw new Error(
+      error.response?.data?.message || "Failed to verify transfer"
     );
   }
 };
@@ -327,4 +430,7 @@ export const paystackService = {
   listBanks,
   resolveAccount,
   verifyWebhookSignature,
+  initiateTransfer,
+  createTransferRecipient,
+  verifyTransfer,
 };

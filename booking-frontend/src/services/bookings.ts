@@ -5,9 +5,11 @@ export const bookingService = {
   // Create new booking
   createBooking: async (data: BookingFormData): Promise<Booking> => {
     const response = await apiClient.post<Booking>("/bookings", {
-      ...data,
+      propertyId: data.propertyId,
       checkInDate: data.checkIn.toISOString().split("T")[0],
       checkOutDate: data.checkOut.toISOString().split("T")[0],
+      totalGuests: data.guests, // Backend expects totalGuests, not guests
+      specialRequests: data.specialRequests,
     });
     return response.data;
   },
@@ -195,18 +197,37 @@ export const bookingService = {
     nights: number;
   }> => {
     const response = await apiClient.post<{
-      subtotal: number;
-      taxes: number;
-      fees: number;
-      total: number;
-      currency: string;
-      nights: number;
+      success: boolean;
+      message: string;
+      data: {
+        subtotal: number;
+        taxes: number;
+        fees: number;
+        total: number;
+        currency: string;
+        nights: number;
+        breakdown?: {
+          pricePerNight: number;
+          serviceFee: number;
+          platformCommission: number;
+        };
+      };
     }>("/bookings/calculate", {
       propertyId,
       checkInDate: checkInDate.toISOString().split("T")[0],
       checkOutDate: checkOutDate.toISOString().split("T")[0],
       guests,
     });
-    return response.data;
+
+    console.log("🔍 Raw API response:", response);
+    console.log("🔍 response.data:", response.data);
+
+    // API returns data directly in response.data (already unwrapped by axios)
+    // Backend structure: { success, message, data: {...} }
+    // But axios already extracts response.data, so we access .data directly
+    const result = (response.data as any).data || response.data;
+    console.log("🔍 Extracted result:", result);
+
+    return result;
   },
 };

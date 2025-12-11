@@ -91,8 +91,8 @@ function GuestLoginContent() {
 
     try {
       const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
-      const response = await fetch(`${backendUrl}/api/auth/request-otp`, {
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const response = await fetch(`${backendUrl}/auth/request-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

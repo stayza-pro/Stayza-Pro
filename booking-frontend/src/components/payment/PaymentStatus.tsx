@@ -2,7 +2,17 @@
 
 import React from "react";
 import { Button, Card } from "../ui";
-import { Clock, CreditCard, ArrowLeft } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
+  Download,
+  ArrowLeft,
+  CreditCard,
+  Calendar,
+  Home,
+} from "lucide-react";
 
 interface PaymentStatusProps {
   payment?: any;
@@ -19,57 +29,231 @@ interface PaymentStatusProps {
   className?: string;
 }
 
-// MVP Version: Simple payment status placeholder component
-// Full payment status tracking will be added in post-MVP releases
 export const PaymentStatus: React.FC<PaymentStatusProps> = ({
-  className = "",
+  payment,
+  status = "processing",
+  amount,
+  currency = "NGN",
+  paymentMethod,
+  transactionId,
+  errorMessage,
+  onRetry,
+  onDownloadReceipt,
   onGoBack,
+  onContinue,
+  className = "",
 }) => {
+  const statusConfig = {
+    success: {
+      icon: CheckCircle,
+      iconColor: "text-green-600",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      title: "Payment Successful!",
+      message:
+        "Your booking has been confirmed. Redirecting to confirmation page...",
+    },
+    failed: {
+      icon: XCircle,
+      iconColor: "text-red-600",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
+      title: "Payment Failed",
+      message:
+        errorMessage ||
+        "Unfortunately, your payment could not be processed. Please try again.",
+    },
+    processing: {
+      icon: Clock,
+      iconColor: "text-blue-600",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+      title: "Processing Payment",
+      message: "Please wait while we verify your payment...",
+    },
+    pending: {
+      icon: AlertCircle,
+      iconColor: "text-yellow-600",
+      bgColor: "bg-yellow-50",
+      borderColor: "border-yellow-200",
+      title: "Payment Pending",
+      message: "Your payment is being processed. This may take a few minutes.",
+    },
+    refunded: {
+      icon: AlertCircle,
+      iconColor: "text-orange-600",
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-200",
+      title: "Payment Refunded",
+      message:
+        "Your payment has been refunded to your original payment method.",
+    },
+  };
+
+  const config = statusConfig[status];
+  const StatusIcon = config.icon;
+
+  const formatAmount = (amt?: number, curr?: string) => {
+    if (!amt) return "N/A";
+    const formatted = new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: curr || "NGN",
+    }).format(amt);
+    return formatted;
+  };
+
+  const formatDate = (date?: string | Date) => {
+    if (!date) return "N/A";
+    return new Intl.DateTimeFormat("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(date));
+  };
+
   return (
     <div className={`max-w-2xl mx-auto space-y-6 ${className}`}>
-      {/* MVP Payment Status Notice */}
-      <Card className="p-8 text-center bg-blue-50 border-blue-200">
-        <div className="flex justify-center mb-6">
-          <Clock className="h-16 w-16 text-blue-600" />
+      {/* Status Header */}
+      <Card
+        className={`p-8 text-center ${config.bgColor} ${config.borderColor}`}
+      >
+        <div className="flex justify-center mb-4">
+          <StatusIcon className={`h-16 w-16 ${config.iconColor}`} />
         </div>
 
-        <h1 className="text-2xl font-bold text-blue-900 mb-4">
-          Payment Processing Coming Soon
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          {config.title}
         </h1>
 
-        <p className="text-lg text-blue-800 mb-6">
-          Payment status tracking and receipt generation will be available once
-          payment integration is complete in Q2 2024.
-        </p>
+        <p className="text-gray-700">{config.message}</p>
       </Card>
 
-      {/* Current MVP Features */}
-      <Card className="p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-          <CreditCard className="h-5 w-5 mr-2" />
-          Current MVP Features
-        </h2>
+      {/* Payment Details */}
+      {(amount || payment) && (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <CreditCard className="h-5 w-5 mr-2" />
+            Payment Details
+          </h2>
 
-        <div className="space-y-3 text-sm text-gray-600">
-          <p>✅ Create and manage bookings without payment processing</p>
-          <p>✅ Track booking status and details</p>
-          <p>✅ Contact property owners directly for payment arrangements</p>
-          <p>🔄 Payment processing integration (Coming Q2 2024)</p>
-          <p>🔄 Automated payment status tracking (Coming Q2 2024)</p>
-          <p>🔄 Digital receipts and invoices (Coming Q2 2024)</p>
-        </div>
-      </Card>
+          <div className="space-y-3">
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-gray-600">Amount</span>
+              <span className="font-semibold text-gray-900">
+                {formatAmount(
+                  amount || payment?.amount,
+                  currency || payment?.currency
+                )}
+              </span>
+            </div>
+
+            {(paymentMethod || payment?.method) && (
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-600">Payment Method</span>
+                <span className="font-medium text-gray-900 capitalize">
+                  {paymentMethod || payment?.method}
+                </span>
+              </div>
+            )}
+
+            {(transactionId || payment?.providerTransactionId) && (
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-600">Transaction ID</span>
+                <span className="font-mono text-sm text-gray-900">
+                  {transactionId || payment?.providerTransactionId}
+                </span>
+              </div>
+            )}
+
+            {payment?.createdAt && (
+              <div className="flex justify-between py-2">
+                <span className="text-gray-600">Payment Date</span>
+                <span className="font-medium text-gray-900">
+                  {formatDate(payment.createdAt)}
+                </span>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Booking Details */}
+      {payment?.booking && (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Home className="h-5 w-5 mr-2" />
+            Booking Details
+          </h2>
+
+          <div className="space-y-3">
+            {payment.booking.property?.title && (
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-600">Property</span>
+                <span className="font-medium text-gray-900">
+                  {payment.booking.property.title}
+                </span>
+              </div>
+            )}
+
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-gray-600">Check-in</span>
+              <span className="font-medium text-gray-900 flex items-center">
+                <Calendar className="h-4 w-4 mr-2" />
+                {formatDate(payment.booking.checkInDate)}
+              </span>
+            </div>
+
+            <div className="flex justify-between py-2">
+              <span className="text-gray-600">Check-out</span>
+              <span className="font-medium text-gray-900 flex items-center">
+                <Calendar className="h-4 w-4 mr-2" />
+                {formatDate(payment.booking.checkOutDate)}
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Actions */}
-      <div className="flex justify-center">
-        {onGoBack && (
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        {status === "success" && onDownloadReceipt && (
+          <Button
+            variant="outline"
+            onClick={onDownloadReceipt}
+            className="flex items-center justify-center"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download Receipt
+          </Button>
+        )}
+
+        {status === "success" && onContinue && (
+          <Button
+            variant="primary"
+            onClick={onContinue}
+            className="flex items-center justify-center"
+          >
+            View My Bookings
+          </Button>
+        )}
+
+        {status === "failed" && onRetry && (
+          <Button
+            variant="primary"
+            onClick={onRetry}
+            className="flex items-center justify-center"
+          >
+            Try Again
+          </Button>
+        )}
+
+        {status === "failed" && onGoBack && (
           <Button
             variant="outline"
             onClick={onGoBack}
             className="flex items-center justify-center"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Booking
+            Browse Properties
           </Button>
         )}
       </div>

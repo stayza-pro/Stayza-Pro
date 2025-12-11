@@ -165,8 +165,8 @@ export const paymentService = {
   downloadReceipt: async (paymentId: string): Promise<Blob> => {
     const res = await fetch(
       `${
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-      }/api/payments/${paymentId}/receipt`,
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api"
+      }/payments/${paymentId}/receipt`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,

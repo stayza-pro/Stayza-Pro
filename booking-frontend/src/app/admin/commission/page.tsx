@@ -170,8 +170,8 @@ export default function CommissionPage() {
             {payout.booking.property.title}
           </p>
           <p className="text-xs text-gray-500">
-            {format(new Date(payout.booking.checkIn), "MMM dd")} -{" "}
-            {format(new Date(payout.booking.checkOut), "MMM dd, yyyy")}
+            {format(new Date(payout.booking.checkInDate), "MMM dd")} -{" "}
+            {format(new Date(payout.booking.checkOutDate), "MMM dd, yyyy")}
           </p>
         </div>
       ),

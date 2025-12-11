@@ -106,17 +106,14 @@ function GuestRegistrationContent() {
       };
 
       const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
-      const response = await fetch(
-        `${backendUrl}/api/auth/register-passwordless`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const response = await fetch(`${backendUrl}/auth/register-passwordless`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
       const result = await response.json();
 

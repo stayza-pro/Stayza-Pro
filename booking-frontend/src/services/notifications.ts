@@ -11,7 +11,8 @@ import {
   NotificationResponse,
 } from "@/types/notifications";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
 class NotificationApiService {
   private getAuthHeaders() {

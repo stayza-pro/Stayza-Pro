@@ -49,7 +49,7 @@ export default function ProtectedRoute({
           setCookie("accessToken", tokenFromUrl, 7);
           setCookie("refreshToken", refreshFromUrl, 30);
 
-          // Update auth store state FIRST before checking auth
+          // Update auth store state with both tokens
           useAuthStore.setState({
             accessToken: tokenFromUrl,
             refreshToken: refreshFromUrl,

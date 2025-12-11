@@ -90,7 +90,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   };
 
   return (
-    <Card className={`p-6 ${className}`}>
+    <Card
+      className={`p-6 border border-gray-200 !bg-white shadow-sm ${className}`}
+      style={{ backgroundColor: "#ffffff", color: "#111827" }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Filter className="h-5 w-5" style={{ color: secondaryColor }} />

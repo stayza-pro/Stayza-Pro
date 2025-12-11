@@ -239,7 +239,7 @@ export default function BookingHistoryPage() {
         ) : (
           <div className="space-y-4">
             {filteredBookings.map((booking: Booking) => {
-              const nights = calculateNights(booking.checkIn, booking.checkOut);
+              const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
 
               return (
                 <Card key={booking.id} className="p-6">
@@ -290,14 +290,14 @@ export default function BookingHistoryPage() {
                         <div>
                           <p className="text-gray-600">Check-in</p>
                           <p className="font-semibold text-gray-900">
-                            {formatDate(booking.checkIn)}
+                            {formatDate(booking.checkInDate)}
                           </p>
                         </div>
 
                         <div>
                           <p className="text-gray-600">Check-out</p>
                           <p className="font-semibold text-gray-900">
-                            {formatDate(booking.checkOut)}
+                            {formatDate(booking.checkOutDate)}
                           </p>
                         </div>
 

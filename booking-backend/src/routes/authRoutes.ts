@@ -17,6 +17,7 @@ import {
 } from "@/controllers/authController";
 import { authenticate } from "@/middleware/auth";
 import { authLimiter } from "@/middleware/rateLimiter";
+import { uploadSinglePhoto } from "@/services/photoUpload";
 import {
   validateVerificationRequest,
   handleCrossDomainVerification,
@@ -542,9 +543,33 @@ router.get("/me", authenticate, getMe);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/UpdateProfileRequest'
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *               lastName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
+ *               phone:
+ *                 type: string
+ *               country:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: Avatar image file (JPEG, PNG, WebP - max 2MB)
  *     responses:
  *       200:
  *         description: Profile updated successfully
@@ -574,7 +599,12 @@ router.get("/me", authenticate, getMe);
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
-router.put("/profile", authenticate, updateProfile);
+router.put(
+  "/profile",
+  authenticate,
+  uploadSinglePhoto.single("avatar"),
+  updateProfile
+);
 
 /**
  * @swagger

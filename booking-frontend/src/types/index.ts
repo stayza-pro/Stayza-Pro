@@ -45,7 +45,15 @@ export type PropertyAmenity =
   | "LINENS"
   | "SHAMPOO"
   | "SOAP";
-export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+export type BookingStatus =
+  | "PENDING"
+  | "PAID"
+  | "CONFIRMED"
+  | "CHECKED_IN"
+  | "DISPUTE_OPENED"
+  | "CHECKED_OUT"
+  | "COMPLETED"
+  | "CANCELLED";
 export type PaymentStatus =
   | "PENDING"
   | "COMPLETED"
@@ -166,6 +174,11 @@ export interface Property {
   createdAt: Date;
   updatedAt: Date;
 
+  // Optional fees set by realtor
+  serviceFee?: number;
+  cleaningFee?: number;
+  securityDeposit?: number;
+
   // Relations
   realtor?: Realtor;
   images?: PropertyImage[];
@@ -194,9 +207,11 @@ export interface Booking {
   id: string;
   propertyId: string;
   guestId: string;
-  checkIn: Date;
-  checkOut: Date;
-  guests: number;
+  checkInDate: Date | string;
+  checkOutDate: Date | string;
+  checkInTime?: Date | string; // Actual check-in timestamp
+  checkOutTime?: Date | string; // Actual check-out timestamp
+  totalGuests: number;
   totalPrice: number;
   currency: string;
   status: BookingStatus;
@@ -431,6 +446,10 @@ export interface PropertyFormData {
   longitude?: number;
   checkInTime: string;
   checkOutTime: string;
+  // Optional fees
+  serviceFee?: number;
+  cleaningFee?: number;
+  securityDeposit?: number;
 }
 
 export type CreatePropertyData = PropertyFormData;

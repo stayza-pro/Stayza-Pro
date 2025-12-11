@@ -1,5 +1,6 @@
+import { logger } from "@/utils/logger";
 import { Response } from "express";
-import { PaymentMethod, PaymentStatus } from "@prisma/client";
+import { PaymentMethod, PaymentStatus, BookingStatus } from "@prisma/client";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
@@ -10,14 +11,16 @@ import {
   notificationHelpers,
 } from "@/services/notificationService";
 import { updatePaymentCommission } from "@/services/commission";
+import { flutterwaveService } from "@/services/flutterwave";
 import axios from "axios";
 import crypto from "crypto";
+import escrowService from "@/services/escrowService";
 
-// Flutterwave API client
-const flutterwaveClient = axios.create({
-  baseURL: "https://api.flutterwave.com/v3",
+// Paystack API client
+const paystackClient = axios.create({
+  baseURL: "https://api.paystack.co",
   headers: {
-    Authorization: `Bearer ${config.FLUTTERWAVE_SECRET_KEY}`,
+    Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`,
     "Content-Type": "application/json",
   },
 });
@@ -55,8 +58,8 @@ export const initializeFlutterwavePayment = asyncHandler(
       throw new AppError("Booking not found", 404);
     }
 
-    if (booking.status !== "CONFIRMED") {
-      throw new AppError("Booking must be confirmed before payment", 400);
+    if (booking.status !== "PENDING") {
+      throw new AppError("Payment can only be made for pending bookings", 400);
     }
 
     // Check if payment already exists
@@ -98,59 +101,79 @@ export const initializeFlutterwavePayment = asyncHandler(
     });
 
     try {
-      // Initialize Flutterwave payment
-      const flutterwaveResponse = await flutterwaveClient.post("/payments", {
-        tx_ref: reference,
-        amount: booking.totalPrice,
-        currency: booking.currency,
-        redirect_url: `${config.FRONTEND_URL}/booking/payment/success?reference=${reference}`,
-        customer: {
+      // Initialize Flutterwave payment using service
+      const flutterwaveResponse =
+        await flutterwaveService.initializeFlutterwavePayment({
           email: user.email,
-          phonenumber: user.phone || "",
-          name: `${user.firstName} ${user.lastName}`.trim(),
-        },
-        customizations: {
-          title: "Stayza Booking Payment",
-          description: `Payment for ${booking.property.title}`,
-          logo: "https://your-logo-url.com/logo.png", // Add your logo URL
-        },
-        meta: {
-          booking_id: bookingId,
-          payment_id: payment.id,
-          guest_id: user.id,
-          property_id: booking.propertyId,
-        },
-      });
+          amount: Number(booking.totalPrice),
+          reference: reference,
+          currency: booking.currency,
+          callback_url: `${config.FRONTEND_URL}/booking/payment/success?reference=${reference}`,
+          metadata: {
+            booking_id: bookingId,
+            payment_id: payment.id,
+            guest_id: user.id,
+            property_id: booking.propertyId,
+            guest_name: `${user.firstName} ${user.lastName}`.trim(),
+            property_title: booking.property.title,
+          },
+        });
 
-      if (flutterwaveResponse.data.status !== "success") {
+      if (flutterwaveResponse.status !== "success") {
         throw new Error(
-          flutterwaveResponse.data.message || "Payment initialization failed"
+          flutterwaveResponse.message || "Payment initialization failed"
         );
       }
+
+      const authorizationUrl = flutterwaveResponse.data.link;
+
+      if (!authorizationUrl) {
+        throw new Error("No authorization URL received from Flutterwave");
+      }
+
+      logger.info(`✅ Flutterwave payment initialized:`, {
+        paymentId: payment.id,
+        reference,
+        authorizationUrl,
+      });
 
       return res.json({
         success: true,
         message: "Payment initialized successfully",
         data: {
           paymentId: payment.id,
-          authorizationUrl: flutterwaveResponse.data.data.link,
+          authorizationUrl,
           reference,
           paymentStatus: payment.status,
         },
       });
     } catch (error: any) {
-      console.error("Flutterwave initialization error:", error);
-
-      // Update payment status to failed
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: PaymentStatus.FAILED },
+      logger.error("❌ Flutterwave initialization error:", {
+        error: error.message,
+        response: error.response?.data,
+        bookingId,
+        paymentId: payment?.id,
       });
 
-      throw new AppError(
-        error.response?.data?.message || "Failed to initialize payment",
-        500
-      );
+      // Update payment status to failed
+      if (payment) {
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.FAILED,
+            metadata: {
+              error: error.response?.data || error.message,
+            } as any,
+          },
+        });
+      }
+
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to initialize payment";
+
+      throw new AppError(errorMessage, error.response?.status || 500);
     }
   }
 );
@@ -170,15 +193,14 @@ export const verifyFlutterwavePayment = asyncHandler(
 
     try {
       // Verify payment with Flutterwave
-      const verificationResponse = await flutterwaveClient.get(
-        `/transactions/verify_by_reference?tx_ref=${reference}`
-      );
+      const verificationResponse =
+        await flutterwaveService.verifyFlutterwaveTransaction(reference);
 
-      if (verificationResponse.data.status !== "success") {
+      if (verificationResponse.status !== "success") {
         throw new Error("Payment verification failed");
       }
 
-      const transaction = verificationResponse.data.data;
+      const transaction = verificationResponse.data;
 
       // Find payment by reference
       const payment = await prisma.payment.findFirst({
@@ -218,12 +240,66 @@ export const verifyFlutterwavePayment = asyncHandler(
         },
       });
 
-      // Calculate and store commission breakdown if payment successful
+      // If payment successful, integrate with escrow system
       if (isSuccessful) {
+        // Get fee breakdown from booking
+        const booking = payment.booking;
+        const feeBreakdown = {
+          roomFee: booking.roomFee.toNumber(),
+          cleaningFee: booking.cleaningFee.toNumber(),
+          securityDeposit: booking.securityDeposit.toNumber(),
+          serviceFee: booking.serviceFee.toNumber(),
+          platformFee: booking.platformFee.toNumber(),
+          totalAmount: booking.totalPrice.toNumber(),
+        };
+
+        // Hold funds in escrow (room fee + security deposit)
+        await escrowService.holdFundsInEscrow(
+          updatedPayment.id,
+          booking.id,
+          feeBreakdown
+        );
+
+        // Update booking status to PAID (funds in escrow)
+        await prisma.booking.update({
+          where: { id: payment.bookingId },
+          data: { status: BookingStatus.PAID },
+        });
+
+        // Create escrow events for immediate payouts
+        if (feeBreakdown.cleaningFee > 0) {
+          await escrowService.createEscrowEvent(
+            booking.id,
+            "HOLD_ROOM_FEE", // Using as placeholder for immediate payout tracking
+            feeBreakdown.cleaningFee,
+            "CUSTOMER",
+            "REALTOR",
+            transaction.id.toString(),
+            `Cleaning fee ₦${feeBreakdown.cleaningFee.toFixed(
+              2
+            )} paid to realtor immediately`
+          );
+        }
+
+        if (feeBreakdown.serviceFee > 0) {
+          await escrowService.createEscrowEvent(
+            booking.id,
+            "RELEASE_ROOM_FEE_SPLIT", // Using as placeholder for service fee tracking
+            feeBreakdown.serviceFee,
+            "CUSTOMER",
+            "PLATFORM",
+            transaction.id.toString(),
+            `Service fee ₦${feeBreakdown.serviceFee.toFixed(
+              2
+            )} collected by platform`
+          );
+        }
+
+        // Calculate and store commission breakdown
         try {
           await updatePaymentCommission(updatedPayment.id);
         } catch (commissionError) {
-          console.error("Error calculating commission:", commissionError);
+          logger.error("Error calculating commission:", commissionError);
           // Don't fail payment verification if commission calculation fails
         }
       }
@@ -242,101 +318,108 @@ export const verifyFlutterwavePayment = asyncHandler(
             failureNotification
           );
         } catch (notificationError) {
-          console.error(
+          logger.error(
             "Error sending payment failure notification:",
             notificationError
           );
         }
-      }
 
-      // Update booking status if payment successful
-      if (isSuccessful) {
-        const updatedBooking = await prisma.booking.update({
-          where: { id: payment.bookingId },
-          data: { status: "COMPLETED" },
-          include: {
-            guest: true,
-            property: {
-              include: {
-                realtor: true,
-              },
-            },
+        return res.json({
+          success: false,
+          message: "Payment verification failed",
+          data: {
+            paymentId: payment.id,
+            status: newStatus,
+            transaction,
           },
         });
+      }
 
-        // Send email notifications
-        try {
-          // Send booking confirmation to guest
-          await sendBookingConfirmation(
-            updatedBooking.guest.email,
-            updatedBooking,
-            updatedBooking.property,
-            updatedBooking.property.realtor
-          );
+      // Get updated booking with all relations for notifications
+      const updatedBooking = await prisma.booking.findUnique({
+        where: { id: payment.bookingId },
+        include: {
+          guest: true,
+          property: {
+            include: {
+              realtor: true,
+            },
+          },
+        },
+      });
 
-          // Send payment receipt to guest
-          await sendPaymentReceipt(
-            updatedBooking.guest.email,
-            updatedBooking,
-            payment,
-            updatedBooking.property
-          );
-        } catch (emailError) {
-          console.error("Error sending email notifications:", emailError);
-          // Don't fail the payment verification if email fails
-        }
+      if (!updatedBooking) {
+        throw new AppError("Booking not found after payment", 500);
+      }
 
-        // Send real-time notifications
-        try {
-          const notificationService = NotificationService.getInstance();
+      // Send email notifications
+      try {
+        // Send booking confirmation to guest
+        await sendBookingConfirmation(
+          updatedBooking.guest.email,
+          updatedBooking,
+          updatedBooking.property,
+          updatedBooking.property.realtor
+        );
 
-          // Notify guest about successful payment
-          const paymentSuccessNotification =
-            notificationHelpers.paymentCompleted(
-              updatedBooking.guestId,
-              payment.id,
-              Number(payment.amount),
-              payment.currency
-            );
-          await notificationService.createAndSendNotification(
-            paymentSuccessNotification
-          );
+        // Send payment receipt to guest
+        await sendPaymentReceipt(
+          updatedBooking.guest.email,
+          updatedBooking,
+          updatedPayment,
+          updatedBooking.property
+        );
+      } catch (emailError) {
+        logger.error("Error sending email notifications:", emailError);
+        // Don't fail the payment verification if email fails
+      }
 
-          // Notify realtor about completed booking payment
-          const realtorNotification = {
-            userId: updatedBooking.property.realtorId,
-            type: "PAYMENT_SUCCESSFUL" as const,
-            title: "Payment Received",
-            message: `Payment of ${payment.currency} ${payment.amount} received for "${updatedBooking.property.title}".`,
-            paymentId: payment.id,
-            bookingId: updatedBooking.id,
-            priority: "normal" as const,
-          };
-          await notificationService.createAndSendNotification(
-            realtorNotification
-          );
-        } catch (notificationError) {
-          console.error(
-            "Error sending payment notifications:",
-            notificationError
-          );
-          // Don't fail the payment verification if notifications fail
-        }
+      // Send real-time notifications
+      try {
+        const notificationService = NotificationService.getInstance();
+
+        // Notify guest about successful payment
+        const paymentSuccessNotification = notificationHelpers.paymentCompleted(
+          updatedBooking.guestId,
+          updatedPayment.id,
+          Number(updatedPayment.amount),
+          updatedPayment.currency
+        );
+        await notificationService.createAndSendNotification(
+          paymentSuccessNotification
+        );
+
+        // Notify realtor about completed booking payment
+        const realtorNotification = {
+          userId: updatedBooking.property.realtorId,
+          type: "PAYMENT_SUCCESSFUL" as const,
+          title: "Payment Received",
+          message: `Payment of ${updatedPayment.currency} ${updatedPayment.amount} received for "${updatedBooking.property.title}".`,
+          paymentId: updatedPayment.id,
+          bookingId: updatedBooking.id,
+          priority: "normal" as const,
+        };
+        await notificationService.createAndSendNotification(
+          realtorNotification
+        );
+      } catch (notificationError) {
+        logger.error(
+          "Error sending payment notifications:",
+          notificationError
+        );
+        // Don't fail the payment verification if notifications fail
       }
 
       return res.json({
-        success: isSuccessful,
-        message: isSuccessful
-          ? "Payment verified successfully"
-          : "Payment verification failed",
+        success: true,
+        message: "Payment verified successfully",
         data: {
-          paymentId: payment.id,
-          status: newStatus,
-          transaction,
+          payment: updatedPayment,
+          booking: updatedBooking,
         },
       });
     } catch (error: any) {
-      console.error("Payment verification error:", error);
+      logger.error("Payment verification error:", error);
       throw new AppError(
         error.response?.data?.message || "Failed to verify payment",
         500
@@ -555,7 +638,7 @@ export const processRefund = asyncHandler(
       await prisma.payment.update({
         where: { id },
         data: {
-          status: PaymentStatus.REFUNDED,
+          status: PaymentStatus.REFUNDED_TO_CUSTOMER,
           refundAmount,
           refundedAt: new Date(),
           metadata: {
@@ -579,7 +662,7 @@ export const processRefund = asyncHandler(
         },
       });
     } catch (error) {
-      console.error("Refund processing error:", error);
+      logger.error("Refund processing error:", error);
       throw new AppError("Failed to process refund", 500);
     }
   }
@@ -644,7 +727,7 @@ export const initializePaystackPayment = asyncHandler(
           },
         });
 
-    // Initialize Paystack transaction
+    // Initialize Paystack transaction - ALL funds go to Stayza Pro (NO SPLIT)
     const { initializePaystackTransaction } = await import(
       "@/services/paystack"
     );
@@ -658,9 +741,11 @@ export const initializePaystackPayment = asyncHandler(
         bookingId: booking.id,
         userId: user.id,
         propertyTitle: booking.property.title,
+        realtorId: booking.property.realtorId,
       },
-      subaccount: booking.property.realtor.paystackSubAccountCode,
-      transaction_charge: 0, // Platform will handle commission separately
+      // NO subaccount - all funds to main Stayza account
+      // NO transaction_charge split
+      // Escrow system: funds held, payout after check-in
     });
 
     // Update payment with reference
@@ -756,11 +841,23 @@ export const verifyPaystackPayment = asyncHandler(
       throw new AppError("Payment verification failed", 400);
     }
 
-    // Update payment status
+    // Get fee breakdown from booking
+    const booking = payment.booking;
+    const feeBreakdown = {
+      roomFee: booking.roomFee.toNumber(),
+      cleaningFee: booking.cleaningFee.toNumber(),
+      securityDeposit: booking.securityDeposit.toNumber(),
+      serviceFee: booking.serviceFee.toNumber(),
+      platformFee: booking.platformFee.toNumber(),
+      totalAmount: booking.totalPrice.toNumber(),
+    };
+
+    // Update payment status with breakdown
     const updatedPayment = await prisma.payment.update({
       where: { id: payment.id },
       data: {
         status: PaymentStatus.COMPLETED,
+        providerId: "PAYSTACK",
         providerTransactionId: verification.data.id?.toString(),
         paidAt: new Date(),
         metadata: {
@@ -777,18 +874,54 @@ export const verifyPaystackPayment = asyncHandler(
       },
     });
 
-    // Update booking status
+    // Hold funds in escrow (room fee + security deposit)
+    await escrowService.holdFundsInEscrow(
+      updatedPayment.id,
+      booking.id,
+      feeBreakdown
+    );
+
+    // Update booking status to PAID (funds in escrow)
     await prisma.booking.update({
       where: { id: payment.bookingId },
-      data: { status: "CONFIRMED" },
+      data: { status: BookingStatus.PAID },
     });
+
+    // Create escrow events for immediate payouts
+    if (feeBreakdown.cleaningFee > 0) {
+      await escrowService.createEscrowEvent(
+        booking.id,
+        "HOLD_ROOM_FEE", // Using as placeholder for immediate payout tracking
+        feeBreakdown.cleaningFee,
+        "CUSTOMER",
+        "REALTOR",
+        verification.data.id?.toString(),
+        `Cleaning fee ₦${feeBreakdown.cleaningFee.toFixed(
+          2
+        )} paid to realtor immediately`
+      );
+    }
+
+    if (feeBreakdown.serviceFee > 0) {
+      await escrowService.createEscrowEvent(
+        booking.id,
+        "RELEASE_ROOM_FEE_SPLIT", // Using as placeholder for service fee tracking
+        feeBreakdown.serviceFee,
+        "CUSTOMER",
+        "PLATFORM",
+        verification.data.id?.toString(),
+        `Service fee ₦${feeBreakdown.serviceFee.toFixed(
+          2
+        )} collected by platform`
+      );
+    }
 
     // Calculate and update commission
     try {
       const { updatePaymentCommission } = await import("@/services/commission");
       await updatePaymentCommission(updatedPayment.id);
     } catch (commissionError) {
-      console.error("Commission update failed:", commissionError);
+      logger.error("Commission update failed:", commissionError);
     }
 
     // Send confirmation email
@@ -800,7 +933,7 @@ export const verifyPaystackPayment = asyncHandler(
         updatedPayment.booking.property
       );
     } catch (emailError) {
-      console.error("Payment receipt email failed:", emailError);
+      logger.error("Payment receipt email failed:", emailError);
     }
 
     res.json({

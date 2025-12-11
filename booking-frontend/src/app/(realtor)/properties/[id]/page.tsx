@@ -12,6 +12,7 @@ import {
   Trash2,
   Image as ImageIcon,
   X,
+  DollarSign,
 } from "lucide-react";
 
 export default function EditPropertyPage() {
@@ -76,6 +77,9 @@ export default function EditPropertyPage() {
         houseRules: data.houseRules,
         checkInTime: data.checkInTime,
         checkOutTime: data.checkOutTime,
+        serviceFee: data.serviceFee,
+        cleaningFee: data.cleaningFee,
+        securityDeposit: data.securityDeposit,
       });
 
       setExistingImages(data.images || []);
@@ -433,6 +437,106 @@ export default function EditPropertyPage() {
                     <option value="GBP">GBP (£)</option>
                     <option value="NGN">NGN (₦)</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Optional Fees Section */}
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-4">
+                  <DollarSign className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Additional Charges (Optional)
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-600 mb-4">
+                  Set optional fees that will be added to the booking total.
+                  Leave blank if not applicable.
+                </p>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Service Fee
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                        {formData.currency === "NGN" ? "₦" : "$"}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.serviceFee ?? ""}
+                        onChange={(e) =>
+                          updateFormData(
+                            "serviceFee",
+                            e.target.value
+                              ? parseFloat(e.target.value)
+                              : undefined
+                          )
+                        }
+                        placeholder="0.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cleaning Fee
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                        {formData.currency === "NGN" ? "₦" : "$"}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.cleaningFee ?? ""}
+                        onChange={(e) =>
+                          updateFormData(
+                            "cleaningFee",
+                            e.target.value
+                              ? parseFloat(e.target.value)
+                              : undefined
+                          )
+                        }
+                        placeholder="0.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Security Deposit
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                        {formData.currency === "NGN" ? "₦" : "$"}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.securityDeposit ?? ""}
+                        onChange={(e) =>
+                          updateFormData(
+                            "securityDeposit",
+                            e.target.value
+                              ? parseFloat(e.target.value)
+                              : undefined
+                          )
+                        }
+                        placeholder="0.00"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Refundable after checkout
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

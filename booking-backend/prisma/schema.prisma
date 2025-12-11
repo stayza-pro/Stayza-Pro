@@ -7,6 +7,514 @@ datasource db {
    url      = env("DATABASE_URL")
 }
 
+model User {
+   id                       String                  @id @default(cuid())
+   email                    String                  @unique
+   password                 String
+   firstName                String
+   lastName                 String
+   role                     UserRole                @default(GUEST)
+   phone                    String?
+   avatar                   String?
+   createdAt                DateTime                @default(now())
+   updatedAt                DateTime                @updatedAt
+   businessAddress          String?
+   businessEmail            String?
+   fullName                 String
+   emailVerificationExpires DateTime?
+   emailVerificationToken   String?
+   isEmailVerified          Boolean                 @default(false)
+   referralSource           String?
+   referredByRealtorId      String?
+   adminAuditLogs           AuditLog[]              @relation("AdminAuditLogs")
+   auditLogs                AuditLog[]
+   bookings                 Booking[]
+   notificationPreference   NotificationPreference?
+   notifications            Notification[]
+   payments                 Payment[]
+   platformSettings         PlatformSettings[]
+   realtor                  Realtor?
+   adminRefundRequests      RefundRequest[]         @relation("RefundAdmin")
+   refundRequests           RefundRequest[]         @relation("RefundRequester")
+   reviewResponses          ReviewResponse[]
+   reviews                  Review[]
+   referredByRealtor        Realtor?                @relation("ReferredGuests", fields: [referredByRealtorId], references: [id])
+   openedDisputes           Dispute[]               @relation("DisputeOpener")
+   adminDisputes            Dispute[]               @relation("DisputeAdmin")
+
+   @@map("users")
+}
+
+model Realtor {
+   id                        String          @id @default(cuid())
+   userId                    String          @unique
+   businessName              String
+   slug                      String          @unique
+   logoUrl                   String?
+   isActive                  Boolean         @default(true)
+   createdAt                 DateTime        @default(now())
+   updatedAt                 DateTime        @updatedAt
+   accentColor               String?         @default("#F59E0B")
+   corporateRegNumber        String?
+   facebookUrl               String?
+   instagramUrl              String?
+   linkedinUrl               String?
+   primaryColor              String          @default("#000000")
+   secondaryColor            String?         @default("#10B981")
+   tagline                   String?
+   twitterUrl                String?
+   websiteUrl                String?
+   whatsappType              String?         @default("business")
+   youtubeUrl                String?
+   businessPhone             String?
+   cacDocumentUrl            String?
+   description               String?
+   status                    RealtorStatus   @default(PENDING)
+   cacRejectedAt             DateTime?
+   cacRejectionReason        String?
+   cacStatus                 CacStatus       @default(PENDING)
+   cacVerifiedAt             DateTime?
+   canAppeal                 Boolean         @default(true)
+   suspendedAt               DateTime?
+   suspensionExpiresAt       DateTime?
+   paystackSubAccountCode    String?
+   flutterwaveSubAccountCode String?
+   averageRating             Decimal?        @default(0) @db.Decimal(3, 2)
+   reviewCount               Int             @default(0)
+   properties                Property[]
+   user                      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+   refundRequests            RefundRequest[]
+   referredGuests            User[]          @relation("ReferredGuests")
+
+   @@map("realtors")
+}
+
+model Property {
+   id                  String          @id @default(cuid())
+   realtorId           String
+   title               String
+   description         String
+   type                PropertyType
+   pricePerNight       Decimal         @db.Decimal(10, 2)
+   currency            String          @default("NGN")
+   maxGuests           Int
+   bedrooms            Int
+   bathrooms           Int
+   address             String
+   city                String
+   country             String
+   isActive            Boolean         @default(true)
+   createdAt           DateTime        @default(now())
+   updatedAt           DateTime        @updatedAt
+   amenities           String[]        @default([])
+   customAmenities     String[]        @default([])
+   state               String?
+   status              PropertyStatus  @default(DRAFT)
+   averageRating       Decimal?        @default(0) @db.Decimal(3, 2)
+   reviewCount         Int             @default(0)
+   cleanlinessRating   Decimal?        @default(0) @db.Decimal(3, 2)
+   communicationRating Decimal?        @default(0) @db.Decimal(3, 2)
+   checkInRating       Decimal?        @default(0) @db.Decimal(3, 2)
+   accuracyRating      Decimal?        @default(0) @db.Decimal(3, 2)
+   locationRating      Decimal?        @default(0) @db.Decimal(3, 2)
+   valueRating         Decimal?        @default(0) @db.Decimal(3, 2)
+   // Optional fees set by realtor
+   serviceFee          Decimal?        @db.Decimal(10, 2)
+   cleaningFee         Decimal?        @db.Decimal(10, 2)
+   securityDeposit     Decimal?        @db.Decimal(10, 2)
+   bookings            Booking[]
+   notifications       Notification[]
+   realtor             Realtor         @relation(fields: [realtorId], references: [id], onDelete: Cascade)
+   images              PropertyImage[]
+   reviews             Review[]
+
+   @@map("properties")
+}
+
+model PropertyImage {
+   id         String   @id @default(cuid())
+   propertyId String
+   url        String
+   order      Int      @default(0)
+   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+   @@map("property_images")
+}
+
+model Booking {
+   id           String        @id @default(cuid())
+   propertyId   String
+   guestId      String
+   checkInDate  DateTime
+   checkOutDate DateTime
+   checkInTime  DateTime? // Actual check-in timestamp
+   checkOutTime DateTime? // Actual check-out timestamp
+   totalGuests  Int
+   totalPrice   Decimal       @db.Decimal(10, 2)
+   currency     String        @default("NGN")
+   status       BookingStatus @default(PENDING)
+
+   // Fee breakdown (for transparency)
+   roomFee         Decimal @default(0) @db.Decimal(10, 2)
+   cleaningFee     Decimal @default(0) @db.Decimal(10, 2)
+   securityDeposit Decimal @default(0) @db.Decimal(10, 2)
+   serviceFee      Decimal @default(0) @db.Decimal(10, 2) // 2% of (roomFee + cleaningFee)
+   platformFee     Decimal @default(0) @db.Decimal(10, 2) // 10% of roomFee (deducted at release)
+
+   // Dispute timers
+   disputeWindowClosesAt  DateTime? // 1 hour after check-in
+   realtorDisputeClosesAt DateTime? // 2 hours after checkout
+   userDisputeOpened      Boolean   @default(false)
+   realtorDisputeOpened   Boolean   @default(false)
+
+   // Legacy fields (keeping for compatibility)
+   refundCutoffTime  DateTime?
+   payoutEligibleAt  DateTime?
+   payoutStatus      PayoutStatus @default(PENDING)
+   payoutCompletedAt DateTime?
+   refundTier        RefundTier?
+   specialRequests   String?
+
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+
+   guest          User            @relation(fields: [guestId], references: [id], onDelete: Cascade)
+   property       Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+   notifications  Notification[]
+   payment        Payment?
+   refundRequests RefundRequest[]
+   review         Review?
+   disputes       Dispute[]
+   escrowEvents   EscrowEvent[]
+
+   @@map("bookings")
+}
+
+model Payment {
+   id         String        @id @default(cuid())
+   bookingId  String        @unique
+   userId     String
+   amount     Decimal       @db.Decimal(10, 2)
+   currency   String        @default("NGN")
+   status     PaymentStatus @default(INITIATED)
+   method     PaymentMethod
+   reference  String?       @unique
+   providerId String? // "PAYSTACK" or "FLUTTERWAVE"
+
+   // Payment breakdown
+   roomFeeAmount         Decimal @default(0) @db.Decimal(10, 2)
+   cleaningFeeAmount     Decimal @default(0) @db.Decimal(10, 2)
+   securityDepositAmount Decimal @default(0) @db.Decimal(10, 2)
+   serviceFeeAmount      Decimal @default(0) @db.Decimal(10, 2)
+   platformFeeAmount     Decimal @default(0) @db.Decimal(10, 2)
+
+   // Escrow tracking
+   roomFeeInEscrow   Boolean   @default(false)
+   depositInEscrow   Boolean   @default(false)
+   roomFeeReleasedAt DateTime?
+   depositReleasedAt DateTime?
+
+   // Payout tracking
+   cleaningFeePaidOut  Boolean @default(false)
+   serviceFeeCollected Boolean @default(false)
+   roomFeeSplitDone    Boolean @default(false)
+   depositRefunded     Boolean @default(false)
+
+   // Legacy fields
+   metadata              Json?
+   paidAt                DateTime?
+   refundAmount          Decimal?  @db.Decimal(10, 2)
+   providerTransactionId String?
+   refundedAt            DateTime?
+   commissionPaidOut     Boolean   @default(false)
+   commissionRate        Decimal?  @db.Decimal(5, 4)
+   payoutDate            DateTime?
+   payoutReference       String?
+   platformCommission    Decimal?  @db.Decimal(10, 2)
+   realtorEarnings       Decimal?  @db.Decimal(10, 2)
+
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+
+   notifications  Notification[]
+   booking        Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+   refundRequests RefundRequest[]
+
+   @@map("payments")
+}
+
+model Review {
+   id                  String          @id @default(cuid())
+   bookingId           String          @unique
+   propertyId          String
+   authorId            String
+   rating              Int
+   comment             String?
+   createdAt           DateTime        @default(now())
+   accuracyRating      Int?
+   checkInRating       Int?
+   cleanlinessRating   Int?
+   communicationRating Int?
+   dislikesCount       Int             @default(0)
+   helpfulCount        Int             @default(0)
+   isVerified          Boolean         @default(false)
+   isVisible           Boolean         @default(true)
+   likesCount          Int             @default(0)
+   locationRating      Int?
+   updatedAt           DateTime        @default(now()) @updatedAt
+   valueRating         Int?
+   notifications       Notification[]
+   photos              ReviewPhoto[]
+   hostResponse        ReviewResponse?
+   author              User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+   booking             Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   property            Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+   @@map("reviews")
+}
+
+model ReviewPhoto {
+   id       String  @id @default(cuid())
+   reviewId String
+   url      String
+   caption  String?
+   order    Int     @default(0)
+   review   Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+   @@map("review_photos")
+}
+
+model ReviewResponse {
+   id        String   @id @default(cuid())
+   reviewId  String   @unique
+   authorId  String
+   comment   String
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+   review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+   @@map("review_responses")
+}
+
+model Notification {
+   id         String           @id @default(cuid())
+   userId     String
+   type       NotificationType
+   title      String
+   message    String
+   data       Json?
+   isRead     Boolean          @default(false)
+   priority   String           @default("normal")
+   bookingId  String?
+   propertyId String?
+   paymentId  String?
+   reviewId   String?
+   emailSent  Boolean          @default(false)
+   pushSent   Boolean          @default(false)
+   smsEnabled Boolean          @default(false)
+   smsSent    Boolean          @default(false)
+   createdAt  DateTime         @default(now())
+   updatedAt  DateTime         @updatedAt
+   expiresAt  DateTime?
+   booking    Booking?         @relation(fields: [bookingId], references: [id])
+   payment    Payment?         @relation(fields: [paymentId], references: [id])
+   property   Property?        @relation(fields: [propertyId], references: [id])
+   review     Review?          @relation(fields: [reviewId], references: [id])
+   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+   @@map("notifications")
+}
+
+model AuditLog {
+   id         String   @id @default(cuid())
+   action     String
+   entityType String
+   entityId   String
+   userId     String?
+   adminId    String?
+   ipAddress  String?
+   userAgent  String?
+   details    Json?
+   timestamp  DateTime @default(now())
+   createdAt  DateTime @default(now())
+   admin      User?    @relation("AdminAuditLogs", fields: [adminId], references: [id])
+   user       User?    @relation(fields: [userId], references: [id])
+
+   @@index([action])
+   @@index([entityType])
+   @@index([entityId])
+   @@index([userId])
+   @@index([adminId])
+   @@index([timestamp])
+   @@map("audit_logs")
+}
+
+model NotificationPreference {
+   id                  String   @id @default(cuid())
+   userId              String   @unique
+   emailEnabled        Boolean  @default(true)
+   emailBookingUpdates Boolean  @default(true)
+   emailPaymentUpdates Boolean  @default(true)
+   emailReviews        Boolean  @default(true)
+   emailMarketing      Boolean  @default(false)
+   emailSystemAlerts   Boolean  @default(true)
+   pushEnabled         Boolean  @default(true)
+   pushBookingUpdates  Boolean  @default(true)
+   pushPaymentUpdates  Boolean  @default(true)
+   pushReviews         Boolean  @default(true)
+   pushSystemAlerts    Boolean  @default(true)
+   smsEnabled          Boolean  @default(false)
+   smsBookingUpdates   Boolean  @default(false)
+   smsPaymentUpdates   Boolean  @default(true)
+   smsSystemAlerts     Boolean  @default(false)
+   digestFrequency     String   @default("daily")
+   quietHoursStart     String?  @default("22:00")
+   quietHoursEnd       String?  @default("08:00")
+   timezone            String   @default("UTC")
+   createdAt           DateTime @default(now())
+   updatedAt           DateTime @updatedAt
+   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+   @@map("notification_preferences")
+}
+
+model RefundRequest {
+   id                 String              @id @default(cuid())
+   bookingId          String
+   paymentId          String
+   requestedBy        String
+   requestedAmount    Decimal             @db.Decimal(10, 2)
+   currency           String
+   reason             String
+   customerNotes      String?
+   status             RefundRequestStatus @default(PENDING_REALTOR_APPROVAL)
+   realtorId          String?
+   realtorApprovedAt  DateTime?
+   realtorReason      String?
+   realtorNotes       String?
+   adminId            String?
+   adminProcessedAt   DateTime?
+   adminNotes         String?
+   actualRefundAmount Decimal?            @db.Decimal(10, 2)
+   providerRefundId   String?
+   createdAt          DateTime            @default(now())
+   updatedAt          DateTime            @updatedAt
+   completedAt        DateTime?
+   admin              User?               @relation("RefundAdmin", fields: [adminId], references: [id])
+   booking            Booking             @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   payment            Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+   realtor            Realtor?            @relation(fields: [realtorId], references: [id])
+   requester          User                @relation("RefundRequester", fields: [requestedBy], references: [id], onDelete: Cascade)
+
+   @@index([bookingId])
+   @@index([paymentId])
+   @@index([status])
+   @@index([requestedBy])
+   @@index([realtorId])
+   @@map("refund_requests")
+}
+
+model PlatformSettings {
+   key           String   @id
+   value         Json
+   description   String?
+   category      String   @default("general")
+   isActive      Boolean  @default(true)
+   updatedBy     String
+   createdAt     DateTime @default(now())
+   updatedAt     DateTime @updatedAt
+   updatedByUser User     @relation(fields: [updatedBy], references: [id])
+
+   @@index([category])
+   @@index([isActive])
+   @@map("platform_settings")
+}
+
+model PendingRegistration {
+   id                  String   @id @default(cuid())
+   email               String   @unique
+   firstName           String
+   lastName            String
+   role                UserRole @default(GUEST)
+   referredByRealtorId String?
+   referralSource      String?
+   otp                 String
+   otpExpires          DateTime
+   createdAt           DateTime @default(now())
+   updatedAt           DateTime @updatedAt
+
+   @@index([email])
+   @@index([otpExpires])
+   @@map("pending_registrations")
+}
+
+model Dispute {
+   id          String        @id @default(cuid())
+   bookingId   String
+   disputeType DisputeType
+   status      DisputeStatus @default(OPEN)
+   openedBy    String // userId
+   openedAt    DateTime      @default(now())
+   closedAt    DateTime?
+
+   // Outcome
+   outcome      String? // Description of resolution
+   agreedAmount Decimal? @db.Decimal(10, 2) // If negotiated settlement
+
+   // Evidence
+   evidence Json? // Array of photo/video URLs with metadata
+
+   // Conversation
+   messages Json? // Array of dispute messages between parties
+
+   // Admin escalation
+   escalatedToAdmin Boolean   @default(false)
+   adminId          String?
+   adminNotes       String?
+   adminResolvedAt  DateTime?
+
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+
+   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   opener  User    @relation("DisputeOpener", fields: [openedBy], references: [id])
+   admin   User?   @relation("DisputeAdmin", fields: [adminId], references: [id])
+
+   @@index([bookingId])
+   @@index([status])
+   @@index([disputeType])
+   @@map("disputes")
+}
+
+model EscrowEvent {
+   id        String          @id @default(cuid())
+   bookingId String
+   eventType EscrowEventType
+   amount    Decimal         @db.Decimal(10, 2)
+   currency  String          @default("NGN")
+
+   // Money movement
+   fromParty String? // "CUSTOMER" | "ESCROW" | "PLATFORM"
+   toParty   String? // "REALTOR" | "CUSTOMER" | "PLATFORM" | "ESCROW"
+
+   // Tracking
+   executedAt           DateTime @default(now())
+   transactionReference String?
+   providerResponse     Json?
+
+   // Context
+   notes       String?
+   triggeredBy String? // userId or "SYSTEM" for automated events
+
+   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+   @@index([bookingId])
+   @@index([eventType])
+   @@map("escrow_events")
+}
+
 enum UserRole {
    GUEST
    REALTOR
@@ -23,23 +531,47 @@ enum PropertyType {
 }
 
 enum PropertyStatus {
-   DRAFT // Being created, not visible to guests
-   ACTIVE // Published and bookable
-   INACTIVE // Temporarily hidden (maintenance, etc.)
+   DRAFT
+   ACTIVE
+   INACTIVE
 }
 
 enum BookingStatus {
-   PENDING
-   CONFIRMED
-   CANCELLED
-   COMPLETED
+   PENDING // Initial state, waiting for payment
+   PAID // Payment confirmed, funds in escrow
+   CONFIRMED // Deprecated - use PAID instead
+   CHECKED_IN // User has checked in
+   DISPUTE_OPENED // Either user or realtor opened a dispute
+   CHECKED_OUT // User has checked out
+   COMPLETED // All funds released, booking finished
+   CANCELLED // Booking cancelled before check-in
+}
+
+enum PayoutStatus {
+   PENDING // Payment received, waiting for check-in
+   READY // Check-in time reached, ready to transfer
+   PROCESSING // Transfer initiated
+   COMPLETED // Successfully paid out
+   FAILED // Payout failed
+}
+
+enum RefundTier {
+   EARLY // 24+ hours before check-in (90/7/3 split)
+   MEDIUM // 12-24 hours before check-in (70/20/10 split)
+   LATE // 0-12 hours before check-in (0/80/20 split)
+   NONE // After check-in or no refund
 }
 
 enum PaymentStatus {
-   PENDING
-   COMPLETED
-   FAILED
-   REFUNDED
+   INITIATED // Payment process started
+   PENDING // Waiting for payment provider confirmation (deprecated)
+   ESCROW_HELD // Room fee + security deposit held in escrow
+   ROOM_FEE_SPLIT_RELEASED // 90% to realtor, 10% to platform (after 1-hour dispute window)
+   RELEASED_TO_REALTOR // Full escrow released to realtor
+   REFUNDED_TO_CUSTOMER // Full refund to customer
+   PARTIAL_PAYOUT_REALTOR // Partial payout after dispute settlement
+   COMPLETED // All transactions completed (deprecated - use specific states)
+   FAILED // Payment failed
 }
 
 enum PaymentMethod {
@@ -59,273 +591,6 @@ enum CacStatus {
    APPROVED
    REJECTED
    SUSPENDED
-}
-
-model User {
-   id              String   @id @default(cuid())
-   email           String   @unique
-   businessEmail   String? // For realtors - their business email
-   password        String
-   fullName        String // Store full name as provided in registration
-   firstName       String // Derived from fullName for backward compatibility
-   lastName        String // Derived from fullName for backward compatibility
-   role            UserRole @default(GUEST)
-   phone           String?
-   businessAddress String? // For realtors - their business address
-   avatar          String?
-
-   // Email verification fields
-   isEmailVerified          Boolean   @default(false)
-   emailVerificationToken   String?
-   emailVerificationExpires DateTime?
-
-   // Guest-Realtor relationship (for guests registered via realtor subdomains)
-   referredByRealtorId String? // Tracks which realtor referred this guest
-   referralSource      String? // e.g., "subdomain:akin-ma-lofa" or "direct"
-
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-
-   // Relations
-   realtor                Realtor?
-   referredByRealtor      Realtor?                @relation("ReferredGuests", fields: [referredByRealtorId], references: [id])
-   bookings               Booking[]
-   reviews                Review[]
-   reviewResponses        ReviewResponse[]
-   payments               Payment[]
-   notifications          Notification[]
-   notificationPreference NotificationPreference?
-   auditLogs              AuditLog[]
-   adminAuditLogs         AuditLog[]              @relation("AdminAuditLogs")
-   refundRequests         RefundRequest[]         @relation("RefundRequester")
-   adminRefundRequests    RefundRequest[]         @relation("RefundAdmin")
-   platformSettings       PlatformSettings[]
-
-   @@map("users")
-}
-
-model Realtor {
-   id                 String        @id @default(cuid())
-   userId             String        @unique
-   businessName       String // Agency name from registration
-   tagline            String? // Business tagline/description
-   description        String? // Business description (optional)
-   slug               String        @unique // Custom subdomain
-   corporateRegNumber String? // Business registration number (CAC)
-   cacDocumentUrl     String? // CAC Document upload URL (optional)
-   logoUrl            String? // Logo upload URL
-   businessPhone      String? // Business phone number
-   status             RealtorStatus @default(PENDING) // Approval status
-
-   // CAC verification fields
-   cacStatus           CacStatus @default(PENDING) // CAC verification status
-   cacVerifiedAt       DateTime? // When CAC was approved
-   cacRejectedAt       DateTime? // When CAC was rejected
-   cacRejectionReason  String? // Reason for CAC rejection
-   suspendedAt         DateTime? // When account was suspended
-   suspensionExpiresAt DateTime? // When account will be deleted if no appeal
-   canAppeal           Boolean   @default(true) // Can appeal CAC rejection
-
-   // Branding colors from registration
-   primaryColor   String  @default("#000000") // Default to black as per requirements
-   secondaryColor String? @default("#10B981")
-   accentColor    String? @default("#F59E0B")
-
-   // Social media profiles from registration
-   websiteUrl   String?
-   instagramUrl String?
-   twitterUrl   String?
-   linkedinUrl  String?
-   facebookUrl  String?
-   youtubeUrl   String?
-   whatsappType String? @default("business") // "personal" or "business"
-
-   // Payment integration
-   paystackSubAccountCode String? // Paystack subaccount for split payments
-
-   isActive  Boolean  @default(true)
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-
-   // Relations
-   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-   referredGuests User[]          @relation("ReferredGuests")
-   properties     Property[]
-   refundRequests RefundRequest[]
-
-   @@map("realtors")
-}
-
-model Property {
-   id              String         @id @default(cuid())
-   realtorId       String
-   title           String
-   description     String
-   type            PropertyType
-   pricePerNight   Decimal        @db.Decimal(10, 2)
-   currency        String         @default("NGN")
-   maxGuests       Int
-   bedrooms        Int
-   bathrooms       Int
-   address         String
-   city            String
-   state           String?
-   country         String
-   amenities       String[]       @default([])
-   customAmenities String[]       @default([])
-   status          PropertyStatus @default(DRAFT)
-   isActive        Boolean        @default(true) // Deprecated: Use status instead
-   createdAt       DateTime       @default(now())
-   updatedAt       DateTime       @updatedAt
-
-   // Relations
-   realtor       Realtor         @relation(fields: [realtorId], references: [id], onDelete: Cascade)
-   bookings      Booking[]
-   reviews       Review[]
-   images        PropertyImage[]
-   notifications Notification[]
-
-   @@map("properties")
-}
-
-model PropertyImage {
-   id         String @id @default(cuid())
-   propertyId String
-   url        String
-   order      Int    @default(0)
-
-   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-   @@map("property_images")
-}
-
-model Booking {
-   id           String        @id @default(cuid())
-   propertyId   String
-   guestId      String
-   checkInDate  DateTime
-   checkOutDate DateTime
-   totalGuests  Int
-   totalPrice   Decimal       @db.Decimal(10, 2)
-   currency     String        @default("NGN")
-   status       BookingStatus @default(PENDING)
-   createdAt    DateTime      @default(now())
-   updatedAt    DateTime      @updatedAt
-
-   // Relations
-   property       Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-   guest          User            @relation(fields: [guestId], references: [id], onDelete: Cascade)
-   payment        Payment?
-   review         Review?
-   notifications  Notification[]
-   refundRequests RefundRequest[]
-
-   @@map("bookings")
-}
-
-model Payment {
-   id                    String        @id @default(cuid())
-   bookingId             String        @unique
-   userId                String
-   amount                Decimal       @db.Decimal(10, 2)
-   currency              String        @default("NGN")
-   status                PaymentStatus @default(PENDING)
-   method                PaymentMethod
-   reference             String?       @unique // paystack/flutterwave ref
-   providerTransactionId String? // transaction ID from payment provider
-   paidAt                DateTime? // when payment was completed
-   refundAmount          Decimal?      @db.Decimal(10, 2) // amount refunded if any
-   refundedAt            DateTime? // when refund was processed
-   metadata              Json? // store additional payment provider data
-
-   // Commission tracking
-   platformCommission Decimal?  @db.Decimal(10, 2) // Platform fee (e.g., 5%)
-   commissionRate     Decimal?  @db.Decimal(5, 4) // Commission rate as decimal (0.05 = 5%)
-   realtorEarnings    Decimal?  @db.Decimal(10, 2) // Amount realtor receives after commission
-   commissionPaidOut  Boolean   @default(false) // Whether commission has been settled
-   payoutDate         DateTime? // When realtor was paid
-   payoutReference    String? // Payout transaction reference
-
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-
-   // Relations
-   booking        Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-   notifications  Notification[]
-   refundRequests RefundRequest[]
-
-   @@map("payments")
-}
-
-model Review {
-   id         String  @id @default(cuid())
-   bookingId  String  @unique
-   propertyId String
-   authorId   String
-   rating     Int
-   comment    String?
-
-   // Detailed rating breakdowns
-   cleanlinessRating   Int?
-   communicationRating Int?
-   checkInRating       Int?
-   accuracyRating      Int?
-   locationRating      Int?
-   valueRating         Int?
-
-   // Photo uploads
-   photos ReviewPhoto[]
-
-   // Review management
-   isVisible  Boolean @default(true)
-   isVerified Boolean @default(false) // Verified if booking was completed
-
-   // Engagement metrics
-   helpfulCount  Int @default(0)
-   likesCount    Int @default(0)
-   dislikesCount Int @default(0)
-
-   // Timestamps
-   createdAt DateTime @default(now())
-   updatedAt DateTime @default(now()) @updatedAt
-
-   // Host response
-   hostResponse ReviewResponse?
-
-   // Relations
-   booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   property      Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-   author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
-   notifications Notification[]
-
-   @@map("reviews")
-}
-
-model ReviewPhoto {
-   id       String  @id @default(cuid())
-   reviewId String
-   url      String
-   caption  String?
-   order    Int     @default(0)
-
-   review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-
-   @@map("review_photos")
-}
-
-model ReviewResponse {
-   id        String   @id @default(cuid())
-   reviewId  String   @unique
-   authorId  String // Realtor who responded
-   comment   String
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-
-   review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-   author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-   @@map("review_responses")
 }
 
 enum NotificationType {
@@ -350,109 +615,6 @@ enum NotificationType {
    REALTOR_REINSTATED
 }
 
-model Notification {
-   id      String           @id @default(cuid())
-   userId  String
-   type    NotificationType
-   title   String
-   message String
-   data    Json? // Additional metadata
-
-   // Status
-   isRead   Boolean @default(false)
-   priority String  @default("normal") // "low", "normal", "high", "urgent"
-
-   // Optional references
-   bookingId  String?
-   propertyId String?
-   paymentId  String?
-   reviewId   String?
-
-   // Delivery settings
-   emailSent  Boolean @default(false)
-   pushSent   Boolean @default(false)
-   smsEnabled Boolean @default(false)
-   smsSent    Boolean @default(false)
-
-   createdAt DateTime  @default(now())
-   updatedAt DateTime  @updatedAt
-   expiresAt DateTime? // Optional expiration for temporary notifications
-
-   // Relations
-   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-   booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-   property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-   payment  Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-   review   Review?   @relation(fields: [reviewId], references: [id], onDelete: SetNull)
-
-   @@map("notifications")
-}
-
-model AuditLog {
-   id         String   @id @default(cuid())
-   action     String // Action performed (e.g., "REALTOR_APPROVED", "PAYMENT_PROCESSED")
-   entityType String // Entity type (e.g., "REALTOR", "PAYMENT", "BOOKING")
-   entityId   String // ID of the affected entity
-   userId     String? // ID of the user who performed the action (null for system actions)
-   adminId    String? // ID of admin who performed the action
-   ipAddress  String? // IP address of the user
-   userAgent  String? // User agent string
-   details    Json? // Additional details about the action
-   timestamp  DateTime @default(now())
-   createdAt  DateTime @default(now())
-
-   // Relations
-   user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-   admin User? @relation("AdminAuditLogs", fields: [adminId], references: [id], onDelete: SetNull)
-
-   @@index([action])
-   @@index([entityType])
-   @@index([entityId])
-   @@index([userId])
-   @@index([adminId])
-   @@index([timestamp])
-   @@map("audit_logs")
-}
-
-model NotificationPreference {
-   id     String @id @default(cuid())
-   userId String @unique
-
-   // Email preferences
-   emailEnabled        Boolean @default(true)
-   emailBookingUpdates Boolean @default(true)
-   emailPaymentUpdates Boolean @default(true)
-   emailReviews        Boolean @default(true)
-   emailMarketing      Boolean @default(false)
-   emailSystemAlerts   Boolean @default(true)
-
-   // Push notification preferences
-   pushEnabled        Boolean @default(true)
-   pushBookingUpdates Boolean @default(true)
-   pushPaymentUpdates Boolean @default(true)
-   pushReviews        Boolean @default(true)
-   pushSystemAlerts   Boolean @default(true)
-
-   // SMS preferences
-   smsEnabled        Boolean @default(false)
-   smsBookingUpdates Boolean @default(false)
-   smsPaymentUpdates Boolean @default(true)
-   smsSystemAlerts   Boolean @default(false)
-
-   // Frequency settings
-   digestFrequency String  @default("daily") // "immediate", "hourly", "daily", "weekly"
-   quietHoursStart String? @default("22:00")
-   quietHoursEnd   String? @default("08:00")
-   timezone        String  @default("UTC")
-
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-
-   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-   @@map("notification_preferences")
-}
-
 enum RefundRequestStatus {
    PENDING_REALTOR_APPROVAL
    REALTOR_APPROVED
@@ -462,82 +624,42 @@ enum RefundRequestStatus {
    CANCELLED
 }
 
-model RefundRequest {
-   id              String  @id @default(cuid())
-   bookingId       String
-   paymentId       String
-   requestedBy     String // Guest who requested refund
-   requestedAmount Decimal @db.Decimal(10, 2)
-   currency        String
-   reason          String
-   customerNotes   String? // Additional notes from customer
-
-   // Realtor stage
-   status            RefundRequestStatus @default(PENDING_REALTOR_APPROVAL)
-   realtorId         String?
-   realtorApprovedAt DateTime?
-   realtorReason     String? // Realtor's reason for approval/rejection
-   realtorNotes      String? // Additional realtor notes
-
-   // Admin stage  
-   adminId            String?
-   adminProcessedAt   DateTime?
-   adminNotes         String? // Admin notes during processing
-   actualRefundAmount Decimal?  @db.Decimal(10, 2) // Final refunded amount
-   providerRefundId   String? // Reference from payment provider
-
-   // Timestamps
-   createdAt   DateTime  @default(now())
-   updatedAt   DateTime  @updatedAt
-   completedAt DateTime?
-
-   // Relations
-   booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-   requester User     @relation("RefundRequester", fields: [requestedBy], references: [id], onDelete: Cascade)
-   realtor   Realtor? @relation(fields: [realtorId], references: [id], onDelete: SetNull)
-   admin     User?    @relation("RefundAdmin", fields: [adminId], references: [id], onDelete: SetNull)
-
-   @@index([bookingId])
-   @@index([paymentId])
-   @@index([status])
-   @@index([requestedBy])
-   @@index([realtorId])
-   @@map("refund_requests")
+enum DisputeType {
+   USER_DISPUTE // Opened by user within 1 hour of check-in
+   REALTOR_DISPUTE // Opened by realtor within 2 hours of check-out
 }
 
-model PlatformSettings {
-   key         String   @id // e.g., "commission_rate", "payout_threshold", "email_template_welcome"
-   value       Json // Store as JSON for flexibility (numbers, strings, objects, arrays)
-   description String? // Human-readable description of the setting
-   category    String   @default("general") // "commission", "payout", "email", "notification", "security"
-   isActive    Boolean  @default(true) // Allow disabling settings without deletion
-   updatedBy   String // Admin who last updated this setting
-   createdAt   DateTime @default(now())
-   updatedAt   DateTime @updatedAt
-
-   // Relations
-   updatedByUser User @relation(fields: [updatedBy], references: [id])
-
-   @@index([category])
-   @@index([isActive])
-   @@map("platform_settings")
+enum DisputeStatus {
+   OPEN // Dispute just opened, waiting for other party response
+   AWAITING_RESPONSE // Waiting for counterparty to respond
+   NEGOTIATION // Both parties are negotiating
+   AGREED // Parties reached agreement
+   ADMIN_REVIEW // Escalated to admin for resolution
+   RESOLVED // Dispute resolved (by agreement or admin)
+   REJECTED // Dispute rejected as invalid
 }
 
-model PendingRegistration {
-   id                  String   @id @default(cuid())
-   email               String   @unique
-   firstName           String
-   lastName            String
-   role                UserRole @default(GUEST)
-   referredByRealtorId String?
-   referralSource      String?
-   otp                 String
-   otpExpires          DateTime
-   createdAt           DateTime @default(now())
-   updatedAt           DateTime @updatedAt
+enum EscrowEventType {
+   HOLD_ROOM_FEE // Room fee moved to escrow
+   HOLD_SECURITY_DEPOSIT // Security deposit moved to escrow
+   RELEASE_ROOM_FEE_SPLIT // 90% to realtor, 10% to platform
+   RELEASE_DEPOSIT_TO_CUSTOMER // Security deposit returned to customer
+   PAY_REALTOR_FROM_DEPOSIT // Deduct from deposit, pay to realtor
+   PAY_BALANCE_FROM_CUSTOMER // Customer pays additional amount from new payment
+   REFUND_ROOM_FEE_TO_CUSTOMER // Refund room fee from escrow to customer
+   REFUND_PARTIAL_TO_CUSTOMER // Partial refund to customer after dispute
+   REFUND_PARTIAL_TO_REALTOR // Partial payout to realtor after dispute
+}
 
-   @@index([email])
-   @@index([otpExpires])
-   @@map("pending_registrations")
+model JobLock {
+   id         String   @id @default(cuid())
+   jobName    String   @unique
+   lockedAt   DateTime @default(now())
+   lockedBy   String // Instance ID or hostname
+   expiresAt  DateTime
+   bookingIds String[] // Bookings being processed
+
+   @@index([jobName])
+   @@index([expiresAt])
+   @@map("job_locks")
 }

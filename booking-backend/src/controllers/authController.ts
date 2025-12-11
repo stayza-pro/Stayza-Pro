@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { Request, Response } from "express";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
@@ -7,6 +8,7 @@ import {
   hashPassword,
   comparePassword,
   generateRandomToken,
+  verifyRefreshToken,
 } from "@/utils/auth";
 import {
   registerSchema,
@@ -37,12 +39,12 @@ async function cleanupExpiredPendingRegistrations() {
       },
     });
     if (deleted.count > 0) {
-      console.log(
+      logger.info(
         `🧹 Cleaned up ${deleted.count} expired pending registrations`
       );
     }
   } catch (error) {
-    console.error("Error cleaning up expired pending registrations:", error);
+    logger.error("Error cleaning up expired pending registrations:", error);
   }
 }
 
@@ -151,7 +153,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     user.email
   )}`;
   sendEmailVerification(user.email, firstName || "User", verificationUrl).catch(
-    (err) => console.error("Email verification failed", err)
+    (err) => logger.error("Email verification failed", err)
   );
 
   res.status(201).json({
@@ -205,7 +207,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     role: user.role,
   });
 
-  console.log("✅ Login successful:", {
+  logger.info("✅ Login successful:", {
     userId: user.id,
     email: user.email,
     role: user.role,
@@ -283,9 +285,15 @@ export const updateProfile = asyncHandler(
       throw new AppError(error.details[0].message, 400);
     }
 
+    // Add avatar if file was uploaded
+    const updateData: any = { ...value };
+    if (req.file) {
+      updateData.avatar = req.file.path;
+    }
+
     const user = await prisma.user.update({
       where: { id: req.user!.id },
-      data: value,
+      data: updateData,
       select: {
         id: true,
         email: true,
@@ -294,6 +302,7 @@ export const updateProfile = asyncHandler(
         fullName: true,
         phone: true,
         role: true,
+        avatar: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -339,22 +348,17 @@ export const refreshToken = asyncHandler(
       throw new AppError("Refresh token required", 400);
     }
 
-    // MVP: Simple stateless token refresh - just validate and regenerate
-    // In production, you'd want to verify the refresh token properly
+    // Verify refresh token using the correct refresh secret
     let userId, userEmail, userRole;
 
     try {
-      // For MVP, we'll do a basic token check (in production, use JWT verification)
-      const jwt = require("jsonwebtoken");
-      const decoded = jwt.verify(
-        refreshToken,
-        process.env.JWT_SECRET || "fallback-secret"
-      );
+      const decoded = verifyRefreshToken(refreshToken);
       userId = decoded.id;
       userEmail = decoded.email;
       userRole = decoded.role;
     } catch (error) {
-      throw new AppError("Invalid refresh token", 401);
+      logger.error("❌ Refresh token verification failed:", error);
+      throw new AppError("Invalid or expired refresh token", 401);
     }
 
     // Generate new tokens
@@ -383,7 +387,7 @@ export const refreshToken = asyncHandler(
 export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   const { token, email } = req.query;
 
-  console.log("🔍 Email verification request:", {
+  logger.info("🔍 Email verification request:", {
     token: token ? `${String(token).substring(0, 10)}...` : "missing",
     email: email,
     url: req.url,
@@ -402,11 +406,11 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (!user) {
-    console.log("❌ User not found for email:", email);
+    logger.info("❌ User not found for email:", email);
     throw new AppError("User not found", 404);
   }
 
-  console.log("✅ User found:", {
+  logger.info("✅ User found:", {
     id: user.id,
     email: user.email,
     isEmailVerified: user.isEmailVerified,
@@ -437,12 +441,12 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
 
   // Detailed token validation
   if (!user.emailVerificationToken) {
-    console.log("❌ No verification token stored for user");
+    logger.info("❌ No verification token stored for user");
     throw new AppError("No verification token found for this user", 400);
   }
 
   if (user.emailVerificationToken !== token) {
-    console.log("❌ Token mismatch:", {
+    logger.info("❌ Token mismatch:", {
       storedToken: user.emailVerificationToken
         ? `${user.emailVerificationToken.substring(0, 10)}...`
         : "null",
@@ -453,12 +457,12 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (!user.emailVerificationExpires) {
-    console.log("❌ No expiration date set for verification token");
+    logger.info("❌ No expiration date set for verification token");
     throw new AppError("Verification token has no expiration date", 400);
   }
 
   if (user.emailVerificationExpires < new Date()) {
-    console.log("❌ Verification token expired:", {
+    logger.info("❌ Verification token expired:", {
       expires: user.emailVerificationExpires,
       now: new Date(),
       expiredMinutesAgo: Math.round(
@@ -469,7 +473,7 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("Verification token has expired", 400);
   }
 
-  console.log("✅ Token validation passed");
+  logger.info("✅ Token validation passed");
 
   // Update user as verified
   const verifiedUser = await prisma.user.update({
@@ -484,7 +488,7 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 
-  console.log("✅ User email verified successfully:", {
+  logger.info("✅ User email verified successfully:", {
     id: verifiedUser.id,
     email: verifiedUser.email,
     role: verifiedUser.role,
@@ -497,11 +501,11 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
     role: verifiedUser.role,
   });
 
-  console.log("🔐 Generated authentication tokens for auto-login");
+  logger.info("🔐 Generated authentication tokens for auto-login");
 
   // Send welcome email after successful verification
   sendWelcomeEmail(verifiedUser.email, verifiedUser.firstName || "User").catch(
-    (err) => console.error("Welcome email failed", err)
+    (err) => logger.error("Welcome email failed", err)
   );
 
   // Get appropriate dashboard URL for newly verified user
@@ -743,7 +747,7 @@ export const registerPasswordless = asyncHandler(
 
       // If user is UNVERIFIED (from old flow or expired registration),
       // delete them and allow re-registration with new flow
-      console.log(`🧹 Cleaning up unverified user: ${email}`);
+      logger.info(`🧹 Cleaning up unverified user: ${email}`);
       await prisma.user.delete({
         where: { id: existingUser.id },
       });
@@ -779,13 +783,13 @@ export const registerPasswordless = asyncHandler(
     } catch (emailError) {
       // Log OTP to console in development if email fails
       if (config.NODE_ENV === "development") {
-        console.log("\n========================================");
-        console.log("📧 EMAIL SENDING FAILED - DEVELOPMENT MODE");
-        console.log("========================================");
-        console.log(`Email: ${email}`);
-        console.log(`OTP Code: ${otp}`);
-        console.log(`Expires: ${otpExpires.toLocaleString()}`);
-        console.log("========================================\n");
+        logger.info("\n========================================");
+        logger.info("📧 EMAIL SENDING FAILED - DEVELOPMENT MODE");
+        logger.info("========================================");
+        logger.info(`Email: ${email}`);
+        logger.info(`OTP Code: ${otp}`);
+        logger.info(`Expires: ${otpExpires.toLocaleString()}`);
+        logger.info("========================================\n");
       }
       // Don't throw error - allow registration to continue
     }
@@ -863,13 +867,13 @@ export const requestOTP = asyncHandler(async (req: Request, res: Response) => {
   } catch (emailError) {
     // Log OTP to console in development if email fails
     if (config.NODE_ENV === "development") {
-      console.log("\n========================================");
-      console.log("📧 EMAIL SENDING FAILED - DEVELOPMENT MODE");
-      console.log("========================================");
-      console.log(`Email: ${email}`);
-      console.log(`OTP Code: ${otp}`);
-      console.log(`Expires: ${otpExpires.toLocaleString()}`);
-      console.log("========================================\n");
+      logger.info("\n========================================");
+      logger.info("📧 EMAIL SENDING FAILED - DEVELOPMENT MODE");
+      logger.info("========================================");
+      logger.info(`Email: ${email}`);
+      logger.info(`OTP Code: ${otp}`);
+      logger.info(`Expires: ${otpExpires.toLocaleString()}`);
+      logger.info("========================================\n");
     }
     // Don't throw error - allow login to continue
   }
@@ -971,11 +975,11 @@ export const verifyRegistration = asyncHandler(
       );
     } catch (emailError) {
       // Log error but don't block registration
-      console.log(
+      logger.info(
         "⚠️  Welcome email failed to send, but registration completed successfully"
       );
       if (config.NODE_ENV === "development") {
-        console.log("Email error:", emailError);
+        logger.info("Email error:", emailError);
       }
     }
 
@@ -1008,9 +1012,28 @@ export const verifyRegistration = asyncHandler(
 export const verifyLogin = asyncHandler(async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
+  logger.info("🔍 Verify Login Request:", { email, otp });
+
   if (!email || !otp) {
     throw new AppError("Email and OTP are required", 400);
   }
+
+  // First, find the user by email to check what OTP is stored
+  const userCheck = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  logger.info("👤 User lookup:", {
+    found: !!userCheck,
+    email: userCheck?.email,
+    role: userCheck?.role,
+    storedOTP: userCheck?.emailVerificationToken,
+    receivedOTP: otp,
+    otpExpires: userCheck?.emailVerificationExpires,
+    isExpired: userCheck?.emailVerificationExpires
+      ? userCheck.emailVerificationExpires < new Date()
+      : "N/A",
+  });
 
   // Find user with this email and OTP
   const user = await prisma.user.findFirst({
@@ -1031,6 +1054,25 @@ export const verifyLogin = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (!user) {
+    // Provide more specific error message
+    if (!userCheck) {
+      throw new AppError("No account found with this email address", 404);
+    }
+    if (userCheck.role !== "GUEST") {
+      throw new AppError(
+        "Passwordless login is only available for guest accounts",
+        400
+      );
+    }
+    if (!userCheck.emailVerificationToken) {
+      throw new AppError(
+        "No verification code found. Please request a new code.",
+        400
+      );
+    }
+    if (userCheck.emailVerificationToken !== otp) {
+      throw new AppError("Invalid verification code", 400);
+    }
     throw new AppError("Invalid or expired verification code", 400);
   }
 

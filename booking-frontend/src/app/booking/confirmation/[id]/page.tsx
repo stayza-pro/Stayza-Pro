@@ -9,10 +9,7 @@ import {
   Users,
   Home,
   Download,
-  Mail,
-  Phone,
-  ArrowLeft,
-  Share2,
+  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
@@ -73,32 +70,14 @@ export default function BookingConfirmationPage() {
 
   const calculateNights = () => {
     if (!booking) return 0;
-    const start = new Date(booking.checkIn);
-    const end = new Date(booking.checkOut);
+    const start = new Date(booking.checkInDate);
+    const end = new Date(booking.checkOutDate);
     return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
 
   const handleDownloadConfirmation = () => {
     // TODO: Implement PDF download
     alert("PDF download will be implemented");
-  };
-
-  const handleAddToCalendar = () => {
-    // TODO: Implement calendar export
-    alert("Add to calendar will be implemented");
-  };
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: "My Booking",
-        text: `I've booked ${booking?.property?.title}!`,
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard!");
-    }
   };
 
   if (isLoading) {
@@ -108,7 +87,7 @@ export default function BookingConfirmationPage() {
           currentPage="profile"
           searchPlaceholder="Search location..."
         />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-64 bg-gray-200 rounded-lg"></div>
           </div>
@@ -131,7 +110,7 @@ export default function BookingConfirmationPage() {
           currentPage="profile"
           searchPlaceholder="Search location..."
         />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <Card className="p-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Booking Not Found
@@ -164,256 +143,266 @@ export default function BookingConfirmationPage() {
         searchPlaceholder="Search location..."
       />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Progress Indicator */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center space-x-4">
+            <div className="flex items-center">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
+                style={{ backgroundColor: brandColor }}
+              >
+                <Check className="h-6 w-6" />
+              </div>
+              <span className="ml-2 font-medium text-gray-900">
+                Guest Details
+              </span>
+            </div>
+            <div
+              className="w-16 h-1"
+              style={{ backgroundColor: brandColor }}
+            ></div>
+            <div className="flex items-center">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
+                style={{ backgroundColor: brandColor }}
+              >
+                <Check className="h-6 w-6" />
+              </div>
+              <span className="ml-2 font-medium text-gray-900">Payment</span>
+            </div>
+            <div
+              className="w-16 h-1"
+              style={{ backgroundColor: brandColor }}
+            ></div>
+            <div className="flex items-center">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
+                style={{ backgroundColor: brandColor }}
+              >
+                <Check className="h-6 w-6" />
+              </div>
+              <span className="ml-2 font-medium text-gray-900">
+                Confirmation
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Success Header */}
         <div className="text-center mb-8">
           <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-            style={{ backgroundColor: `${secondaryColor}20` }}
+            className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 shadow-lg"
+            style={{
+              backgroundColor: `${secondaryColor}15`,
+              border: `2px solid ${secondaryColor}`,
+            }}
           >
             <CheckCircle
-              className="h-10 w-10"
+              className="h-12 w-12"
               style={{ color: secondaryColor }}
             />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1
+            className="text-3xl font-bold mb-2"
+            style={{ color: secondaryColor }}
+          >
             Booking Confirmed!
           </h1>
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600">
             Your booking has been successfully confirmed
           </p>
-          <p className="text-gray-500 mt-2">Confirmation #{booking.id}</p>
+          <p className="text-sm text-gray-500 font-mono bg-gray-100 inline-block px-4 py-2 rounded-full mt-3">
+            Confirmation #{booking.id.substring(0, 8).toUpperCase()}
+          </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap justify-center gap-3 mb-8">
-          <Button onClick={handleDownloadConfirmation} variant="primary">
+        <div className="flex justify-center mb-8">
+          <Button
+            onClick={handleDownloadConfirmation}
+            className="shadow-sm hover:shadow-md transition-all"
+            style={{ backgroundColor: brandColor }}
+          >
             <Download className="h-4 w-4 mr-2" />
             Download PDF
-          </Button>
-          <Button onClick={handleAddToCalendar} variant="outline">
-            <Calendar className="h-4 w-4 mr-2" />
-            Add to Calendar
-          </Button>
-          <Button onClick={handleShare} variant="outline">
-            <Share2 className="h-4 w-4 mr-2" />
-            Share
           </Button>
         </div>
 
         {/* Property Details */}
-        <Card className="p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Your Booking
-          </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <h2
+                className="text-xl font-semibold mb-4"
+                style={{ color: secondaryColor }}
+              >
+                Property Details
+              </h2>
 
-          <div className="flex items-start space-x-4 mb-6">
-            <div className="relative w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
-              {booking.property?.images?.[0]?.url ? (
-                <Image
-                  src={booking.property.images[0].url}
-                  alt={booking.property.title || "Property"}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                  <Home className="h-12 w-12 text-gray-400" />
+              <div className="flex flex-col md:flex-row items-start gap-6 mb-6">
+                <div className="relative w-full md:w-48 h-48 rounded-xl overflow-hidden flex-shrink-0">
+                  {booking.property?.images?.[0]?.url ? (
+                    <Image
+                      src={booking.property.images[0].url}
+                      alt={booking.property.title || "Property"}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                      <Home className="h-16 w-16 text-gray-400" />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {booking.property?.title || "Unknown Property"}
-              </h3>
-              <div className="space-y-1 text-gray-600">
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  <span>{booking.property?.address}</span>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                    {booking.property?.title || "Unknown Property"}
+                  </h3>
+                  <div className="flex items-center text-gray-600 mb-4">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    <span>
+                      {booking.property?.city}, {booking.property?.state}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-2" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <div className="flex items-center mb-2">
+                    <Calendar className="h-5 w-5 text-blue-600 mr-2" />
+                    <span className="text-sm font-medium text-blue-900">
+                      Check-in
+                    </span>
+                  </div>
+                  <p className="text-gray-900 font-semibold">
+                    {formatDate(booking.checkInDate)}
+                  </p>
+                </div>
+
+                <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
+                  <div className="flex items-center mb-2">
+                    <Calendar className="h-5 w-5 text-purple-600 mr-2" />
+                    <span className="text-sm font-medium text-purple-900">
+                      Check-out
+                    </span>
+                  </div>
+                  <p className="text-gray-900 font-semibold">
+                    {formatDate(booking.checkOutDate)}
+                  </p>
+                </div>
+
+                <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                  <div className="flex items-center mb-2">
+                    <Users className="h-5 w-5 text-green-600 mr-2" />
+                    <span className="text-sm font-medium text-green-900">
+                      Guests
+                    </span>
+                  </div>
+                  <p className="text-gray-900 font-semibold">
+                    {booking.totalGuests}{" "}
+                    {booking.totalGuests === 1 ? "Guest" : "Guests"}
+                  </p>
+                </div>
+
+                <div className="p-4 bg-orange-50 rounded-xl border border-orange-100">
+                  <div className="flex items-center mb-2">
+                    <Calendar className="h-5 w-5 text-orange-600 mr-2" />
+                    <span className="text-sm font-medium text-orange-900">
+                      Duration
+                    </span>
+                  </div>
+                  <p className="text-gray-900 font-semibold">
+                    {nights} {nights === 1 ? "Night" : "Nights"}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Booking Summary Sidebar */}
+          <div className="lg:col-span-1">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm sticky top-8"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <h2
+                className="text-xl font-semibold mb-4"
+                style={{ color: secondaryColor }}
+              >
+                Payment Summary
+              </h2>
+
+              <div className="space-y-3 mb-4 pb-4 border-b border-gray-200">
+                <div className="flex justify-between text-gray-700">
                   <span>
-                    {booking.property?.city}, {booking.property?.state},{" "}
-                    {booking.property?.country}
+                    {formatPrice(
+                      booking.property?.pricePerNight || 0,
+                      booking.currency
+                    )}{" "}
+                    x {nights} nights
+                  </span>
+                  <span className="font-medium">
+                    {formatPrice(
+                      (booking.property?.pricePerNight || 0) * nights,
+                      booking.currency
+                    )}
                   </span>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-200 pt-6">
-            <div>
-              <div className="flex items-center text-gray-700 mb-1">
-                <Calendar
-                  className="h-5 w-5 mr-2"
-                  style={{ color: accentColor }}
-                />
-                <p className="font-medium">Check-in</p>
+              <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                <span
+                  className="text-lg font-semibold"
+                  style={{ color: secondaryColor }}
+                >
+                  Total
+                </span>
+                <span
+                  className="text-2xl font-bold"
+                  style={{ color: brandColor }}
+                >
+                  {formatPrice(booking.totalPrice, booking.currency)}
+                </span>
               </div>
-              <p className="text-gray-900 ml-7">
-                {formatDate(booking.checkIn)}
-              </p>
-              <p className="text-sm text-gray-600 ml-7">
-                After {booking.property?.checkInTime || "2:00 PM"}
-              </p>
-            </div>
 
-            <div>
-              <div className="flex items-center text-gray-700 mb-1">
-                <Calendar
-                  className="h-5 w-5 mr-2"
-                  style={{ color: accentColor }}
-                />
-                <p className="font-medium">Check-out</p>
-              </div>
-              <p className="text-gray-900 ml-7">
-                {formatDate(booking.checkOut)}
-              </p>
-              <p className="text-sm text-gray-600 ml-7">
-                Before {booking.property?.checkOutTime || "11:00 AM"}
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center text-gray-700 mb-1">
-                <Users
-                  className="h-5 w-5 mr-2"
-                  style={{ color: accentColor }}
-                />
-                <p className="font-medium">Guests</p>
-              </div>
-              <p className="text-gray-900 ml-7">
-                {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center text-gray-700 mb-1">
-                <Home className="h-5 w-5 mr-2 text-gray-400" />
-                <p className="font-medium">Duration</p>
-              </div>
-              <p className="text-gray-900 ml-7">
-                {nights} {nights === 1 ? "night" : "nights"}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Host Information */}
-        {booking.property?.realtor && (
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Host Information
-            </h2>
-            <div className="flex items-start space-x-4">
-              <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold">
-                {booking.property.realtor.businessName?.charAt(0) || "H"}
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  {booking.property.realtor.businessName || "Host"}
-                </h3>
-                {booking.property.realtor.businessEmail && (
-                  <div className="flex items-center text-gray-600 mb-1">
-                    <Mail className="h-4 w-4 mr-2" />
-                    <a
-                      href={`mailto:${booking.property.realtor.businessEmail}`}
-                      className="hover:text-blue-600"
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Status:</span>
+                    <span
+                      className="font-semibold"
+                      style={{ color: brandColor }}
                     >
-                      {booking.property.realtor.businessEmail}
-                    </a>
+                      {booking.status}
+                    </span>
                   </div>
-                )}
-                {booking.property.realtor.businessPhone && (
-                  <div className="flex items-center text-gray-600">
-                    <Phone className="h-4 w-4 mr-2" />
-                    <a
-                      href={`tel:${booking.property.realtor.businessPhone}`}
-                      className="hover:text-blue-600"
-                    >
-                      {booking.property.realtor.businessPhone}
-                    </a>
+                  <div className="flex justify-between">
+                    <span>Payment Method:</span>
+                    <span className="font-medium">
+                      {booking.payment?.providerId?.toUpperCase() ||
+                        booking.payment?.method?.toUpperCase() ||
+                        "N/A"}
+                    </span>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          </Card>
-        )}
 
-        {/* Payment Summary */}
-        <Card className="p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Payment Summary
-          </h2>
-          <div className="space-y-3">
-            <div className="flex justify-between text-gray-700">
-              <span>
-                {formatPrice(booking.totalPrice / nights, booking.currency)} ×{" "}
-                {nights} {nights === 1 ? "night" : "nights"}
-              </span>
-              <span>{formatPrice(booking.totalPrice, booking.currency)}</span>
-            </div>
-
-            <div className="border-t border-gray-200 pt-3 flex justify-between font-semibold text-gray-900 text-lg">
-              <span>Total Paid</span>
-              <span>{formatPrice(booking.totalPrice, booking.currency)}</span>
-            </div>
+              <Button
+                onClick={() => router.push("/guest/bookings")}
+                className="w-full mt-6"
+                style={{ backgroundColor: brandColor }}
+              >
+                View All Bookings
+              </Button>
+            </Card>
           </div>
-        </Card>
-
-        {/* What's Next */}
-        <Card className="p-6 bg-blue-50 border-blue-200">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            What's Next?
-          </h2>
-          <ul className="space-y-3 text-gray-700">
-            <li className="flex items-start">
-              <CheckCircle className="h-5 w-5 mr-3 text-green-600 mt-0.5 flex-shrink-0" />
-              <span>
-                You'll receive a confirmation email at{" "}
-                <strong>{user?.email}</strong>
-              </span>
-            </li>
-            <li className="flex items-start">
-              <CheckCircle className="h-5 w-5 mr-3 text-green-600 mt-0.5 flex-shrink-0" />
-              <span>
-                The host will send you check-in instructions closer to your
-                arrival date
-              </span>
-            </li>
-            <li className="flex items-start">
-              <CheckCircle className="h-5 w-5 mr-3 text-green-600 mt-0.5 flex-shrink-0" />
-              <span>
-                You can contact the host directly through the Messages section
-              </span>
-            </li>
-            <li className="flex items-start">
-              <CheckCircle className="h-5 w-5 mr-3 text-green-600 mt-0.5 flex-shrink-0" />
-              <span>
-                View your booking details anytime in the "My Bookings" section
-              </span>
-            </li>
-          </ul>
-        </Card>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 mt-6">
-          <Button
-            onClick={() => router.push(`/guest/bookings/${bookingId}`)}
-            className="flex-1"
-            variant="primary"
-          >
-            View Booking Details
-          </Button>
-          <Button
-            onClick={() => router.push("/browse")}
-            className="flex-1"
-            variant="outline"
-          >
-            Browse More Properties
-          </Button>
         </div>
       </main>
 

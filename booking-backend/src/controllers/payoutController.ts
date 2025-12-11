@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { Response } from "express";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
@@ -33,7 +34,7 @@ export const getBankList = asyncHandler(
         data: uniqueBanks,
       });
     } catch (error: any) {
-      console.error(
+      logger.error(
         "Error fetching banks from Paystack:",
         error.response?.data || error.message
       );
@@ -154,7 +155,7 @@ export const getBankList = asyncHandler(
         },
       ];
 
-      console.log("⚠️ Returning mock bank list - Paystack API unavailable");
+      logger.info("⚠️ Returning mock bank list - Paystack API unavailable");
 
       res.status(200).json({
         success: true,
@@ -194,14 +195,14 @@ export const verifyBankAccount = asyncHandler(
         data: response.data.data,
       });
     } catch (error: any) {
-      console.error(
+      logger.error(
         "Error verifying account:",
         error.response?.data || error.message
       );
 
       // Return mock verification for MVP/development
       if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
-        console.log("⚠️ Returning mock verification - Paystack API timeout");
+        logger.info("⚠️ Returning mock verification - Paystack API timeout");
         return res.status(200).json({
           success: true,
           data: {
@@ -295,7 +296,7 @@ export const saveBankAccount = asyncHandler(
         },
       });
     } catch (error: any) {
-      console.error("Error creating subaccount:", error);
+      logger.error("Error creating subaccount:", error);
       throw new AppError(
         error.message || "Failed to set up payout account",
         500

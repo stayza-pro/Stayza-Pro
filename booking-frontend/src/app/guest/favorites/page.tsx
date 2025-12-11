@@ -76,54 +76,124 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen bg-gray-50 flex flex-col"
+      style={{ colorScheme: "light" }}
+    >
       <GuestHeader
         currentPage="favorites"
         searchPlaceholder="Search properties..."
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                My Favorites
-              </h1>
-              <p className="text-gray-600">Properties you've saved for later</p>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Powered by Stayza Pro</p>
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16">
+        {/* Hero Header Section */}
+        <div className="mb-16 text-center">
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-8"
+            style={{ backgroundColor: `${primaryColor}15` }}
+          >
+            <Heart className="h-8 w-8" style={{ color: primaryColor }} />
           </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            My Favorites
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Properties you've saved for your dream stay
+          </p>
         </div>
 
-        {/* Search */}
-        <Card className="p-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search your favorites..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        {/* Stats Overview */}
+        {favorites.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <Card
+              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <div
+                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
+                style={{ backgroundColor: `${primaryColor}15` }}
+              >
+                <Heart className="h-6 w-6" style={{ color: primaryColor }} />
+              </div>
+              <p className="text-3xl font-bold text-gray-900 mb-1">
+                {favorites.length}
+              </p>
+              <p className="text-sm text-gray-600">Saved Properties</p>
+            </Card>
+
+            <Card
+              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <div
+                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
+                style={{ backgroundColor: `${secondaryColor || "#059669"}15` }}
+              >
+                <MapPin
+                  className="h-6 w-6"
+                  style={{ color: secondaryColor || "#059669" }}
+                />
+              </div>
+              <p className="text-3xl font-bold text-gray-900 mb-1">
+                {new Set(favorites.map((f) => f.city)).size}
+              </p>
+              <p className="text-sm text-gray-600">Cities</p>
+            </Card>
+
+            <Card
+              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <div
+                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
+                style={{ backgroundColor: `${accentColor || "#D97706"}15` }}
+              >
+                <Star
+                  className="h-6 w-6"
+                  style={{ color: accentColor || "#D97706" }}
+                />
+              </div>
+              <p className="text-3xl font-bold text-gray-900 mb-1">
+                {favorites.reduce((acc, f) => acc + (f.averageRating || 0), 0) /
+                  favorites.length || 0}
+              </p>
+              <p className="text-sm text-gray-600">Avg Rating</p>
+            </Card>
           </div>
-        </Card>
+        )}
 
         {/* Empty State */}
         {favorites.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Heart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No favorites yet
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Start exploring and save properties you love to easily find them
-              later.
-            </p>
-            <Button onClick={() => router.push("/browse")}>
-              Browse Properties
-            </Button>
+          <Card
+            className="p-16 text-center border border-gray-200 !bg-white shadow-sm"
+            style={{ backgroundColor: "#ffffff", color: "#111827" }}
+          >
+            <div className="max-w-md mx-auto">
+              <div
+                className="inline-flex items-center justify-center w-20 h-20 rounded-lg mb-6"
+                style={{ backgroundColor: `${primaryColor}15` }}
+              >
+                <Heart className="h-10 w-10" style={{ color: primaryColor }} />
+              </div>
+
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                No favorites yet
+              </h3>
+
+              <p className="text-gray-600 mb-8">
+                Start exploring and save properties you love to easily find them
+                later.
+              </p>
+
+              <Button
+                onClick={() => router.push("/browse")}
+                className="text-white font-semibold py-2 px-6 hover:opacity-90"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <Search className="h-4 w-4 mr-2" />
+                Browse Properties
+              </Button>
+            </div>
           </Card>
         ) : (
           <>
@@ -132,7 +202,8 @@ export default function FavoritesPage() {
               {favorites.map((property) => (
                 <Card
                   key={property.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow"
+                  className="overflow-hidden hover:shadow-lg transition-shadow border border-gray-200 !bg-white"
+                  style={{ backgroundColor: "#ffffff", color: "#111827" }}
                 >
                   <div className="relative h-48">
                     {property.images?.[0]?.url ? (
@@ -193,7 +264,8 @@ export default function FavoritesPage() {
 
                     <Button
                       onClick={() => handleBookNow(property.id)}
-                      className="w-full"
+                      className="w-full text-white font-semibold hover:opacity-90"
+                      style={{ backgroundColor: primaryColor }}
                     >
                       Book Now
                     </Button>
@@ -201,23 +273,6 @@ export default function FavoritesPage() {
                 </Card>
               ))}
             </div>
-
-            {/* Stats */}
-            <Card className="p-6 mt-8">
-              <div className="text-center">
-                <p
-                  className="text-3xl font-bold"
-                  style={{ color: primaryColor }}
-                >
-                  {" "}
-                  {/* Lighter touch - primary for stat */}
-                  {favorites.length}
-                </p>
-                <p className="text-gray-600">
-                  {favorites.length === 1 ? "Property" : "Properties"} Saved
-                </p>
-              </div>
-            </Card>
           </>
         )}
       </main>

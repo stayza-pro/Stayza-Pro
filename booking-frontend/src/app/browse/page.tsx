@@ -1,13 +1,11 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { useProperties } from "../../hooks/useProperties";
-
-export const dynamic = "force-dynamic";
 import { GuestHeader } from "../../components/guest/sections/GuestHeader";
 import { Footer } from "../../components/guest/sections/Footer";
 import { PropertyGrid } from "../../components/property/PropertyGrid";
 import { SearchFilters } from "../../components/property/SearchFilters";
-import { useState } from "react";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import type {
   PropertyFilters,
@@ -25,6 +23,7 @@ interface FiltersState {
 
 export default function BrowsePropertiesPage() {
   const [filters, setFilters] = useState<PropertyFilters>({});
+  const [mounted, setMounted] = useState(false);
   const {
     brandColor: primaryColor,
     secondaryColor,
@@ -39,6 +38,11 @@ export default function BrowsePropertiesPage() {
     page: 1,
     limit: 20,
   });
+
+  // Prevent hydration errors
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleFiltersChange = (filtersState: FiltersState) => {
     // Convert FiltersState to PropertyFilters
@@ -65,29 +69,48 @@ export default function BrowsePropertiesPage() {
     setFilters(convertedFilters);
   };
 
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <div
-      className="min-h-screen"
-      style={{ backgroundColor: `${primaryColor}05` }}
+      className="min-h-screen bg-gray-50 flex flex-col"
+      style={{ colorScheme: "light" }}
     >
       <GuestHeader
-        currentPage="profile"
+        currentPage="browse"
         searchPlaceholder="Search location..."
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 animate-in fade-in duration-500">
         <div className="space-y-8">
-          <div>
-            <h1
-              className="text-3xl font-bold"
-              style={{ color: secondaryColor }} // 30% - Secondary color for heading
+          {/* Hero Header Section */}
+          <div className="text-center mb-16">
+            <div
+              className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-8"
+              style={{ backgroundColor: `${primaryColor}15` }}
             >
+              <svg
+                className="h-8 w-8"
+                style={{ color: primaryColor }}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                />
+              </svg>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               Browse Properties
             </h1>
-            <p
-              className="mt-2"
-              style={{ color: `${secondaryColor}99` }} // 30% - Secondary color for description text
-            >
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Discover amazing places to stay around the world
             </p>
           </div>

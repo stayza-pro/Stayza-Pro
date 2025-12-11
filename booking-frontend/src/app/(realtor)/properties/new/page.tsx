@@ -390,6 +390,10 @@ export default function AddPropertyPage() {
         city: formData.city,
         state: formData.state,
         country: formData.country || "Nigeria",
+        // Optional fees
+        serviceFee: formData.serviceFee,
+        cleaningFee: formData.cleaningFee,
+        securityDeposit: formData.securityDeposit,
       };
 
       // Create property
@@ -781,6 +785,112 @@ export default function AddPropertyPage() {
               </p>
             </div>
 
+            {/* Optional Fees Section */}
+            <div className="space-y-4 p-6 bg-blue-50 rounded-xl border-2 border-blue-200">
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="h-5 w-5 text-blue-600" />
+                <h3 className="font-semibold text-gray-900">
+                  Optional Fees (All amounts are optional)
+                </h3>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Add optional fees that will be charged to guests. These fees are
+                in addition to the nightly rate.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Service Fee
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg text-gray-600">
+                      {CURRENCY_SYMBOLS[formData.currency || "NGN"]}
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.serviceFee || ""}
+                      onChange={(e) =>
+                        updateFormData(
+                          "serviceFee",
+                          e.target.value
+                            ? parseFloat(e.target.value)
+                            : undefined
+                        )
+                      }
+                      placeholder="0.00"
+                      className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    One-time booking service charge
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cleaning Fee
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg text-gray-600">
+                      {CURRENCY_SYMBOLS[formData.currency || "NGN"]}
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.cleaningFee || ""}
+                      onChange={(e) =>
+                        updateFormData(
+                          "cleaningFee",
+                          e.target.value
+                            ? parseFloat(e.target.value)
+                            : undefined
+                        )
+                      }
+                      placeholder="0.00"
+                      className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    One-time cleaning charge
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Security Deposit
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg text-gray-600">
+                      {CURRENCY_SYMBOLS[formData.currency || "NGN"]}
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.securityDeposit || ""}
+                      onChange={(e) =>
+                        updateFormData(
+                          "securityDeposit",
+                          e.target.value
+                            ? parseFloat(e.target.value)
+                            : undefined
+                        )
+                      }
+                      placeholder="0.00"
+                      className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Refundable damage deposit
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="group">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1162,6 +1272,38 @@ export default function AddPropertyPage() {
                     {formData.currency} {formData.pricePerNight ?? 0}
                   </p>
                 </div>
+                {(formData.serviceFee ||
+                  formData.cleaningFee ||
+                  formData.securityDeposit) && (
+                  <>
+                    {formData.serviceFee && (
+                      <div>
+                        <p className="text-gray-500">Service Fee</p>
+                        <p className="font-medium">
+                          {formData.currency} {formData.serviceFee}
+                        </p>
+                      </div>
+                    )}
+                    {formData.cleaningFee && (
+                      <div>
+                        <p className="text-gray-500">Cleaning Fee</p>
+                        <p className="font-medium">
+                          {formData.currency} {formData.cleaningFee}
+                        </p>
+                      </div>
+                    )}
+                    {formData.securityDeposit && (
+                      <div>
+                        <p className="text-gray-500">
+                          Security Deposit (Refundable)
+                        </p>
+                        <p className="font-medium">
+                          {formData.currency} {formData.securityDeposit}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 

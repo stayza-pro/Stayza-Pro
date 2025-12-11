@@ -6,11 +6,11 @@ import axios, {
 } from "axios";
 import { toast } from "react-hot-toast";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: API_URL,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
@@ -55,7 +55,24 @@ api.interceptors.response.use(
 
       try {
         console.log("🔄 API: Attempting token refresh...");
-        const refreshToken = localStorage.getItem("refreshToken");
+
+        // Try to get refresh token from authStore first, then localStorage
+        let refreshToken: string | null = null;
+
+        if (typeof window !== "undefined") {
+          const { useAuthStore } = await import("@/store/authStore");
+          const storeRefreshToken = useAuthStore.getState().refreshToken;
+          refreshToken =
+            storeRefreshToken || localStorage.getItem("refreshToken");
+          console.log("🔍 API: Refresh token sources:", {
+            fromStore: !!storeRefreshToken,
+            fromLocalStorage: !!localStorage.getItem("refreshToken"),
+            hasRefreshToken: !!refreshToken,
+          });
+        } else {
+          refreshToken = localStorage.getItem("refreshToken");
+        }
+
         if (!refreshToken) {
           throw new Error("No refresh token available");
         }
@@ -66,6 +83,13 @@ api.interceptors.response.use(
 
         const { accessToken } = response.data;
         localStorage.setItem("accessToken", accessToken);
+
+        // Also update authStore with new access token
+        if (typeof window !== "undefined") {
+          const { useAuthStore } = await import("@/store/authStore");
+          useAuthStore.setState({ accessToken });
+        }
+
         console.log("✅ API: Token refresh successful");
 
         // Retry original request with new token

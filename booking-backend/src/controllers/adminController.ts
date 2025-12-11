@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { Request, Response } from "express";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
@@ -148,7 +149,7 @@ export const approveRealtor = asyncHandler(
         dashboardUrl
       );
     } catch (emailError) {
-      console.error("Failed to send approval email:", emailError);
+      logger.error("Failed to send approval email:", emailError);
       // Don't fail the approval process if email fails
     }
 
@@ -161,7 +162,7 @@ export const approveRealtor = asyncHandler(
         req
       );
     } catch (auditError) {
-      console.error("Failed to log realtor approval:", auditError);
+      logger.error("Failed to log realtor approval:", auditError);
     }
 
     res.json({
@@ -230,7 +231,7 @@ export const rejectRealtor = asyncHandler(
         reason || "Application does not meet our requirements"
       );
     } catch (emailError) {
-      console.error("Failed to send rejection email:", emailError);
+      logger.error("Failed to send rejection email:", emailError);
       // Don't fail the rejection process if email fails
     }
 
@@ -244,7 +245,7 @@ export const rejectRealtor = asyncHandler(
         req
       );
     } catch (auditError) {
-      console.error("Failed to log realtor rejection:", auditError);
+      logger.error("Failed to log realtor rejection:", auditError);
     }
 
     res.json({
@@ -387,7 +388,7 @@ export const suspendRealtor = asyncHandler(
           );
         }
       } catch (emailError) {
-        console.error("Failed to send suspension notifications:", emailError);
+        logger.error("Failed to send suspension notifications:", emailError);
         // Don't fail the suspension process if notifications fail
       }
     }
@@ -401,7 +402,7 @@ export const suspendRealtor = asyncHandler(
         reason
       );
     } catch (emailError) {
-      console.error("Failed to send realtor suspension email:", emailError);
+      logger.error("Failed to send realtor suspension email:", emailError);
     }
 
     // Log admin action
@@ -414,7 +415,7 @@ export const suspendRealtor = asyncHandler(
         req
       );
     } catch (auditError) {
-      console.error("Failed to log realtor suspension:", auditError);
+      logger.error("Failed to log realtor suspension:", auditError);
     }
 
     res.json({
@@ -490,7 +491,7 @@ export const reinstateRealtor = asyncHandler(
         notes || "Your account has been reinstated and is now active."
       );
     } catch (emailError) {
-      console.error("Failed to send realtor reinstatement email:", emailError);
+      logger.error("Failed to send realtor reinstatement email:", emailError);
     }
 
     // Log admin action
@@ -502,7 +503,7 @@ export const reinstateRealtor = asyncHandler(
         req
       );
     } catch (auditError) {
-      console.error("Failed to log realtor reinstatement:", auditError);
+      logger.error("Failed to log realtor reinstatement:", auditError);
     }
 
     // Create admin notification
@@ -516,7 +517,7 @@ export const reinstateRealtor = asyncHandler(
         data: { realtorId: id, realtorName: realtor.businessName },
       });
     } catch (notificationError) {
-      console.error("Failed to create admin notification:", notificationError);
+      logger.error("Failed to create admin notification:", notificationError);
     }
 
     res.json({
@@ -633,14 +634,14 @@ export const batchSuspendRealtorBookings = asyncHandler(
           );
           notificationsSent++;
         } catch (emailError) {
-          console.error(
+          logger.error(
             `Failed to notify guest ${booking.guest.email}:`,
             emailError
           );
         }
       }
     } catch (emailError) {
-      console.error("Failed to send suspension notifications:", emailError);
+      logger.error("Failed to send suspension notifications:", emailError);
     }
 
     res.json({
@@ -1272,7 +1273,7 @@ export const processRealtorPayout = asyncHandler(
         req
       );
     } catch (auditError) {
-      console.error("Failed to log payout processing:", auditError);
+      logger.error("Failed to log payout processing:", auditError);
     }
 
     // Create admin notification for payout completion
@@ -1293,7 +1294,7 @@ export const processRealtorPayout = asyncHandler(
         payoutReference,
       },
       priority: "low",
-    }).catch((err) => console.error("Admin notification failed", err));
+    }).catch((err) => logger.error("Admin notification failed", err));
 
     res.json({
       success: true,

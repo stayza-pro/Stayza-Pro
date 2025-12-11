@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "../store/authStore";
 
@@ -27,10 +33,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
   } = useAuthStore();
 
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  // Wait for Zustand to rehydrate from localStorage
   useEffect(() => {
+    const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
+      setHasHydrated(true);
+      console.log("✅ AuthStore hydration complete");
+    });
+
+    // If already hydrated (in case the listener is set after hydration)
+    if (useAuthStore.persist.hasHydrated()) {
+      setHasHydrated(true);
+      console.log("✅ AuthStore was already hydrated");
+    }
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    // Only run checkAuth after store has been hydrated
+    if (!hasHydrated) {
+      console.log("⏳ Waiting for AuthStore hydration...");
+      return;
+    }
+
     // Initialize auth state
     const initAuth = async () => {
-      setLoading(true);
+      console.log("🔍 Initializing auth after hydration...");
 
       try {
         await checkAuth();
@@ -43,7 +73,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     initAuth();
-  }, [checkAuth, setLoading]);
+  }, [hasHydrated, checkAuth, setLoading]);
 
   const contextValue: AuthContextType = {
     user,

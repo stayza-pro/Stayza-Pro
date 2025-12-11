@@ -49,7 +49,7 @@ export const uploadReviewPhotos = multer({
   },
 }).array("photos", 5); // Accept up to 5 files with field name "photos"
 
-// Single photo upload for avatars, etc.
+// Single photo upload configuration for avatars, etc.
 export const uploadSinglePhoto = multer({
   storage: new CloudinaryStorage({
     cloudinary: cloudinary,
@@ -86,7 +86,7 @@ export const uploadSinglePhoto = multer({
       );
     }
   },
-}).single("photo");
+});
 
 // Utility function to extract public ID from Cloudinary URL
 export const getCloudinaryPublicId = (url: string): string => {

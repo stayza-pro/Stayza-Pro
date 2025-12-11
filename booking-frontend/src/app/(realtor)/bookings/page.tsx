@@ -81,15 +81,35 @@ export default function RealtorBookingsPage() {
     );
   };
 
-  const statusConfig = {
+  const statusConfig: Record<BookingStatus, { label: string; color: string; icon: any }> = {
     PENDING: {
       label: "Pending",
       color: "bg-amber-50 text-amber-700 border-amber-200",
       icon: Clock,
     },
+    PAID: {
+      label: "Paid",
+      color: "bg-green-50 text-green-700 border-green-200",
+      icon: CheckCircle,
+    },
     CONFIRMED: {
       label: "Confirmed",
       color: "bg-blue-50 text-blue-700 border-blue-200",
+      icon: CheckCircle,
+    },
+    CHECKED_IN: {
+      label: "Checked In",
+      color: "bg-purple-50 text-purple-700 border-purple-200",
+      icon: CheckCircle,
+    },
+    DISPUTE_OPENED: {
+      label: "Dispute",
+      color: "bg-orange-50 text-orange-700 border-orange-200",
+      icon: AlertCircle,
+    },
+    CHECKED_OUT: {
+      label: "Checked Out",
+      color: "bg-indigo-50 text-indigo-700 border-indigo-200",
       icon: CheckCircle,
     },
     COMPLETED: {
@@ -271,12 +291,16 @@ export default function RealtorBookingsPage() {
           {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => setStatusFilter(e.target.value as BookingStatus | "all")}
             className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium"
           >
             <option value="all">All Status</option>
             <option value="PENDING">Pending</option>
+            <option value="PAID">Paid</option>
             <option value="CONFIRMED">Confirmed</option>
+            <option value="CHECKED_IN">Checked In</option>
+            <option value="DISPUTE_OPENED">Dispute</option>
+            <option value="CHECKED_OUT">Checked Out</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
@@ -359,8 +383,8 @@ export default function RealtorBookingsPage() {
                                 Check-in / Check-out
                               </p>
                               <p className="font-medium text-gray-900">
-                                {format(new Date(booking.checkIn), "MMM dd")} -{" "}
-                                {format(new Date(booking.checkOut), "MMM dd")}
+                                {format(new Date(booking.checkInDate), "MMM dd")} -{" "}
+                                {format(new Date(booking.checkOutDate), "MMM dd")}
                               </p>
                             </div>
                           </div>

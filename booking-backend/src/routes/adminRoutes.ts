@@ -932,4 +932,36 @@ router.put("/notifications/:notificationId/read", markAdminNotificationAsRead);
  */
 router.put("/notifications/mark-all-read", markAllAdminNotificationsAsRead);
 
+/**
+ * @swagger
+ * /admin/payouts/process:
+ *   post:
+ *     summary: Manually trigger payout processing
+ *     description: Process all eligible payouts (bookings where check-in time has passed)
+ *     tags: [Admin Payouts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payouts processed successfully
+ *       403:
+ *         description: Admin access required
+ */
+router.post("/payouts/process", async (req, res) => {
+  try {
+    const { runPayoutCheckNow } = await import("@/jobs/payoutCron");
+    const result = await runPayoutCheckNow();
+    res.json({
+      success: true,
+      message: "Payout processing complete",
+      data: result,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to process payouts",
+    });
+  }
+});
+
 export default router;

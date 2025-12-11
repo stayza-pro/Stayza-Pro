@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { Response } from "express";
 import { BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/config/database";
@@ -563,7 +564,7 @@ export const adminCancelBooking = asyncHandler(
 
         // Here you would integrate with actual payment processor for refund
         // For now, we'll log the refund action
-        console.log(`Refund of ${refundAmount} processed for booking ${id}`);
+        logger.info(`Refund of ${refundAmount} processed for booking ${id}`);
       }
 
       // Send notifications

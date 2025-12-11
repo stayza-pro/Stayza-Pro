@@ -190,7 +190,7 @@ export default function RecentBookingsPanel({
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
                     <Clock className="w-3.5 h-3.5" />
                     <span>
-                      {booking.checkIn} → {booking.checkOut}
+                      {booking.checkInDate} → {booking.checkOutDate}
                     </span>
                   </div>
                 </div>

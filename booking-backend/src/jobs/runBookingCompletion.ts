@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { runCompletionJob } from "@/services/bookingCompletion";
 
 // Executable script (ts-node) to be invoked by an OS-level scheduler / cron.
@@ -9,7 +10,7 @@ import { runCompletionJob } from "@/services/bookingCompletion";
     await runCompletionJob();
     process.exit(0);
   } catch (e) {
-    console.error("Booking completion job failed", e);
+    logger.error("Booking completion job failed", e);
     process.exit(1);
   }
 })();

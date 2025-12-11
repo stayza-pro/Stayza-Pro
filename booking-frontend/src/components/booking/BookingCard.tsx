@@ -43,15 +43,15 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   };
 
   const nights = Math.ceil(
-    (new Date(booking.checkOut).getTime() -
-      new Date(booking.checkIn).getTime()) /
+    (new Date(booking.checkOutDate).getTime() -
+      new Date(booking.checkInDate).getTime()) /
       (1000 * 60 * 60 * 24)
   );
 
-  const isUpcoming = new Date(booking.checkIn) > new Date();
+  const isUpcoming = new Date(booking.checkInDate) > new Date();
   const isOngoing =
-    new Date(booking.checkIn) <= new Date() &&
-    new Date(booking.checkOut) > new Date();
+    new Date(booking.checkInDate) <= new Date() &&
+    new Date(booking.checkOutDate) > new Date();
   const canCancel =
     booking.status === "CONFIRMED" && isUpcoming && booking.isRefundable;
   const canReview =
@@ -117,7 +117,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
             <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
               <div className="flex items-center">
                 <Users className="h-4 w-4 mr-1" />
-                {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
+                {booking.totalGuests} {booking.totalGuests === 1 ? "guest" : "guests"}
               </div>
 
               <div className="flex items-center">
@@ -152,14 +152,14 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         <div>
           <div className="text-sm text-gray-600 mb-1">Check-in</div>
           <div className="font-medium text-gray-900">
-            {formatDate(booking.checkIn)}
+            {formatDate(booking.checkInDate)}
           </div>
         </div>
 
         <div>
           <div className="text-sm text-gray-600 mb-1">Check-out</div>
           <div className="font-medium text-gray-900">
-            {formatDate(booking.checkOut)}
+            {formatDate(booking.checkOutDate)}
           </div>
         </div>
 

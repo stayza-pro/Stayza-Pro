@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import {
   MapPin,
   Users,
@@ -88,6 +87,31 @@ export default function PropertyDetailsPage() {
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(1);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [showCheckInCalendar, setShowCheckInCalendar] = useState(false);
+  const [showCheckOutCalendar, setShowCheckOutCalendar] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Debug: Log property data
+  React.useEffect(() => {
+    if (property) {
+      console.log("Property data:", property);
+      console.log("Property images:", property.images);
+    }
+  }, [property]);
+
+  // Close calendars when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".calendar-wrapper")) {
+        setShowCheckInCalendar(false);
+        setShowCheckOutCalendar(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Calculate nights and total
   const calculateBooking = () => {
@@ -132,13 +156,18 @@ export default function PropertyDetailsPage() {
     // TODO: Call API to add/remove from favorites
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (navigator.share) {
-      navigator.share({
-        title: property?.title,
-        text: property?.description,
-        url: window.location.href,
-      });
+      try {
+        await navigator.share({
+          title: property?.title,
+          text: property?.description,
+          url: window.location.href,
+        });
+      } catch (error) {
+        // User cancelled or share failed
+        console.log("Share cancelled");
+      }
     } else {
       navigator.clipboard.writeText(window.location.href);
       alert("Link copied to clipboard!");
@@ -161,76 +190,215 @@ export default function PropertyDetailsPage() {
     }
   };
 
+  // Calendar helper functions
+  const formatDateToString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    return { daysInMonth, startingDayOfWeek, year, month };
+  };
+
+  const formatDateForDisplay = (dateString: string) => {
+    if (!dateString) return "Select date";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  const handleDateClick = (
+    e: React.MouseEvent,
+    date: Date,
+    isCheckIn: boolean
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const dateString = formatDateToString(date);
+    console.log("Date clicked:", dateString, "isCheckIn:", isCheckIn);
+
+    if (isCheckIn) {
+      console.log("Setting check-in to:", dateString);
+      setCheckIn(dateString);
+      setShowCheckInCalendar(false);
+      if (checkOut && new Date(dateString) >= new Date(checkOut)) {
+        setCheckOut("");
+      }
+      setTimeout(() => setShowCheckOutCalendar(true), 100);
+    } else {
+      console.log("Setting check-out to:", dateString);
+      setCheckOut(dateString);
+      setShowCheckOutCalendar(false);
+    }
+  };
+
+  const nextMonth = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
+    );
+  };
+
+  const prevMonth = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+    );
+  };
+
+  const renderCalendar = (isCheckIn: boolean) => {
+    const { daysInMonth, startingDayOfWeek, year, month } =
+      getDaysInMonth(currentMonth);
+    const days = [];
+    const monthName = currentMonth.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+
+    // Empty cells for days before month starts
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(<div key={`empty-${i}`} className="h-10" />);
+    }
+
+    // Days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const dateString = formatDateToString(date);
+      const isDisabled = isDateDisabled(date);
+      const isSelected = isCheckIn
+        ? dateString === checkIn
+        : dateString === checkOut;
+      const isInRange =
+        !isCheckIn &&
+        checkIn &&
+        dateString > checkIn &&
+        checkOut &&
+        dateString < checkOut;
+      const isCheckInDate = !isCheckIn && dateString === checkIn;
+      const isCheckOutDate = !isCheckIn && dateString === checkOut;
+
+      days.push(
+        <button
+          key={day}
+          type="button"
+          onClick={(e) => {
+            if (
+              !isDisabled &&
+              !(!isCheckIn && checkIn && dateString <= checkIn)
+            ) {
+              handleDateClick(e, date, isCheckIn);
+            }
+          }}
+          disabled={
+            isDisabled ||
+            Boolean(!isCheckIn && checkIn && dateString <= checkIn)
+          }
+          className={`h-10 rounded-lg font-medium text-sm transition-all ${
+            isDisabled || (!isCheckIn && checkIn && dateString <= checkIn)
+              ? "text-gray-300 cursor-not-allowed"
+              : isSelected
+              ? "text-white shadow-md"
+              : isInRange || isCheckInDate || isCheckOutDate
+              ? "bg-opacity-10 text-gray-900"
+              : "text-gray-700 hover:bg-gray-100"
+          }`}
+          style={
+            isSelected
+              ? { backgroundColor: accentColor }
+              : isInRange || isCheckInDate || isCheckOutDate
+              ? { backgroundColor: `${accentColor}20` }
+              : undefined
+          }
+        >
+          {day}
+        </button>
+      );
+    }
+
+    return (
+      <div className="absolute z-50 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            type="button"
+            onClick={prevMonth}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ChevronLeft
+              className="h-5 w-5"
+              style={{ color: secondaryColor }}
+            />
+          </button>
+          <span className="font-semibold text-gray-900">{monthName}</span>
+          <button
+            type="button"
+            onClick={nextMonth}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ChevronRight
+              className="h-5 w-5"
+              style={{ color: secondaryColor }}
+            />
+          </button>
+        </div>
+
+        {/* Day Labels */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+            <div
+              key={day}
+              className="h-10 flex items-center justify-center text-xs font-semibold text-gray-500"
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1">{days}</div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
-      <div
-        className="min-h-screen"
-        style={{ backgroundColor: `${primaryColor}05` }}
-      >
-        <GuestHeader
-          currentPage="profile"
-          searchPlaceholder="Search location..."
-        />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="animate-pulse space-y-8">
-            <div className="h-96 bg-gray-200 rounded-lg"></div>
-            <div className="h-64 bg-gray-200 rounded-lg"></div>
-          </div>
-        </div>
-        <Footer
-          realtorName={realtorName}
-          tagline={tagline}
-          logo={logoUrl}
-          description={description}
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          accentColor={accentColor}
-        />
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
       </div>
     );
   }
 
   if (error || !property) {
     return (
-      <div
-        className="min-h-screen"
-        style={{ backgroundColor: `${primaryColor}05` }}
-      >
-        <GuestHeader
-          currentPage="profile"
-          searchPlaceholder="Search location..."
-        />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="p-8 text-center">
-            <h2
-              className="text-2xl font-bold mb-2"
-              style={{ color: secondaryColor }}
-            >
-              Property Not Found
-            </h2>
-            <p className="text-gray-600 mb-6">
-              The property you're looking for doesn't exist or has been removed.
-            </p>
-            <Button
-              onClick={() => router.push("/browse")}
-              style={{ backgroundColor: accentColor }}
-              className="text-white"
-            >
-              Browse Properties
-            </Button>
-          </Card>
-        </div>
-        <Footer
-          realtorName={realtorName}
-          tagline={tagline}
-          logo={logoUrl}
-          description={description}
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          accentColor={accentColor}
-        />
+      <div className="min-h-screen flex items-center justify-center">
+        Property not found
       </div>
     );
+  }
+
+  if (!property) {
+    return null;
   }
 
   const formatPrice = (price: number) => {
@@ -243,15 +411,15 @@ export default function PropertyDetailsPage() {
 
   return (
     <div
-      className="min-h-screen"
-      style={{ backgroundColor: `${primaryColor}05` }}
+      className="min-h-screen bg-gray-50 flex flex-col"
+      style={{ colorScheme: "light" }}
     >
       <GuestHeader
-        currentPage="profile"
+        currentPage="browse"
         searchPlaceholder="Search location..."
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
         {/* Back Button */}
         <button
           onClick={() => router.back()}
@@ -267,12 +435,19 @@ export default function PropertyDetailsPage() {
           <div className="relative h-96 md:h-[500px] rounded-lg overflow-hidden bg-gray-200">
             {property.images && property.images.length > 0 ? (
               <>
-                <Image
+                <img
                   src={property.images[selectedImageIndex]?.url || ""}
                   alt={property.title}
-                  fill
-                  className="object-cover"
-                  priority
+                  className="w-full h-full object-cover"
+                  crossOrigin="anonymous"
+                  onError={(e) => {
+                    console.error(
+                      "Image failed to load:",
+                      property.images?.[selectedImageIndex]?.url
+                    );
+                    e.currentTarget.src =
+                      "https://via.placeholder.com/800x600?text=Image+Not+Found";
+                  }}
                 />
                 {property.images.length > 1 && (
                   <>
@@ -342,11 +517,11 @@ export default function PropertyDetailsPage() {
                       : undefined
                   }
                 >
-                  <Image
+                  <img
                     src={image.url}
                     alt={`${property.title} - ${index + 1}`}
-                    fill
-                    className="object-cover"
+                    className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
                   />
                 </button>
               ))}
@@ -358,7 +533,10 @@ export default function PropertyDetailsPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Property Header */}
-            <Card className="p-6">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <h1
                 className="text-3xl font-bold mb-2"
                 style={{ color: secondaryColor }}
@@ -419,7 +597,10 @@ export default function PropertyDetailsPage() {
             </Card>
 
             {/* Description */}
-            <Card className="p-6">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <h2
                 className="text-xl font-semibold mb-4"
                 style={{ color: secondaryColor }}
@@ -432,7 +613,10 @@ export default function PropertyDetailsPage() {
             </Card>
 
             {/* Amenities */}
-            <Card className="p-6">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <h2
                 className="text-xl font-semibold mb-4"
                 style={{ color: secondaryColor }}
@@ -472,7 +656,10 @@ export default function PropertyDetailsPage() {
 
             {/* House Rules */}
             {property.houseRules && property.houseRules.length > 0 && (
-              <Card className="p-6">
+              <Card
+                className="p-6 border border-gray-200 !bg-white shadow-sm"
+                style={{ backgroundColor: "#ffffff", color: "#111827" }}
+              >
                 <h2
                   className="text-xl font-semibold mb-4"
                   style={{ color: secondaryColor }}
@@ -505,7 +692,10 @@ export default function PropertyDetailsPage() {
             )}
 
             {/* Location */}
-            <Card className="p-6">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <h2
                 className="text-xl font-semibold mb-4"
                 style={{ color: secondaryColor }}
@@ -528,54 +718,11 @@ export default function PropertyDetailsPage() {
               </div>
             </Card>
 
-            {/* Host Information */}
-            {property.realtor && (
-              <Card className="p-6">
-                <h2
-                  className="text-xl font-semibold mb-4"
-                  style={{ color: secondaryColor }}
-                >
-                  Hosted by {property.realtor.businessName || "Host"}
-                </h2>
-                <div className="flex items-start space-x-4">
-                  {logoUrl ? (
-                    <img
-                      src={logoUrl}
-                      alt={property.realtor.businessName || "Host"}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      {property.realtor.businessName?.charAt(0) || "H"}
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    {property.realtor.description && (
-                      <p className="text-gray-700 mb-3">
-                        {property.realtor.description}
-                      </p>
-                    )}
-                    {property.realtor.website && (
-                      <a
-                        href={property.realtor.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm hover:underline"
-                        style={{ color: accentColor }}
-                      >
-                        Visit website →
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            )}
-
             {/* Reviews Section */}
-            <Card className="p-6">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <h2
                 className="text-xl font-semibold mb-4"
                 style={{ color: secondaryColor }}
@@ -597,7 +744,19 @@ export default function PropertyDetailsPage() {
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center space-x-2">
-                          <div className="w-10 h-10 rounded-full bg-gray-300" />
+                          {review.author?.avatar ? (
+                            <img
+                              src={review.author.avatar}
+                              alt={`${review.author.firstName} ${review.author.lastName}`}
+                              className="w-10 h-10 rounded-full object-cover"
+                              crossOrigin="anonymous"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold">
+                              {review.author?.firstName?.[0]}
+                              {review.author?.lastName?.[0]}
+                            </div>
+                          )}
                           <div>
                             <p className="font-semibold text-gray-900">
                               {review.author?.firstName}{" "}
@@ -618,9 +777,17 @@ export default function PropertyDetailsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">
-                  No reviews yet. Be the first to review this property!
-                </p>
+                <div className="space-y-6">
+                  <p className="text-gray-500 text-center py-8">
+                    No reviews yet.
+                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                    <p className="text-sm text-blue-800">
+                      Reviews can only be submitted after completing a stay at
+                      this property.
+                    </p>
+                  </div>
+                </div>
               )}
             </Card>
           </div>
@@ -628,7 +795,10 @@ export default function PropertyDetailsPage() {
           {/* Booking Widget Sidebar */}
           <div className="lg:col-span-1">
             <div className="sticky top-24">
-              <Card className="p-6">
+              <Card
+                className="p-6 border border-gray-200 !bg-white shadow-sm"
+                style={{ backgroundColor: "#ffffff", color: "#111827" }}
+              >
                 <div className="mb-6">
                   <div className="flex items-baseline">
                     <span
@@ -639,55 +809,154 @@ export default function PropertyDetailsPage() {
                     </span>
                     <span className="text-gray-600 ml-2">/ night</span>
                   </div>
+
+                  {/* Optional Fees Display */}
+                  {(property.serviceFee ||
+                    property.cleaningFee ||
+                    property.securityDeposit) && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs font-semibold text-gray-700 mb-2">
+                        Additional Charges:
+                      </p>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        {property.serviceFee && (
+                          <div className="flex justify-between">
+                            <span>Service fee:</span>
+                            <span className="font-medium">
+                              {formatPrice(property.serviceFee)}
+                            </span>
+                          </div>
+                        )}
+                        {property.cleaningFee && (
+                          <div className="flex justify-between">
+                            <span>Cleaning fee:</span>
+                            <span className="font-medium">
+                              {formatPrice(property.cleaningFee)}
+                            </span>
+                          </div>
+                        )}
+                        {property.securityDeposit && (
+                          <div className="flex justify-between">
+                            <span>Security deposit:</span>
+                            <span className="font-medium">
+                              {formatPrice(property.securityDeposit)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2 italic">
+                        {property.securityDeposit
+                          ? "Security deposit is refundable after checkout"
+                          : "These fees will be added to your total"}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
                   {/* Check-in Date */}
-                  <div>
+                  <div className="relative calendar-wrapper">
                     <label
-                      className="block text-sm font-medium mb-1"
+                      className="block text-sm font-medium mb-2"
                       style={{ color: secondaryColor }}
                     >
+                      <Calendar className="h-4 w-4 inline mr-1" />
                       Check-in
                     </label>
-                    <input
-                      type="date"
-                      value={checkIn}
-                      onChange={(e) => setCheckIn(e.target.value)}
-                      min={new Date().toISOString().split("T")[0]}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-                    />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log(
+                          "Check-in button clicked, current state:",
+                          showCheckInCalendar
+                        );
+                        setShowCheckInCalendar(!showCheckInCalendar);
+                        setShowCheckOutCalendar(false);
+                      }}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-left hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                      style={{
+                        borderColor: showCheckInCalendar
+                          ? accentColor
+                          : undefined,
+                        boxShadow: showCheckInCalendar
+                          ? `0 0 0 3px ${accentColor}20`
+                          : undefined,
+                      }}
+                    >
+                      <span
+                        className={
+                          checkIn
+                            ? "text-gray-900 font-medium"
+                            : "text-gray-400"
+                        }
+                      >
+                        {formatDateForDisplay(checkIn)}
+                      </span>
+                    </button>
+                    {showCheckInCalendar && renderCalendar(true)}
                   </div>
 
                   {/* Check-out Date */}
-                  <div>
+                  <div className="relative calendar-wrapper">
                     <label
-                      className="block text-sm font-medium mb-1"
+                      className="block text-sm font-medium mb-2"
                       style={{ color: secondaryColor }}
                     >
+                      <Calendar className="h-4 w-4 inline mr-1" />
                       Check-out
                     </label>
-                    <input
-                      type="date"
-                      value={checkOut}
-                      onChange={(e) => setCheckOut(e.target.value)}
-                      min={checkIn || new Date().toISOString().split("T")[0]}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-                    />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log(
+                          "Check-out button clicked, checkIn:",
+                          checkIn
+                        );
+                        if (!checkIn) {
+                          setShowCheckInCalendar(true);
+                          return;
+                        }
+                        setShowCheckOutCalendar(!showCheckOutCalendar);
+                        setShowCheckInCalendar(false);
+                      }}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-left hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                      style={{
+                        borderColor: showCheckOutCalendar
+                          ? accentColor
+                          : undefined,
+                        boxShadow: showCheckOutCalendar
+                          ? `0 0 0 3px ${accentColor}20`
+                          : undefined,
+                      }}
+                    >
+                      <span
+                        className={
+                          checkOut
+                            ? "text-gray-900 font-medium"
+                            : "text-gray-400"
+                        }
+                      >
+                        {formatDateForDisplay(checkOut)}
+                      </span>
+                    </button>
+                    {showCheckOutCalendar && renderCalendar(false)}
                   </div>
 
                   {/* Guests */}
                   <div>
                     <label
-                      className="block text-sm font-medium mb-1"
+                      className="block text-sm font-medium mb-2"
                       style={{ color: secondaryColor }}
                     >
+                      <Users className="h-4 w-4 inline mr-1" />
                       Guests
                     </label>
                     <select
                       value={guests}
                       onChange={(e) => setGuests(Number(e.target.value))}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 hover:border-gray-300 transition-colors font-medium text-gray-900"
                     >
                       {Array.from(
                         { length: property.maxGuests },

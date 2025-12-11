@@ -85,7 +85,7 @@ export function useRefundRequests(
       setError(null);
 
       const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
       // Build query params
       const params = new URLSearchParams({

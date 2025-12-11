@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { Request, Response } from "express";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
@@ -88,7 +89,7 @@ export const uploadTempLogo = asyncHandler(
         },
       });
     } catch (error) {
-      console.error("Cloudinary upload error:", error);
+      logger.error("Cloudinary upload error:", error);
       throw new AppError("Failed to upload logo", 500);
     }
   }
@@ -152,7 +153,7 @@ export const uploadTempCac = asyncHandler(
         },
       });
     } catch (error) {
-      console.error("Cloudinary upload error:", error);
+      logger.error("Cloudinary upload error:", error);
       throw new AppError("Failed to upload CAC certificate", 500);
     }
   }
@@ -416,7 +417,7 @@ export const registerRealtor = asyncHandler(
       agencyName,
       dashboardUrl,
       verificationUrl
-    ).catch((err) => console.error("Realtor welcome email failed", err));
+    ).catch((err) => logger.error("Realtor welcome email failed", err));
 
     // Create admin notification for new realtor registration
     createAdminNotification({
@@ -430,7 +431,7 @@ export const registerRealtor = asyncHandler(
         subdomain: slug,
       },
       priority: "normal",
-    }).catch((err) => console.error("Admin notification failed", err));
+    }).catch((err) => logger.error("Admin notification failed", err));
 
     // Store refresh token
     // MVP: refreshToken model not supported
@@ -592,7 +593,7 @@ export const uploadLogo = asyncHandler(
         data: { realtor: updatedRealtor },
       });
     } catch (error) {
-      console.error("Cloudinary upload error:", error);
+      logger.error("Cloudinary upload error:", error);
       throw new AppError("Failed to upload logo", 500);
     }
   }
@@ -979,7 +980,7 @@ export const approveCac = asyncHandler(
         `${config.FRONTEND_URL}/dashboard`
       );
     } catch (emailError) {
-      console.error("Error sending CAC approval email:", emailError);
+      logger.error("Error sending CAC approval email:", emailError);
       // Don't fail the approval if email fails
     }
 
@@ -1070,7 +1071,7 @@ export const rejectCac = asyncHandler(
         appealUrl
       );
     } catch (emailError) {
-      console.error("Error sending CAC rejection email:", emailError);
+      logger.error("Error sending CAC rejection email:", emailError);
       // Don't fail the rejection if email fails
     }
 
@@ -1169,7 +1170,7 @@ export const appealCacRejection = asyncHandler(
         isAppeal: true,
       },
       priority: "normal",
-    }).catch((err) => console.error("Admin notification failed", err));
+    }).catch((err) => logger.error("Admin notification failed", err));
 
     res.json({
       success: true,

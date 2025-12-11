@@ -32,10 +32,6 @@ export const updateProfileSchema = Joi.object({
   firstName: Joi.string().min(2).max(50).optional(),
   lastName: Joi.string().min(2).max(50).optional(),
   phone: Joi.string().optional(),
-  country: Joi.string().optional(),
-  city: Joi.string().optional(),
-  address: Joi.string().optional(),
-  dateOfBirth: Joi.date().optional(),
 });
 
 // Property validation schemas
@@ -67,6 +63,9 @@ export const createPropertySchema = Joi.object({
   country: Joi.string().required(),
   latitude: Joi.number().min(-90).max(90).optional(),
   longitude: Joi.number().min(-180).max(180).optional(),
+  serviceFee: Joi.number().positive().optional(),
+  cleaningFee: Joi.number().positive().optional(),
+  securityDeposit: Joi.number().positive().optional(),
 });
 
 export const updatePropertySchema = Joi.object({
@@ -97,6 +96,9 @@ export const updatePropertySchema = Joi.object({
   country: Joi.string().optional(),
   latitude: Joi.number().min(-90).max(90).optional(),
   longitude: Joi.number().min(-180).max(180).optional(),
+  serviceFee: Joi.number().positive().optional(),
+  cleaningFee: Joi.number().positive().optional(),
+  securityDeposit: Joi.number().positive().optional(),
   isActive: Joi.boolean().optional(),
 });
 
@@ -106,7 +108,7 @@ export const createBookingSchema = Joi.object({
   checkInDate: Joi.date().greater("now").required(),
   checkOutDate: Joi.date().greater(Joi.ref("checkInDate")).required(),
   totalGuests: Joi.number().integer().positive().required(),
-  specialRequests: Joi.string().max(500).optional(),
+  specialRequests: Joi.string().max(500).allow("").optional(),
 });
 
 export const updateBookingSchema = Joi.object({

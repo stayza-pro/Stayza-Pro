@@ -116,9 +116,14 @@ export const authService = {
     return response.data.user;
   },
 
-  // Update user profile
-  updateProfile: async (data: Partial<User>): Promise<User> => {
-    const response = await apiClient.put<User>("/auth/profile", data);
+  // Update user profile (accepts both JSON and FormData for avatar upload)
+  updateProfile: async (data: Partial<User> | FormData): Promise<User> => {
+    const config =
+      data instanceof FormData
+        ? { headers: { "Content-Type": "multipart/form-data" } }
+        : {};
+
+    const response = await apiClient.put<User>("/auth/profile", data, config);
     return response.data;
   },
 

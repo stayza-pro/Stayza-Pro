@@ -26,6 +26,8 @@ import notificationRoutes from "@/routes/notificationRoutes";
 import refundRoutes from "@/routes/refundRoutes";
 import settingsRoutes from "@/routes/settingsRoutes";
 import brandingRoutes from "@/routes/brandingRoutes";
+import disputeRoutes from "@/routes/dispute.routes";
+import systemRoutes from "@/routes/systemRoutes";
 
 const app = express();
 
@@ -131,6 +133,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/refunds", refundRoutes);
 app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/branding", brandingRoutes);
+app.use("/api/disputes", disputeRoutes);
+app.use("/api/admin/system", systemRoutes);
 
 // 404 handler
 app.use(notFound);
@@ -155,6 +159,16 @@ if (require.main === module) {
   const { NotificationService } = require("@/services/notificationService");
   NotificationService.initialize(server);
   console.log(`🔔 Real-time notifications initialized`);
+
+  // Start CRON jobs
+  const { startPayoutCron } = require("@/jobs/payoutCron");
+  startPayoutCron();
+  console.log(`⏰ CRON jobs started`);
+
+  // Start escrow job scheduler
+  const { initializeScheduledJobs } = require("@/jobs/scheduler");
+  initializeScheduledJobs();
+  console.log(`⚖️  Escrow jobs initialized`);
 }
 
 export default app;

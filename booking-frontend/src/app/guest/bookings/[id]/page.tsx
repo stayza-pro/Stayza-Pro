@@ -28,6 +28,7 @@ import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import { bookingService } from "@/services/bookings";
 import { BookingStatus } from "@/types";
+import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
 
 export default function BookingDetailsPage() {
   const params = useParams();
@@ -151,14 +152,14 @@ export default function BookingDetailsPage() {
   const isOngoing = () => {
     if (!booking) return false;
     const now = new Date();
-    const checkIn = new Date(booking.checkIn);
-    const checkOut = new Date(booking.checkOut);
+    const checkIn = new Date(booking.checkInDate);
+    const checkOut = new Date(booking.checkOutDate);
     return checkIn <= now && checkOut >= now && booking.status === "CONFIRMED";
   };
 
   const canCancel = () => {
     if (!booking) return false;
-    const checkIn = new Date(booking.checkIn);
+    const checkIn = new Date(booking.checkInDate);
     const now = new Date();
     const hoursDiff = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
     return (
@@ -170,7 +171,7 @@ export default function BookingDetailsPage() {
 
   const canReview = () => {
     if (!booking) return false;
-    const checkOut = new Date(booking.checkOut);
+    const checkOut = new Date(booking.checkOutDate);
     const now = new Date();
     return (
       booking.status === "COMPLETED" &&
@@ -198,8 +199,8 @@ export default function BookingDetailsPage() {
 
   const calculateNights = () => {
     if (!booking) return 0;
-    const start = new Date(booking.checkIn);
-    const end = new Date(booking.checkOut);
+    const start = new Date(booking.checkInDate);
+    const end = new Date(booking.checkOutDate);
     return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
 
@@ -397,7 +398,7 @@ export default function BookingDetailsPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Check-in</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {formatDate(booking.checkIn)}
+                    {formatDate(booking.checkInDate)}
                   </p>
                   <p className="text-sm text-gray-600">
                     After {booking.property?.checkInTime || "2:00 PM"}
@@ -407,7 +408,7 @@ export default function BookingDetailsPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Check-out</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {formatDate(booking.checkOut)}
+                    {formatDate(booking.checkOutDate)}
                   </p>
                   <p className="text-sm text-gray-600">
                     Before {booking.property?.checkOutTime || "11:00 AM"}
@@ -417,7 +418,7 @@ export default function BookingDetailsPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Guests</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {booking.guests} {booking.guests === 1 ? "guest" : "guests"}
+                    {booking.totalGuests} {booking.totalGuests === 1 ? "guest" : "guests"}
                   </p>
                 </div>
 
@@ -478,6 +479,14 @@ export default function BookingDetailsPage() {
                 )}
               </div>
             </Card>
+
+            {/* Escrow Status Section */}
+            {(booking.status === "PAID" ||
+              booking.status === "CHECKED_IN" ||
+              booking.status === "CHECKED_OUT" ||
+              booking.status === "COMPLETED") && (
+              <EscrowStatusSection booking={booking} viewType="guest" />
+            )}
           </div>
 
           {/* Sidebar Actions */}

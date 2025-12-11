@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 import { Request, Response } from "express";
 import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
@@ -7,6 +8,7 @@ import {
   NotificationService,
   notificationHelpers,
 } from "@/services/notificationService";
+import { updateAllRatings } from "@/utils/ratingCalculator";
 
 interface CreateReviewRequest {
   bookingId: string;
@@ -197,8 +199,19 @@ export const createReview = asyncHandler(
       );
       await notificationService.createAndSendNotification(realtorNotification);
     } catch (notificationError) {
-      console.error("Failed to send review notification:", notificationError);
+      logger.error("Failed to send review notification:", notificationError);
       // Don't fail the review creation if notifications fail
+    }
+
+    // Update property and realtor ratings
+    try {
+      await updateAllRatings(
+        booking.propertyId,
+        completeReview!.property.realtor.id
+      );
+    } catch (ratingError) {
+      logger.error("Failed to update ratings:", ratingError);
+      // Don't fail the review creation if rating calculation fails
     }
 
     res.status(201).json({
@@ -391,6 +404,19 @@ export const updateReview = asyncHandler(
       },
     });
 
+    // Update property and realtor ratings after review update
+    try {
+      const property = await prisma.property.findUnique({
+        where: { id: review.propertyId },
+        select: { realtorId: true },
+      });
+      if (property) {
+        await updateAllRatings(review.propertyId, property.realtorId);
+      }
+    } catch (ratingError) {
+      logger.error("Failed to update ratings:", ratingError);
+    }
+
     res.json({
       success: true,
       message: "Review updated successfully",
@@ -444,7 +470,7 @@ export const deleteReview = asyncHandler(
             const publicId = extractPublicId(photo.url);
             await deleteImage(publicId);
           } catch (error) {
-            console.error("Failed to delete photo from cloudinary:", error);
+            logger.error("Failed to delete photo from cloudinary:", error);
           }
         })
       );
@@ -454,6 +480,13 @@ export const deleteReview = asyncHandler(
     await prisma.review.delete({
       where: { id },
     });
+
+    // Update property and realtor ratings after review deletion
+    try {
+      await updateAllRatings(review.propertyId, review.property.realtorId);
+    } catch (ratingError) {
+      logger.error("Failed to update ratings:", ratingError);
+    }
 
     res.json({
       success: true,
@@ -696,7 +729,7 @@ export const respondToReview = asyncHandler(
         reviewResponseNotification
       );
     } catch (notificationError) {
-      console.error(
+      logger.error(
         "Failed to send review response notification:",
         notificationError
       );
@@ -928,7 +961,7 @@ export const toggleReviewVisibility = asyncHandler(
         priority: notification.priority,
       });
     } catch (notificationError) {
-      console.error(
+      logger.error(
         "Failed to send review moderation notification:",
         notificationError
       );

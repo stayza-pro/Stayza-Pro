@@ -1,13 +1,17 @@
 import express from "express";
 import {
   checkAvailability,
+  calculateBooking,
   createBooking,
   getMyBookings,
   getHostBookings,
   getBooking,
   updateBookingStatus,
   cancelBooking,
+  checkInBooking,
+  checkOutBooking,
 } from "@/controllers/bookingController";
+import { getBookingEscrowEvents } from "@/controllers/systemController";
 import { authenticate, authorize } from "@/middleware/auth";
 import { bookingLimiter } from "@/middleware/rateLimiter";
 
@@ -207,6 +211,87 @@ const router = express.Router();
  *               $ref: '#/components/schemas/ApiError'
  */
 router.get("/availability/:propertyId", checkAvailability);
+
+/**
+ * @swagger
+ * /api/bookings/calculate:
+ *   post:
+ *     summary: Calculate booking price and fees
+ *     tags: [Bookings]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - propertyId
+ *               - checkInDate
+ *               - checkOutDate
+ *             properties:
+ *               propertyId:
+ *                 type: string
+ *                 description: Property ID
+ *               checkInDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Check-in date (YYYY-MM-DD)
+ *               checkOutDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Check-out date (YYYY-MM-DD)
+ *               guests:
+ *                 type: integer
+ *                 description: Number of guests
+ *     responses:
+ *       200:
+ *         description: Booking calculation successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Booking calculation successful
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     subtotal:
+ *                       type: number
+ *                       example: 500.00
+ *                     taxes:
+ *                       type: number
+ *                       example: 0
+ *                     fees:
+ *                       type: number
+ *                       example: 50.00
+ *                     total:
+ *                       type: number
+ *                       example: 550.00
+ *                     currency:
+ *                       type: string
+ *                       example: NGN
+ *                     nights:
+ *                       type: integer
+ *                       example: 2
+ *       400:
+ *         description: Bad request - Invalid dates or missing parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ *       404:
+ *         description: Property not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiError'
+ */
+router.post("/calculate", calculateBooking);
 
 /**
  * @swagger
@@ -599,5 +684,12 @@ router.put(
 
 // Cancel booking route
 router.put("/:id/cancel", authenticate, cancelBooking);
+
+// Check-in and check-out routes
+router.post("/:id/check-in", authenticate, checkInBooking);
+router.post("/:id/check-out", authenticate, checkOutBooking);
+
+// Escrow events route
+router.get("/:id/escrow-events", authenticate, getBookingEscrowEvents);
 
 export default router;

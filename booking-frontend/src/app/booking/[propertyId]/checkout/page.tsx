@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import {
   MapPin,
   Calendar,
@@ -19,12 +18,13 @@ import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService } from "@/services";
+import { PaymentRetryAlert } from "@/components/payments/RetryIndicator";
 
 export default function BookingCheckoutPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useCurrentUser();
+  const { user, isLoading: userLoading } = useCurrentUser();
 
   // Get realtor branding
   const {
@@ -42,6 +42,15 @@ export default function BookingCheckoutPage() {
   const checkOut = searchParams.get("checkOut") || "";
   const guestsParam = searchParams.get("guests") || "1";
 
+  console.log("🔍 Checkout Page Render - URL Params:", {
+    propertyId,
+    checkIn,
+    checkOut,
+    guestsParam,
+    userLoading,
+    hasUser: !!user,
+  });
+
   const { data: property, isLoading: propertyLoading } =
     useProperty(propertyId);
 
@@ -52,12 +61,16 @@ export default function BookingCheckoutPage() {
     phone: user?.phone || "",
     specialRequests: "",
     agreeToTerms: false,
+    paymentMethod: "paystack" as "paystack" | "flutterwave",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingCalculation, setBookingCalculation] = useState<{
     subtotal: number;
+    serviceFee: number;
+    cleaningFee: number;
+    securityDeposit: number;
     taxes: number;
     fees: number;
     total: number;
@@ -65,35 +78,85 @@ export default function BookingCheckoutPage() {
     nights: number;
   } | null>(null);
 
-  // Redirect if not authenticated
+  // Update form data when user loads
   useEffect(() => {
-    if (!user) {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: user.firstName || prev.firstName,
+        lastName: user.lastName || prev.lastName,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+      }));
+    }
+  }, [user]);
+
+  // Redirect if not authenticated (only after loading completes)
+  useEffect(() => {
+    if (!userLoading && !user) {
       router.push(
         `/guest/login?redirect=/booking/${propertyId}/checkout?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestsParam}`
       );
     }
-  }, [user, router, propertyId, checkIn, checkOut, guestsParam]);
+  }, [user, userLoading, router, propertyId, checkIn, checkOut, guestsParam]);
 
   // Calculate booking total
   useEffect(() => {
     const fetchBookingCalculation = async () => {
-      if (!checkIn || !checkOut || !propertyId) return;
+      if (!checkIn || !checkOut || !propertyId) {
+        console.log("⚠️ Missing required params for booking calculation:", {
+          checkIn,
+          checkOut,
+          propertyId,
+        });
+        return;
+      }
 
       try {
+        console.log("💰 Fetching booking calculation...", {
+          propertyId,
+          checkIn,
+          checkOut,
+          guests: guestsParam,
+        });
+
         const calculation = await bookingService.calculateBookingTotal(
           propertyId,
           new Date(checkIn),
           new Date(checkOut),
           parseInt(guestsParam)
         );
-        setBookingCalculation(calculation);
-      } catch (error) {
-        console.error("Error calculating booking:", error);
+
+        console.log("✅ Booking calculation received:", calculation);
+        console.log("✅ Calculation type:", typeof calculation);
+        console.log("✅ Calculation keys:", Object.keys(calculation || {}));
+        
+        // Transform calculation to match state type
+        setBookingCalculation({
+          subtotal: calculation.subtotal,
+          serviceFee: calculation.serviceFee || 0,
+          cleaningFee: calculation.cleaningFee || 0,
+          securityDeposit: calculation.securityDeposit || 0,
+          taxes: calculation.taxes,
+          fees: calculation.fees,
+          total: calculation.total,
+          currency: calculation.currency,
+          nights: calculation.nights,
+        });
+      } catch (error: any) {
+        console.error("❌ Error calculating booking:", error);
+        console.error("❌ Error message:", error?.message);
+        console.error("❌ Error response:", error?.response?.data);
       }
     };
 
     fetchBookingCalculation();
   }, [propertyId, checkIn, checkOut, guestsParam]);
+
+  // Debug: Log when bookingCalculation state changes
+  useEffect(() => {
+    console.log("📊 bookingCalculation state updated:", bookingCalculation);
+  }, [bookingCalculation]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -146,8 +209,10 @@ export default function BookingCheckoutPage() {
         specialRequests: formData.specialRequests,
       });
 
-      // Redirect to payment page
-      router.push(`/booking/${propertyId}/payment?bookingId=${booking.id}`);
+      // Redirect to payment page with payment method
+      router.push(
+        `/booking/${propertyId}/payment?bookingId=${booking.id}&paymentMethod=${formData.paymentMethod}`
+      );
     } catch (error: any) {
       console.error("Booking error:", error);
       setErrors({
@@ -174,7 +239,8 @@ export default function BookingCheckoutPage() {
     });
   };
 
-  if (propertyLoading || !property) {
+  // Show loading state while checking authentication or loading property
+  if (userLoading || propertyLoading || !property) {
     return (
       <div className="min-h-screen bg-gray-50">
         <GuestHeader
@@ -198,6 +264,11 @@ export default function BookingCheckoutPage() {
     );
   }
 
+  // Don't render if not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <GuestHeader
@@ -206,20 +277,57 @@ export default function BookingCheckoutPage() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Progress Indicator */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center space-x-4">
+            <div className="flex items-center">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
+                style={{ backgroundColor: brandColor }}
+              >
+                1
+              </div>
+              <span className="ml-2 font-medium text-gray-900">
+                Guest Details
+              </span>
+            </div>
+            <div className="w-16 h-1 bg-gray-300"></div>
+            <div className="flex items-center">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold bg-gray-200 text-gray-600">
+                2
+              </div>
+              <span className="ml-2 font-medium text-gray-500">Payment</span>
+            </div>
+            <div className="w-16 h-1 bg-gray-300"></div>
+            <div className="flex items-center">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold bg-gray-200 text-gray-600">
+                3
+              </div>
+              <span className="ml-2 font-medium text-gray-500">
+                Confirmation
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Back Button */}
         <button
           onClick={() => router.back()}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center hover:opacity-80 mb-6 transition-all"
+          style={{ color: secondaryColor }}
         >
           <ArrowLeft className="h-5 w-5 mr-1" />
-          Back
+          Back to property
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Form */}
           <div className="lg:col-span-2 space-y-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1
+                className="text-3xl font-bold mb-2"
+                style={{ color: secondaryColor }}
+              >
                 Confirm and pay
               </h1>
               <p className="text-gray-600">
@@ -228,15 +336,24 @@ export default function BookingCheckoutPage() {
             </div>
 
             {/* Guest Information */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <h2
+                className="text-xl font-semibold mb-4"
+                style={{ color: secondaryColor }}
+              >
                 Guest Information
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: secondaryColor }}
+                    >
                       First Name *
                     </label>
                     <Input
@@ -245,7 +362,10 @@ export default function BookingCheckoutPage() {
                       onChange={(e) =>
                         handleInputChange("firstName", e.target.value)
                       }
-                      className={errors.firstName ? "border-red-500" : ""}
+                      className={`w-full px-4 py-3 bg-transparent border-2 ${
+                        errors.firstName ? "border-red-500" : "border-gray-200"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                      placeholder="Enter first name"
                     />
                     {errors.firstName && (
                       <p className="text-red-500 text-sm mt-1">
@@ -255,7 +375,10 @@ export default function BookingCheckoutPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: secondaryColor }}
+                    >
                       Last Name *
                     </label>
                     <Input
@@ -264,7 +387,10 @@ export default function BookingCheckoutPage() {
                       onChange={(e) =>
                         handleInputChange("lastName", e.target.value)
                       }
-                      className={errors.lastName ? "border-red-500" : ""}
+                      className={`w-full px-4 py-3 bg-transparent border-2 ${
+                        errors.lastName ? "border-red-500" : "border-gray-200"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                      placeholder="Enter last name"
                     />
                     {errors.lastName && (
                       <p className="text-red-500 text-sm mt-1">
@@ -275,14 +401,20 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: secondaryColor }}
+                  >
                     Email Address *
                   </label>
                   <Input
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={errors.email ? "border-red-500" : ""}
+                    className={`w-full px-4 py-3 bg-transparent border-2 ${
+                      errors.email ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                    placeholder="Enter email address"
                   />
                   {errors.email && (
                     <p className="text-red-500 text-sm mt-1">{errors.email}</p>
@@ -290,14 +422,20 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: secondaryColor }}
+                  >
                     Phone Number *
                   </label>
                   <Input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className={errors.phone ? "border-red-500" : ""}
+                    className={`w-full px-4 py-3 bg-transparent border-2 ${
+                      errors.phone ? "border-red-500" : "border-gray-200"
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                    placeholder="Enter phone number"
                   />
                   {errors.phone && (
                     <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
@@ -305,7 +443,10 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: secondaryColor }}
+                  >
                     Special Requests (Optional)
                   </label>
                   <textarea
@@ -314,7 +455,7 @@ export default function BookingCheckoutPage() {
                       handleInputChange("specialRequests", e.target.value)
                     }
                     rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-transparent border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 resize-none"
                     placeholder="Any special requests or notes for the host..."
                   />
                 </div>
@@ -322,36 +463,149 @@ export default function BookingCheckoutPage() {
             </Card>
 
             {/* Payment Method */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <h2
+                className="text-xl font-semibold mb-4"
+                style={{ color: secondaryColor }}
+              >
                 Payment Method
               </h2>
 
               <div className="space-y-3">
-                <div className="border-2 border-blue-500 bg-blue-50 rounded-lg p-4">
+                {/* Paystack Option */}
+                <button
+                  type="button"
+                  onClick={() => handleInputChange("paymentMethod", "paystack")}
+                  className={`w-full border-2 rounded-xl p-4 transition-all ${
+                    formData.paymentMethod === "paystack"
+                      ? "border-2"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                  style={
+                    formData.paymentMethod === "paystack"
+                      ? {
+                          borderColor: brandColor,
+                          backgroundColor: `${brandColor}08`,
+                        }
+                      : undefined
+                  }
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <CreditCard className="h-6 w-6 text-blue-600 mr-3" />
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          Pay with Card (Flutterwave)
-                        </p>
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center mr-4"
+                        style={
+                          formData.paymentMethod === "paystack"
+                            ? { backgroundColor: `${brandColor}15` }
+                            : { backgroundColor: "#f3f4f6" }
+                        }
+                      >
+                        <CreditCard
+                          className="h-6 w-6"
+                          style={
+                            formData.paymentMethod === "paystack"
+                              ? { color: brandColor }
+                              : { color: "#9ca3af" }
+                          }
+                        />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-gray-900">Paystack</p>
                         <p className="text-sm text-gray-600">
-                          Secure payment via Flutterwave
+                          Pay with card, bank transfer, or USSD
                         </p>
                       </div>
                     </div>
-                    <Check className="h-6 w-6 text-blue-600" />
+                    {formData.paymentMethod === "paystack" && (
+                      <Check
+                        className="h-6 w-6"
+                        style={{ color: brandColor }}
+                      />
+                    )}
                   </div>
-                </div>
+                </button>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start">
-                  <AlertCircle className="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-900">
-                    <p className="font-semibold mb-1">Secure Payment</p>
+                {/* Flutterwave Option */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleInputChange("paymentMethod", "flutterwave")
+                  }
+                  className={`w-full border-2 rounded-xl p-4 transition-all ${
+                    formData.paymentMethod === "flutterwave"
+                      ? "border-2"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                  style={
+                    formData.paymentMethod === "flutterwave"
+                      ? {
+                          borderColor: brandColor,
+                          backgroundColor: `${brandColor}08`,
+                        }
+                      : undefined
+                  }
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center mr-4"
+                        style={
+                          formData.paymentMethod === "flutterwave"
+                            ? { backgroundColor: `${brandColor}15` }
+                            : { backgroundColor: "#f3f4f6" }
+                        }
+                      >
+                        <CreditCard
+                          className="h-6 w-6"
+                          style={
+                            formData.paymentMethod === "flutterwave"
+                              ? { color: brandColor }
+                              : { color: "#9ca3af" }
+                          }
+                        />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-gray-900">
+                          Flutterwave
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Secure international payment gateway
+                        </p>
+                      </div>
+                    </div>
+                    {formData.paymentMethod === "flutterwave" && (
+                      <Check
+                        className="h-6 w-6"
+                        style={{ color: brandColor }}
+                      />
+                    )}
+                  </div>
+                </button>
+
+                {/* Security Notice */}
+                <div
+                  className="border rounded-lg p-4 flex items-start"
+                  style={{
+                    backgroundColor: `${brandColor}08`,
+                    borderColor: `${brandColor}30`,
+                  }}
+                >
+                  <AlertCircle
+                    className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0"
+                    style={{ color: brandColor }}
+                  />
+                  <div className="text-sm" style={{ color: secondaryColor }}>
+                    <p className="font-semibold mb-1">🔒 Secure Payment</p>
                     <p>
                       Your payment information is encrypted and secure. You will
-                      be redirected to Flutterwave to complete your payment.
+                      be redirected to{" "}
+                      {formData.paymentMethod === "paystack"
+                        ? "Paystack"
+                        : "Flutterwave"}{" "}
+                      to complete your payment safely.
                     </p>
                   </div>
                 </div>
@@ -359,7 +613,10 @@ export default function BookingCheckoutPage() {
             </Card>
 
             {/* Terms and Conditions */}
-            <Card className="p-6">
+            <Card
+              className="p-6 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
               <div className="flex items-start">
                 <input
                   type="checkbox"
@@ -407,9 +664,10 @@ export default function BookingCheckoutPage() {
             {/* Submit Button */}
             <Button
               onClick={handleSubmit}
-              className="w-full"
+              className="w-full text-white font-semibold hover:opacity-90"
               size="lg"
               disabled={isSubmitting}
+              style={{ backgroundColor: brandColor }}
             >
               {isSubmitting ? "Processing..." : "Continue to Payment"}
             </Button>
@@ -419,19 +677,25 @@ export default function BookingCheckoutPage() {
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-6">
               {/* Property Card */}
-              <Card className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              <Card
+                className="p-6 border border-gray-200 !bg-white shadow-sm"
+                style={{ backgroundColor: "#ffffff", color: "#111827" }}
+              >
+                <h2
+                  className="text-lg font-semibold mb-4"
+                  style={{ color: secondaryColor }}
+                >
                   Booking Summary
                 </h2>
 
                 <div className="flex items-start space-x-4 mb-4">
                   <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
                     {property.images && property.images.length > 0 ? (
-                      <Image
+                      <img
                         src={property.images[0].url}
                         alt={property.title}
-                        fill
-                        className="object-cover"
+                        className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-200" />
@@ -491,77 +755,125 @@ export default function BookingCheckoutPage() {
 
               {/* Price Breakdown */}
               <Card
-                className="p-6"
-                style={{ borderTop: `4px solid ${secondaryColor}` }}
+                className="p-6 border border-gray-200 !bg-white shadow-sm"
+                style={{
+                  backgroundColor: "#ffffff",
+                  color: "#111827",
+                  borderTop: `4px solid ${brandColor}`,
+                }}
               >
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <h2
+                  className="text-lg font-semibold mb-4"
+                  style={{ color: secondaryColor }}
+                >
                   Price Details
                 </h2>
 
-                {bookingCalculation ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-gray-700">
-                      <span>
-                        {formatPrice(
-                          bookingCalculation.subtotal /
-                            bookingCalculation.nights,
-                          bookingCalculation.currency
-                        )}{" "}
-                        × {bookingCalculation.nights}{" "}
-                        {bookingCalculation.nights === 1 ? "night" : "nights"}
-                      </span>
-                      <span>
-                        {formatPrice(
-                          bookingCalculation.subtotal,
-                          bookingCalculation.currency
-                        )}
-                      </span>
-                    </div>
-
-                    {bookingCalculation.fees > 0 && (
+                {(() => {
+                  console.log(
+                    "📊 Rendering price details, bookingCalculation:",
+                    bookingCalculation
+                  );
+                  return bookingCalculation ? (
+                    <div className="space-y-3">
                       <div className="flex justify-between text-gray-700">
-                        <span>Service fee</span>
-                        <span>
+                        <span className="text-sm">
                           {formatPrice(
-                            bookingCalculation.fees,
+                            bookingCalculation.subtotal /
+                              bookingCalculation.nights,
+                            bookingCalculation.currency
+                          )}{" "}
+                          × {bookingCalculation.nights}{" "}
+                          {bookingCalculation.nights === 1 ? "night" : "nights"}
+                        </span>
+                        <span className="font-medium">
+                          {formatPrice(
+                            bookingCalculation.subtotal,
                             bookingCalculation.currency
                           )}
                         </span>
                       </div>
-                    )}
 
-                    {bookingCalculation.taxes > 0 && (
-                      <div className="flex justify-between text-gray-700">
-                        <span>Taxes</span>
-                        <span>
+                      {bookingCalculation.serviceFee > 0 && (
+                        <div className="flex justify-between text-gray-700">
+                          <span className="text-sm">Service fee</span>
+                          <span className="font-medium">
+                            {formatPrice(
+                              bookingCalculation.serviceFee,
+                              bookingCalculation.currency
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                      {bookingCalculation.cleaningFee > 0 && (
+                        <div className="flex justify-between text-gray-700">
+                          <span className="text-sm">Cleaning fee</span>
+                          <span className="font-medium">
+                            {formatPrice(
+                              bookingCalculation.cleaningFee,
+                              bookingCalculation.currency
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                      {bookingCalculation.securityDeposit > 0 && (
+                        <div className="flex justify-between text-gray-700">
+                          <span className="text-sm">
+                            Security deposit (refundable)
+                          </span>
+                          <span className="font-medium">
+                            {formatPrice(
+                              bookingCalculation.securityDeposit,
+                              bookingCalculation.currency
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                      {bookingCalculation.taxes > 0 && (
+                        <div className="flex justify-between text-gray-700">
+                          <span className="text-sm">Taxes</span>
+                          <span className="font-medium">
+                            {formatPrice(
+                              bookingCalculation.taxes,
+                              bookingCalculation.currency
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                      <div
+                        className="border-t-2 pt-4 flex justify-between items-center"
+                        style={{ borderColor: `${brandColor}30` }}
+                      >
+                        <span
+                          className="text-lg font-bold"
+                          style={{ color: secondaryColor }}
+                        >
+                          Total
+                        </span>
+                        <span
+                          className="text-xl font-bold"
+                          style={{ color: brandColor }}
+                        >
                           {formatPrice(
-                            bookingCalculation.taxes,
+                            bookingCalculation.total,
                             bookingCalculation.currency
                           )}
                         </span>
                       </div>
-                    )}
-
-                    <div
-                      className="border-t border-gray-200 pt-3 flex justify-between font-semibold text-lg"
-                      style={{ color: brandColor }}
-                    >
-                      <span>Total</span>
-                      <span>
-                        {formatPrice(
-                          bookingCalculation.total,
-                          bookingCalculation.currency
-                        )}
-                      </span>
                     </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded"></div>
-                    <div className="h-4 bg-gray-200 rounded"></div>
-                    <div className="h-4 bg-gray-200 rounded"></div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="h-5 bg-gray-200 rounded animate-pulse"></div>
+                      <div className="h-5 bg-gray-200 rounded animate-pulse"></div>
+                      <div className="h-5 bg-gray-200 rounded animate-pulse"></div>
+                      <div className="h-6 bg-gray-200 rounded animate-pulse mt-4"></div>
+                    </div>
+                  );
+                })()}
               </Card>
             </div>
           </div>
