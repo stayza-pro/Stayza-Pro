@@ -12,9 +12,13 @@ import {
 } from "@/services/notificationService";
 import { updatePaymentCommission } from "@/services/commission";
 import { flutterwaveService } from "@/services/flutterwave";
+import {
+  initializePaystackTransaction,
+  verifyPaystackTransaction,
+} from "@/services/paystack";
+import escrowService from "@/services/escrowService";
 import axios from "axios";
 import crypto from "crypto";
-import escrowService from "@/services/escrowService";
 
 // Paystack API client
 const paystackClient = axios.create({
@@ -100,6 +104,12 @@ export const initializeFlutterwavePayment = asyncHandler(
       },
     });
 
+    // Update booking paymentStatus
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: { paymentStatus: PaymentStatus.PENDING },
+    });
+
     try {
       // Initialize Flutterwave payment using service
       const flutterwaveResponse =
@@ -108,7 +118,8 @@ export const initializeFlutterwavePayment = asyncHandler(
           amount: Number(booking.totalPrice),
           reference: reference,
           currency: booking.currency,
-          callback_url: `${config.FRONTEND_URL}/booking/payment/success?reference=${reference}`,
+          // Include provider flag to help the frontend pick correct verifier
+          callback_url: `${config.FRONTEND_URL}/booking/payment/success?provider=flutterwave&reference=${reference}`,
           metadata: {
             booking_id: bookingId,
             payment_id: payment.id,
@@ -226,22 +237,38 @@ export const verifyFlutterwavePayment = asyncHandler(
 
       // Update payment status based on verification
       const isSuccessful = transaction.status === "successful";
-      const newStatus = isSuccessful
-        ? PaymentStatus.COMPLETED
-        : PaymentStatus.FAILED;
 
-      const updatedPayment = await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: newStatus,
-          paidAt: isSuccessful ? new Date() : undefined,
-          providerTransactionId: transaction.id.toString(),
-          metadata: transaction as any,
-        },
-      });
+      if (!isSuccessful) {
+        // Update payment status to failed
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.FAILED,
+            providerTransactionId: transaction.id.toString(),
+            metadata: transaction as any,
+          },
+        });
+      }
 
       // If payment successful, integrate with escrow system
       if (isSuccessful) {
+        logger.info("Flutterwave payment verified successfully", {
+          paymentId: payment.id,
+          bookingId: payment.booking.id,
+          reference,
+        });
+
+        // First, mark payment as paid and record provider details
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            providerId: "FLUTTERWAVE",
+            providerTransactionId: transaction.id.toString(),
+            paidAt: new Date(),
+            metadata: transaction as any,
+          },
+        });
+
         // Get fee breakdown from booking
         const booking = payment.booking;
         const feeBreakdown = {
@@ -253,17 +280,26 @@ export const verifyFlutterwavePayment = asyncHandler(
           totalAmount: booking.totalPrice.toNumber(),
         };
 
-        // Hold funds in escrow (room fee + security deposit)
+        // Hold funds in escrow (this sets status to ESCROW_HELD)
         await escrowService.holdFundsInEscrow(
-          updatedPayment.id,
+          payment.id,
           booking.id,
           feeBreakdown
         );
+
+        logger.info("Funds held in escrow", {
+          paymentId: payment.id,
+          bookingId: booking.id,
+        });
 
         // Update booking status to PAID (funds in escrow)
         await prisma.booking.update({
           where: { id: payment.bookingId },
           data: { status: BookingStatus.PAID },
+        });
+
+        logger.info("Booking status updated to PAID", {
+          bookingId: booking.id,
         });
 
         // Create escrow events for immediate payouts
@@ -297,12 +333,25 @@ export const verifyFlutterwavePayment = asyncHandler(
 
         // Calculate and store commission breakdown
         try {
-          await updatePaymentCommission(updatedPayment.id);
+          await updatePaymentCommission(payment.id);
         } catch (commissionError) {
           logger.error("Error calculating commission:", commissionError);
           // Don't fail payment verification if commission calculation fails
         }
       }
+
+      // Get updated payment with all relations for response
+      const updatedPayment = await prisma.payment.findUnique({
+        where: { id: payment.id },
+        include: {
+          booking: {
+            include: {
+              property: true,
+              guest: true,
+            },
+          },
+        },
+      });
 
       // Send failure notification if payment failed
       if (!isSuccessful) {
@@ -329,10 +378,14 @@ export const verifyFlutterwavePayment = asyncHandler(
           message: "Payment verification failed",
           data: {
             paymentId: payment.id,
-            status: newStatus,
+            status: PaymentStatus.FAILED,
             transaction,
           },
         });
+      }
+
+      if (!updatedPayment) {
+        throw new AppError("Payment not found after escrow update", 500);
       }
 
       // Get updated booking with all relations for notifications
@@ -403,10 +456,7 @@ export const verifyFlutterwavePayment = asyncHandler(
           realtorNotification
         );
       } catch (notificationError) {
-        logger.error(
-          "Error sending payment notifications:",
-          notificationError
-        );
+        logger.error("Error sending payment notifications:", notificationError);
         // Don't fail the payment verification if notifications fail
       }
 
@@ -678,6 +728,12 @@ export const initializePaystackPayment = asyncHandler(
     const { bookingId } = req.body;
     const user = req.user!;
 
+    logger.info("🚀 [PAYSTACK INIT] Request received:", {
+      bookingId,
+      userId: user.id,
+      userEmail: user.email,
+    });
+
     // Get booking details
     const booking = await prisma.booking.findFirst({
       where: {
@@ -727,11 +783,13 @@ export const initializePaystackPayment = asyncHandler(
           },
         });
 
-    // Initialize Paystack transaction - ALL funds go to Stayza Pro (NO SPLIT)
-    const { initializePaystackTransaction } = await import(
-      "@/services/paystack"
-    );
+    // Update booking paymentStatus
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { paymentStatus: PaymentStatus.PENDING },
+    });
 
+    // Initialize Paystack transaction - ALL funds go to Stayza Pro (NO SPLIT)
     const paystackResponse = await initializePaystackTransaction({
       email: user.email,
       amount: Number(booking.totalPrice) * 100, // Convert to kobo
@@ -767,6 +825,7 @@ export const initializePaystackPayment = asyncHandler(
         authorizationUrl: paystackResponse.data.authorization_url,
         accessCode: paystackResponse.data.access_code,
         reference: paystackResponse.data.reference,
+        paymentStatus: PaymentStatus.PENDING,
       },
     });
   }
@@ -852,11 +911,17 @@ export const verifyPaystackPayment = asyncHandler(
       totalAmount: booking.totalPrice.toNumber(),
     };
 
-    // Update payment status with breakdown
-    const updatedPayment = await prisma.payment.update({
+    logger.info("Payment verified successfully", {
+      paymentId: payment.id,
+      bookingId: booking.id,
+      reference: payment.reference,
+      amount: payment.amount.toNumber(),
+    });
+
+    // First, mark payment as paid and record provider details
+    await prisma.payment.update({
       where: { id: payment.id },
       data: {
-        status: PaymentStatus.COMPLETED,
         providerId: "PAYSTACK",
         providerTransactionId: verification.data.id?.toString(),
         paidAt: new Date(),
@@ -864,6 +929,36 @@ export const verifyPaystackPayment = asyncHandler(
           paystackVerification: verification.data,
         } as any,
       },
+    });
+
+    logger.info("Payment provider details recorded", { paymentId: payment.id });
+
+    // Hold funds in escrow (this sets status to ESCROW_HELD and updates breakdown)
+    await escrowService.holdFundsInEscrow(payment.id, booking.id, feeBreakdown);
+
+    logger.info("Funds held in escrow", {
+      paymentId: payment.id,
+      bookingId: booking.id,
+      feeBreakdown,
+    });
+
+    // Update booking status to PAID (funds in escrow)
+    await prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: {
+        status: BookingStatus.PAID,
+      },
+    });
+
+    logger.info("Booking status updated to PAID", {
+      bookingId: booking.id,
+      previousStatus: booking.status,
+      newStatus: BookingStatus.PAID,
+    });
+
+    // Get updated payment with booking data for response
+    const updatedPayment = await prisma.payment.findUnique({
+      where: { id: payment.id },
       include: {
         booking: {
           include: {
@@ -874,18 +969,9 @@ export const verifyPaystackPayment = asyncHandler(
       },
     });
 
-    // Hold funds in escrow (room fee + security deposit)
-    await escrowService.holdFundsInEscrow(
-      updatedPayment.id,
-      booking.id,
-      feeBreakdown
-    );
-
-    // Update booking status to PAID (funds in escrow)
-    await prisma.booking.update({
-      where: { id: payment.bookingId },
-      data: { status: BookingStatus.PAID },
-    });
+    if (!updatedPayment) {
+      throw new AppError("Payment not found after escrow update", 500);
+    }
 
     // Create escrow events for immediate payouts
     if (feeBreakdown.cleaningFee > 0) {
@@ -927,10 +1013,10 @@ export const verifyPaystackPayment = asyncHandler(
     // Send confirmation email
     try {
       await sendPaymentReceipt(
-        updatedPayment.booking.guest.email,
-        updatedPayment.booking,
+        updatedPayment.booking!.guest.email,
+        updatedPayment.booking!,
         updatedPayment,
-        updatedPayment.booking.property
+        updatedPayment.booking!.property
       );
     } catch (emailError) {
       logger.error("Payment receipt email failed:", emailError);
@@ -941,9 +1027,246 @@ export const verifyPaystackPayment = asyncHandler(
       message: "Payment verified successfully",
       data: {
         payment: updatedPayment,
-        booking: updatedPayment.booking,
+        booking: updatedPayment.booking!,
       },
     });
+  }
+);
+
+/**
+ * @desc    Verify payment by bookingId (auto-detect provider)
+ * @route   POST /api/payments/verify-by-booking
+ * @access  Private
+ */
+export const verifyPaymentByBooking = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { bookingId } = req.body;
+    if (!bookingId) {
+      throw new AppError("bookingId is required", 400);
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { payment: true },
+    });
+
+    if (!booking || !booking.payment) {
+      throw new AppError("Booking or payment record not found", 404);
+    }
+
+    const payment = booking.payment;
+    if (
+      payment.status === PaymentStatus.ESCROW_HELD ||
+      booking.status === BookingStatus.PAID
+    ) {
+      logger.info("Payment already verified", {
+        bookingId,
+        paymentId: payment.id,
+      });
+      res.status(200).json({
+        message: "Payment already verified",
+        status: payment.status,
+        bookingStatus: booking.status,
+        paymentMethod: payment.method,
+      });
+      return;
+    }
+
+    // Determine provider and reference to verify
+    const provider = payment.method;
+    const reference = payment.reference || payment.providerTransactionId;
+
+    if (!reference) {
+      throw new AppError("No payment reference found to verify", 400);
+    }
+
+    logger.info("Verifying payment by bookingId", {
+      bookingId,
+      provider,
+      reference,
+    });
+
+    try {
+      if (provider === PaymentMethod.PAYSTACK) {
+        const { verifyPaystackTransaction } = await import(
+          "@/services/paystack"
+        );
+        const verification = await verifyPaystackTransaction(reference);
+
+        if (
+          verification.status !== 200 ||
+          verification.data.status !== "success"
+        ) {
+          throw new AppError("Paystack verification failed", 400);
+        }
+
+        // Mark payment as paid
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            providerId: "PAYSTACK",
+            providerTransactionId: verification.data.reference,
+            paidAt: new Date(),
+            metadata: verification.data as any,
+          },
+        });
+
+        // Get fee breakdown from booking
+        const feeBreakdown = {
+          roomFee: booking.roomFee.toNumber(),
+          cleaningFee: booking.cleaningFee.toNumber(),
+          securityDeposit: booking.securityDeposit.toNumber(),
+          serviceFee: booking.serviceFee.toNumber(),
+          platformFee: booking.platformFee.toNumber(),
+          totalAmount: booking.totalPrice.toNumber(),
+        };
+
+        // Hold funds in escrow
+        await escrowService.holdFundsInEscrow(
+          payment.id,
+          booking.id,
+          feeBreakdown
+        );
+
+        // Update booking status to PAID and sync paymentStatus
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            status: BookingStatus.PAID,
+            paymentStatus: PaymentStatus.ESCROW_HELD,
+          },
+        });
+
+        logger.info("✅ Booking status updated to PAID (Paystack)", {
+          bookingId,
+          paymentId: payment.id,
+        });
+
+        // Fetch updated payment and booking data
+        const updatedPayment = await prisma.payment.findUnique({
+          where: { id: payment.id },
+        });
+
+        const updatedBooking = await prisma.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            property: {
+              select: {
+                id: true,
+                title: true,
+                images: true,
+              },
+            },
+          },
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Payment verified via Paystack",
+          data: {
+            payment: updatedPayment,
+            booking: updatedBooking,
+          },
+        });
+        return;
+      }
+
+      if (provider === PaymentMethod.FLUTTERWAVE) {
+        const flutterwaveVerification =
+          await flutterwaveService.verifyFlutterwaveTransaction(reference);
+
+        if (
+          flutterwaveVerification.status !== 200 ||
+          flutterwaveVerification.data.status !== "successful"
+        ) {
+          throw new AppError("Flutterwave verification failed", 400);
+        }
+
+        // Mark payment as paid
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            providerId: "FLUTTERWAVE",
+            providerTransactionId: flutterwaveVerification.data.id.toString(),
+            paidAt: new Date(),
+            metadata: flutterwaveVerification.data as any,
+          },
+        });
+
+        // Get fee breakdown from booking
+        const feeBreakdown = {
+          roomFee: booking.roomFee.toNumber(),
+          cleaningFee: booking.cleaningFee.toNumber(),
+          securityDeposit: booking.securityDeposit.toNumber(),
+          serviceFee: booking.serviceFee.toNumber(),
+          platformFee: booking.platformFee.toNumber(),
+          totalAmount: booking.totalPrice.toNumber(),
+        };
+
+        // Hold funds in escrow
+        await escrowService.holdFundsInEscrow(
+          payment.id,
+          booking.id,
+          feeBreakdown
+        );
+
+        // Update booking status to PAID and sync paymentStatus
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            status: BookingStatus.PAID,
+            paymentStatus: PaymentStatus.ESCROW_HELD,
+          },
+        });
+
+        logger.info("✅ Booking status updated to PAID (Flutterwave)", {
+          bookingId,
+          paymentId: payment.id,
+        });
+
+        // Fetch updated payment and booking data
+        const updatedPayment = await prisma.payment.findUnique({
+          where: { id: payment.id },
+        });
+
+        const updatedBooking = await prisma.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            property: {
+              select: {
+                id: true,
+                title: true,
+                images: true,
+              },
+            },
+          },
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Payment verified via Flutterwave",
+          data: {
+            payment: updatedPayment,
+            booking: updatedBooking,
+          },
+        });
+        return;
+      }
+
+      throw new AppError(`Unsupported payment method: ${provider}`, 400);
+    } catch (err: any) {
+      logger.error("❌ Payment verification by booking failed", {
+        bookingId,
+        paymentId: payment.id,
+        provider,
+        reference,
+        error: err?.response?.data || err?.message || err,
+      });
+      throw new AppError(
+        err?.message || "Verification failed",
+        err?.statusCode || 400
+      );
+    }
   }
 );
 
@@ -954,4 +1277,5 @@ export default {
   getPayment,
   getUserPayments,
   processRefund,
+  verifyPaymentByBooking,
 };

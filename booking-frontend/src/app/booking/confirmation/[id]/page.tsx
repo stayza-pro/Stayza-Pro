@@ -19,12 +19,32 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useQuery } from "react-query";
 import { bookingService } from "@/services";
+import {
+  BookingStatusBadge,
+  PaymentStatusBadge,
+  BookingStatusCard,
+} from "@/components/booking";
+import { formatPaymentStatus } from "@/utils/bookingEnums";
 
 export default function BookingConfirmationPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useCurrentUser();
-  const bookingId = params.id as string;
+  const { user, isLoading: isAuthLoading } = useCurrentUser();
+
+  // Safely extract bookingId from params
+  const bookingId =
+    typeof params.id === "string"
+      ? params.id
+      : Array.isArray(params.id)
+      ? params.id[0]
+      : "";
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log("Confirmation page params:", params);
+    console.log("Extracted bookingId:", bookingId);
+    console.log("bookingId type:", typeof bookingId);
+  }, [params, bookingId]);
 
   // Get realtor branding
   const {
@@ -37,18 +57,32 @@ export default function BookingConfirmationPage() {
     description,
   } = useRealtorBranding();
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (wait for auth to finish loading)
   React.useEffect(() => {
-    if (!user) {
+    if (!isAuthLoading && !user) {
       router.push(`/guest/login?redirect=/booking/confirmation/${bookingId}`);
     }
-  }, [user, router, bookingId]);
+  }, [user, isAuthLoading, router, bookingId]);
 
-  // Fetch booking details
-  const { data: booking, isLoading } = useQuery({
+  // Fetch booking details (force fresh data after payment)
+  const {
+    data: booking,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["booking", bookingId],
-    queryFn: () => bookingService.getBooking(bookingId),
-    enabled: !!user && !!bookingId,
+    queryFn: () => {
+      if (!bookingId || typeof bookingId !== "string") {
+        throw new Error("Invalid booking ID");
+      }
+      return bookingService.getBooking(bookingId);
+    },
+    enabled:
+      !isAuthLoading && !!user && !!bookingId && typeof bookingId === "string",
+    staleTime: 0, // Always consider data stale
+    cacheTime: 0, // Don't cache
+    refetchOnMount: true, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   const formatDate = (date: Date | string) => {
@@ -217,6 +251,14 @@ export default function BookingConfirmationPage() {
           </p>
         </div>
 
+        {/* Status Summary Card */}
+        <div className="max-w-2xl mx-auto mb-8">
+          <BookingStatusCard
+            bookingStatus={booking.status}
+            paymentStatus={booking.paymentStatus}
+          />
+        </div>
+
         {/* Action Buttons */}
         <div className="flex justify-center mb-8">
           <Button
@@ -246,12 +288,16 @@ export default function BookingConfirmationPage() {
 
               <div className="flex flex-col md:flex-row items-start gap-6 mb-6">
                 <div className="relative w-full md:w-48 h-48 rounded-xl overflow-hidden flex-shrink-0">
-                  {booking.property?.images?.[0]?.url ? (
+                  {booking.property?.images?.[0]?.url &&
+                  typeof booking.property.images[0].url === "string" ? (
                     <Image
                       src={booking.property.images[0].url}
                       alt={booking.property.title || "Property"}
                       fill
                       className="object-cover"
+                      unoptimized={
+                        !booking.property.images[0].url.startsWith("http")
+                      }
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -373,23 +419,27 @@ export default function BookingConfirmationPage() {
               </div>
 
               <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex justify-between">
-                    <span>Status:</span>
-                    <span
-                      className="font-semibold"
-                      style={{ color: brandColor }}
-                    >
-                      {booking.status}
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Booking Status:</span>
+                    <BookingStatusBadge status={booking.status} size="sm" />
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Payment Method:</span>
+                    <span className="font-semibold text-gray-900">
+                      {booking.payment?.method === "PAYSTACK"
+                        ? "Paystack"
+                        : booking.payment?.method === "FLUTTERWAVE"
+                        ? "Flutterwave"
+                        : booking.payment?.method || "Card Payment"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Payment Method:</span>
-                    <span className="font-medium">
-                      {booking.payment?.providerId?.toUpperCase() ||
-                        booking.payment?.method?.toUpperCase() ||
-                        "N/A"}
-                    </span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Payment Status:</span>
+                    <PaymentStatusBadge
+                      status={booking.paymentStatus}
+                      size="sm"
+                    />
                   </div>
                 </div>
               </div>

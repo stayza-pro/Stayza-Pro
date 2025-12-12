@@ -526,8 +526,8 @@ export const processRefund = asyncHandler(
             refundAmount: newRefundAmount,
             refundedAt: new Date(),
             status: isFullyRefunded
-              ? PaymentStatus.REFUNDED
-              : PaymentStatus.REFUNDED, // Use REFUNDED for now, add PARTIALLY_REFUNDED to enum if needed
+              ? PaymentStatus.REFUNDED_TO_CUSTOMER
+              : PaymentStatus.REFUNDED_TO_CUSTOMER, // Use REFUNDED_TO_CUSTOMER for now, add PARTIALLY_REFUNDED to enum if needed
             metadata: {
               ...((refundRequest.payment.metadata as any) || {}),
               refunds: [

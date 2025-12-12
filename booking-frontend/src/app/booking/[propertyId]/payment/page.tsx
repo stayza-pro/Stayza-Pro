@@ -160,53 +160,50 @@ export default function PaymentPage() {
     }
   };
 
-  const initiatePaystackPayment = (currentUser: any) => {
-    if (!isPaystackLoaded || typeof window.PaystackPop === "undefined") {
-      setError("Paystack is not ready. Please refresh the page.");
-      return;
-    }
-
+  const initiatePaystackPayment = async (currentUser: any) => {
     setPaymentStatus("processing");
+    setError("");
 
-    const handler = window.PaystackPop.setup({
-      key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "",
-      email: currentUser.email,
-      amount: Math.round(booking.totalPrice * 100), // Amount in kobo
-      currency: booking.currency || "NGN",
-      ref: booking.payment?.reference || `booking-${booking.id}-${Date.now()}`,
-      metadata: {
-        custom_fields: [
-          {
-            display_name: "Booking ID",
-            variable_name: "booking_id",
-            value: booking.id,
-          },
-          {
-            display_name: "Property ID",
-            variable_name: "property_id",
-            value: booking.propertyId,
-          },
-          {
-            display_name: "Guest Name",
-            variable_name: "guest_name",
-            value: `${currentUser.firstName} ${currentUser.lastName}`,
-          },
-        ],
-      },
-      callback: (response: any) => {
-        console.log("✅ Paystack payment successful:", response);
-        handlePaymentSuccess(response);
-      },
-      onClose: () => {
-        console.log("Paystack payment window closed");
-        if (paymentStatus === "processing") {
-          setPaymentStatus("ready");
-          setError("Payment was cancelled. Click 'Pay Now' to try again.");
-        }
-      },
-    });
+    try {
+      console.log("🚀 Initializing Paystack payment via backend API...", {
+        bookingId: booking.id,
+        amount: booking.totalPrice,
+        currency: booking.currency,
+      });
 
-    handler.openIframe();
+      // Call backend API to initialize payment
+      const response = await paymentService.initializePaystackPayment({
+        bookingId: booking.id,
+      });
+
+      console.log("✅ Paystack initialization response:", response);
+
+      if (!response.authorizationUrl) {
+        throw new Error("No authorization URL received from server");
+      }
+
+      // Store payment metadata for verification after redirect
+      localStorage.setItem(
+        "paystackPaymentMeta",
+        JSON.stringify({
+          bookingId: booking.id,
+          paymentId: response.paymentId,
+          reference: response.reference,
+        })
+      );
+
+      // Redirect to Paystack hosted payment page
+      console.log("🔗 Redirecting to Paystack:", response.authorizationUrl);
+      window.location.href = response.authorizationUrl;
+    } catch (err: any) {
+      console.error("❌ Paystack initialization error:", err);
+      setPaymentStatus("failed");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to initialize payment. Please try again."
+      );
+    }
   };
 
   const initiateFlutterwavePayment = async (currentUser: any) => {
@@ -242,24 +239,6 @@ export default function PaymentPage() {
           err.message ||
           "Failed to initialize payment. Please try again."
       );
-    }
-  };
-
-  const handlePaymentSuccess = async (response: any) => {
-    try {
-      setPaymentStatus("success");
-
-      // Wait a moment before redirecting
-      setTimeout(() => {
-        router.push(`/booking/confirmation/${bookingId}`);
-      }, 2000);
-    } catch (err: any) {
-      console.error("Error handling payment success:", err);
-      setError(
-        "Payment successful but failed to update booking. Please contact support with reference: " +
-          response.reference
-      );
-      setPaymentStatus("failed");
     }
   };
 
@@ -418,30 +397,38 @@ export default function PaymentPage() {
         {/* Success State */}
         {paymentStatus === "success" && (
           <div className="max-w-2xl mx-auto">
-            <Card className="p-8 text-center">
-              <div className="mb-6">
-                <div
-                  className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                  style={{ backgroundColor: `${brandColor}20` }}
-                >
-                  <CheckCircle
-                    className="h-12 w-12"
-                    style={{ color: brandColor }}
-                  />
+            <Card
+              className="p-8 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <div className="text-center">
+                <div className="mb-6">
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                    style={{
+                      backgroundColor: `${brandColor}15`,
+                      border: `2px solid ${brandColor}`,
+                    }}
+                  >
+                    <CheckCircle
+                      className="h-12 w-12"
+                      style={{ color: brandColor }}
+                    />
+                  </div>
+                  <h2
+                    className="text-3xl font-bold mb-2"
+                    style={{ color: secondaryColor }}
+                  >
+                    Payment Successful!
+                  </h2>
+                  <p className="text-gray-600 text-lg">
+                    Your booking has been confirmed
+                  </p>
                 </div>
-                <h2
-                  className="text-3xl font-bold mb-2"
-                  style={{ color: secondaryColor }}
-                >
-                  Payment Successful!
-                </h2>
-                <p className="text-gray-600 text-lg">
-                  Your booking has been confirmed
-                </p>
-              </div>
-              <div className="inline-flex items-center space-x-2 text-gray-600">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Redirecting to confirmation page...</span>
+                <div className="inline-flex items-center space-x-2 text-gray-600 bg-gray-50 px-4 py-2 rounded-full">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Redirecting to confirmation page...</span>
+                </div>
               </div>
             </Card>
           </div>
@@ -450,21 +437,35 @@ export default function PaymentPage() {
         {/* Failed State */}
         {paymentStatus === "failed" && (
           <div className="max-w-2xl mx-auto">
-            <Card className="p-8 text-center">
-              <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Payment Failed
-              </h2>
-              <p className="text-gray-600 mb-6">
-                {error || "We couldn't process your payment. Please try again."}
-              </p>
-              <button
-                onClick={() => router.push(`/guest/bookings`)}
-                className="px-6 py-3 rounded-xl font-semibold text-white transition-all"
-                style={{ backgroundColor: brandColor }}
-              >
-                Go to My Bookings
-              </button>
+            <Card
+              className="p-8 border border-gray-200 !bg-white shadow-sm"
+              style={{ backgroundColor: "#ffffff", color: "#111827" }}
+            >
+              <div className="text-center">
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 bg-red-50"
+                  style={{ border: "2px solid #dc2626" }}
+                >
+                  <XCircle className="h-12 w-12 text-red-600" />
+                </div>
+                <h2
+                  className="text-2xl font-bold mb-2"
+                  style={{ color: secondaryColor }}
+                >
+                  Payment Failed
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  {error ||
+                    "We couldn't process your payment. Please try again."}
+                </p>
+                <button
+                  onClick={() => router.push(`/guest/bookings`)}
+                  className="px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 shadow-md"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  Go to My Bookings
+                </button>
+              </div>
             </Card>
           </div>
         )}

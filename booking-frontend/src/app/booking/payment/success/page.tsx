@@ -16,14 +16,19 @@ import { useTransferStatus } from "@/hooks/useEscrow";
 const mapPaymentStatus = (status?: Payment["status"]) => {
   switch (status) {
     case "COMPLETED":
+    case "RELEASED_TO_REALTOR":
       return "success" as const;
     case "FAILED":
       return "failed" as const;
-    case "PARTIALLY_REFUNDED":
-    case "REFUNDED":
+    case "PARTIAL_PAYOUT_REALTOR":
+    case "REFUNDED_TO_CUSTOMER":
       return "refunded" as const;
     case "PENDING":
+    case "INITIATED":
       return "pending" as const;
+    case "ESCROW_HELD":
+    case "ROOM_FEE_SPLIT_RELEASED":
+      return "processing" as const;
     default:
       return "processing" as const;
   }
@@ -33,6 +38,8 @@ const PaymentSuccessContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference") || searchParams.get("trxref");
+  const provider = (searchParams.get("provider") || "").toLowerCase();
+  const flutterwaveTransactionId = searchParams.get("transaction_id");
 
   // Get realtor branding
   const {
@@ -84,7 +91,7 @@ const PaymentSuccessContent = () => {
   };
 
   useEffect(() => {
-    if (!reference || hasAttemptedVerification) {
+    if (hasAttemptedVerification) {
       return;
     }
 
@@ -94,9 +101,13 @@ const PaymentSuccessContent = () => {
       setErrorMessage(null);
 
       const storedMeta = localStorage.getItem("paystackPaymentMeta");
+      const storedFlutterwaveMeta = localStorage.getItem(
+        "flutterwavePaymentMeta"
+      );
       let storedPaymentId: string | null = null;
       let storedBookingId: string | null = null;
 
+      // Try to get stored metadata from either payment provider
       if (storedMeta) {
         try {
           const parsed = JSON.parse(storedMeta);
@@ -105,33 +116,147 @@ const PaymentSuccessContent = () => {
         } catch (err) {
           console.warn("Unable to parse paystack payment meta", err);
         }
+      } else if (storedFlutterwaveMeta) {
+        try {
+          const parsed = JSON.parse(storedFlutterwaveMeta);
+          storedPaymentId = parsed.paymentId || null;
+          storedBookingId = parsed.bookingId || null;
+        } catch (err) {
+          console.warn("Unable to parse flutterwave payment meta", err);
+        }
       }
 
       try {
-        await paymentService.verifyPaystackPayment({ reference });
-        toast.success("Payment verified successfully.");
-        setStatus("success");
-
-        if (storedPaymentId) {
-          setPaymentId(storedPaymentId);
-          const paymentRecord = await paymentService.getPayment(
-            storedPaymentId
+        // If no reference but we have bookingId, use verify-by-booking endpoint
+        if (!reference && storedBookingId) {
+          console.log(
+            "No payment reference found, using verify-by-booking fallback"
           );
-          setPayment(paymentRecord);
-          const bookingIdToUse = paymentRecord.booking?.id || storedBookingId;
-          setBookingId(bookingIdToUse);
+          const result = await paymentService.verifyPaymentByBooking({
+            bookingId: storedBookingId,
+          });
+          toast.success("Payment verified successfully.");
+          setStatus("success");
 
-          // Redirect to confirmation page after 2 seconds
-          if (bookingIdToUse) {
+          const resolvedPaymentId =
+            result.payment?.id || storedPaymentId || null;
+          const resolvedBookingId =
+            result.booking?.id || storedBookingId || null;
+
+          if (resolvedPaymentId) setPaymentId(resolvedPaymentId);
+          if (resolvedBookingId) setBookingId(resolvedBookingId);
+
+          if (result.payment) {
+            setPayment(result.payment);
+          }
+
+          if (resolvedBookingId) {
             setTimeout(() => {
-              router.push(`/booking/confirmation/${bookingIdToUse}`);
+              router.push(`/booking/confirmation/${resolvedBookingId}`);
             }, 2000);
           }
+          return;
+        }
+
+        // If we have a reference, use the standard verification flow
+        if (reference) {
+          // Decide provider: prefer explicit query param; otherwise infer by presence of Paystack meta
+          const isPaystack =
+            provider === "paystack" ||
+            (!!storedMeta && provider !== "flutterwave");
+
+          if (isPaystack) {
+            const result = await paymentService.verifyPaystackPayment({
+              reference,
+            });
+            toast.success("Payment verified successfully.");
+            setStatus("success");
+
+            const resolvedPaymentId =
+              storedPaymentId || result.payment?.id || null;
+            const resolvedBookingId =
+              result.booking?.id ||
+              result.payment?.booking?.id ||
+              storedBookingId ||
+              null;
+
+            if (resolvedPaymentId) setPaymentId(resolvedPaymentId);
+            if (resolvedBookingId) setBookingId(resolvedBookingId);
+
+            if (resolvedPaymentId && !payment) {
+              try {
+                const paymentRecord = await paymentService.getPayment(
+                  resolvedPaymentId
+                );
+                setPayment(paymentRecord);
+              } catch {}
+            }
+
+            if (resolvedBookingId) {
+              setTimeout(() => {
+                router.push(`/booking/confirmation/${resolvedBookingId}`);
+              }, 2000);
+            }
+          } else {
+            // Flutterwave: use transaction_id when available; backend expects 'reference' but uses it as transactionId
+            const txId = flutterwaveTransactionId || reference;
+            const result = await paymentService.verifyFlutterwavePayment({
+              reference: txId!,
+            });
+            toast.success("Payment verified successfully.");
+            setStatus("success");
+
+            const resolvedPaymentId = result.payment?.id || null;
+            const resolvedBookingId =
+              result.booking?.id || result.payment?.booking?.id || null;
+
+            if (resolvedPaymentId) setPaymentId(resolvedPaymentId);
+            if (resolvedBookingId) setBookingId(resolvedBookingId);
+
+            if (resolvedBookingId) {
+              setTimeout(() => {
+                router.push(`/booking/confirmation/${resolvedBookingId}`);
+              }, 2000);
+            }
+          }
         } else {
-          setStatus("pending");
+          // No reference and no bookingId - can't verify
+          throw new Error(
+            "Unable to verify payment: Missing payment reference and booking ID"
+          );
         }
       } catch (err) {
         const message = serviceUtils.extractErrorMessage(err);
+        console.error("Payment verification error:", err);
+
+        // If verification by reference failed but we have bookingId, try verify-by-booking as fallback
+        if (reference && storedBookingId) {
+          console.log(
+            "Standard verification failed, trying verify-by-booking fallback"
+          );
+          try {
+            const result = await paymentService.verifyPaymentByBooking({
+              bookingId: storedBookingId,
+            });
+            toast.success("Payment verified successfully.");
+            setStatus("success");
+
+            if (result.payment) setPayment(result.payment);
+            if (result.payment?.id) setPaymentId(result.payment.id);
+            if (result.booking?.id || storedBookingId) {
+              const bookingIdToUse = result.booking?.id || storedBookingId;
+              setBookingId(bookingIdToUse);
+              setTimeout(() => {
+                router.push(`/booking/confirmation/${bookingIdToUse}`);
+              }, 2000);
+            }
+            return;
+          } catch (fallbackErr) {
+            console.error("Fallback verification also failed:", fallbackErr);
+            // Fall through to error handling below
+          }
+        }
+
         setStatus("failed");
         setErrorMessage(message);
         toast.error(message);
@@ -139,11 +264,14 @@ const PaymentSuccessContent = () => {
         if (storedMeta) {
           localStorage.removeItem("paystackPaymentMeta");
         }
+        if (storedFlutterwaveMeta) {
+          localStorage.removeItem("flutterwavePaymentMeta");
+        }
       }
     };
 
     verifyPayment();
-  }, [reference, hasAttemptedVerification]);
+  }, [hasAttemptedVerification]);
 
   const getStatusIcon = () => {
     switch (effectiveStatus) {

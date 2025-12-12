@@ -69,8 +69,16 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
     setPaymentError(null);
 
     try {
+      console.log("🚀 Initializing Paystack payment for booking:", bookingId);
       const response = await paymentService.initializePaystackPayment({
         bookingId,
+      });
+
+      console.log("✅ Paystack initialization response:", {
+        paymentId: response.paymentId,
+        reference: response.reference,
+        status: response.paymentStatus,
+        hasAuthUrl: !!response.authorizationUrl,
       });
 
       if (response.paymentStatus && response.paymentStatus !== "PENDING") {
@@ -86,19 +94,19 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
       }
 
       if (!response.authorizationUrl || !response.reference) {
+        console.error("❌ Missing authorization URL or reference:", response);
         throw new Error(
           "Unable to start Paystack payment. Please contact support."
         );
       }
 
-      localStorage.setItem(
-        "paystackPaymentMeta",
-        JSON.stringify({
-          reference: response.reference,
-          paymentId: response.paymentId,
-          bookingId,
-        })
-      );
+      const paymentMeta = {
+        reference: response.reference,
+        paymentId: response.paymentId,
+        bookingId,
+      };
+      console.log("💾 Storing payment metadata:", paymentMeta);
+      localStorage.setItem("paystackPaymentMeta", JSON.stringify(paymentMeta));
 
       setAuthorizationUrl(response.authorizationUrl);
       setReference(response.reference);
@@ -111,9 +119,11 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
         });
       }
 
+      console.log("🔗 Redirecting to Paystack authorization URL");
       window.location.href = response.authorizationUrl;
     } catch (error: unknown) {
       const message = serviceUtils.extractErrorMessage(error);
+      console.error("❌ Paystack payment initialization failed:", error);
       setPaymentError(message);
       onError(message);
     } finally {

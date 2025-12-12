@@ -86,7 +86,7 @@ export const TransferStatusBadge: React.FC<TransferStatusBadgeProps> = ({
   );
 };
 
-import { EscrowEvent } from '@/services/escrow';
+import { EscrowEvent } from "@/services/escrow";
 
 interface TransferTimelineProps {
   events: EscrowEvent[];
@@ -95,9 +95,7 @@ interface TransferTimelineProps {
 export const TransferTimeline: React.FC<TransferTimelineProps> = ({
   events,
 }) => {
-  const getConfirmationStatus = (
-    event: EscrowEvent
-  ): TransferConfirmation => {
+  const getConfirmationStatus = (event: EscrowEvent): TransferConfirmation => {
     const response = event.providerResponse;
 
     if (response?.transferReversed) {

@@ -12,6 +12,10 @@ import {
   CreditCard,
 } from "lucide-react";
 import { Booking } from "../../types";
+import {
+  getPaymentStatusColor,
+  formatPaymentStatus,
+} from "@/utils/bookingEnums";
 
 interface BookingCardProps {
   booking: Booking;
@@ -117,7 +121,8 @@ export const BookingCard: React.FC<BookingCardProps> = ({
             <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
               <div className="flex items-center">
                 <Users className="h-4 w-4 mr-1" />
-                {booking.totalGuests} {booking.totalGuests === 1 ? "guest" : "guests"}
+                {booking.totalGuests}{" "}
+                {booking.totalGuests === 1 ? "guest" : "guests"}
               </div>
 
               <div className="flex items-center">
@@ -128,8 +133,8 @@ export const BookingCard: React.FC<BookingCardProps> = ({
           </div>
         </div>
 
-        {/* Status Badge */}
-        <div className="flex items-center space-x-2">
+        {/* Status Badges */}
+        <div className="flex flex-col items-end space-y-2">
           <span
             className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
               booking.status
@@ -137,6 +142,19 @@ export const BookingCard: React.FC<BookingCardProps> = ({
           >
             {getStatusText(booking.status)}
           </span>
+
+          {/* Payment Status Badge */}
+          {booking.paymentStatus &&
+            (() => {
+              const colors = getPaymentStatusColor(booking.paymentStatus);
+              return (
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}
+                >
+                  {formatPaymentStatus(booking.paymentStatus)}
+                </span>
+              );
+            })()}
 
           {booking.property?.averageRating && (
             <div className="flex items-center text-sm text-gray-600">

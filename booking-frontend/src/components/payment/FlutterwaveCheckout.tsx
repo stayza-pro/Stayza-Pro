@@ -69,8 +69,19 @@ export const FlutterwaveCheckout: React.FC<FlutterwaveCheckoutProps> = ({
     setPaymentError(null);
 
     try {
+      console.log(
+        "🚀 Initializing Flutterwave payment for booking:",
+        bookingId
+      );
       const response = await paymentService.initializeFlutterwavePayment({
         bookingId,
+      });
+
+      console.log("✅ Flutterwave initialization response:", {
+        paymentId: response.paymentId,
+        reference: response.reference,
+        status: response.paymentStatus,
+        hasAuthUrl: !!response.authorizationUrl,
       });
 
       if (response.paymentStatus && response.paymentStatus !== "PENDING") {
@@ -86,18 +97,21 @@ export const FlutterwaveCheckout: React.FC<FlutterwaveCheckoutProps> = ({
       }
 
       if (!response.authorizationUrl || !response.reference) {
+        console.error("❌ Missing authorization URL or reference:", response);
         throw new Error(
           "Unable to start Flutterwave payment. Please contact support."
         );
       }
 
+      const paymentMeta = {
+        reference: response.reference,
+        paymentId: response.paymentId,
+        bookingId,
+      };
+      console.log("💾 Storing payment metadata:", paymentMeta);
       localStorage.setItem(
         "flutterwavePaymentMeta",
-        JSON.stringify({
-          reference: response.reference,
-          paymentId: response.paymentId,
-          bookingId,
-        })
+        JSON.stringify(paymentMeta)
       );
 
       setAuthorizationUrl(response.authorizationUrl);
@@ -111,9 +125,11 @@ export const FlutterwaveCheckout: React.FC<FlutterwaveCheckoutProps> = ({
         });
       }
 
+      console.log("🔗 Redirecting to Flutterwave authorization URL");
       window.location.href = response.authorizationUrl;
     } catch (error: unknown) {
       const message = serviceUtils.extractErrorMessage(error);
+      console.error("❌ Flutterwave payment initialization failed:", error);
       setPaymentError(message);
       onError(message);
     } finally {

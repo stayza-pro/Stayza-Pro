@@ -98,6 +98,19 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`📨 [${new Date().toISOString()}] ${req.method} ${req.path}`);
+  if (req.path.includes("/payments/") || req.path.includes("/bookings")) {
+    console.log("   Headers:", {
+      auth: req.headers.authorization ? "Present" : "Missing",
+      contentType: req.headers["content-type"],
+    });
+    console.log("   Body:", JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
+
 // Rate limiting
 app.use("/api/", apiLimiter);
 

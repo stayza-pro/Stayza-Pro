@@ -49,7 +49,10 @@ export default function RealtorBookingsPage() {
   } = useBookingsData({
     page: currentPage,
     limit: 10,
-    status: (statusFilter !== "all" ? statusFilter : "ALL") as BookingStatus | "ALL" | undefined,
+    status: (statusFilter !== "all" ? statusFilter : "ALL") as
+      | BookingStatus
+      | "ALL"
+      | undefined,
   });
 
   const brandColor = branding?.colors?.primary || "#3B82F6";

@@ -10,6 +10,7 @@ import {
   AlertCircle,
   ArrowLeft,
   Check,
+  Home,
 } from "lucide-react";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections";
@@ -679,16 +680,23 @@ export default function BookingCheckoutPage() {
                 </h2>
 
                 <div className="flex items-start space-x-4 mb-4">
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                    {property.images && property.images.length > 0 ? (
+                  <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
+                    {property.images &&
+                    property.images.length > 0 &&
+                    property.images[0]?.url ? (
                       <img
                         src={property.images[0].url}
                         alt={property.title}
                         className="w-full h-full object-cover"
-                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                        }}
                       />
                     ) : (
-                      <div className="w-full h-full bg-gray-200" />
+                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                        <Home className="h-8 w-8 text-gray-400" />
+                      </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">

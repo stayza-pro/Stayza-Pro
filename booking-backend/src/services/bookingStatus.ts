@@ -37,6 +37,10 @@ export const BOOKING_STATUS_TRANSITIONS: Record<
   CONFIRMED: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
   CANCELLED: [], // Terminal state - no transitions allowed
   COMPLETED: [], // Terminal state - no transitions allowed
+  PAID: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
+  CHECKED_IN: [BookingStatus.CHECKED_OUT, BookingStatus.DISPUTE_OPENED],
+  DISPUTE_OPENED: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
+  CHECKED_OUT: [BookingStatus.COMPLETED],
 };
 
 // Business rules for status transitions

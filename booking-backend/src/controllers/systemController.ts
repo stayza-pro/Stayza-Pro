@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { prisma } from "@/config/database";
-import { config, logger } from "@/config";
+import { config } from "@/config";
+import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
 
 /**
@@ -35,7 +36,8 @@ export const getBookingEscrowEvents = async (
     // Authorization: Only booking guest, property realtor, or admin can view
     const user = req.user;
     if (!user) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
     }
 
     const isAuthorized =
@@ -44,11 +46,12 @@ export const getBookingEscrowEvents = async (
       user.role === "ADMIN";
 
     if (!isAuthorized) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message:
           "You do not have permission to view this booking escrow events",
       });
+      return;
     }
 
     // Fetch escrow events
@@ -104,10 +107,11 @@ export const getActiveJobLocks = async (
   try {
     const user = req.user;
     if (!user || user.role !== "ADMIN") {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: "Admin access required",
       });
+      return;
     }
 
     const locks = await prisma.jobLock.findMany({
@@ -156,10 +160,11 @@ export const getSystemHealthStats = async (
   try {
     const user = req.user;
     if (!user || user.role !== "ADMIN") {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: "Admin access required",
       });
+      return;
     }
 
     const now = new Date();
@@ -332,10 +337,11 @@ export const forceReleaseJobLock = async (
   try {
     const user = req.user;
     if (!user || user.role !== "ADMIN") {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: "Admin access required",
       });
+      return;
     }
 
     const { id } = req.params;
@@ -346,10 +352,11 @@ export const forceReleaseJobLock = async (
     });
 
     if (!lock) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Job lock not found",
       });
+      return;
     }
 
     // Delete the lock
@@ -393,10 +400,11 @@ export const getBookingWebhookStatus = async (
   try {
     const user = req.user;
     if (!user || user.role !== "ADMIN") {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: "Admin access required",
       });
+      return;
     }
 
     const { id } = req.params;
@@ -408,10 +416,11 @@ export const getBookingWebhookStatus = async (
     });
 
     if (!booking) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Booking not found",
       });
+      return;
     }
 
     // Fetch all escrow events with webhook data

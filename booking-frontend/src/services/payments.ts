@@ -19,6 +19,9 @@ export interface PaystackVerificationRequest {
 export interface PaystackVerificationResponse {
   success: boolean;
   message: string;
+  // Optional enriched payload from backend
+  payment?: Payment;
+  booking?: any;
 }
 
 export interface FlutterwaveInitializationRequest {
@@ -39,6 +42,20 @@ export interface FlutterwaveVerificationRequest {
 export interface FlutterwaveVerificationResponse {
   success: boolean;
   message: string;
+  // Optional enriched payload from backend
+  payment?: Payment;
+  booking?: any;
+}
+
+export interface VerifyByBookingRequest {
+  bookingId: string;
+}
+
+export interface VerifyByBookingResponse {
+  success: boolean;
+  message: string;
+  payment?: Payment;
+  booking?: any;
 }
 
 export const paymentService = {
@@ -46,18 +63,35 @@ export const paymentService = {
   initializePaystackPayment: async (
     data: PaystackInitializationRequest
   ): Promise<PaystackInitializationResponse> => {
+    console.log("🚀 Calling Paystack initialization API...");
     const response = await apiClient.post<{
-      authorizationUrl?: string;
-      reference?: string;
-      paymentId: string;
-      paymentStatus?: Payment["status"];
+      success: boolean;
+      message: string;
+      data: {
+        authorizationUrl?: string;
+        reference?: string;
+        paymentId: string;
+        paymentStatus?: Payment["status"];
+      };
     }>("/payments/initialize-paystack", data);
 
+    console.log("📦 Raw API response:", response);
+
+    if (!response || !response.data) {
+      console.error("❌ Invalid response:", response);
+      throw new Error("Invalid response from payment API");
+    }
+
+    // apiClient returns res.data which contains { success, message, data }
+    // So we need to access response.data.data for the actual payload
+    const responseData = response.data.data;
+    console.log("✅ Parsed response data:", responseData);
+
     return {
-      authorizationUrl: response.data.authorizationUrl,
-      reference: response.data.reference,
-      paymentId: response.data.paymentId,
-      paymentStatus: response.data.paymentStatus,
+      authorizationUrl: responseData.authorizationUrl,
+      reference: responseData.reference,
+      paymentId: responseData.paymentId,
+      paymentStatus: responseData.paymentStatus,
     };
   },
 
@@ -65,14 +99,18 @@ export const paymentService = {
   verifyPaystackPayment: async (
     data: PaystackVerificationRequest
   ): Promise<PaystackVerificationResponse> => {
+    // apiClient returns res.data which contains { success, message, data }
     const response = await apiClient.post<{
       success: boolean;
       message: string;
+      data?: { payment?: Payment; booking?: any };
     }>("/payments/verify-paystack", data);
 
     return {
       success: response.data.success,
       message: response.data.message,
+      payment: response.data.data?.payment,
+      booking: response.data.data?.booking,
     };
   },
 
@@ -80,18 +118,35 @@ export const paymentService = {
   initializeFlutterwavePayment: async (
     data: FlutterwaveInitializationRequest
   ): Promise<FlutterwaveInitializationResponse> => {
+    console.log("🚀 Calling Flutterwave initialization API...");
     const response = await apiClient.post<{
-      authorizationUrl?: string;
-      reference?: string;
-      paymentId: string;
-      paymentStatus?: Payment["status"];
+      success: boolean;
+      message: string;
+      data: {
+        authorizationUrl?: string;
+        reference?: string;
+        paymentId: string;
+        paymentStatus?: Payment["status"];
+      };
     }>("/payments/initialize-flutterwave", data);
 
+    console.log("📦 Raw API response:", response);
+
+    if (!response || !response.data) {
+      console.error("❌ Invalid response:", response);
+      throw new Error("Invalid response from payment API");
+    }
+
+    // apiClient returns res.data which contains { success, message, data }
+    // So we need to access response.data.data for the actual payload
+    const responseData = response.data.data;
+    console.log("✅ Parsed response data:", responseData);
+
     return {
-      authorizationUrl: response.data.authorizationUrl,
-      reference: response.data.reference,
-      paymentId: response.data.paymentId,
-      paymentStatus: response.data.paymentStatus,
+      authorizationUrl: responseData.authorizationUrl,
+      reference: responseData.reference,
+      paymentId: responseData.paymentId,
+      paymentStatus: responseData.paymentStatus,
     };
   },
 
@@ -99,14 +154,38 @@ export const paymentService = {
   verifyFlutterwavePayment: async (
     data: FlutterwaveVerificationRequest
   ): Promise<FlutterwaveVerificationResponse> => {
+    // apiClient returns res.data which contains { success, message, data }
     const response = await apiClient.post<{
       success: boolean;
       message: string;
+      data?: { payment?: Payment; booking?: any };
     }>("/payments/verify-flutterwave", data);
 
     return {
       success: response.data.success,
       message: response.data.message,
+      payment: response.data.data?.payment,
+      booking: response.data.data?.booking,
+    };
+  },
+
+  // Verify payment by booking ID (auto-detects provider and verifies)
+  // Use this when you have the bookingId but not the payment reference
+  verifyPaymentByBooking: async (
+    data: VerifyByBookingRequest
+  ): Promise<VerifyByBookingResponse> => {
+    // apiClient returns res.data which contains { success, message, data }
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      data?: { payment?: Payment; booking?: any };
+    }>("/payments/verify-by-booking", data);
+
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      payment: response.data.data?.payment,
+      booking: response.data.data?.booking,
     };
   },
 

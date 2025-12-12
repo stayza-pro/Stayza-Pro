@@ -1,4 +1,9 @@
 import { apiClient } from "./api";
+import { BookingStatus, PaymentStatus, PaymentMethod } from "@/types";
+import {
+  formatBookingStatus as formatBookingStatusUtil,
+  getBookingStatusColor as getBookingStatusColorUtil,
+} from "@/utils/bookingEnums";
 
 // =====================================================
 // TYPE DEFINITIONS
@@ -144,10 +149,6 @@ export interface BookingSearchFilters {
   minAmount?: number;
   maxAmount?: number;
 }
-
-export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
-export type PaymentStatus = "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
-export type PaymentMethod = "PAYSTACK" | "FLUTTERWAVE";
 
 export interface BookingsResponse {
   success: boolean;
@@ -348,28 +349,17 @@ export const cancelBooking = async (
 
 /**
  * Format booking status for display
+ * Re-export centralized utility for backward compatibility
  */
-export const formatBookingStatus = (status: BookingStatus): string => {
-  const statusMap: Record<BookingStatus, string> = {
-    PENDING: "Pending",
-    CONFIRMED: "Confirmed",
-    CANCELLED: "Cancelled",
-    COMPLETED: "Completed",
-  };
-  return statusMap[status] || status;
-};
+export const formatBookingStatus = formatBookingStatusUtil;
 
 /**
  * Get status color for UI display
+ * Re-export centralized utility with backward-compatible format
  */
 export const getBookingStatusColor = (status: BookingStatus): string => {
-  const colorMap: Record<BookingStatus, string> = {
-    PENDING: "bg-yellow-100 text-yellow-800",
-    CONFIRMED: "bg-blue-100 text-blue-800",
-    CANCELLED: "bg-red-100 text-red-800",
-    COMPLETED: "bg-green-100 text-green-800",
-  };
-  return colorMap[status] || "bg-gray-100 text-gray-800";
+  const colors = getBookingStatusColorUtil(status);
+  return `${colors.bg} ${colors.text}`;
 };
 
 /**

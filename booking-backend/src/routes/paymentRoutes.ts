@@ -8,6 +8,7 @@ import {
   initializePaystackPayment,
   verifyPaystackPayment,
   processRefund,
+  verifyPaymentByBooking,
 } from "@/controllers/paymentController";
 // MVP: Webhooks handled in separate routes
 import { authenticate } from "@/middleware/auth";
@@ -219,6 +220,9 @@ router.post("/verify-flutterwave", authenticate, verifyFlutterwavePayment);
 // Paystack payment endpoints
 router.post("/initialize-paystack", authenticate, initializePaystackPayment);
 router.post("/verify-paystack", authenticate, verifyPaystackPayment);
+
+// Verify payment by bookingId (auto-detect provider)
+router.post("/verify-by-booking", authenticate, verifyPaymentByBooking);
 
 /**
  * @swagger

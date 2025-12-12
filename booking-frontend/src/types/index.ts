@@ -45,22 +45,46 @@ export type PropertyAmenity =
   | "LINENS"
   | "SHAMPOO"
   | "SOAP";
+// Booking lifecycle states (matches backend Prisma schema)
 export type BookingStatus =
-  | "PENDING"
-  | "PAID"
-  | "CONFIRMED"
-  | "CHECKED_IN"
-  | "DISPUTE_OPENED"
-  | "CHECKED_OUT"
-  | "COMPLETED"
-  | "CANCELLED";
+  | "PENDING" // Initial state, waiting for payment
+  | "PAID" // Payment confirmed, funds in escrow
+  | "CONFIRMED" // Deprecated - use PAID instead
+  | "CHECKED_IN" // User has checked in
+  | "DISPUTE_OPENED" // Either user or realtor opened a dispute
+  | "CHECKED_OUT" // User has checked out
+  | "COMPLETED" // All funds released, booking finished
+  | "CANCELLED"; // Booking cancelled before check-in
+
+// Payment money flow states (matches backend Prisma schema)
 export type PaymentStatus =
-  | "PENDING"
-  | "COMPLETED"
-  | "FAILED"
-  | "REFUNDED"
-  | "PARTIALLY_REFUNDED";
-export type PaymentMethod = "FLUTTERWAVE";
+  | "INITIATED" // Payment process started
+  | "PENDING" // Waiting for payment provider confirmation (deprecated)
+  | "ESCROW_HELD" // Room fee + security deposit held in escrow
+  | "ROOM_FEE_SPLIT_RELEASED" // 90% to realtor, 10% to platform (after 1-hour dispute window)
+  | "RELEASED_TO_REALTOR" // Full escrow released to realtor
+  | "REFUNDED_TO_CUSTOMER" // Full refund to customer
+  | "PARTIAL_PAYOUT_REALTOR" // Partial payout after dispute settlement
+  | "COMPLETED" // All transactions completed (deprecated - use specific states)
+  | "FAILED"; // Payment failed
+
+// Payment gateway providers
+export type PaymentMethod = "PAYSTACK" | "FLUTTERWAVE";
+
+// Payout processing states (matches backend Prisma schema)
+export type PayoutStatus =
+  | "PENDING" // Payment received, waiting for check-in
+  | "READY" // Check-in time reached, ready to transfer
+  | "PROCESSING" // Transfer initiated
+  | "COMPLETED" // Successfully paid out
+  | "FAILED"; // Payout failed
+
+// Refund tier based on cancellation timing (matches backend Prisma schema)
+export type RefundTier =
+  | "EARLY" // 24+ hours before check-in (90/7/3 split: Guest/Realtor/Platform)
+  | "MEDIUM" // 12-24 hours before check-in (70/20/10 split)
+  | "LATE" // 0-12 hours before check-in (0/80/20 split)
+  | "NONE"; // After check-in or no refund
 export type ReviewType =
   | "GUEST_TO_PROPERTY"
   | "GUEST_TO_REALTOR"
@@ -237,17 +261,46 @@ export interface Booking {
 export interface Payment {
   id: string;
   bookingId: string;
+  userId: string;
   amount: number;
   currency: string;
   method: PaymentMethod;
   reference?: string;
-  providerId?: string;
-  providerTransactionId?: string;
+  providerId?: string; // "PAYSTACK" or "FLUTTERWAVE"
   status: PaymentStatus;
-  paidAt?: Date;
-  refundedAt?: Date;
-  refundAmount?: number;
+
+  // Payment breakdown (matches backend Prisma schema)
+  roomFeeAmount: number;
+  cleaningFeeAmount: number;
+  securityDepositAmount: number;
+  serviceFeeAmount: number;
+  platformFeeAmount: number;
+
+  // Escrow tracking
+  roomFeeInEscrow: boolean;
+  depositInEscrow: boolean;
+  roomFeeReleasedAt?: Date;
+  depositReleasedAt?: Date;
+
+  // Payout tracking
+  cleaningFeePaidOut: boolean;
+  serviceFeeCollected: boolean;
+  roomFeeSplitDone: boolean;
+  depositRefunded: boolean;
+
+  // Legacy fields
   metadata?: Record<string, any>;
+  paidAt?: Date;
+  refundAmount?: number;
+  providerTransactionId?: string;
+  refundedAt?: Date;
+  commissionPaidOut?: boolean;
+  commissionRate?: number;
+  payoutDate?: Date;
+  payoutReference?: string;
+  platformCommission?: number;
+  realtorEarnings?: number;
+
   createdAt: Date;
   updatedAt: Date;
 
@@ -674,15 +727,26 @@ export interface SupportAttachment {
 export interface Dispute {
   id: string;
   bookingId: string;
-  realtorId: string;
-  guestId: string;
-  category: "REFUND" | "DAMAGE" | "CANCELLATION" | "QUALITY" | "OTHER";
-  status: "PENDING" | "UNDER_REVIEW" | "RESOLVED" | "ESCALATED";
-  amount?: number;
-  description: string;
-  evidence?: string[];
-  resolution?: string;
+  disputeType: "USER_DISPUTE" | "REALTOR_DISPUTE";
+  status:
+    | "OPEN"
+    | "AWAITING_RESPONSE"
+    | "NEGOTIATION"
+    | "AGREED"
+    | "ADMIN_REVIEW"
+    | "RESOLVED"
+    | "REJECTED";
+  openedBy: string;
+  openedAt: Date;
+  closedAt?: Date;
+  outcome?: string;
+  agreedAmount?: number;
+  evidence?: any; // JSON array of photo/video URLs
+  messages?: any; // JSON array of dispute messages
+  escalatedToAdmin: boolean;
+  adminId?: string;
+  adminNotes?: string;
+  adminResolvedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
-  resolvedAt?: Date;
 }

@@ -6,8 +6,10 @@ export { paymentService } from "./payments";
 export { reviewService } from "./reviews";
 export { realtorService } from "./realtors";
 export { refundService } from "./refunds";
+export { disputeService } from "./disputes";
 export { adminService } from "./admin";
 export { analyticsService } from "./analytics";
+export { escrowService } from "./escrow";
 
 // Export API client and types
 export { apiClient, type ApiResponse, type PaginatedResponse } from "./api";

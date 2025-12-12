@@ -109,7 +109,7 @@ export const processBookingRefund = async (bookingId: string) => {
   await prisma.payment.update({
     where: { id: booking.payment.id },
     data: {
-      status: "PARTIAL_REFUND",
+      status: "REFUNDED_TO_CUSTOMER",
       refundAmount: refundSplit.customerRefund,
       refundedAt: new Date(),
       platformCommission: refundSplit.stayzaPayout,

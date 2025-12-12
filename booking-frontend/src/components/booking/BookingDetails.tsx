@@ -19,6 +19,10 @@ import {
   Home,
 } from "lucide-react";
 import { Booking } from "../../types";
+import {
+  getPaymentStatusColor,
+  formatPaymentStatus,
+} from "@/utils/bookingEnums";
 
 interface BookingDetailsProps {
   booking: Booking;
@@ -141,7 +145,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           <p className="text-gray-600">#{booking.id.slice(-8).toUpperCase()}</p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col items-end space-y-2">
           <span
             className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(
               booking.status
@@ -149,6 +153,19 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           >
             {getStatusText(booking.status)}
           </span>
+
+          {/* Payment Status Badge */}
+          {booking.paymentStatus &&
+            (() => {
+              const colors = getPaymentStatusColor(booking.paymentStatus);
+              return (
+                <span
+                  className={`px-4 py-2 rounded-full text-sm font-medium ${colors.bg} ${colors.text}`}
+                >
+                  Payment: {formatPaymentStatus(booking.paymentStatus)}
+                </span>
+              );
+            })()}
         </div>
       </div>
 
@@ -262,7 +279,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <div>
                 <div className="text-sm text-gray-600 mb-1">Guests</div>
                 <div className="font-medium text-gray-900">
-                  {booking.totalGuests} {booking.totalGuests === 1 ? "guest" : "guests"}
+                  {booking.totalGuests}{" "}
+                  {booking.totalGuests === 1 ? "guest" : "guests"}
                 </div>
               </div>
 
