@@ -25,6 +25,7 @@ function GuestRegistrationContent() {
   // Use the reusable realtor branding hook
   const {
     realtorBranding,
+    realtorId, // Now directly available from the hook
     brandColor: primaryColor, // 60% - Primary brand color for backgrounds and dominant elements
     secondaryColor, // 30% - Secondary color for text and borders
     accentColor, // 10% - Accent color for CTAs and highlights
@@ -36,7 +37,6 @@ function GuestRegistrationContent() {
 
   // State for hydration-safe subdomain detection
   const [realtorSubdomain, setRealtorSubdomain] = useState<string | null>(null);
-  const [realtorId, setRealtorId] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
 
   // Handle client-side hydration
@@ -45,13 +45,6 @@ function GuestRegistrationContent() {
     const subdomain = getRealtorSubdomain();
     setRealtorSubdomain(subdomain);
   }, []);
-
-  // Extract realtorId from branding data
-  React.useEffect(() => {
-    if (realtorBranding && "id" in realtorBranding) {
-      setRealtorId((realtorBranding as any).id);
-    }
-  }, [realtorBranding]);
 
   const [data, setData] = useState<GuestRegistrationData>({
     fullName: "",

@@ -189,15 +189,31 @@ export const getAllRealtors = async (params?: {
   return response.data as RealtorListResponse;
 };
 
+export const updateRealtorStatus = async (
+  realtorId: string,
+  action: "approve" | "reject" | "suspend" | "reinstate",
+  data?: { reason?: string; notes?: string; durationDays?: number }
+): Promise<void> => {
+  await apiClient.patch(`/admin/realtors/${realtorId}/status`, {
+    action,
+    ...data,
+  });
+};
+
 export const approveRealtor = async (realtorId: string): Promise<void> => {
-  await apiClient.post(`/admin/realtors/${realtorId}/approve`);
+  await apiClient.patch(`/admin/realtors/${realtorId}/status`, {
+    action: "approve",
+  });
 };
 
 export const rejectRealtor = async (
   realtorId: string,
   reason: string
 ): Promise<void> => {
-  await apiClient.post(`/admin/realtors/${realtorId}/reject`, { reason });
+  await apiClient.patch(`/admin/realtors/${realtorId}/status`, {
+    action: "reject",
+    reason,
+  });
 };
 
 export const suspendRealtor = async (
@@ -205,7 +221,8 @@ export const suspendRealtor = async (
   reason: string,
   durationDays?: number
 ): Promise<void> => {
-  await apiClient.post(`/admin/realtors/${realtorId}/suspend`, {
+  await apiClient.patch(`/admin/realtors/${realtorId}/status`, {
+    action: "suspend",
     reason,
     durationDays,
   });
@@ -215,7 +232,10 @@ export const reinstateRealtor = async (
   realtorId: string,
   notes?: string
 ): Promise<void> => {
-  await apiClient.post(`/admin/realtors/${realtorId}/reinstate`, { notes });
+  await apiClient.patch(`/admin/realtors/${realtorId}/status`, {
+    action: "reinstate",
+    notes,
+  });
 };
 
 // =====================================================
@@ -397,11 +417,11 @@ export const getNotifications = async (params?: {
 export const markNotificationAsRead = async (
   notificationId: string
 ): Promise<void> => {
-  await apiClient.put(`/admin/notifications/${notificationId}/read`);
+  await apiClient.patch("/admin/system/notifications/read", { notificationId });
 };
 
 export const markAllNotificationsAsRead = async (): Promise<void> => {
-  await apiClient.put("/admin/notifications/mark-all-read");
+  await apiClient.patch("/admin/system/notifications/read", {});
 };
 
 // =====================================================

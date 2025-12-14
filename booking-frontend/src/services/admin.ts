@@ -26,10 +26,12 @@ export interface RealtorSuspensionData {
   reason: string;
   notes?: string;
   suspendedUntil?: Date;
+  durationDays?: number;
 }
 
 export interface RealtorApprovalData {
   approvalNotes?: string;
+  notes?: string;
 }
 
 export interface PlatformAnalytics {
@@ -140,13 +142,26 @@ export const adminService = {
     return response as PaginatedResponse<AdminRealtorResponse>;
   },
 
+  updateRealtorStatus: async (
+    realtorId: string,
+    action: "approve" | "reject" | "suspend" | "reinstate",
+    data?: { reason?: string; notes?: string; durationDays?: number }
+  ): Promise<AdminRealtorResponse> => {
+    const response = await apiClient.patch<AdminRealtorResponse>(
+      `/admin/realtors/${realtorId}/status`,
+      { action, ...data }
+    );
+    return response.data;
+  },
+
+  // Legacy wrappers for backward compatibility
   approveRealtor: async (
     realtorId: string,
     data: RealtorApprovalData
   ): Promise<AdminRealtorResponse> => {
-    const response = await apiClient.post<AdminRealtorResponse>(
-      `/admin/realtors/${realtorId}/approve`,
-      data
+    const response = await apiClient.patch<AdminRealtorResponse>(
+      `/admin/realtors/${realtorId}/status`,
+      { action: "approve", notes: data.notes }
     );
     return response.data;
   },
@@ -155,9 +170,9 @@ export const adminService = {
     realtorId: string,
     reason: string
   ): Promise<AdminRealtorResponse> => {
-    const response = await apiClient.post<AdminRealtorResponse>(
-      `/admin/realtors/${realtorId}/reject`,
-      { reason }
+    const response = await apiClient.patch<AdminRealtorResponse>(
+      `/admin/realtors/${realtorId}/status`,
+      { action: "reject", reason }
     );
     return response.data;
   },
@@ -166,16 +181,23 @@ export const adminService = {
     realtorId: string,
     data: RealtorSuspensionData
   ): Promise<AdminRealtorResponse> => {
-    const response = await apiClient.post<AdminRealtorResponse>(
-      `/admin/realtors/${realtorId}/suspend`,
-      data
+    const response = await apiClient.patch<AdminRealtorResponse>(
+      `/admin/realtors/${realtorId}/status`,
+      {
+        action: "suspend",
+        reason: data.reason,
+        durationDays: data.durationDays,
+      }
     );
     return response.data;
   },
 
-  reactivateRealtor: async (realtorId: string): Promise<AdminRealtorResponse> => {
-    const response = await apiClient.post<AdminRealtorResponse>(
-      `/admin/realtors/${realtorId}/reactivate`
+  reactivateRealtor: async (
+    realtorId: string
+  ): Promise<AdminRealtorResponse> => {
+    const response = await apiClient.patch<AdminRealtorResponse>(
+      `/admin/realtors/${realtorId}/status`,
+      { action: "reinstate" }
     );
     return response.data;
   },

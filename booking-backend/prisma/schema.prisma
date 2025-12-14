@@ -41,6 +41,8 @@ model User {
    referredByRealtor        Realtor?                @relation("ReferredGuests", fields: [referredByRealtorId], references: [id])
    openedDisputes           Dispute[]               @relation("DisputeOpener")
    adminDisputes            Dispute[]               @relation("DisputeAdmin")
+   sentMessages             Message[]               @relation("SentMessages")
+   receivedMessages         Message[]               @relation("ReceivedMessages")
 
    @@map("users")
 }
@@ -122,11 +124,20 @@ model Property {
    serviceFee          Decimal?        @db.Decimal(10, 2)
    cleaningFee         Decimal?        @db.Decimal(10, 2)
    securityDeposit     Decimal?        @db.Decimal(10, 2)
+   // Check-in/out and access information
+   checkInTime         String?
+   checkOutTime        String?
+   accessInstructions  String?         @db.Text
+   houseRules          String?         @db.Text
+   wifiName            String?
+   wifiPassword        String?
+   parkingInstructions String?         @db.Text
    bookings            Booking[]
    notifications       Notification[]
    realtor             Realtor         @relation(fields: [realtorId], references: [id], onDelete: Cascade)
    images              PropertyImage[]
    reviews             Review[]
+   messages            Message[]
 
    @@map("properties")
 }
@@ -187,6 +198,7 @@ model Booking {
    review         Review?
    disputes       Dispute[]
    escrowEvents   EscrowEvent[]
+   messages       Message[]
 
    @@map("bookings")
 }
@@ -663,4 +675,73 @@ model JobLock {
    @@index([jobName])
    @@index([expiresAt])
    @@map("job_locks")
+}
+
+model WebhookEvent {
+   id          String   @id @default(cuid())
+   provider    String // PAYSTACK or FLUTTERWAVE
+   eventId     String   @unique // Webhook event ID from provider
+   eventType   String // charge.success, transfer.success, etc.
+   status      String // PROCESSED, FAILED, DUPLICATE
+   payload     Json // Full webhook payload for debugging
+   processedAt DateTime @default(now())
+   metadata    Json? // Additional metadata (booking ID, payment ID, etc.)
+
+   @@index([eventId])
+   @@index([provider])
+   @@index([processedAt])
+   @@map("webhook_events")
+}
+
+model Message {
+   id          String              @id @default(cuid())
+   content     String              @db.Text
+   type        MessageType         @default(BOOKING_MESSAGE)
+   isRead      Boolean             @default(false)
+   readAt      DateTime?
+   createdAt   DateTime            @default(now())
+   updatedAt   DateTime            @updatedAt
+   // Context: property inquiry or booking conversation
+   propertyId  String?
+   bookingId   String?
+   // Sender and recipient
+   senderId    String
+   recipientId String
+   // Filtering metadata
+   wasFiltered Boolean             @default(false)
+   violations  String[]            @default([])
+   // Relations
+   property    Property?           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+   booking     Booking?            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   sender      User                @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+   recipient   User                @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+   attachments MessageAttachment[]
+
+   @@index([propertyId])
+   @@index([bookingId])
+   @@index([senderId])
+   @@index([recipientId])
+   @@index([createdAt])
+   @@index([isRead])
+   @@map("messages")
+}
+
+model MessageAttachment {
+   id        String   @id @default(cuid())
+   messageId String
+   url       String
+   type      String // IMAGE, DOCUMENT
+   filename  String
+   size      Int
+   createdAt DateTime @default(now())
+   message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+   @@index([messageId])
+   @@map("message_attachments")
+}
+
+enum MessageType {
+   INQUIRY // Pre-booking Q&A about property (limited)
+   BOOKING_MESSAGE // Regular message within active booking (full messaging)
+   SYSTEM // System-generated messages (check-in info, access codes, etc.)
 }

@@ -76,16 +76,22 @@ export const paymentService = {
     }>("/payments/initialize-paystack", data);
 
     console.log("📦 Raw API response:", response);
+    console.log("📦 response.data:", response.data);
+    console.log("📦 response.data.data:", response.data?.data);
 
     if (!response || !response.data) {
       console.error("❌ Invalid response:", response);
       throw new Error("Invalid response from payment API");
     }
 
-    // apiClient returns res.data which contains { success, message, data }
-    // So we need to access response.data.data for the actual payload
-    const responseData = response.data.data;
+    // Check if data is nested or at top level
+    const responseData = response.data.data || response.data;
     console.log("✅ Parsed response data:", responseData);
+
+    if (!responseData || !responseData.authorizationUrl) {
+      console.error("❌ No authorizationUrl in response:", response);
+      throw new Error("No authorization URL returned from payment API");
+    }
 
     return {
       authorizationUrl: responseData.authorizationUrl,
@@ -131,16 +137,22 @@ export const paymentService = {
     }>("/payments/initialize-flutterwave", data);
 
     console.log("📦 Raw API response:", response);
+    console.log("📦 response.data:", response.data);
+    console.log("📦 response.data.data:", response.data?.data);
 
     if (!response || !response.data) {
       console.error("❌ Invalid response:", response);
       throw new Error("Invalid response from payment API");
     }
 
-    // apiClient returns res.data which contains { success, message, data }
-    // So we need to access response.data.data for the actual payload
-    const responseData = response.data.data;
+    // Check if data is nested or at top level
+    const responseData = response.data.data || response.data;
     console.log("✅ Parsed response data:", responseData);
+
+    if (!responseData || !responseData.authorizationUrl) {
+      console.error("❌ No authorizationUrl in response:", response);
+      throw new Error("No authorization URL returned from payment API");
+    }
 
     return {
       authorizationUrl: responseData.authorizationUrl,

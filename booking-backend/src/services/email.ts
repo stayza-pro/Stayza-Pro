@@ -1254,3 +1254,100 @@ export const sendRefundProcessedToGuest = async (
   };
   return sendEmail(to, template);
 };
+
+/**
+ * Send commission rate change notification to realtor
+ */
+export const sendCommissionRateChangeEmail = async (
+  to: string,
+  data: {
+    realtorFirstName: string;
+    oldRate: number;
+    newRate: number;
+    reason: string;
+    effectiveDate?: Date;
+  }
+) => {
+  const { realtorFirstName, oldRate, newRate, reason, effectiveDate } = data;
+
+  const template = {
+    subject: `Important: Commission Rate Update - Now ${(newRate * 100).toFixed(
+      1
+    )}%`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .rate-box { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea; }
+          .rate-change { font-size: 24px; font-weight: bold; color: #667eea; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Commission Rate Update</h1>
+          </div>
+          <div class="content">
+            <p>Hello ${realtorFirstName || "Realtor"},</p>
+            
+            <p>We're writing to inform you of an important update to our commission structure.</p>
+            
+            <div class="rate-box">
+              <p><strong>Previous Rate:</strong> ${(oldRate * 100).toFixed(
+                1
+              )}%</p>
+              <p class="rate-change">New Rate: ${(newRate * 100).toFixed(
+                1
+              )}%</p>
+              <p><strong>Effective Date:</strong> ${
+                effectiveDate
+                  ? new Date(effectiveDate).toLocaleDateString()
+                  : "Immediately"
+              }</p>
+            </div>
+            
+            <h3>Reason for Change:</h3>
+            <p>${reason}</p>
+            
+            <h3>What This Means:</h3>
+            <p>${
+              newRate > oldRate
+                ? `The platform commission will increase by ${(
+                    (newRate - oldRate) *
+                    100
+                  ).toFixed(
+                    1
+                  )}%. This means for every ₦100,000 booking, the commission will be ₦${(
+                    newRate * 100000
+                  ).toFixed(0)} instead of ₦${(oldRate * 100000).toFixed(0)}.`
+                : newRate < oldRate
+                ? `Great news! The platform commission will decrease by ${(
+                    (oldRate - newRate) *
+                    100
+                  ).toFixed(1)}%. This means you'll keep more of your earnings!`
+                : "The rate remains unchanged."
+            }</p>
+            
+            <p>If you have any questions or concerns about this change, please don't hesitate to contact our support team.</p>
+            
+            <p>Thank you for being a valued partner!</p>
+            
+            <p>Best regards,<br>The Stayza Team</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  return sendEmail(to, template);
+};

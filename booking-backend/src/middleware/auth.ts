@@ -5,6 +5,9 @@ import { prisma } from "@/config/database";
 import { config } from "@/config";
 import { AuthenticatedRequest, JWTPayload } from "@/types";
 
+// Re-export types for convenience
+export { AuthenticatedRequest };
+
 export const authenticate = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -384,7 +387,10 @@ export const requireRealtorDashboardAccess = async (
       cacStatus: realtor.cacStatus,
       canAppeal: realtor.canAppeal,
       cacRejectionReason: realtor.cacRejectionReason,
-      isApproved: realtor.status === 'APPROVED' && realtor.cacStatus === 'APPROVED' && !realtor.suspendedAt
+      isApproved:
+        realtor.status === "APPROVED" &&
+        realtor.cacStatus === "APPROVED" &&
+        !realtor.suspendedAt,
     } as any;
 
     next();

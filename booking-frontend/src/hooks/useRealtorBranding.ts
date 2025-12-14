@@ -4,6 +4,7 @@ import { useCurrentUser } from "./useCurrentUser";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 
 interface RealtorBranding {
+  id?: string;
   businessName: string;
   tagline?: string;
   primaryColor: string;
@@ -65,6 +66,7 @@ export function useRealtorBranding() {
           console.log("✅ Subdomain API response:", response.data);
           if (response.data) {
             const newBranding = {
+              id: response.data.id, // Include realtor ID
               businessName: response.data.businessName,
               tagline: response.data.tagline,
               primaryColor: response.data.colors.primary,
@@ -150,6 +152,11 @@ export function useRealtorBranding() {
     );
   };
 
+  // Helper function to get realtor ID
+  const getRealtorId = () => {
+    return realtorBranding?.id || null;
+  };
+
   // Helper function to get description with fallback
   const getDescription = () => {
     return (
@@ -178,6 +185,7 @@ export function useRealtorBranding() {
   const result = {
     realtorBranding,
     isLoading,
+    realtorId: getRealtorId(),
     brandColor: getBrandColor(),
     secondaryColor: getSecondaryColor(),
     accentColor: getAccentColor(),

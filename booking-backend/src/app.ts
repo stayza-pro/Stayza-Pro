@@ -10,24 +10,25 @@ import {
   setupGlobalErrorHandlers,
 } from "@/middleware/errorHandler";
 import { apiLimiter } from "@/middleware/rateLimiter";
-import { swaggerSpec, swaggerUiOptions } from "@/config/swagger";
+import { swaggerSpec } from "@/config/swagger";
 
 // Import routes
-import authRoutes from "@/routes/authRoutes";
+import authRoutes from "@/routes/auth.routes";
 import realtorRoutes from "@/routes/realtorRoutes";
-import adminRoutes from "@/routes/adminRoutes";
-import propertyRoutes from "@/routes/propertyRoutes";
-import bookingRoutes from "@/routes/bookingRoutes";
-import paymentRoutes from "@/routes/paymentRoutes";
-import reviewRoutes from "@/routes/reviewRoutes";
-import webhookRoutes from "@/routes/webhookRoutes";
-import emailRoutes from "@/routes/emailRoutes";
-import notificationRoutes from "@/routes/notificationRoutes";
-import refundRoutes from "@/routes/refundRoutes";
-import settingsRoutes from "@/routes/settingsRoutes";
-import brandingRoutes from "@/routes/brandingRoutes";
+import adminRoutes from "@/routes/admin.routes";
+import propertyRoutes from "@/routes/property.routes";
+import bookingRoutes from "@/routes/booking.routes";
+import paymentRoutes from "@/routes/payment.routes";
+import reviewRoutes from "@/routes/review.routes";
+import webhookRoutes from "@/routes/webhook.routes";
+import emailRoutes from "@/routes/email.routes";
+import notificationRoutes from "@/routes/notification.routes";
+import refundRoutes from "@/routes/refund.routes";
+import settingsRoutes from "@/routes/settings.routes";
+import brandingRoutes from "@/routes/branding.routes";
 import disputeRoutes from "@/routes/dispute.routes";
-import systemRoutes from "@/routes/systemRoutes";
+import systemRoutes from "@/routes/system.routes";
+import messageRoutes from "@/routes/message.routes";
 
 const app = express();
 
@@ -41,51 +42,39 @@ app.use("/api/webhooks", webhookRoutes);
 app.use(helmet()); // Security headers
 app.use(compression()); // Gzip compression
 
-// Configure CORS for multi-tenant subdomain architecture
+// Simplified CORS configuration
 const corsOptions = {
   origin: (
     origin: string | undefined,
     callback: (err: Error | null, allow?: boolean) => void
   ) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Development: Allow everything
+    if (config.NODE_ENV === "development") {
+      return callback(null, true);
+    }
+
+    // Production: Allow specific domains and their subdomains
     if (!origin) return callback(null, true);
 
-    // Define allowed origins for development
-    const allowedOrigins = [
-      config.FRONTEND_URL, // http://localhost:3000
-      "http://localhost:3000",
-      "https://localhost:3000",
+    const productionDomain = process.env.PRODUCTION_DOMAIN || "stayza.pro";
+    const allowedDomains = [
+      productionDomain,
+      `www.${productionDomain}`,
+      config.FRONTEND_URL,
     ];
 
-    // Development patterns (localhost)
-    const adminPatternDev = /^https?:\/\/admin\.localhost(:\d+)?$/;
-    const subdomainPatternDev = /^https?:\/\/[a-zA-Z0-9-]+\.localhost(:\d+)?$/;
-
-    // Production patterns (replace 'stayza.com' with your actual domain)
-    const productionDomain = process.env.PRODUCTION_DOMAIN || "stayza.com";
-    const adminPatternProd = new RegExp(
-      `^https?:\/\/admin\\.${productionDomain.replace(".", "\\.")}$`
+    // Check if origin ends with allowed domain (supports all subdomains)
+    const isAllowed = allowedDomains.some(
+      (domain) =>
+        origin === `https://${domain}` ||
+        origin === `http://${domain}` ||
+        origin.endsWith(`.${productionDomain}`)
     );
-    const subdomainPatternProd = new RegExp(
-      `^https?:\/\/[a-zA-Z0-9-]+\\.${productionDomain.replace(".", "\\.")}$`
-    );
-    const mainDomainProd = new RegExp(
-      `^https?:\/\/(www\\.)?${productionDomain.replace(".", "\\.")}$`
-    );
-
-    // Check if origin is allowed
-    const isAllowed =
-      allowedOrigins.includes(origin) ||
-      adminPatternDev.test(origin) ||
-      subdomainPatternDev.test(origin) ||
-      adminPatternProd.test(origin) ||
-      subdomainPatternProd.test(origin) ||
-      mainDomainProd.test(origin);
 
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}`);
+      console.warn(`⚠️ CORS blocked: ${origin}`);
       callback(new Error("Not allowed by CORS"), false);
     }
   },
@@ -115,23 +104,162 @@ app.use((req, res, next) => {
 app.use("/api/", apiLimiter);
 
 // Health check endpoints
-import {
-  healthCheck,
-  detailedHealthCheck,
-  readinessProbe,
-  livenessProbe,
-} from "@/controllers/healthController";
+app.get("/health", async (req, res) => {
+  const startTime = Date.now();
+  const health: any = {
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: process.env.npm_package_version || "unknown",
+    services: { database: { status: "healthy" } },
+    system: {
+      memory: { used: 0, total: 0, percentage: 0 },
+      cpu: { usage: 0 },
+    },
+  };
 
-app.get("/health", healthCheck);
-app.get("/health/detailed", detailedHealthCheck);
-app.get("/ready", readinessProbe);
-app.get("/live", livenessProbe);
+  try {
+    const dbStartTime = Date.now();
+    const { prisma } = await import("@/config/database");
+    await prisma.$queryRaw`SELECT 1`;
+    health.services.database = {
+      status: "healthy",
+      responseTime: Date.now() - dbStartTime,
+    };
+  } catch (error) {
+    health.services.database = {
+      status: "unhealthy",
+      error: error instanceof Error ? error.message : "Unknown database error",
+    };
+    health.status = "unhealthy";
+  }
 
-app.use(
-  "/api-docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, swaggerUiOptions)
-);
+  const memUsage = process.memoryUsage();
+  health.system.memory = {
+    used: Math.round(memUsage.rss / 1024 / 1024),
+    total: Math.round(memUsage.heapTotal / 1024 / 1024),
+    percentage: Math.round((memUsage.rss / memUsage.heapTotal) * 100),
+  };
+
+  const cpuUsage = process.cpuUsage();
+  health.system.cpu = {
+    usage: Math.round((cpuUsage.user + cpuUsage.system) / 1000),
+  };
+
+  if (health.services.database.status === "unhealthy")
+    health.status = "unhealthy";
+  else if (health.system.memory.percentage > 90) health.status = "degraded";
+
+  const httpStatus =
+    health.status === "healthy"
+      ? 200
+      : health.status === "degraded"
+      ? 200
+      : 503;
+  res.status(httpStatus).json({
+    success: health.status !== "unhealthy",
+    data: health,
+    responseTime: Date.now() - startTime,
+  });
+});
+
+app.get("/health/detailed", async (req, res) => {
+  const checks = [];
+  let overallStatus = "healthy";
+
+  try {
+    const dbStart = Date.now();
+    const { prisma } = await import("@/config/database");
+    await prisma.user.count();
+    checks.push({
+      service: "database",
+      status: "healthy",
+      responseTime: Date.now() - dbStart,
+      message: "Database connection successful",
+    });
+  } catch (error) {
+    checks.push({
+      service: "database",
+      status: "unhealthy",
+      error:
+        error instanceof Error ? error.message : "Database connection failed",
+    });
+    overallStatus = "unhealthy";
+  }
+
+  const requiredEnvVars = [
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "PAYSTACK_SECRET_KEY",
+    "SMTP_HOST",
+  ];
+  const missingEnvVars = requiredEnvVars.filter(
+    (varName) => !process.env[varName]
+  );
+
+  if (missingEnvVars.length > 0) {
+    checks.push({
+      service: "environment",
+      status: "unhealthy",
+      error: `Missing environment variables: ${missingEnvVars.join(", ")}`,
+    });
+    overallStatus = "unhealthy";
+  } else {
+    checks.push({
+      service: "environment",
+      status: "healthy",
+      message: "All required environment variables are present",
+    });
+  }
+
+  res.status(overallStatus === "healthy" ? 200 : 503).json({
+    success: overallStatus !== "unhealthy",
+    status: overallStatus,
+    timestamp: new Date().toISOString(),
+    checks,
+    summary: {
+      total: checks.length,
+      healthy: checks.filter((c) => c.status === "healthy").length,
+      unhealthy: checks.filter((c) => c.status === "unhealthy").length,
+    },
+  });
+});
+
+app.get("/ready", async (req, res) => {
+  try {
+    const { prisma } = await import("@/config/database");
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({
+      success: true,
+      ready: true,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      ready: false,
+      error: error instanceof Error ? error.message : "Database not ready",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+app.get("/live", (req, res) => {
+  res.status(200).json({
+    success: true,
+    alive: true,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Swagger JSON endpoint
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // API routes
 app.use("/api/auth", authRoutes);
@@ -148,6 +276,7 @@ app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/branding", brandingRoutes);
 app.use("/api/disputes", disputeRoutes);
 app.use("/api/admin/system", systemRoutes);
+app.use("/api/messages", messageRoutes);
 
 // 404 handler
 app.use(notFound);

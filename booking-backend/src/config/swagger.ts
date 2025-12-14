@@ -1,160 +1,258 @@
-import swaggerJsdoc from "swagger-jsdoc";
-import { SwaggerUiOptions } from "swagger-ui-express";
-import { config } from "@/config";
+// Stayza - Multi-Tenant Realtor Booking System
+import swaggerJsdoc = require("swagger-jsdoc");
+import * as swaggerUi from "swagger-ui-express";
 
-const definition: swaggerJsdoc.OAS3Definition = {
-  openapi: "3.0.0",
-  info: {
-    title: "Booking System API",
-    version: "1.0.0",
-    description:
-      "A comprehensive booking system API with authentication, property management, bookings, payments, and reviews",
-    contact: {
-      name: "API Support",
-      email: "support@bookingsystem.com",
+const options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Stayza Booking API",
+      version: "1.0.0",
+      description: "Stayza - Multi-Tenant Realtor Booking System API",
     },
-    license: {
-      name: "MIT",
-      url: "https://opensource.org/licenses/MIT",
-    },
-  },
-  servers: [
-    {
-      url:
-        config.NODE_ENV === "production"
-          ? "https://api.yoursite.com"
-          : `http://localhost:${config.PORT}`,
-      description:
-        config.NODE_ENV === "production"
-          ? "Production server"
-          : "Development server",
-    },
-  ],
-  tags: [
-    {
-      name: "Authentication",
-      description: "User authentication and authorization endpoints",
-    },
-    {
-      name: "Properties",
-      description: "Property management endpoints",
-    },
-    {
-      name: "Bookings",
-      description: "Booking management and availability endpoints",
-    },
-    {
-      name: "Payments",
-      description: "Payment processing with Stripe and Paystack",
-    },
-    {
-      name: "Reviews",
-      description: "Review and rating system endpoints",
-    },
-    {
-      name: "Realtors",
-      description: "Realtor onboarding and branding endpoints",
-    },
-    {
-      name: "Admin",
-      description: "Platform administration endpoints",
-    },
-    {
-      name: "Webhooks",
-      description: "Incoming webhook handlers",
-    },
-  ],
-  components: {
-    securitySchemes: {
-      BearerAuth: {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        description: "Enter your JWT token",
+    servers: [
+      {
+        url: "http://localhost:5050",
+        description: "Development server (Local)",
       },
-    },
-    schemas: {
-      ApiError: {
-        type: "object",
-        properties: {
-          success: {
-            type: "boolean",
-            example: false,
+      {
+        url: "https://your-production-url.com",
+        description: "Production server",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+      schemas: {
+        Booking: {
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+              description: "Unique booking identifier",
+            },
+            propertyId: {
+              type: "string",
+              description: "Property ID",
+            },
+            userId: {
+              type: "string",
+              description: "User ID",
+            },
+            checkIn: {
+              type: "string",
+              format: "date",
+              description: "Check-in date",
+            },
+            checkOut: {
+              type: "string",
+              format: "date",
+              description: "Check-out date",
+            },
+            guests: {
+              type: "integer",
+              description: "Number of guests",
+            },
+            totalAmount: {
+              type: "number",
+              description: "Total booking amount",
+            },
+            status: {
+              type: "string",
+              enum: ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"],
+              description: "Booking status",
+            },
+            createdAt: {
+              type: "string",
+              format: "date-time",
+              description: "Creation timestamp",
+            },
+            updatedAt: {
+              type: "string",
+              format: "date-time",
+              description: "Last update timestamp",
+            },
           },
-          message: {
-            type: "string",
-            description: "Error message",
+        },
+        User: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            email: { type: "string" },
+            firstName: { type: "string" },
+            lastName: { type: "string" },
+            role: {
+              type: "string",
+              enum: ["CUSTOMER", "ADMIN"],
+            },
           },
-          errors: {
-            type: "array",
-            items: {
+        },
+        Property: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            title: { type: "string" },
+            description: { type: "string" },
+            pricePerNight: { type: "number" },
+            location: { type: "string" },
+          },
+        },
+        Payment: {
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+              description: "Unique payment identifier",
+            },
+            bookingId: {
+              type: "string",
+              description: "Associated booking ID",
+            },
+            amount: {
+              type: "number",
+              description: "Payment amount",
+            },
+            currency: {
+              type: "string",
+              default: "NGN",
+              description: "Payment currency",
+            },
+            status: {
+              type: "string",
+              enum: ["PENDING", "PROCESSING", "PAID", "FAILED", "REFUNDED"],
+              description: "Payment status",
+            },
+            method: {
+              type: "string",
+              enum: ["CARD", "BANK_TRANSFER", "CASH"],
+              description: "Payment method",
+            },
+            receiptUrl: {
+              type: "string",
+              nullable: true,
+              description: "Receipt filename for manual payments",
+            },
+            verifiedAt: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              description: "When payment was verified by admin",
+            },
+            adminNotes: {
+              type: "string",
+              nullable: true,
+              description: "Admin notes about payment verification",
+            },
+            createdAt: {
+              type: "string",
+              format: "date-time",
+              description: "Payment creation timestamp",
+            },
+            updatedAt: {
+              type: "string",
+              format: "date-time",
+              description: "Payment last update timestamp",
+            },
+          },
+        },
+        ManualPaymentVerificationRequest: {
+          type: "object",
+          required: ["approved"],
+          properties: {
+            approved: {
+              type: "boolean",
+              description:
+                "Whether to approve (true) or reject (false) the payment",
+            },
+            adminNotes: {
+              type: "string",
+              maxLength: 500,
+              description:
+                "Optional admin notes about the verification decision",
+            },
+          },
+        },
+        PaymentWithBookingDetails: {
+          allOf: [
+            { $ref: "#/components/schemas/Payment" },
+            {
               type: "object",
               properties: {
-                field: {
-                  type: "string",
-                  description: "Field that caused the error",
-                },
-                message: {
-                  type: "string",
-                  description: "Specific error message for the field",
+                booking: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    bookingCode: { type: "string" },
+                    checkInDate: { type: "string", format: "date" },
+                    checkOutDate: { type: "string", format: "date" },
+                    nights: { type: "integer" },
+                    total: { type: "number" },
+                    property: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        name: { type: "string" },
+                        address: { type: "string" },
+                      },
+                    },
+                    customer: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        firstName: { type: "string" },
+                        lastName: { type: "string" },
+                        email: { type: "string" },
+                        phone: { type: "string" },
+                      },
+                    },
+                  },
                 },
               },
             },
-            description: "Detailed validation errors (if applicable)",
+          ],
+        },
+        ApiResponse: {
+          type: "object",
+          properties: {
+            success: {
+              type: "boolean",
+              description: "Indicates if the request was successful",
+            },
+            message: {
+              type: "string",
+              description: "Response message",
+            },
           },
         },
-      },
-      SuccessResponse: {
-        type: "object",
-        properties: {
-          success: {
-            type: "boolean",
-            example: true,
-          },
-          message: {
-            type: "string",
-            description: "Success message",
-          },
-          data: {
-            type: "object",
-            description: "Response data",
-          },
+        ApiErrorResponse: {
+          allOf: [
+            { $ref: "#/components/schemas/ApiResponse" },
+            {
+              type: "object",
+              properties: {
+                error: {
+                  type: "string",
+                  description: "Error details",
+                },
+              },
+            },
+          ],
         },
       },
     },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
+  apis: ["./src/routes/**/*.ts"], // Path to API docs
 };
 
-const swaggerOptions: swaggerJsdoc.Options = {
-  definition,
-  apis: [
-    "./src/routes/**/*.ts",
-    "./src/controllers/**/*.ts",
-    "./dist/routes/**/*.js",
-    "./dist/controllers/**/*.js",
-  ],
-};
-
-export const swaggerSpec = swaggerJsdoc(swaggerOptions);
-
-export const swaggerUiOptions: SwaggerUiOptions = {
-  explorer: true,
-  swaggerOptions: {
-    persistAuthorization: true,
-    displayRequestDuration: true,
-    docExpansion: "none",
-    filter: true,
-    showExtensions: true,
-    showCommonExtensions: true,
-  },
-  customSiteTitle: "Booking System API Documentation",
-  customCss: `
-    .swagger-ui .topbar {
-      background-color: #1f2937;
-    }
-    .swagger-ui .topbar .download-url-wrapper .download-url-button {
-      background-color: #3b82f6;
-      border-color: #3b82f6;
-    }
-  `,
-};
+export const swaggerSpec = swaggerJsdoc(options);
+export { swaggerUi };
