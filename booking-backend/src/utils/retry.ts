@@ -157,7 +157,7 @@ function sleep(ms: number): Promise<void> {
 export async function withPaymentRetry<T>(
   operation: () => Promise<T>,
   operationName: string,
-  provider: "paystack" | "flutterwave"
+  provider: "paystack"
 ): Promise<T> {
   return withRetry(operation, `${provider.toUpperCase()} ${operationName}`, {
     maxRetries: 3,

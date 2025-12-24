@@ -464,6 +464,201 @@ router.post(
 
 /**
  * @swagger
+ * /api/disputes/{id}/resolve-guest-tier:
+ *   post:
+ *     summary: Admin resolves guest dispute with tier assignment (NEW COMMISSION FLOW)
+ *     tags: [Disputes]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tier
+ *               - adminNotes
+ *             properties:
+ *               tier:
+ *                 type: string
+ *                 enum: [TIER_1_SEVERE, TIER_2_PARTIAL, TIER_3_ABUSE]
+ *                 description: |
+ *                   TIER_1_SEVERE: 100% room fee refund (realtor clearly at fault)
+ *                   TIER_2_PARTIAL: 30% room fee refund (partial fault or minor issues)
+ *                   TIER_3_ABUSE: 0% refund (guest abuse: no evidence, false claim)
+ *               adminNotes:
+ *                 type: string
+ *                 description: Admin's explanation of the decision
+ *     responses:
+ *       200:
+ *         description: Guest dispute resolved successfully with tier
+ *       400:
+ *         description: Invalid request or dispute type
+ *       401:
+ *         description: Unauthorized - admin only
+ */
+router.post(
+  "/:id/resolve-guest-tier",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id: disputeId } = req.params;
+      const { tier, adminNotes } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      if (
+        !tier ||
+        !["TIER_1_SEVERE", "TIER_2_PARTIAL", "TIER_3_ABUSE"].includes(tier)
+      ) {
+        res.status(400).json({
+          message:
+            "Valid tier is required (TIER_1_SEVERE, TIER_2_PARTIAL, or TIER_3_ABUSE)",
+        });
+        return;
+      }
+
+      if (!adminNotes) {
+        res.status(400).json({ message: "Admin notes are required" });
+        return;
+      }
+
+      const result = await disputeService.adminResolveGuestDisputeWithTier(
+        disputeId,
+        userId,
+        tier,
+        adminNotes
+      );
+
+      res.status(200).json({
+        message: "Guest dispute resolved successfully",
+        tier,
+        refundAmount: result.refundAmount,
+        dispute: result.updatedDispute,
+        booking: result.updatedBooking,
+      });
+    } catch (error: any) {
+      logger.error("Error resolving guest dispute with tier:", error);
+      res.status(400).json({
+        message: error.message || "Failed to resolve guest dispute",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/disputes/{id}/resolve-realtor-outcome:
+ *   post:
+ *     summary: Admin resolves realtor dispute with outcome (NEW COMMISSION FLOW)
+ *     tags: [Disputes]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - outcome
+ *               - damageAmount
+ *               - adminNotes
+ *             properties:
+ *               outcome:
+ *                 type: string
+ *                 enum: [WIN, LOSS, PARTIAL]
+ *                 description: |
+ *                   WIN: Realtor gets full claimed amount from deposit
+ *                   PARTIAL: Realtor gets partial amount based on evidence
+ *                   LOSS: Realtor gets nothing, full deposit refunded to guest
+ *               damageAmount:
+ *                 type: number
+ *                 description: Amount realtor should receive (0 for LOSS, full claim for WIN, custom for PARTIAL)
+ *               adminNotes:
+ *                 type: string
+ *                 description: Admin's explanation of the decision
+ *     responses:
+ *       200:
+ *         description: Realtor dispute resolved successfully with outcome
+ *       400:
+ *         description: Invalid request or dispute type
+ *       401:
+ *         description: Unauthorized - admin only
+ */
+router.post(
+  "/:id/resolve-realtor-outcome",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id: disputeId } = req.params;
+      const { outcome, damageAmount, adminNotes } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      if (!outcome || !["WIN", "LOSS", "PARTIAL"].includes(outcome)) {
+        res.status(400).json({
+          message: "Valid outcome is required (WIN, LOSS, or PARTIAL)",
+        });
+        return;
+      }
+
+      if (damageAmount === undefined || damageAmount === null) {
+        res.status(400).json({ message: "Damage amount is required" });
+        return;
+      }
+
+      if (!adminNotes) {
+        res.status(400).json({ message: "Admin notes are required" });
+        return;
+      }
+
+      const result = await disputeService.adminResolveRealtorDisputeWithOutcome(
+        disputeId,
+        userId,
+        outcome,
+        parseFloat(damageAmount),
+        adminNotes
+      );
+
+      res.status(200).json({
+        message: "Realtor dispute resolved successfully",
+        outcome,
+        realtorReceives: result.realtorGets,
+        guestRefund: result.guestRefund,
+        dispute: result.updatedDispute,
+        booking: result.updatedBooking,
+      });
+    } catch (error: any) {
+      logger.error("Error resolving realtor dispute with outcome:", error);
+      res.status(400).json({
+        message: error.message || "Failed to resolve realtor dispute",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
  * /api/disputes/{id}:
  *   get:
  *     summary: Get dispute details by ID

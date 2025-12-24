@@ -24,29 +24,6 @@ export interface PaystackVerificationResponse {
   booking?: any;
 }
 
-export interface FlutterwaveInitializationRequest {
-  bookingId: string;
-}
-
-export interface FlutterwaveInitializationResponse {
-  authorizationUrl?: string;
-  reference?: string;
-  paymentId: string;
-  paymentStatus?: Payment["status"];
-}
-
-export interface FlutterwaveVerificationRequest {
-  reference: string;
-}
-
-export interface FlutterwaveVerificationResponse {
-  success: boolean;
-  message: string;
-  // Optional enriched payload from backend
-  payment?: Payment;
-  booking?: any;
-}
-
 export interface VerifyByBookingRequest {
   bookingId: string;
 }
@@ -120,68 +97,7 @@ export const paymentService = {
     };
   },
 
-  // Initialize Flutterwave payment for a booking (primary payment method)
-  initializeFlutterwavePayment: async (
-    data: FlutterwaveInitializationRequest
-  ): Promise<FlutterwaveInitializationResponse> => {
-    console.log("🚀 Calling Flutterwave initialization API...");
-    const response = await apiClient.post<{
-      success: boolean;
-      message: string;
-      data: {
-        authorizationUrl?: string;
-        reference?: string;
-        paymentId: string;
-        paymentStatus?: Payment["status"];
-      };
-    }>("/payments/initialize-flutterwave", data);
-
-    console.log("📦 Raw API response:", response);
-    console.log("📦 response.data:", response.data);
-    console.log("📦 response.data.data:", response.data?.data);
-
-    if (!response || !response.data) {
-      console.error("❌ Invalid response:", response);
-      throw new Error("Invalid response from payment API");
-    }
-
-    // Check if data is nested or at top level
-    const responseData = response.data.data || response.data;
-    console.log("✅ Parsed response data:", responseData);
-
-    if (!responseData || !responseData.authorizationUrl) {
-      console.error("❌ No authorizationUrl in response:", response);
-      throw new Error("No authorization URL returned from payment API");
-    }
-
-    return {
-      authorizationUrl: responseData.authorizationUrl,
-      reference: responseData.reference,
-      paymentId: responseData.paymentId,
-      paymentStatus: responseData.paymentStatus,
-    };
-  },
-
-  // Verify Flutterwave payment manually (fallback if webhook missed)
-  verifyFlutterwavePayment: async (
-    data: FlutterwaveVerificationRequest
-  ): Promise<FlutterwaveVerificationResponse> => {
-    // apiClient returns res.data which contains { success, message, data }
-    const response = await apiClient.post<{
-      success: boolean;
-      message: string;
-      data?: { payment?: Payment; booking?: any };
-    }>("/payments/verify-flutterwave", data);
-
-    return {
-      success: response.data.success,
-      message: response.data.message,
-      payment: response.data.data?.payment,
-      booking: response.data.data?.booking,
-    };
-  },
-
-  // Verify payment by booking ID (auto-detects provider and verifies)
+  // Verify payment by booking ID
   // Use this when you have the bookingId but not the payment reference
   verifyPaymentByBooking: async (
     data: VerifyByBookingRequest

@@ -132,9 +132,6 @@ router.get(
         paystack: webhookEvents.filter((e: any) =>
           e.transactionReference?.includes("PAYSTACK")
         ).length,
-        flutterwave: webhookEvents.filter((e: any) =>
-          e.transactionReference?.includes("FLW")
-        ).length,
       },
     };
 

@@ -311,6 +311,52 @@ if (require.main === module) {
   const { initializeScheduledJobs } = require("@/jobs/scheduler");
   initializeScheduledJobs();
   console.log(`⚖️  Escrow jobs initialized`);
+
+  // Start new commission flow timer jobs
+  const cron = require("node-cron");
+  const roomFeeReleaseJob = require("@/jobs/roomFeeReleaseJob");
+  const depositRefundJob = require("@/jobs/depositRefundJob");
+  const checkinFallbackJob = require("@/jobs/checkinFallbackJob");
+
+  // Room Fee Release Job (every 5 minutes)
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      console.log(
+        `⏰ Running room fee release job at ${new Date().toISOString()}`
+      );
+      await roomFeeReleaseJob.default.processRoomFeeRelease();
+    } catch (error) {
+      console.error("Room fee release job failed:", error);
+    }
+  });
+
+  // Deposit Refund Job (every 5 minutes)
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      console.log(
+        `⏰ Running deposit refund job at ${new Date().toISOString()}`
+      );
+      await depositRefundJob.default.processDepositRefunds();
+    } catch (error) {
+      console.error("Deposit refund job failed:", error);
+    }
+  });
+
+  // Check-in Fallback Job (every 5 minutes)
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      console.log(
+        `⏰ Running check-in fallback job at ${new Date().toISOString()}`
+      );
+      await checkinFallbackJob.default.processCheckinFallbacks();
+    } catch (error) {
+      console.error("Check-in fallback job failed:", error);
+    }
+  });
+
+  console.log(
+    `💰 New commission flow timer jobs started (running every 5 minutes)`
+  );
 }
 
 export default app;

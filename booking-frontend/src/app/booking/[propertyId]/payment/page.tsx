@@ -26,7 +26,6 @@ import { useAuthStore } from "@/store/authStore";
 declare global {
   interface Window {
     PaystackPop: any;
-    FlutterwaveCheckout: any;
   }
 }
 
@@ -49,9 +48,7 @@ export default function PaymentPage() {
 
   const propertyId = params.propertyId as string;
   const bookingId = searchParams.get("bookingId") || "";
-  const paymentMethod = (searchParams.get("paymentMethod") || "paystack") as
-    | "paystack"
-    | "flutterwave";
+  const paymentMethod = "paystack"; // Only Paystack supported
 
   const [paymentStatus, setPaymentStatus] = useState<
     "loading" | "ready" | "processing" | "success" | "failed"
@@ -59,40 +56,33 @@ export default function PaymentPage() {
   const [booking, setBooking] = useState<any>(null);
   const [error, setError] = useState<string>("");
   const [isPaystackLoaded, setIsPaystackLoaded] = useState(false);
-  // Removed isFlutterwaveLoaded - now using backend API
 
-  // Load payment gateway scripts
+  // Load Paystack script
   useEffect(() => {
-    // Load Paystack if selected
-    if (paymentMethod === "paystack") {
-      const paystackScript = document.createElement("script");
-      paystackScript.src = "https://js.paystack.co/v1/inline.js";
-      paystackScript.async = true;
-      paystackScript.id = "paystack-script";
+    const paystackScript = document.createElement("script");
+    paystackScript.src = "https://js.paystack.co/v1/inline.js";
+    paystackScript.async = true;
+    paystackScript.id = "paystack-script";
 
-      paystackScript.onload = () => {
-        console.log("✅ Paystack script loaded successfully");
-        setIsPaystackLoaded(true);
-      };
+    paystackScript.onload = () => {
+      console.log("✅ Paystack script loaded successfully");
+      setIsPaystackLoaded(true);
+    };
 
-      paystackScript.onerror = () => {
-        console.error("❌ Failed to load Paystack script");
-        setError("Failed to load payment system. Please refresh the page.");
-        setPaymentStatus("failed");
-      };
+    paystackScript.onerror = () => {
+      console.error("❌ Failed to load Paystack script");
+      setError("Failed to load payment system. Please refresh the page.");
+      setPaymentStatus("failed");
+    };
 
-      document.body.appendChild(paystackScript);
+    document.body.appendChild(paystackScript);
 
-      return () => {
-        if (document.body.contains(paystackScript)) {
-          document.body.removeChild(paystackScript);
-        }
-      };
-    }
-
-    // Load Flutterwave if selected - REMOVED: Now using backend API
-    // No need to load Flutterwave SDK script as payment initialization is handled by backend
-  }, [paymentMethod]);
+    return () => {
+      if (document.body.contains(paystackScript)) {
+        document.body.removeChild(paystackScript);
+      }
+    };
+  }, []);
 
   // Fetch booking details
   useEffect(() => {
@@ -153,11 +143,7 @@ export default function PaymentPage() {
       return;
     }
 
-    if (paymentMethod === "paystack") {
-      initiatePaystackPayment(currentUser);
-    } else if (paymentMethod === "flutterwave") {
-      initiateFlutterwavePayment(currentUser);
-    }
+    initiatePaystackPayment(currentUser);
   };
 
   const initiatePaystackPayment = async (currentUser: any) => {
@@ -197,42 +183,6 @@ export default function PaymentPage() {
       window.location.href = response.authorizationUrl;
     } catch (err: any) {
       console.error("❌ Paystack initialization error:", err);
-      setPaymentStatus("failed");
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to initialize payment. Please try again."
-      );
-    }
-  };
-
-  const initiateFlutterwavePayment = async (currentUser: any) => {
-    setPaymentStatus("processing");
-    setError("");
-
-    try {
-      console.log("🚀 Initializing Flutterwave payment via backend API...", {
-        bookingId: booking.id,
-        amount: booking.totalPrice,
-        currency: booking.currency,
-      });
-
-      // Call backend API to initialize payment
-      const response = await paymentService.initializeFlutterwavePayment({
-        bookingId: booking.id,
-      });
-
-      console.log("✅ Flutterwave initialization response:", response);
-
-      if (!response.authorizationUrl) {
-        throw new Error("No authorization URL received from server");
-      }
-
-      // Redirect to Flutterwave hosted payment page
-      console.log("🔗 Redirecting to:", response.authorizationUrl);
-      window.location.href = response.authorizationUrl;
-    } catch (err: any) {
-      console.error("❌ Flutterwave initialization error:", err);
       setPaymentStatus("failed");
       setError(
         err.response?.data?.message ||
@@ -601,14 +551,10 @@ export default function PaymentPage() {
                           className="font-semibold text-lg"
                           style={{ color: secondaryColor }}
                         >
-                          {paymentMethod === "paystack"
-                            ? "Paystack"
-                            : "Flutterwave"}
+                          Paystack
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {paymentMethod === "paystack"
-                            ? "Secure payment gateway"
-                            : "International payment gateway"}
+                          Secure payment gateway
                         </p>
                       </div>
                     </div>
@@ -649,8 +595,7 @@ export default function PaymentPage() {
                     <button
                       onClick={initiatePayment}
                       disabled={
-                        paymentStatus === "processing" ||
-                        (paymentMethod === "paystack" && !isPaystackLoaded)
+                        paymentStatus === "processing" || !isPaystackLoaded
                       }
                       className="w-full py-4 rounded-xl font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg hover:shadow-xl"
                       style={{

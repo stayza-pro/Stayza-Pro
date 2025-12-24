@@ -184,39 +184,63 @@ router.post(
     );
 
     const pricePerNight = Number(property.pricePerNight);
-    const subtotal = pricePerNight * nights;
+    const roomFee = pricePerNight * nights; // Room fee (base price)
 
-    const serviceFee = property.serviceFee ? Number(property.serviceFee) : 0;
     const cleaningFee = property.cleaningFee ? Number(property.cleaningFee) : 0;
     const securityDeposit = property.securityDeposit
       ? Number(property.securityDeposit)
       : 0;
 
-    const platformCommission =
-      subtotal * config.DEFAULT_PLATFORM_COMMISSION_RATE;
+    // NEW COMMISSION STRUCTURE
+    // Calculate service fee: 2% of (room fee + cleaning fee)
+    const subtotal = roomFee + cleaningFee;
+    const serviceFee = subtotal * 0.02; // 2% service fee
 
-    const total = subtotal + serviceFee + cleaningFee + securityDeposit;
+    // Platform fee: 10% of room fee (deducted at release, not charged to guest)
+    const platformFee = roomFee * 0.1;
+
+    // Total amount customer pays
+    const total = roomFee + cleaningFee + serviceFee + securityDeposit;
+
+    // Realtor earnings breakdown
+    const cleaningFeeImmediate = cleaningFee; // Released immediately
+    const roomFeeSplitRealtor = roomFee * 0.9; // Released after 1-hour window
+    const totalRealtorEarnings = cleaningFeeImmediate + roomFeeSplitRealtor;
 
     res.json({
       success: true,
       message: "Booking calculation successful",
       data: {
-        subtotal: Number(subtotal.toFixed(2)),
-        serviceFee: Number(serviceFee.toFixed(2)),
+        roomFee: Number(roomFee.toFixed(2)),
         cleaningFee: Number(cleaningFee.toFixed(2)),
+        serviceFee: Number(serviceFee.toFixed(2)), // 2% of subtotal
         securityDeposit: Number(securityDeposit.toFixed(2)),
-        taxes: 0,
-        fees: Number((serviceFee + cleaningFee).toFixed(2)),
-        total: Number(total.toFixed(2)),
+        subtotal: Number(subtotal.toFixed(2)), // room + cleaning
+        total: Number(total.toFixed(2)), // subtotal + serviceFee + deposit
         currency: property.currency,
         nights,
         breakdown: {
           pricePerNight: Number(pricePerNight.toFixed(2)),
-          serviceFee: Number(serviceFee.toFixed(2)),
+          roomFee: Number(roomFee.toFixed(2)),
           cleaningFee: Number(cleaningFee.toFixed(2)),
+          serviceFee: Number(serviceFee.toFixed(2)),
           securityDeposit: Number(securityDeposit.toFixed(2)),
-          platformCommission: Number(platformCommission.toFixed(2)),
-          realtorPayout: Number((subtotal - platformCommission).toFixed(2)),
+          platformFee: Number(platformFee.toFixed(2)), // 10% of room fee
+
+          // Immediate releases (at payment verification)
+          cleaningFeeImmediate: Number(cleaningFeeImmediate.toFixed(2)),
+          serviceFeeToPlatform: Number(serviceFee.toFixed(2)),
+
+          // Released after 1-hour dispute window
+          roomFeeSplitRealtor: Number(roomFeeSplitRealtor.toFixed(2)), // 90%
+          roomFeeSplitPlatform: Number(platformFee.toFixed(2)), // 10%
+
+          // Total realtor earnings
+          totalRealtorEarnings: Number(totalRealtorEarnings.toFixed(2)),
+
+          // Commission rates
+          platformFeeRate: "10%",
+          serviceFeeRate: "2%",
         },
       },
     });
@@ -1798,11 +1822,14 @@ router.post(
     await prisma.notification.create({
       data: {
         userId: recipientId,
-        type: "BOOKING_MODIFICATION_REQUEST" as any,
+        type: "BOOKING_REMINDER",
         title: "Booking Modification Request",
         message: `Modification requested for booking #${booking.id.slice(
           -6
         )}: ${reason || "No reason provided"}`,
+        bookingId: id,
+        priority: "high",
+        isRead: false,
         data: {
           bookingId: id,
           requestedBy: userId,
@@ -2052,11 +2079,14 @@ router.post(
     await prisma.notification.create({
       data: {
         userId: booking.property.realtorId,
-        type: "BOOKING_MODIFICATION_REQUEST" as any,
+        type: "BOOKING_CONFIRMED",
         title: "Booking Extended",
         message: `Guest extended booking #${booking.id.slice(
           -6
         )} by ${additionalNights} night(s)`,
+        bookingId: id,
+        priority: "normal",
+        isRead: false,
         data: {
           bookingId: id,
           additionalNights,
@@ -2359,6 +2389,282 @@ router.post(
         startDate,
         endDate,
         reason,
+      },
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/bookings/:id/confirm-checkin:
+ *   post:
+ *     summary: Confirm check-in (guest or realtor)
+ *     description: Confirm guest has checked into the property. Starts 1-hour dispute window.
+ *     tags: [Bookings]
+ */
+router.post(
+  "/:id/confirm-checkin",
+  authenticate,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id: bookingId } = req.params;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        guest: true,
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    // Determine confirmation type based on who is confirming
+    let confirmationType: "GUEST_CONFIRMED" | "REALTOR_CONFIRMED";
+
+    if (userId === booking.guestId) {
+      // Guest confirming
+      confirmationType = "GUEST_CONFIRMED";
+    } else if (
+      userRole === "REALTOR" &&
+      booking.property.realtor.userId === userId
+    ) {
+      // Realtor confirming
+      confirmationType = "REALTOR_CONFIRMED";
+    } else {
+      throw new AppError(
+        "Unauthorized to confirm check-in for this booking",
+        403
+      );
+    }
+
+    const checkinService = await import("@/services/checkinService");
+    const result = await checkinService.default.confirmCheckIn(
+      bookingId,
+      confirmationType,
+      userId
+    );
+
+    logger.info("Check-in confirmed", {
+      bookingId,
+      confirmationType,
+      userId,
+    });
+
+    return res.json({
+      success: true,
+      message: `Check-in confirmed via ${confirmationType}`,
+      data: {
+        bookingId: result.bookingId,
+        checkinConfirmedAt: result.checkinConfirmedAt,
+        confirmationType: result.confirmationType,
+        disputeWindowClosesAt: result.disputeWindowClosesAt,
+        roomFeeReleaseEligibleAt: result.roomFeeReleaseEligibleAt,
+        disputeWindowDuration: "1 hour",
+      },
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/bookings/:id/checkout:
+ *   post:
+ *     summary: Checkout from property
+ *     description: Mark guest as checked out. Starts 4-hour realtor dispute window.
+ *     tags: [Bookings]
+ */
+router.post(
+  "/:id/checkout",
+  authenticate,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id: bookingId } = req.params;
+    const userId = req.user!.id;
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        guest: true,
+        payment: true,
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    // Only guest can check out
+    if (userId !== booking.guestId) {
+      throw new AppError("Only the guest can initiate checkout", 403);
+    }
+
+    // Check if already checked in
+    if (
+      booking.status !== "CHECKED_IN_CONFIRMED" &&
+      booking.status !== "CHECKED_IN"
+    ) {
+      throw new AppError(
+        `Cannot checkout from booking with status: ${booking.status}`,
+        400
+      );
+    }
+
+    // Check if already checked out
+    if (booking.checkOutTime) {
+      throw new AppError("Already checked out", 400);
+    }
+
+    const now = new Date();
+    const realtorDisputeClosesAt = new Date(now.getTime() + 4 * 60 * 60 * 1000); // +4 hours
+
+    // Update booking to checked out
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: "CHECKED_OUT",
+        checkOutTime: now,
+        depositRefundEligibleAt: realtorDisputeClosesAt,
+        realtorDisputeClosesAt,
+      },
+    });
+
+    // Log escrow event
+    await escrowService.logEscrowEvent({
+      bookingId,
+      eventType: "HOLD_SECURITY_DEPOSIT",
+      amount: booking.securityDeposit,
+      description: `Guest checked out. Deposit refund eligible at ${realtorDisputeClosesAt.toISOString()}`,
+      metadata: {
+        checkOutTime: now.toISOString(),
+        realtorDisputeClosesAt: realtorDisputeClosesAt.toISOString(),
+      },
+    });
+
+    // Send notifications
+    try {
+      // Notify guest
+      await prisma.notification.create({
+        data: {
+          userId: booking.guestId,
+          type: "BOOKING_CONFIRMED",
+          title: "Checkout Confirmed",
+          message: `Your security deposit will be refunded in 4 hours if no damages are reported by the realtor.`,
+          bookingId: bookingId,
+          priority: "medium",
+          isRead: false,
+        },
+      });
+
+      // Notify realtor
+      await prisma.notification.create({
+        data: {
+          userId: booking.property.realtor.userId,
+          type: "BOOKING_REMINDER",
+          title: "Guest Checked Out",
+          message: `Guest has checked out. You have 4 hours to report any damages with photo evidence.`,
+          bookingId: bookingId,
+          priority: "high",
+          isRead: false,
+        },
+      });
+    } catch (notificationError) {
+      logger.error("Failed to send checkout notifications:", notificationError);
+    }
+
+    logger.info("Guest checked out", {
+      bookingId,
+      userId,
+      checkOutTime: now,
+    });
+
+    return res.json({
+      success: true,
+      message: "Checkout successful",
+      data: {
+        bookingId,
+        checkOutTime: now,
+        depositRefundEligibleAt: realtorDisputeClosesAt,
+        realtorDisputeWindowDuration: "4 hours",
+        depositAmount: booking.securityDeposit,
+      },
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/bookings/:id/dispute-windows:
+ *   get:
+ *     summary: Get active dispute windows
+ *     description: Returns information about guest and realtor dispute windows for a booking
+ *     tags: [Bookings]
+ */
+router.get(
+  "/:id/dispute-windows",
+  authenticate,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id: bookingId } = req.params;
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        status: true,
+        checkinConfirmedAt: true,
+        disputeWindowClosesAt: true,
+        userDisputeOpened: true,
+        checkOutTime: true,
+        realtorDisputeClosesAt: true,
+        realtorDisputeOpened: true,
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    const now = new Date();
+
+    const guestDisputeWindow = booking.disputeWindowClosesAt
+      ? {
+          deadline: booking.disputeWindowClosesAt,
+          expired: now >= booking.disputeWindowClosesAt,
+          opened: booking.userDisputeOpened,
+          canOpen:
+            !booking.userDisputeOpened && now < booking.disputeWindowClosesAt,
+        }
+      : null;
+
+    const realtorDisputeWindow = booking.realtorDisputeClosesAt
+      ? {
+          deadline: booking.realtorDisputeClosesAt,
+          expired: now >= booking.realtorDisputeClosesAt,
+          opened: booking.realtorDisputeOpened,
+          canOpen:
+            !booking.realtorDisputeOpened &&
+            now < booking.realtorDisputeClosesAt,
+        }
+      : null;
+
+    return res.json({
+      success: true,
+      data: {
+        bookingId,
+        status: booking.status,
+        guestDisputeWindow,
+        realtorDisputeWindow,
       },
     });
   })

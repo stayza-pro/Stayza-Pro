@@ -1245,7 +1245,7 @@ export const sendRefundProcessedToGuest = async (
       <h3>When Will I Receive My Refund?</h3>
       <p>Refund processing times depend on your payment method:</p>
       <ul>
-        <li><strong>Paystack/Flutterwave:</strong> 3-7 business days</li>
+        <li><strong>Paystack:</strong> 3-7 business days</li>
         <li><strong>Bank transfers:</strong> 1-3 business days</li>
         <li><strong>Cards:</strong> 5-10 business days depending on your bank</li>
       </ul>

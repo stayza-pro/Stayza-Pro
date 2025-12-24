@@ -64,7 +64,7 @@ export default function SecurityPage() {
       icon: CreditCard,
       title: "PCI DSS Payment Security",
       description:
-        "All payments processed through Flutterwave and Paystack - we never store sensitive payment data",
+        "All payments processed through Paystack - we never store sensitive payment data",
     },
     {
       icon: Key,

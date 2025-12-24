@@ -4,9 +4,9 @@ import {
   PaymentStatus,
   PaymentMethod,
 } from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import { paystackService } from "./paystack";
-import { flutterwaveService } from "./flutterwave";
 import { logger } from "@/utils/logger";
 
 interface FeeBreakdown {
@@ -70,6 +70,32 @@ export const calculateFeeBreakdown = (
 /**
  * Create escrow event record for audit trail
  */
+/**
+ * Log escrow event with new format (for new commission flow)
+ */
+export const logEscrowEvent = async (params: {
+  bookingId: string;
+  eventType: EscrowEventType;
+  amount: number | Decimal;
+  description?: string;
+  metadata?: any;
+}) => {
+  return await prisma.escrowEvent.create({
+    data: {
+      bookingId: params.bookingId,
+      eventType: params.eventType,
+      amount: new Prisma.Decimal(params.amount.toString()),
+      fromParty: "SYSTEM",
+      toParty: "SYSTEM",
+      notes: params.description || "",
+      triggeredBy: "SYSTEM",
+      providerResponse: params.metadata
+        ? JSON.parse(JSON.stringify(params.metadata))
+        : null,
+    },
+  });
+};
+
 export const createEscrowEvent = async (
   bookingId: string,
   eventType: EscrowEventType,
@@ -179,7 +205,7 @@ export const releaseRoomFeeSplit = async (
   const realtorAmount = roomFee * 0.9; // 90%
   const platformAmount = roomFee * 0.1; // 10%
 
-  // Integrate with actual payout provider (Paystack or Flutterwave)
+  // Integrate with actual payout provider (Paystack)
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -277,27 +303,8 @@ export const releaseRoomFeeSplit = async (
           `Realtor ${realtor.id} missing Paystack subaccount code`
         );
       }
-    } else if (paymentMethod === PaymentMethod.FLUTTERWAVE) {
-      // Use Flutterwave transfer
-      // Note: This requires bank account details to be added to Realtor model
-      logger.warn("Flutterwave transfer not yet implemented", {
-        bookingId,
-        realtorId: realtor.id,
-        amount: realtorAmount,
-      });
-      // TODO: Implement Flutterwave transfer when bank account fields are added
-      // For now, mark as pending manual payout
-      await prisma.payment.update({
-        where: { id: paymentId },
-        data: {
-          metadata: {
-            ...((booking.payment?.metadata as any) || {}),
-            manualPayoutRequired: true,
-            manualPayoutMethod: "FLUTTERWAVE",
-            manualPayoutAmount: realtorAmount,
-          } as any,
-        },
-      });
+    } else {
+      throw new Error(`Unsupported payment method: ${paymentMethod}`);
     }
   } catch (transferError: any) {
     logger.error("Transfer failed for booking", {
@@ -434,19 +441,6 @@ export const returnSecurityDeposit = async (
           depositAmount
         );
         logger.info("Paystack deposit refund initiated", {
-          bookingId,
-          paymentId,
-          customerId,
-          amount: depositAmount,
-          refundReference,
-          refundId: refundResult.id,
-        });
-      } else if (paymentMethod === PaymentMethod.FLUTTERWAVE) {
-        const refundResult = await flutterwaveService.processRefund(
-          transactionReference,
-          depositAmount
-        );
-        logger.info("Flutterwave deposit refund initiated", {
           bookingId,
           paymentId,
           customerId,
@@ -624,24 +618,6 @@ export const payRealtorFromDeposit = async (
           transferReference,
           transferId: transferResult.transfer_code,
         });
-      } else if (paymentMethod === PaymentMethod.FLUTTERWAVE) {
-        if (!realtor.flutterwaveSubAccountCode) {
-          logger.warn("Realtor missing Flutterwave subaccount", {
-            realtorId: realtor.id,
-            bookingId,
-          });
-          throw new Error(
-            `Realtor ${realtor.id} missing Flutterwave subaccount code`
-          );
-        }
-
-        // Flutterwave transfer implementation
-        logger.warn("Flutterwave transfer not fully implemented", {
-          bookingId,
-          realtorId: realtor.id,
-          amount,
-        });
-        throw new Error("Flutterwave transfers not yet supported");
       } else {
         throw new Error(`Unsupported payment method: ${paymentMethod}`);
       }
@@ -679,18 +655,6 @@ export const payRealtorFromDeposit = async (
             remainingDeposit
           );
           logger.info("Paystack remaining deposit refund initiated", {
-            bookingId,
-            paymentId,
-            amount: remainingDeposit,
-            refundReference,
-            refundId: refundResult.id,
-          });
-        } else if (paymentMethod === PaymentMethod.FLUTTERWAVE) {
-          const refundResult = await flutterwaveService.processRefund(
-            transactionReference,
-            remainingDeposit
-          );
-          logger.info("Flutterwave remaining deposit refund initiated", {
             bookingId,
             paymentId,
             amount: remainingDeposit,
@@ -874,18 +838,6 @@ export const refundRoomFeeToCustomer = async (
           refundReference,
           refundId: refundResult.id,
         });
-      } else if (paymentMethod === PaymentMethod.FLUTTERWAVE) {
-        const refundResult = await flutterwaveService.processRefund(
-          transactionReference,
-          refundAmount
-        );
-        logger.info("Flutterwave room fee refund initiated", {
-          bookingId,
-          paymentId,
-          amount: refundAmount,
-          refundReference,
-          refundId: refundResult.id,
-        });
       } else {
         throw new Error(`Unsupported payment method: ${paymentMethod}`);
       }
@@ -940,23 +892,8 @@ export const refundRoomFeeToCustomer = async (
               transferId: transferResult.transfer_code,
             }
           );
-        } else if (paymentMethod === PaymentMethod.FLUTTERWAVE) {
-          if (!realtor.flutterwaveSubAccountCode) {
-            logger.warn("Realtor missing Flutterwave subaccount", {
-              realtorId: realtor.id,
-              bookingId,
-            });
-            throw new Error(
-              `Realtor ${realtor.id} missing Flutterwave subaccount code`
-            );
-          }
-
-          logger.warn("Flutterwave transfer not fully implemented", {
-            bookingId,
-            realtorId: realtor.id,
-            amount: realtorAmount,
-          });
-          throw new Error("Flutterwave transfers not yet supported");
+        } else {
+          throw new Error(`Unsupported payment method: ${paymentMethod}`);
         }
       } catch (transferError: any) {
         logger.error("Partial room fee transfer to realtor failed", {
@@ -1124,6 +1061,7 @@ export const getBookingsEligibleForDepositReturn = async () => {
 export default {
   calculateFeeBreakdown,
   createEscrowEvent,
+  logEscrowEvent, // New commission flow format
   holdFundsInEscrow,
   releaseRoomFeeSplit,
   returnSecurityDeposit,

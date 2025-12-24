@@ -12,7 +12,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Stayza Pro – Smart Booking for Realtors and Guests",
   description:
-    "Stayza Pro lets realtors create branded mini booking sites with Flutterwave/Paystack payouts, property management, guest reviews, maps, and more — all in one seamless platform.",
+    "Stayza Pro lets realtors create branded mini booking sites with Paystack payouts, property management, guest reviews, maps, and more — all in one seamless platform.",
 };
 
 export default function RootLayout({

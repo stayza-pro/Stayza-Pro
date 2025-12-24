@@ -69,7 +69,7 @@ export type PaymentStatus =
   | "FAILED"; // Payment failed
 
 // Payment gateway providers
-export type PaymentMethod = "PAYSTACK" | "FLUTTERWAVE";
+export type PaymentMethod = "PAYSTACK";
 
 // Payout processing states (matches backend Prisma schema)
 export type PayoutStatus =
@@ -266,7 +266,7 @@ export interface Payment {
   currency: string;
   method: PaymentMethod;
   reference?: string;
-  providerId?: string; // "PAYSTACK" or "FLUTTERWAVE"
+  providerId?: string; // "PAYSTACK"
   status: PaymentStatus;
 
   // Payment breakdown (matches backend Prisma schema)
@@ -571,11 +571,6 @@ export interface BookingFilters {
 export interface PaystackInitializeResponse {
   authorization_url: string;
   access_code: string;
-  reference: string;
-}
-
-export interface FlutterwaveInitializeResponse {
-  link: string;
   reference: string;
 }
 

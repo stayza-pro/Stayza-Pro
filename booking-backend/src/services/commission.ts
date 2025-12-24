@@ -2,13 +2,49 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import { AppError } from "@/middleware/errorHandler";
 
-// Platform commission rates (can be configurable per realtor in the future)
-export const PLATFORM_COMMISSION_RATE = 0.07; // 7%
-// Payment gateway fees (Paystack/Flutterwave) are charged directly to guest
-// and automatically deducted by the payment provider
+// NEW COMMISSION STRUCTURE
+export const PLATFORM_FEE_RATE = 0.1; // 10% of room fee only
+export const SERVICE_FEE_RATE = 0.02; // 2% of total booking amount
+// Payment gateway fees (Paystack) are charged directly to guest
+
+// OLD COMMISSION RATE (DEPRECATED - Keeping for backwards compatibility)
+export const PLATFORM_COMMISSION_RATE = 0.07; // 7% (legacy)
 
 /**
- * Calculate commission breakdown for a payment
+ * Dispute tier type
+ */
+export type DisputeTier = "TIER_1_SEVERE" | "TIER_2_PARTIAL" | "TIER_3_ABUSE";
+
+/**
+ * NEW Commission breakdown for new flow
+ */
+export interface NewCommissionBreakdown {
+  roomFee: Decimal;
+  cleaningFee: Decimal;
+  securityDeposit: Decimal;
+  subtotal: Decimal; // roomFee + cleaningFee
+  serviceFee: Decimal; // 2% of subtotal
+  platformFee: Decimal; // 10% of room fee (deducted at release)
+  totalAmount: Decimal; // subtotal + serviceFee + securityDeposit
+
+  // Immediate releases (at payment verification)
+  cleaningFeeToRealtor: Decimal; // Released immediately
+  serviceFeeToPlatform: Decimal; // Collected immediately
+
+  // Held in escrow
+  roomFeeInEscrow: Decimal;
+  depositInEscrow: Decimal;
+
+  // Released after 1-hour dispute window
+  roomFeeSplitRealtor: Decimal; // 90% of room fee
+  roomFeeSplitPlatform: Decimal; // 10% of room fee
+
+  // Total realtor earnings
+  totalRealtorEarnings: Decimal; // cleaningFee + (roomFee * 0.90)
+}
+
+/**
+ * OLD Commission breakdown (DEPRECATED)
  */
 export interface CommissionBreakdown {
   totalAmount: Decimal;
@@ -18,6 +54,66 @@ export interface CommissionBreakdown {
   commissionRate: Decimal;
 }
 
+/**
+ * NEW COMMISSION CALCULATION (10% + 2% Split)
+ */
+export const calculateNewCommission = (
+  roomFee: Decimal | number,
+  cleaningFee: Decimal | number,
+  securityDeposit: Decimal | number
+): NewCommissionBreakdown => {
+  const roomFeeDecimal = new Decimal(roomFee);
+  const cleaningFeeDecimal = new Decimal(cleaningFee);
+  const depositDecimal = new Decimal(securityDeposit);
+
+  // Calculate subtotal (room + cleaning)
+  const subtotal = roomFeeDecimal.add(cleaningFeeDecimal);
+
+  // Calculate service fee (2% of subtotal)
+  const serviceFee = subtotal.mul(SERVICE_FEE_RATE);
+
+  // Calculate platform fee (10% of room fee only - deducted at release)
+  const platformFee = roomFeeDecimal.mul(PLATFORM_FEE_RATE);
+
+  // Calculate total amount
+  const totalAmount = subtotal.add(serviceFee).add(depositDecimal);
+
+  // Immediate releases (at payment verification)
+  const cleaningFeeToRealtor = cleaningFeeDecimal; // Full cleaning fee to realtor
+  const serviceFeeToPlatform = serviceFee; // Full service fee to platform
+
+  // Held in escrow
+  const roomFeeInEscrow = roomFeeDecimal;
+  const depositInEscrow = depositDecimal;
+
+  // Room fee split (after 1-hour dispute window)
+  const roomFeeSplitRealtor = roomFeeDecimal.mul(0.9); // 90% to realtor
+  const roomFeeSplitPlatform = roomFeeDecimal.mul(0.1); // 10% to platform
+
+  // Total realtor earnings
+  const totalRealtorEarnings = cleaningFeeToRealtor.add(roomFeeSplitRealtor);
+
+  return {
+    roomFee: roomFeeDecimal,
+    cleaningFee: cleaningFeeDecimal,
+    securityDeposit: depositDecimal,
+    subtotal,
+    serviceFee,
+    platformFee,
+    totalAmount,
+    cleaningFeeToRealtor,
+    serviceFeeToPlatform,
+    roomFeeInEscrow,
+    depositInEscrow,
+    roomFeeSplitRealtor,
+    roomFeeSplitPlatform,
+    totalRealtorEarnings,
+  };
+};
+
+/**
+ * OLD COMMISSION CALCULATION (DEPRECATED - Keeping for backwards compatibility)
+ */
 export const calculateCommission = (
   totalAmount: Decimal,
   customCommissionRate?: number
@@ -27,7 +123,7 @@ export const calculateCommission = (
   );
 
   const platformCommission = totalAmount.mul(commissionRate);
-  // Payment gateway fees are handled by provider (Paystack/Flutterwave)
+  // Payment gateway fees are handled by provider (Paystack)
   const paymentProcessingFee = new Decimal(0); // No longer deducted from booking amount
   const realtorEarnings = totalAmount.sub(platformCommission);
 
@@ -38,6 +134,67 @@ export const calculateCommission = (
     realtorEarnings,
     commissionRate,
   };
+};
+
+/**
+ * Calculate refund amount based on dispute tier
+ */
+export const calculateDisputeRefund = (
+  tier: DisputeTier,
+  roomFee: Decimal | number
+): Decimal => {
+  const roomFeeDecimal = new Decimal(roomFee);
+
+  switch (tier) {
+    case "TIER_1_SEVERE":
+      // 100% room fee refund (realtor at fault: no access, fake listing, uninhabitable)
+      return roomFeeDecimal;
+
+    case "TIER_2_PARTIAL":
+      // 30% room fee refund (partial fault: broken AC, missing amenities)
+      return roomFeeDecimal.mul(0.3);
+
+    case "TIER_3_ABUSE":
+      // 0% refund (guest abuse: no evidence, late dispute, false claim)
+      return new Decimal(0);
+
+    default:
+      throw new AppError(`Invalid dispute tier: ${tier}`, 400);
+  }
+};
+
+/**
+ * Calculate deposit deduction for realtor dispute
+ * Returns amount realtor gets and amount guest gets back
+ */
+export const calculateDepositDeduction = (
+  damageAmount: Decimal | number,
+  depositAmount: Decimal | number
+): {
+  realtorGets: Decimal;
+  guestRefund: Decimal;
+  isLiabilityCapped: boolean;
+} => {
+  const damageDecimal = new Decimal(damageAmount);
+  const depositDecimal = new Decimal(depositAmount);
+
+  // LIABILITY CAP: Realtor can only claim up to deposit amount
+  if (damageDecimal.lte(depositDecimal)) {
+    // Damage <= deposit: Pay exact damage amount, refund remainder
+    return {
+      realtorGets: damageDecimal,
+      guestRefund: depositDecimal.sub(damageDecimal),
+      isLiabilityCapped: false,
+    };
+  } else {
+    // Damage > deposit: Realtor gets full deposit, guest gets ₦0
+    // No extra charges to guest (liability cap)
+    return {
+      realtorGets: depositDecimal,
+      guestRefund: new Decimal(0),
+      isLiabilityCapped: true,
+    };
+  }
 };
 
 /**
@@ -58,7 +215,8 @@ export const updatePaymentCommission = async (
     throw new AppError("Payment not found", 404);
   }
 
-  if (payment.status !== "COMPLETED") {
+  // Allow commission calculation for ESCROW_HELD (verified) or COMPLETED payments
+  if (payment.status !== "ESCROW_HELD" && payment.status !== "COMPLETED") {
     throw new AppError(
       "Cannot calculate commission for incomplete payment",
       400

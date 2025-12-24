@@ -368,7 +368,7 @@ export const getBookingStatusColor = (status: BookingStatus): string => {
 export const formatPaymentMethod = (method: PaymentMethod): string => {
   const methodMap: Record<PaymentMethod, string> = {
     PAYSTACK: "Paystack",
-    FLUTTERWAVE: "Flutterwave",
+    FLUTTERWAVE: "Flutterwave (deprecated)",
   };
   return methodMap[method] || method;
 };

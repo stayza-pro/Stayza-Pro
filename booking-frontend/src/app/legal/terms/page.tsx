@@ -74,7 +74,7 @@ export default function TermsPage() {
       icon: HeartHandshake,
       title: "Payment Terms",
       description:
-        "Transparent fee structure with automated processing through Flutterwave and Paystack integration",
+        "Transparent fee structure with automated processing through Paystack integration",
     },
   ];
 

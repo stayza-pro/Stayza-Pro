@@ -214,7 +214,6 @@ export const operationsMetrics = [
 ] as const;
 
 export const integrationBadges = [
-  { name: "Flutterwave", colour: palette.neutralDark },
   { name: "Paystack Split", colour: palette.secondary },
   { name: "Google Maps", colour: palette.primary },
   { name: "Zapier", colour: palette.accent },

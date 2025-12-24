@@ -941,11 +941,13 @@ router.patch(
       prisma.notification.create({
         data: {
           userId: realtor.id,
-          type: "COMMISSION_RATE_CHANGED" as any,
+          type: "SYSTEM_ALERT",
           title: "Commission Rate Updated",
           message: `Platform commission rate changed from ${(
             oldRate * 100
           ).toFixed(1)}% to ${(newCommissionRate * 100).toFixed(1)}%`,
+          priority: "high",
+          isRead: false,
           data: {
             oldRate,
             newRate: newCommissionRate,

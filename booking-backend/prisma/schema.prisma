@@ -173,9 +173,21 @@ model Booking {
    serviceFee      Decimal @default(0) @db.Decimal(10, 2) // 2% of (roomFee + cleaningFee)
    platformFee     Decimal @default(0) @db.Decimal(10, 2) // 10% of roomFee (deducted at release)
 
+   // New commission flow fields
+   checkinConfirmedAt       DateTime? // Timestamp when check-in was confirmed
+   checkinConfirmationType  String? // "GUEST_CONFIRMED" | "REALTOR_CONFIRMED" | "AUTO_FALLBACK"
+   roomFeeReleaseEligibleAt DateTime? // 1 hour after check-in confirmation
+   depositRefundEligibleAt  DateTime? // 4 hours after check-out
+   cleaningFeeReleasedAt    DateTime? // Immediate release timestamp
+   serviceFeeCollectedAt    DateTime? // Immediate collection timestamp
+   guestDisputeTier         String? // "TIER_1_SEVERE" | "TIER_2_PARTIAL" | "TIER_3_ABUSE"
+   realtorDisputeOutcome    String? // "WIN" | "LOSS" | "PARTIAL"
+   disputeRefundAmount      Decimal?  @db.Decimal(10, 2) // Calculated refund based on tier
+   depositDeductionAmount   Decimal?  @db.Decimal(10, 2) // Amount deducted from deposit for damages
+
    // Dispute timers
    disputeWindowClosesAt  DateTime? // 1 hour after check-in
-   realtorDisputeClosesAt DateTime? // 2 hours after checkout
+   realtorDisputeClosesAt DateTime? // 4 hours after checkout (updated from 2 hours)
    userDisputeOpened      Boolean   @default(false)
    realtorDisputeOpened   Boolean   @default(false)
 
@@ -232,6 +244,19 @@ model Payment {
    serviceFeeCollected Boolean @default(false)
    roomFeeSplitDone    Boolean @default(false)
    depositRefunded     Boolean @default(false)
+
+   // New commission flow tracking
+   cleaningFeeReleasedToRealtor  Boolean  @default(false)
+   cleaningFeeReleaseReference   String? // Payment gateway reference for cleaning fee release
+   serviceFeeCollectedByPlatform Boolean  @default(false)
+   roomFeeSplitRealtorAmount     Decimal? @db.Decimal(10, 2) // 90% of room fee
+   roomFeeSplitPlatformAmount    Decimal? @db.Decimal(10, 2) // 10% of room fee
+   roomFeeSplitReleaseReference  String? // Payment gateway reference for room fee split
+   disputeRefundProcessed        Boolean  @default(false)
+   disputeRefundReference        String? // Payment gateway reference for dispute refund
+   depositDeductionProcessed     Boolean  @default(false)
+   depositPartialRefundAmount    Decimal? @db.Decimal(10, 2) // Remaining deposit after deduction
+   depositPartialRefundReference String? // Payment gateway reference for partial deposit refund
 
    // Legacy fields
    metadata              Json?
@@ -551,11 +576,12 @@ enum PropertyStatus {
 
 enum BookingStatus {
    PENDING // Initial state, waiting for payment
-   PAID // Payment confirmed, funds in escrow
-   CONFIRMED // Deprecated - use PAID instead
-   CHECKED_IN // User has checked in
+   PAID // Payment confirmed, funds in escrow (deprecated - use CONFIRMED)
+   CONFIRMED // Payment verified, cleaning fee released, awaiting check-in
+   CHECKED_IN // User has checked in (1-hour guest dispute window active)
+   CHECKED_IN_CONFIRMED // Check-in explicitly confirmed (timer started)
    DISPUTE_OPENED // Either user or realtor opened a dispute
-   CHECKED_OUT // User has checked out
+   CHECKED_OUT // User has checked out (4-hour realtor dispute window active)
    COMPLETED // All funds released, booking finished
    CANCELLED // Booking cancelled before check-in
 }
@@ -578,12 +604,14 @@ enum RefundTier {
 enum PaymentStatus {
    INITIATED // Payment process started
    PENDING // Waiting for payment provider confirmation (deprecated)
-   ESCROW_HELD // Room fee + security deposit held in escrow
+   PARTIAL_RELEASED // Cleaning fee + service fee released, room fee + deposit in escrow
+   ESCROW_HELD // Room fee + security deposit held in escrow (deprecated - use PARTIAL_RELEASED)
    ROOM_FEE_SPLIT_RELEASED // 90% to realtor, 10% to platform (after 1-hour dispute window)
+   DEPOSIT_PROCESSING // Processing deposit refund or deduction
    RELEASED_TO_REALTOR // Full escrow released to realtor
    REFUNDED_TO_CUSTOMER // Full refund to customer
    PARTIAL_PAYOUT_REALTOR // Partial payout after dispute settlement
-   COMPLETED // All transactions completed (deprecated - use specific states)
+   COMPLETED // All transactions completed
    FAILED // Payment failed
 }
 
@@ -639,7 +667,7 @@ enum RefundRequestStatus {
 
 enum DisputeType {
    USER_DISPUTE // Opened by user within 1 hour of check-in
-   REALTOR_DISPUTE // Opened by realtor within 2 hours of check-out
+   REALTOR_DISPUTE // Opened by realtor within 4 hours of check-out
 }
 
 enum DisputeStatus {
@@ -652,11 +680,31 @@ enum DisputeStatus {
    REJECTED // Dispute rejected as invalid
 }
 
+enum DisputeTier {
+   TIER_1_SEVERE // 100% room fee refund (realtor fault: no access, fake listing, uninhabitable)
+   TIER_2_PARTIAL // 30% room fee refund (partial fault: broken AC, missing amenities)
+   TIER_3_ABUSE // 0% refund (guest abuse: no evidence, late dispute, false claim)
+}
+
+enum CheckInConfirmationType {
+   GUEST_CONFIRMED // Guest clicked "I've entered the room"
+   REALTOR_CONFIRMED // Realtor confirmed guest checked in (after official check-in time)
+   AUTO_FALLBACK // Automatic confirmation 30 minutes after official check-in time
+}
+
+enum RealtorDisputeOutcome {
+   WIN // Realtor proved damage, gets deduction from deposit
+   LOSS // No proof or invalid claim, full deposit refunded to guest
+   PARTIAL // Partial damage proven, partial deduction
+}
+
 enum EscrowEventType {
    HOLD_ROOM_FEE // Room fee moved to escrow
    HOLD_SECURITY_DEPOSIT // Security deposit moved to escrow
-   RELEASE_ROOM_FEE_SPLIT // 90% to realtor, 10% to platform
-   RELEASE_DEPOSIT_TO_CUSTOMER // Security deposit returned to customer
+   RELEASE_CLEANING_FEE // Immediate release of cleaning fee to realtor
+   COLLECT_SERVICE_FEE // Immediate collection of service fee by platform
+   RELEASE_ROOM_FEE_SPLIT // 90% to realtor, 10% to platform (after 1-hour window)
+   RELEASE_DEPOSIT_TO_CUSTOMER // Security deposit returned to customer (after 4-hour window)
    PAY_REALTOR_FROM_DEPOSIT // Deduct from deposit, pay to realtor
    PAY_BALANCE_FROM_CUSTOMER // Customer pays additional amount from new payment
    REFUND_ROOM_FEE_TO_CUSTOMER // Refund room fee from escrow to customer

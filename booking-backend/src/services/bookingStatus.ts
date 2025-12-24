@@ -34,11 +34,23 @@ export const BOOKING_STATUS_TRANSITIONS: Record<
   BookingStatus[]
 > = {
   PENDING: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
-  CONFIRMED: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
+  CONFIRMED: [
+    BookingStatus.CHECKED_IN_CONFIRMED,
+    BookingStatus.COMPLETED,
+    BookingStatus.CANCELLED,
+  ],
   CANCELLED: [], // Terminal state - no transitions allowed
   COMPLETED: [], // Terminal state - no transitions allowed
   PAID: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
-  CHECKED_IN: [BookingStatus.CHECKED_OUT, BookingStatus.DISPUTE_OPENED],
+  CHECKED_IN: [
+    BookingStatus.CHECKED_IN_CONFIRMED,
+    BookingStatus.CHECKED_OUT,
+    BookingStatus.DISPUTE_OPENED,
+  ],
+  CHECKED_IN_CONFIRMED: [
+    BookingStatus.CHECKED_OUT,
+    BookingStatus.DISPUTE_OPENED,
+  ], // NEW STATE
   DISPUTE_OPENED: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
   CHECKED_OUT: [BookingStatus.COMPLETED],
 };

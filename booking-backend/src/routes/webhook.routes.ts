@@ -60,7 +60,7 @@ async function markEventFailed(
  * @swagger
  * tags:
  *   - name: Webhooks
- *     description: Payment gateway webhook handlers (Paystack & Flutterwave)
+ *     description: Payment gateway webhook handlers (Paystack)
  */
 
 /**
@@ -167,103 +167,6 @@ router.post(
       // Mark as failed
       await markEventFailed(
         "PAYSTACK",
-        eventId,
-        event,
-        req.body,
-        error.message
-      );
-      return res.status(500).json({ error: "Webhook processing failed" });
-    }
-  })
-);
-
-/**
- * @swagger
- * /api/webhooks/flutterwave:
- *   post:
- *     summary: Flutterwave webhook handler (verif-hash verification)
- *     tags: [Webhooks]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *     responses:
- *       200:
- *         description: Webhook processed successfully
- *       401:
- *         description: Invalid signature
- */
-router.post(
-  "/flutterwave",
-  asyncHandler(async (req, res) => {
-    // Verify Flutterwave signature
-    const signature = req.headers["verif-hash"];
-
-    if (!signature) {
-      logger.warn("Flutterwave webhook: Missing signature");
-      return res.status(401).json({ error: "Missing signature" });
-    }
-
-    if (signature !== config.FLUTTERWAVE_SECRET_KEY) {
-      logger.warn("Flutterwave webhook: Invalid signature");
-      return res.status(401).json({ error: "Invalid signature" });
-    }
-
-    const { event, data } = req.body;
-    const eventId = `flutterwave-${event}-${data.tx_ref || data.id}`;
-
-    // Database-backed idempotency check
-    if (await isEventProcessed(eventId)) {
-      logger.info(`Flutterwave webhook: Duplicate event ${eventId}, skipping`);
-      // Mark as duplicate
-      await prisma.webhookEvent.create({
-        data: {
-          provider: "FLUTTERWAVE",
-          eventId: `${eventId}-duplicate-${Date.now()}`,
-          eventType: event,
-          status: "DUPLICATE",
-          payload: req.body,
-        },
-      });
-      return res.status(200).json({ message: "Event already processed" });
-    }
-
-    logger.info(`Flutterwave webhook received: ${event}`, {
-      txRef: data.tx_ref,
-    });
-
-    try {
-      // Route to appropriate handler
-      switch (event) {
-        case "charge.completed":
-          await handleChargeCompleted(data.tx_ref, data);
-          break;
-
-        case "charge.failed":
-          await handleChargeFailed(data.tx_ref, data);
-          break;
-
-        default:
-          logger.info(`Flutterwave webhook: Unhandled event type ${event}`);
-      }
-
-      // Mark as processed in database
-      await markEventProcessed("FLUTTERWAVE", eventId, event, req.body, {
-        txRef: data.tx_ref,
-      });
-
-      return res.status(200).json({ message: "Webhook processed" });
-    } catch (error: any) {
-      logger.error(`Flutterwave webhook error: ${error.message}`, {
-        event,
-        txRef: data.tx_ref,
-        error: error.stack,
-      });
-      // Mark as failed
-      await markEventFailed(
-        "FLUTTERWAVE",
         eventId,
         event,
         req.body,

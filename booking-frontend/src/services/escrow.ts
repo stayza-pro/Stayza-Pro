@@ -48,7 +48,6 @@ export interface SystemHealthStats {
     lastReceived?: string;
     byProvider: {
       paystack: number;
-      flutterwave: number;
     };
   };
   retries: {

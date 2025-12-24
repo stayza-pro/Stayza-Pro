@@ -864,7 +864,7 @@ router.post(
   })
 );
 
-// Stripe integration removed - using Paystack/Flutterwave only
+// Stripe integration removed - using Paystack only
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REALTOR ENDPOINTS (Requires requireRole("REALTOR"))
