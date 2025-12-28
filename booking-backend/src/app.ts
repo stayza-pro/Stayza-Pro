@@ -29,6 +29,7 @@ import brandingRoutes from "@/routes/branding.routes";
 import disputeRoutes from "@/routes/dispute.routes";
 import systemRoutes from "@/routes/system.routes";
 import messageRoutes from "@/routes/message.routes";
+import favoritesRoutes from "@/routes/favorites.routes";
 
 const app = express();
 
@@ -277,6 +278,7 @@ app.use("/api/branding", brandingRoutes);
 app.use("/api/disputes", disputeRoutes);
 app.use("/api/admin/system", systemRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/favorites", favoritesRoutes);
 
 // 404 handler
 app.use(notFound);

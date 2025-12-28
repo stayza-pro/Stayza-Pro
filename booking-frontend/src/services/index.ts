@@ -10,6 +10,8 @@ export { disputeService } from "./disputes";
 export { adminService } from "./admin";
 export { analyticsService } from "./analytics";
 export { escrowService } from "./escrow";
+export { messageService } from "./messages";
+export { favoritesService } from "./favorites";
 
 // Export API client and types
 export { apiClient, type ApiResponse, type PaginatedResponse } from "./api";
@@ -48,6 +50,17 @@ export type {
   ReviewModerationFilters,
   ReviewResponse,
 } from "./types";
+
+// Export message types
+export type {
+  Message,
+  Conversation,
+  SendPropertyInquiryRequest,
+  SendBookingMessageRequest,
+} from "./messages";
+
+// Export favorite types
+export type { FavoriteProperty, AddFavoriteRequest } from "./favorites";
 
 // Export utilities
 export { serviceUtils } from "./utils";

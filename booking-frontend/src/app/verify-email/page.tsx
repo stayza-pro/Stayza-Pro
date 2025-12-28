@@ -222,17 +222,16 @@ function VerifyEmailContent() {
                       Redirecting automatically in a few seconds...
                     </p>
                   </>
-                ) : (
                   <>
                     <Link
-                      href="/dashboard"
+                      href="/"
                       className="block w-full text-white font-semibold py-3 px-6 rounded-lg transition-colors hover:opacity-90"
                       style={{ backgroundColor: brandColor }}
                     >
-                      Go to Dashboard
+                      Go to Home
                     </Link>
                     <Link
-                      href="/login"
+                      href="/guest/login"
                       className="block w-full border border-gray-300 hover:border-gray-400 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
                     >
                       Sign In

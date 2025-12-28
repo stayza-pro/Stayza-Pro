@@ -43,6 +43,7 @@ model User {
    adminDisputes            Dispute[]               @relation("DisputeAdmin")
    sentMessages             Message[]               @relation("SentMessages")
    receivedMessages         Message[]               @relation("ReceivedMessages")
+   favorites                Favorite[]
 
    @@map("users")
 }
@@ -132,6 +133,7 @@ model Property {
    images              PropertyImage[]
    reviews             Review[]
    messages            Message[]
+   favorites           Favorite[]
 
    @@map("properties")
 }
@@ -780,6 +782,21 @@ model MessageAttachment {
 
    @@index([messageId])
    @@map("message_attachments")
+}
+
+model Favorite {
+   id         String   @id @default(cuid())
+   userId     String
+   propertyId String
+   createdAt  DateTime @default(now())
+
+   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+   @@unique([userId, propertyId]) // Prevent duplicate favorites
+   @@index([userId])
+   @@index([propertyId])
+   @@map("favorites")
 }
 
 enum MessageType {

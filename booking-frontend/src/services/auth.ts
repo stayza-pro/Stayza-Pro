@@ -172,4 +172,16 @@ export const authService = {
   getRefreshToken: (): string | null => {
     return localStorage.getItem("refreshToken");
   },
+
+  // Delete account
+  deleteAccount: async (data: {
+    password: string;
+    reason?: string;
+  }): Promise<void> => {
+    await apiClient.delete("/auth/account", { data });
+
+    // Clear tokens after successful deletion
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+  },
 };

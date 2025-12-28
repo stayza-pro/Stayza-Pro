@@ -43,6 +43,9 @@ export default function GuestProfilePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Mark auth as checked once we've gotten a result
   useEffect(() => {
@@ -171,10 +174,35 @@ export default function GuestProfilePage() {
     toast.success("Profile picture selected. Click 'Save Changes' to upload.");
   };
 
-  const handleDeleteAccount = () => {
-    // TODO: Implement account deletion API call
-    toast.success("Account deletion requested");
-    setShowDeleteModal(false);
+  const handleDeleteAccount = async () => {
+    if (!deletePassword.trim()) {
+      toast.error("Please enter your password to confirm deletion");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await authService.deleteAccount({
+        password: deletePassword,
+        reason: deleteReason || undefined,
+      });
+
+      toast.success("Account successfully deleted");
+
+      // Redirect to home page after short delay
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
+    } catch (error: any) {
+      console.error("Account deletion error:", error);
+      toast.error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to delete account"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Show loading state while checking authentication
@@ -434,30 +462,66 @@ export default function GuestProfilePage() {
                 >
                   <AlertCircle className="h-6 w-6 text-red-600" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
                     Delete Account?
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 mb-4">
                     This action cannot be undone. All your data, bookings, and
                     reviews will be permanently deleted.
                   </p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Confirm Password *
+                      </label>
+                      <Input
+                        type="password"
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        placeholder="Enter your password"
+                        className="w-full"
+                        disabled={isDeleting}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Reason (Optional)
+                      </label>
+                      <Input
+                        type="text"
+                        value={deleteReason}
+                        onChange={(e) => setDeleteReason(e.target.value)}
+                        placeholder="Help us understand why you're leaving"
+                        className="w-full"
+                        disabled={isDeleting}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className="flex gap-3 justify-end">
                 <Button
-                  onClick={() => setShowDeleteModal(false)}
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeletePassword("");
+                    setDeleteReason("");
+                  }}
                   variant="outline"
                   className="border-2 border-gray-200 text-gray-700 rounded-xl px-6 py-2.5 font-semibold hover:bg-gray-50 transition-all duration-200"
+                  disabled={isDeleting}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleDeleteAccount}
-                  className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-xl px-6 py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                  className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-xl px-6 py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  disabled={isDeleting || !deletePassword.trim()}
                 >
-                  Delete Account
+                  {isDeleting ? "Deleting..." : "Delete Account"}
                 </Button>
               </div>
             </Card>

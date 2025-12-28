@@ -27,19 +27,56 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   // Initialize socket connection and handle real-time notifications
   useEffect(() => {
-    // TODO: Re-enable socket.io notifications once bundling issue is resolved
-    console.log(
-      "Socket.io notifications temporarily disabled to fix bundling issue"
-    );
+    let socketService: any = null;
 
-    // For now, just show a test notification on auth
-    if (user && token) {
-      console.log(
-        "User authenticated, notifications would be enabled for:",
-        user.id
-      );
-    }
-  }, [user, token]);
+    const initializeSocket = async () => {
+      if (user && token) {
+        try {
+          // Dynamic import to avoid SSR bundling issues
+          const { SocketService } = await import("@/services/socket");
+          socketService = new SocketService();
+
+          // Connect to socket server
+          socketService.connect(token, user.id, user.role);
+
+          // Listen for notifications
+          socketService.onNotification(
+            (notification: NotificationSocketData) => {
+              // Show appropriate toast based on notification priority
+              const duration = getNotificationDuration(notification.priority);
+
+              switch (notification.priority) {
+                case "HIGH":
+                case "URGENT":
+                  error(notification.title, notification.message, duration);
+                  break;
+                case "MEDIUM":
+                  warning(notification.title, notification.message, duration);
+                  break;
+                default:
+                  info(notification.title, notification.message, duration);
+              }
+            }
+          );
+
+          socketServiceRef.current = socketService;
+          console.log("Socket.IO notifications enabled for user:", user.id);
+        } catch (err) {
+          console.error("Failed to initialize socket service:", err);
+        }
+      }
+    };
+
+    initializeSocket();
+
+    // Cleanup on unmount or auth change
+    return () => {
+      if (socketServiceRef.current) {
+        socketServiceRef.current.disconnect();
+        socketServiceRef.current = null;
+      }
+    };
+  }, [user, token, success, error, warning, info]);
 
   const value: NotificationContextType = {
     // Add any shared notification state or methods here

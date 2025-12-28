@@ -173,7 +173,11 @@ export const Header: React.FC = () => {
                     </Link>
 
                     <Link
-                      href="/profile"
+                      href={
+                        user?.role === "REALTOR"
+                          ? "/realtor/profile"
+                          : "/guest/profile"
+                      }
                       className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Profile Settings
@@ -294,7 +298,7 @@ export const Header: React.FC = () => {
           <div className="md:hidden border-t border-gray-200 py-4">
             <div className="space-y-2">
               <Link
-                href="/properties"
+                href="/browse"
                 className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
               >
                 Browse Properties
@@ -340,7 +344,11 @@ export const Header: React.FC = () => {
                   </Link>
 
                   <Link
-                    href="/profile"
+                    href={
+                      user?.role === "REALTOR"
+                        ? "/realtor/profile"
+                        : "/guest/profile"
+                    }
                     className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
                   >
                     Profile Settings

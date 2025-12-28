@@ -78,7 +78,7 @@ export default function GuestLandingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-orange-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loading size="lg" />
           <p className="mt-4 text-gray-600">Loading...</p>
@@ -89,7 +89,7 @@ export default function GuestLandingPage() {
 
   if (error || !realtorData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-orange-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center max-w-md px-4">
           <div className="text-6xl mb-4">🏠</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -100,7 +100,10 @@ export default function GuestLandingPage() {
           </p>
           <button
             onClick={() => router.push("/en")}
-            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-6 py-3 text-white font-medium rounded-lg hover:opacity-90 transition-colors"
+            style={{
+              backgroundColor: realtorData?.colors.primary || "#3B82F6",
+            }}
           >
             Go to Main Site
           </button>

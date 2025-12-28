@@ -10,7 +10,8 @@ import { Card, Button, Input } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useQuery } from "react-query";
-import { bookingService } from "@/services";
+import { bookingService, reviewService } from "@/services";
+import toast from "react-hot-toast";
 
 export default function WriteReviewPage() {
   const params = useParams();
@@ -93,20 +94,25 @@ export default function WriteReviewPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement review submission API call
-      console.log("Submitting review:", {
+      await reviewService.createReview({
         bookingId,
         rating,
-        comment,
-        detailedRatings,
-        photos,
+        comment: comment.trim(),
+        cleanlinessRating: detailedRatings.cleanliness,
+        communicationRating: detailedRatings.communication,
+        checkInRating: detailedRatings.checkIn,
+        accuracyRating: detailedRatings.accuracy,
+        locationRating: detailedRatings.location,
+        valueRating: detailedRatings.value,
       });
 
-      alert("Review submitted successfully!");
+      toast.success("Review submitted successfully!");
       router.push(`/guest/bookings/${bookingId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting review:", error);
-      alert("Failed to submit review. Please try again.");
+      toast.error(
+        error.message || "Failed to submit review. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }

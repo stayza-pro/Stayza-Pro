@@ -3,6 +3,8 @@ import { Server as SocketIOServer, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { config } from "@/config";
 import { prisma } from "@/config/database";
+import { sendEmail } from "@/services/email";
+import { logger } from "@/utils/logger";
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -437,16 +439,91 @@ export class NotificationService {
     }
   }
 
-  // TODO: Implement email notification sending
+  // Send email notification
   private async sendEmailNotification(
     userId: string,
     notification: any
   ): Promise<void> {
-    // Implementation would depend on your email service (SendGrid, AWS SES, etc.)
-    console.log(
-      `Email notification would be sent to user ${userId}:`,
-      notification.title
-    );
+    try {
+      // Get user email
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, firstName: true },
+      });
+
+      if (!user || !user.email) {
+        logger.warn(`No email found for user ${userId}`);
+        return;
+      }
+
+      // Construct email content based on notification type
+      const emailSubject = notification.title;
+      const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
+              .priority-${notification.priority.toLowerCase()} { border-left: 4px solid ${
+        notification.priority === "HIGH"
+          ? "#ef4444"
+          : notification.priority === "MEDIUM"
+          ? "#f59e0b"
+          : "#3b82f6"
+      }; padding-left: 15px; margin: 20px 0; }
+              .button { display: inline-block; padding: 12px 30px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+              .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Stayza Notification</h1>
+              </div>
+              <div class="content">
+                <h2>Hi ${user.firstName || "there"},</h2>
+                <div class="priority-${notification.priority.toLowerCase()}">
+                  <h3>${notification.title}</h3>
+                  <p>${notification.message}</p>
+                </div>
+                ${
+                  notification.bookingId
+                    ? `<a href="${config.FRONTEND_URL}/guest/bookings/${notification.bookingId}" class="button">View Booking</a>`
+                    : ""
+                }
+                ${
+                  notification.propertyId
+                    ? `<a href="${config.FRONTEND_URL}/browse/${notification.propertyId}" class="button">View Property</a>`
+                    : ""
+                }
+              </div>
+              <div class="footer">
+                <p>You're receiving this email because you have notifications enabled.</p>
+                <p>© ${new Date().getFullYear()} Stayza. All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      await sendEmail(user.email, {
+        subject: emailSubject,
+        html: emailHtml,
+      });
+
+      logger.info(
+        `Email notification sent to user ${userId}: ${notification.title}`
+      );
+    } catch (error) {
+      logger.error(
+        `Error sending email notification to user ${userId}:`,
+        error
+      );
+      // Don't throw - email delivery failure shouldn't break notification creation
+    }
   }
 
   // Check if user is online

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, MapPin, Star, Search, X } from "lucide-react";
 import Image from "next/image";
@@ -9,18 +9,22 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { Footer } from "@/components/guest/sections/Footer";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { favoritesService, type FavoriteProperty } from "@/services";
+import toast from "react-hot-toast";
 
 export default function FavoritesPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useCurrentUser();
   const [searchQuery, setSearchQuery] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteProperty[]>([]);
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(true);
 
   // Use realtor branding hook for consistent styling
   const {
-    brandColor: primaryColor, // Lighter touch - primary for CTAs
-    secondaryColor, // Lighter touch - secondary for accents
-    accentColor, // Lighter touch - accent for highlights
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
     realtorName,
     logoUrl,
     tagline,
@@ -41,12 +45,44 @@ export default function FavoritesPage() {
     }
   }, [isLoading, isAuthenticated, authChecked, router]);
 
-  // TODO: Fetch favorites from API
-  const favorites: any[] = [];
+  // Fetch favorites on mount
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchFavorites();
+    }
+  }, [isAuthenticated, user]);
 
-  const handleRemoveFavorite = (propertyId: string) => {
-    // TODO: Implement remove from favorites API call
-    console.log("Removing favorite:", propertyId);
+  const fetchFavorites = async () => {
+    try {
+      setIsLoadingFavorites(true);
+      const response = await favoritesService.getFavorites();
+      if (response.success && response.data) {
+        setFavorites(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch favorites:", error);
+      toast.error("Failed to load favorites");
+    } finally {
+      setIsLoadingFavorites(false);
+    }
+  };
+
+  const handleRemoveFavorite = async (propertyId: string) => {
+    try {
+      const response = await favoritesService.removeFavorite(propertyId);
+      if (response.success) {
+        toast.success("Removed from favorites");
+        // Remove from local state
+        setFavorites((prev) =>
+          prev.filter((fav) => fav.propertyId !== propertyId)
+        );
+      }
+    } catch (error: any) {
+      console.error("Failed to remove favorite:", error);
+      toast.error(
+        error.response?.data?.error || "Failed to remove from favorites"
+      );
+    }
   };
 
   const handleBookNow = (propertyId: string) => {
@@ -61,13 +97,18 @@ export default function FavoritesPage() {
     }).format(price);
   };
 
-  // Show loading state while checking authentication
-  if (!authChecked || isLoading) {
+  // Show loading state while checking authentication or loading favorites
+  if (!authChecked || isLoading || isLoadingFavorites) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <GuestHeader
+          currentPage="favorites"
+          searchPlaceholder="Search properties..."
+        />
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-100 rounded w-1/3"></div>
+            <div className="h-64 bg-gray-100 rounded"></div>
             <div className="h-64 bg-gray-100 rounded"></div>
           </div>
         </div>
@@ -135,7 +176,7 @@ export default function FavoritesPage() {
                 />
               </div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {new Set(favorites.map((f) => f.city)).size}
+                {new Set(favorites.map((f) => f.property.city)).size}
               </p>
               <p className="text-sm text-gray-600">Cities</p>
             </Card>
@@ -154,8 +195,14 @@ export default function FavoritesPage() {
                 />
               </div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {favorites.reduce((acc, f) => acc + (f.averageRating || 0), 0) /
-                  favorites.length || 0}
+                {favorites.length > 0
+                  ? (
+                      favorites.reduce(
+                        (acc, f) => acc + (f.property.averageRating || 0),
+                        0
+                      ) / favorites.length
+                    ).toFixed(1)
+                  : "0.0"}
               </p>
               <p className="text-sm text-gray-600">Avg Rating</p>
             </Card>
@@ -199,17 +246,17 @@ export default function FavoritesPage() {
           <>
             {/* Favorites Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {favorites.map((property) => (
+              {favorites.map((favorite) => (
                 <Card
-                  key={property.id}
+                  key={favorite.id}
                   className="overflow-hidden hover:shadow-lg transition-shadow border border-gray-200 !bg-white"
                   style={{ backgroundColor: "#ffffff", color: "#111827" }}
                 >
                   <div className="relative h-48">
-                    {property.images?.[0]?.url ? (
+                    {favorite.property.images?.[0]?.url ? (
                       <Image
-                        src={property.images[0].url}
-                        alt={property.title}
+                        src={favorite.property.images[0].url}
+                        alt={favorite.property.title}
                         fill
                         className="object-cover"
                       />
@@ -217,7 +264,7 @@ export default function FavoritesPage() {
                       <div className="w-full h-full bg-gray-200" />
                     )}
                     <button
-                      onClick={() => handleRemoveFavorite(property.id)}
+                      onClick={() => handleRemoveFavorite(favorite.propertyId)}
                       className="absolute top-3 right-3 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100"
                     >
                       <Heart className="h-5 w-5 fill-red-500 text-red-500" />
@@ -226,24 +273,24 @@ export default function FavoritesPage() {
 
                   <div className="p-4">
                     <h3 className="text-lg font-semibold text-gray-900 mb-2 truncate">
-                      {property.title}
+                      {favorite.property.title}
                     </h3>
 
                     <div className="flex items-center text-gray-600 mb-3">
                       <MapPin className="h-4 w-4 mr-1" />
                       <span className="text-sm truncate">
-                        {property.city}, {property.state}
+                        {favorite.property.city}, {favorite.property.state}
                       </span>
                     </div>
 
-                    {property.averageRating && (
+                    {favorite.property.averageRating && (
                       <div className="flex items-center mb-3">
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
                         <span className="font-semibold text-gray-900 mr-1">
-                          {property.averageRating.toFixed(1)}
+                          {favorite.property.averageRating.toFixed(1)}
                         </span>
                         <span className="text-gray-600 text-sm">
-                          ({property.reviewCount} reviews)
+                          ({favorite.property.reviewCount} reviews)
                         </span>
                       </div>
                     )}
@@ -252,8 +299,8 @@ export default function FavoritesPage() {
                       <div>
                         <span className="text-xl font-bold text-gray-900">
                           {formatPrice(
-                            property.pricePerNight,
-                            property.currency
+                            favorite.property.pricePerNight,
+                            favorite.property.currency
                           )}
                         </span>
                         <span className="text-gray-600 text-sm ml-1">
@@ -263,7 +310,7 @@ export default function FavoritesPage() {
                     </div>
 
                     <Button
-                      onClick={() => handleBookNow(property.id)}
+                      onClick={() => handleBookNow(favorite.propertyId)}
                       className="w-full text-white font-semibold hover:opacity-90"
                       style={{ backgroundColor: primaryColor }}
                     >

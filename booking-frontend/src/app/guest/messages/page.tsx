@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MessageCircle, Send, Search } from "lucide-react";
 import { Card, Input, Button } from "@/components/ui";
@@ -8,26 +8,8 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { Footer } from "@/components/guest/sections/Footer";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-
-interface Message {
-  id: string;
-  senderId: string;
-  recipientId: string;
-  content: string;
-  createdAt: Date;
-  read: boolean;
-}
-
-interface Conversation {
-  id: string;
-  otherUser: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  lastMessage: Message;
-  unreadCount: number;
-}
+import { messageService, type Conversation, type Message } from "@/services";
+import toast from "react-hot-toast";
 
 function MessagesContent() {
   const router = useRouter();
@@ -51,6 +33,11 @@ function MessagesContent() {
   >(searchParams.get("hostId") || null);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   // Mark auth as checked once we've gotten a result
   React.useEffect(() => {
@@ -66,16 +53,110 @@ function MessagesContent() {
     }
   }, [isLoading, isAuthenticated, authChecked, router]);
 
-  // TODO: Fetch conversations and messages from API
-  const conversations: Conversation[] = [];
-  const messages: Message[] = [];
+  // Fetch conversations on mount
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchConversations();
+    }
+  }, [isAuthenticated, user]);
 
-  const handleSendMessage = () => {
-    if (!messageText.trim()) return;
+  // Fetch messages when constring | Date) => {
+    return new Date(date).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
 
-    // TODO: Implement send message API call
-    console.log("Sending message:", messageText);
-    setMessageText("");
+  const formatDate = (date: string |= async () => {
+    try {
+      setIsLoadingConversations(true);
+      const response = await messageService.getConversations();
+      if (response.success && response.data) {
+        setConversations(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch conversations:", error);
+      toast.error("Failed to load conversations");
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  const fetchMessages = async () => {
+    if (!selectedConversation) return;
+
+    try {
+      setIsLoadingMessages(true);
+      const selectedConv = conversations.find(
+        (c) => c.propertyId === selectedConversation || c.bookingId === selectedConversation
+      );
+
+      if (!selectedConv) return;
+
+      let response;
+      if (selectedConv.propertyId) {
+        response = await messageService.getPropertyMessages(selectedConv.propertyId);
+      } else if (selectedConv.bookingId) {
+        response = await messageService.getBookingMessages(selectedConv.bookingId);
+      }
+
+      if (response?.success && response.data) {
+        setMessages(response.data);
+        
+        // Mark conversation as read
+        if (selectedConv.propertyId || selectedConv.bookingId) {
+          await messageService.markConversationAsRead(
+            selectedConv.propertyId,
+            selectedConv.bookingId
+          );
+          // Refresh conversations to update unread count
+          fetchConversations();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch messages:", error);
+      toast.error("Failed to load messages");
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !selectedConversation) return;
+
+    const selectedConv = conversations.find(
+      (c) => c.propertyId === selectedConversation || c.bookingId === selectedConversation
+    );
+
+    if (!selectedConv) return;
+
+    try {
+      setIsSending(true);
+      let response;
+
+      if (selectedConv.propertyId) {
+        response = await messageService.sendPropertyInquiry(selectedConv.propertyId, {
+          content: messageText.trim(),
+        });
+      } else if (selectedConv.bookingId) {
+        response = await messageService.sendBookingMessage(selectedConv.bookingId, {
+          content: messageText.trim(),
+        });
+      }
+
+      if (response?.success) {
+        setMessageText("");
+        // Refresh messages
+        await fetchMessages();
+        // Refresh conversations to update last message
+        await fetchConversations();
+      }
+    } catch (error: any) {
+      console.error("Failed to send message:", error);
+      toast.error(error.response?.data?.error || "Failed to send message");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -145,52 +226,76 @@ function MessagesContent() {
 
             {/* Conversation List */}
             <div className="flex-1 overflow-y-auto">
-              {conversations.length === 0 ? (
+              {isLoadingConversations ? (
+                <div className="p-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
+                  <p className="text-gray-600 text-sm">Loading conversations...</p>
+                </div>
+              ) : conversations.length === 0 ? (
                 <div className="p-8 text-center">
                   <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-600">No conversations yet</p>
                 </div>
               ) : (
-                conversations.map((conversation) => (
-                  <button
-                    key={conversation.id}
-                    onClick={() => setSelectedConversation(conversation.id)}
-                    className="w-full p-4 flex items-start space-x-3 hover:bg-gray-50 transition-colors border-b border-gray-100"
-                    style={
-                      selectedConversation === conversation.id
-                        ? { backgroundColor: accentColor + "10" }
-                        : {}
-                    }
-                  >
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0"
-                      style={{ backgroundColor: primaryColor }} // Lighter touch - primary for avatar
-                    >
-                      {conversation.otherUser.name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="font-semibold text-gray-900 truncate">
-                          {conversation.otherUser.name}
-                        </p>
-                        {conversation.unreadCount > 0 && (
-                          <span
-                            className="text-white text-xs font-bold px-2 py-1 rounded-full"
-                            style={{ backgroundColor: secondaryColor }}
-                          >
-                            {conversation.unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 truncate">
-                        {conversation.lastMessage.content}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {formatDate(conversation.lastMessage.createdAt)}
-                      </p>
-                    </div>
-                  </button>
-                ))
+                conversations
+                  .filter((conversation) =>
+                    conversation.otherUser.firstName
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
+                    conversation.otherUser.lastName
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase())
+                  )
+                  .map((conversation) => {
+                    const conversationId = conversation.propertyId || conversation.bookingId || "";
+                    return (
+                      <button
+                        key={conversationId}
+                        onClick={() => setSelectedConversation(conversationId)}
+                        className="w-full p-4 flex items-start space-x-3 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                        style={
+                          selectedConversation === conversationId
+                            ? { backgroundColor: accentColor + "10" }
+                            : {}
+                        }
+                      >
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          {conversation.otherUser.firstName.charAt(0)}
+                          {conversation.otherUser.lastName.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {conversation.otherUser.firstName}{" "}
+                              {conversation.otherUser.lastName}
+                            </p>
+                            {conversation.unreadCount > 0 && (
+                              <span
+                                className="text-white text-xs font-bold px-2 py-1 rounded-full"
+                                style={{ backgroundColor: secondaryColor }}
+                              >
+                                {conversation.unreadCount}
+                              </span>
+                            )}
+                          </div>
+                          {conversation.property && (
+                            <p className="text-xs text-gray-500 truncate mb-1">
+                              {conversation.property.name}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-600 truncate">
+                            {conversation.lastMessage.content}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {formatDate(conversation.lastMessage.createdAt)}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
               )}
             </div>
           </div>
@@ -201,23 +306,50 @@ function MessagesContent() {
               <>
                 {/* Thread Header */}
                 <div className="p-4 border-b border-gray-200 flex items-center">
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold mr-3"
-                    style={{ backgroundColor: primaryColor }} // Lighter touch - primary for avatar
-                  >
-                    H
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Host Name</p>
-                    <p className="text-sm text-gray-600">
-                      Usually replies in a few hours
-                    </p>
-                  </div>
+                  {(() => {
+                    const selectedConv = conversations.find(
+                      (c) => c.propertyId === selectedConversation || c.bookingId === selectedConversation
+                    );
+                    if (!selectedConv) return null;
+                    
+                    return (
+                      <>
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold mr-3"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          {selectedConv.otherUser.firstName.charAt(0)}
+                          {selectedConv.otherUser.lastName.charAt(0)}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">
+                            {selectedConv.otherUser.firstName}{" "}
+                            {selectedConv.otherUser.lastName}
+                          </p>
+                          {selectedConv.property && (
+                            <p className="text-sm text-gray-600">
+                              {selectedConv.property.name}
+                            </p>
+                          )}
+                          {selectedConv.booking && (
+                            <p className="text-sm text-gray-600">
+                              Booking: {selectedConv.booking.bookingReference}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {messages.length === 0 ? (
+                  {isLoadingMessages ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
+                      <p className="text-gray-600">Loading messages...</p>
+                    </div>
+                  ) : messages.length === 0 ? (
                     <div className="text-center py-12">
                       <p className="text-gray-600">No messages yet</p>
                       <p className="text-sm text-gray-500 mt-1">
@@ -241,7 +373,7 @@ function MessagesContent() {
                               ? {
                                   backgroundColor: primaryColor,
                                   color: "white",
-                                } // Lighter touch - primary for sent messages
+                                }
                               : { backgroundColor: "#f3f4f6", color: "#111827" }
                           }
                         >
@@ -278,12 +410,17 @@ function MessagesContent() {
                         }
                       }}
                       className="flex-1"
+                      disabled={isSending}
                     />
                     <Button
                       onClick={handleSendMessage}
-                      disabled={!messageText.trim()}
+                      disabled={!messageText.trim() || isSending}
                     >
-                      <Send className="h-5 w-5" />
+                      {isSending ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      ) : (
+                        <Send className="h-5 w-5" />
+                      )}
                     </Button>
                   </div>
                 </div>

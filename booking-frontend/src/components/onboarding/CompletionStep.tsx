@@ -232,7 +232,7 @@ export const CompletionStep: React.FC<CompletionStepProps> = ({
 
       {/* CTA Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 justify-center pt-6">
-        <Link href="/dashboard">
+        <Link href="/realtor">
           <Button variant="outline" className="px-8">
             Go to Dashboard
           </Button>
@@ -246,7 +246,7 @@ export const CompletionStep: React.FC<CompletionStepProps> = ({
       <div className="text-center py-6 border-t">
         <p className="text-sm text-gray-600 mb-2">Need help getting started?</p>
         <div className="flex justify-center gap-4 text-sm">
-          <a href="/help" className="text-blue-600 hover:text-blue-700">
+          <a href="/guest/help" className="text-blue-600 hover:text-blue-700">
             View Help Center
           </a>
           <span className="text-gray-300">•</span>

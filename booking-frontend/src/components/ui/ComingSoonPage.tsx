@@ -47,11 +47,11 @@ export default function ComingSoonPage({
           {/* Actions */}
           <div className="space-y-4">
             <Link
-              href="/dashboard"
+              href="/"
               className="inline-flex items-center space-x-2 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Dashboard</span>
+              <span>Back to Home</span>
             </Link>
 
             <div className="text-sm text-gray-500">
@@ -80,18 +80,18 @@ export default function ComingSoonPage({
               <span>User Authentication</span>
             </Link>
             <Link
-              href="/properties"
+              href="/browse"
               className="flex items-center space-x-2 text-green-600 hover:text-green-800"
             >
               <span>✓</span>
               <span>Browse Properties</span>
             </Link>
             <Link
-              href="/dashboard"
+              href="/"
               className="flex items-center space-x-2 text-green-600 hover:text-green-800"
             >
               <span>✓</span>
-              <span>Basic Dashboard</span>
+              <span>Homepage</span>
             </Link>
             <Link
               href="/booking"

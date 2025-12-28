@@ -28,6 +28,8 @@ import { Footer } from "@/components/guest/sections";
 import { Card, Button } from "@/components/ui";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { favoritesService } from "@/services";
+import toast from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { PropertyAmenity } from "@/types";
 
@@ -99,6 +101,21 @@ export default function PropertyDetailsPage() {
     }
   }, [property]);
 
+  // Check if property is favorited
+  React.useEffect(() => {
+    const checkFavorite = async () => {
+      if (user && propertyId) {
+        try {
+          const favorited = await favoritesService.checkFavorite(propertyId);
+          setIsFavorited(favorited);
+        } catch (error) {
+          console.error("Error checking favorite status:", error);
+        }
+      }
+    };
+    checkFavorite();
+  }, [user, propertyId]);
+
   // Close calendars when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -147,13 +164,25 @@ export default function PropertyDetailsPage() {
     );
   };
 
-  const handleFavorite = () => {
+  const handleFavorite = async () => {
     if (!user) {
       router.push(`/guest/login?redirect=/browse/${propertyId}`);
       return;
     }
-    setIsFavorited(!isFavorited);
-    // TODO: Call API to add/remove from favorites
+
+    try {
+      if (isFavorited) {
+        await favoritesService.removeFavorite(propertyId);
+        toast.success("Removed from favorites");
+      } else {
+        await favoritesService.addFavorite(propertyId);
+        toast.success("Added to favorites");
+      }
+      setIsFavorited(!isFavorited);
+    } catch (error: any) {
+      console.error("Error toggling favorite:", error);
+      toast.error(error.message || "Failed to update favorites");
+    }
   };
 
   const handleShare = async () => {

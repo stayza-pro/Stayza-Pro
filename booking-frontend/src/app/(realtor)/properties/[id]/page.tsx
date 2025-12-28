@@ -107,15 +107,13 @@ export default function EditPropertyPage() {
   const removeExistingImage = async (imageUrl: string, index: number) => {
     showConfirm("Are you sure you want to delete this image?", async () => {
       try {
-        // Extract image ID from the image object
         const imageId = existingImages[index].id;
-        // For now, just remove from state
-        // TODO: Implement actual delete API call if available
+        await propertyService.deletePropertyImage(propertyId, imageId);
         setExistingImages((prev) => prev.filter((_, i) => i !== index));
         showSuccess("Image deleted successfully");
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error deleting image:", error);
-        showError("Failed to delete image");
+        showError(error.message || "Failed to delete image");
       }
     });
   };
@@ -150,9 +148,9 @@ export default function EditPropertyPage() {
           await propertyService.deleteProperty(propertyId);
           showSuccess("Property deleted successfully!");
           router.push("/properties");
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error deleting property:", error);
-          showError("Failed to delete property");
+          showError(error.message || "Failed to delete property");
         }
       }
     );

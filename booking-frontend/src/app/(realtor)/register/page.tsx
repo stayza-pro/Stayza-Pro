@@ -51,6 +51,7 @@ import { SocialMediaValidator } from "./SocialMediaValidator";
 
 import { EnhancedErrorHandler } from "./EnhancedErrorHandler";
 import ConditionalLogic from "./ConditionalLogic";
+import { logError, trackAction } from "@/utils/errorLogger";
 import CompletionCelebration from "./CompletionCelebration";
 import { RealtorRegistrationApi, handleApiError, useApiState } from "./api";
 import { useMultiDomainNavigation } from "@/hooks/useMultiDomainNavigation";
@@ -792,12 +793,23 @@ function RealtorRegistrationContent() {
   const handleReportError = (error: any) => {
     console.log("Reporting error:", error);
 
-    // TODO: Implement error reporting to analytics/logging service
-    const errorReport = {
-      timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      url: window.location.href,
-      error: error,
+    // Log error to error tracking service
+    logError(error, {
+      component: "RealtorRegistration",
+      action: "registration_attempt",
+      metadata: {
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+        currentStep: step,
+      },
+    });
+
+    // Track error event for analytics
+    trackAction("registration_error", "registration", {
+      errorType: error?.message || "unknown",
+      step: step,
+    });
       formData: {
         step: currentStep,
         // Don't include sensitive data

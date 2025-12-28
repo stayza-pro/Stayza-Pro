@@ -15,6 +15,7 @@ import {
   notificationHelpers,
 } from "@/services/notificationService";
 import { updatePaymentCommission } from "@/services/commission";
+import { ReceiptGenerator } from "@/services/receiptGenerator";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { authenticate, authorize } from "@/middleware/auth";
 import { config } from "@/config/index";
@@ -1111,6 +1112,105 @@ router.get(
         },
       },
     });
+  })
+);
+
+/**
+ * @swagger
+ * /api/payments/{id}/receipt:
+ *   get:
+ *     summary: Download payment receipt as PDF
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: PDF receipt generated
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Payment not found
+ *       403:
+ *         description: Unauthorized
+ */
+router.get(
+  "/:id/receipt",
+  authenticate,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    const payment = await prisma.payment.findUnique({
+      where: { id },
+      include: {
+        booking: {
+          include: {
+            guest: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            property: {
+              select: {
+                id: true,
+                title: true,
+                address: true,
+                city: true,
+                state: true,
+                country: true,
+                realtorId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new AppError("Payment not found", 404);
+    }
+
+    // Authorization check
+    const isGuest = userRole === "GUEST" && payment.booking.guestId === userId;
+    const isRealtor =
+      userRole === "REALTOR" && payment.booking.property.realtorId === userId;
+    const isAdmin = userRole === "ADMIN";
+
+    if (!isGuest && !isRealtor && !isAdmin) {
+      throw new AppError("Unauthorized to download this receipt", 403);
+    }
+
+    // Only generate receipt for completed payments
+    if (payment.status !== "COMPLETED") {
+      throw new AppError("Receipt only available for completed payments", 400);
+    }
+
+    // Generate PDF
+    const doc = ReceiptGenerator.generateReceipt(payment);
+
+    // Set response headers
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="receipt-${payment.reference}.pdf"`
+    );
+
+    // Pipe PDF to response
+    doc.pipe(res);
+    doc.end();
   })
 );
 
