@@ -128,9 +128,7 @@ export const propertyService = {
     }
 
     const queryString = params.toString();
-    const baseUrl = hostId
-      ? `/properties/host/${hostId}`
-      : "/properties/my-properties";
+    const baseUrl = `/properties/host/${hostId}`;
     const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
 
     const response = await apiClient.get<Property[]>(url);

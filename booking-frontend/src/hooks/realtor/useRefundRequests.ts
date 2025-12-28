@@ -95,7 +95,7 @@ export function useRefundRequests(
       });
 
       const response = await fetch(
-        `${baseUrl}/api/refunds/realtor/requests?${params.toString()}`,
+        `${baseUrl}/refunds/realtor/requests?${params.toString()}`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,

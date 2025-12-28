@@ -195,7 +195,7 @@ export default function SettingsPage() {
   const fetchCacStatus = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_URL}/api/realtors/cac/status`, {
+      const response = await fetch(`${API_URL}/realtors/cac/status`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
@@ -237,7 +237,7 @@ export default function SettingsPage() {
     formData.append("logo", logoFile);
 
     try {
-      const response = await fetch(`${API_URL}/api/realtors/upload-logo`, {
+      const response = await fetch(`${API_URL}/realtors/upload-logo`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -264,7 +264,7 @@ export default function SettingsPage() {
     formData.append("cacCertificate", file);
 
     try {
-      const response = await fetch(`${API_URL}/api/realtors/upload-temp-cac`, {
+      const response = await fetch(`${API_URL}/realtors/upload-temp-cac`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -377,8 +377,8 @@ export default function SettingsPage() {
       const isResubmission =
         cacStatus?.cacStatus === "REJECTED" && cacStatus?.canAppeal;
       const endpoint = isResubmission
-        ? `${API_URL}/api/realtors/cac/resubmit`
-        : `${API_URL}/api/realtors/cac`;
+        ? `${API_URL}/realtors/cac/resubmit`
+        : `${API_URL}/realtors/cac`;
       const method = isResubmission ? "PUT" : "POST";
 
       const response = await fetch(endpoint, {
@@ -411,7 +411,7 @@ export default function SettingsPage() {
   const handleProfileSave = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_URL}/api/realtors/profile`, {
+      const response = await fetch(`${API_URL}/realtors/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -454,7 +454,7 @@ export default function SettingsPage() {
         }
       }
 
-      const response = await fetch(`${API_URL}/api/realtors/profile`, {
+      const response = await fetch(`${API_URL}/realtors/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -497,7 +497,7 @@ export default function SettingsPage() {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/change-password`, {
+      const response = await fetch(`${API_URL}/auth/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -537,7 +537,7 @@ export default function SettingsPage() {
           async () => {
             setIsSaving(true);
             try {
-              const response = await fetch(`${API_URL}/api/realtors/profile`, {
+              const response = await fetch(`${API_URL}/realtors/profile`, {
                 method: "DELETE",
                 headers: {
                   Authorization: `Bearer ${localStorage.getItem(

@@ -1137,13 +1137,27 @@ router.delete(
 router.get(
   "/host/:realtorId",
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const realtorId = req.params.realtorId || req.realtor?.id;
+    let realtorId = req.params.realtorId || req.realtor?.id;
 
     if (!realtorId) {
       return res.status(400).json({
         success: false,
         message: "Realtor ID is required",
       });
+    }
+
+    // If the provided ID is a user ID, look up the corresponding realtor ID
+    const realtor = await prisma.realtor.findFirst({
+      where: {
+        OR: [{ id: realtorId }, { userId: realtorId }],
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (realtor) {
+      realtorId = realtor.id;
     }
 
     const {

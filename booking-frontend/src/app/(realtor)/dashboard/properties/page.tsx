@@ -50,22 +50,35 @@ export default function PropertiesPage() {
   };
 
   useEffect(() => {
-    fetchProperties();
-  }, [currentPage, searchQuery]);
+    if (user?.realtor?.id) {
+      fetchProperties();
+    }
+  }, [currentPage, searchQuery, user?.realtor?.id]);
 
   const fetchProperties = async () => {
+    if (!user?.realtor?.id) {
+      console.log("No realtor ID available yet");
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await propertyService.getHostProperties(undefined, {
-        page: currentPage,
-        limit: 12,
-        query: searchQuery || undefined,
-      });
+      console.log("Fetching properties for realtor:", user.realtor.id);
+      const response = await propertyService.getHostProperties(
+        user.realtor.id,
+        {
+          page: currentPage,
+          limit: 12,
+          query: searchQuery || undefined,
+        }
+      );
 
+      console.log("Properties fetched:", response);
       setProperties(response.data || []);
       setTotalPages(response.pagination?.totalPages || 1);
     } catch (error) {
       console.error("Error fetching properties:", error);
+      showError("Failed to load properties");
     } finally {
       setLoading(false);
     }

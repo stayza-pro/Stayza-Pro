@@ -391,7 +391,6 @@ export default function AddPropertyPage() {
         state: formData.state,
         country: formData.country || "Nigeria",
         // Optional fees
-        serviceFee: formData.serviceFee,
         cleaningFee: formData.cleaningFee,
         securityDeposit: formData.securityDeposit,
       };
@@ -798,37 +797,7 @@ export default function AddPropertyPage() {
                 in addition to the nightly rate.
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Service Fee
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg text-gray-600">
-                      {CURRENCY_SYMBOLS[formData.currency || "NGN"]}
-                    </div>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.serviceFee || ""}
-                      onChange={(e) =>
-                        updateFormData(
-                          "serviceFee",
-                          e.target.value
-                            ? parseFloat(e.target.value)
-                            : undefined
-                        )
-                      }
-                      placeholder="0.00"
-                      className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    One-time booking service charge
-                  </p>
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cleaning Fee
@@ -1062,7 +1031,7 @@ export default function AddPropertyPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && e.currentTarget.value.trim()) {
                       e.preventDefault();
-                      const value = e.currentTarget.value.trim();
+                      const value = e.currentTarget.value.trim().toUpperCase();
                       if (value && !formData.customAmenities?.includes(value)) {
                         updateFormData("customAmenities", [
                           ...(formData.customAmenities || []),
@@ -1078,7 +1047,7 @@ export default function AddPropertyPage() {
                   onClick={(e) => {
                     const input = e.currentTarget
                       .previousElementSibling as HTMLInputElement;
-                    const value = input.value.trim();
+                    const value = input.value.trim().toUpperCase();
                     if (value && !formData.customAmenities?.includes(value)) {
                       updateFormData("customAmenities", [
                         ...(formData.customAmenities || []),
@@ -1272,18 +1241,8 @@ export default function AddPropertyPage() {
                     {formData.currency} {formData.pricePerNight ?? 0}
                   </p>
                 </div>
-                {(formData.serviceFee ||
-                  formData.cleaningFee ||
-                  formData.securityDeposit) && (
+                {(formData.cleaningFee || formData.securityDeposit) && (
                   <>
-                    {formData.serviceFee && (
-                      <div>
-                        <p className="text-gray-500">Service Fee</p>
-                        <p className="font-medium">
-                          {formData.currency} {formData.serviceFee}
-                        </p>
-                      </div>
-                    )}
                     {formData.cleaningFee && (
                       <div>
                         <p className="text-gray-500">Cleaning Fee</p>
@@ -1324,19 +1283,35 @@ export default function AddPropertyPage() {
                 Amenities
               </h4>
               <div className="flex flex-wrap gap-2">
-                {formData.amenities && formData.amenities.length > 0 ? (
-                  formData.amenities.map((amenity) => (
-                    <span
-                      key={amenity}
-                      className="px-3 py-1 text-xs font-medium rounded-full"
-                      style={{
-                        backgroundColor: brandColors.primary + "20",
-                        color: brandColors.primary,
-                      }}
-                    >
-                      {amenity}
-                    </span>
-                  ))
+                {(formData.amenities && formData.amenities.length > 0) ||
+                (formData.customAmenities &&
+                  formData.customAmenities.length > 0) ? (
+                  <>
+                    {formData.amenities?.map((amenity) => (
+                      <span
+                        key={amenity}
+                        className="px-3 py-1 text-xs font-medium rounded-full"
+                        style={{
+                          backgroundColor: `${brandColors.primary}20`,
+                          color: brandColors.primary,
+                        }}
+                      >
+                        {amenity}
+                      </span>
+                    ))}
+                    {formData.customAmenities?.map((amenity) => (
+                      <span
+                        key={amenity}
+                        className="px-3 py-1 text-xs font-medium rounded-full"
+                        style={{
+                          backgroundColor: `${brandColors.primary}20`,
+                          color: brandColors.primary,
+                        }}
+                      >
+                        {amenity}
+                      </span>
+                    ))}
+                  </>
                 ) : (
                   <p className="text-sm text-gray-500">No amenities selected</p>
                 )}

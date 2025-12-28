@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
 import { AuthProvider } from "../../context/AuthContext";
 import { QueryProvider } from "../../context/QueryProvider";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
@@ -19,17 +17,13 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: { locale: string };
 }) {
-  const messages = await getMessages();
-
   return (
-    <NextIntlClientProvider messages={messages}>
-      <QueryProvider>
-        <AuthProvider>
-          <NotificationProvider>
-            <AnalyticsProvider>{children}</AnalyticsProvider>
-          </NotificationProvider>
-        </AuthProvider>
-      </QueryProvider>
-    </NextIntlClientProvider>
+    <QueryProvider>
+      <AuthProvider>
+        <NotificationProvider>
+          <AnalyticsProvider>{children}</AnalyticsProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </QueryProvider>
   );
 }

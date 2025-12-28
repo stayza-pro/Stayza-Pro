@@ -101,7 +101,7 @@ export async function testPaystackWebhook(
   console.log(`Signature: ${signature.substring(0, 20)}...`);
 
   try {
-    const response = await fetch(`${apiUrl}/api/webhooks/paystack`, {
+    const response = await fetch(`${apiUrl}/webhooks/paystack`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -178,7 +178,7 @@ export async function testFlutterwaveWebhook(
   console.log(`Reference: ${paymentReference}`);
 
   try {
-    const response = await fetch(`${apiUrl}/api/webhooks/flutterwave`, {
+    const response = await fetch(`${apiUrl}/webhooks/flutterwave`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -235,7 +235,7 @@ export async function checkPaymentStatus(
     }
 
     const response = await fetch(
-      `${apiUrl}/api/payments/verify-by-reference?reference=${reference}`,
+      `${apiUrl}/payments/verify-by-reference?reference=${reference}`,
       { headers }
     );
 

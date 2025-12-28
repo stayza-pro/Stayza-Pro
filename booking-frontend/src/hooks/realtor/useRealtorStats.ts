@@ -55,7 +55,7 @@ export function useRealtorStats(realtorId?: string): UseRealtorStatsReturn {
       const baseUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
-      const response = await fetch(`${baseUrl}/api/realtors/dashboard/stats`, {
+      const response = await fetch(`${baseUrl}/realtors/dashboard/stats`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",

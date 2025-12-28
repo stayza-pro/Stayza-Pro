@@ -60,7 +60,7 @@ export function useRevenueData(
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
       const response = await fetch(
-        `${baseUrl}/api/realtors/revenue-analytics?period=${timeFilter}`,
+        `${baseUrl}/realtors/revenue-analytics?period=${timeFilter}`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,

@@ -93,7 +93,7 @@ export function useDashboardData(): DashboardData {
 
       // Fetch dashboard stats
       const statsResponse = await fetch(
-        `${baseUrl}/api/realtors/dashboard/stats`,
+        `${baseUrl}/realtors/dashboard/stats`,
         {
           headers,
         }
@@ -101,14 +101,14 @@ export function useDashboardData(): DashboardData {
 
       // Fetch recent bookings
       const bookingsResponse = await fetch(
-        `${baseUrl}/api/realtors/bookings/recent?limit=5`,
+        `${baseUrl}/realtors/bookings/recent?limit=5`,
         {
           headers,
         }
       );
 
       // Fetch realtor profile for additional info
-      const profileResponse = await fetch(`${baseUrl}/api/realtors/profile`, {
+      const profileResponse = await fetch(`${baseUrl}/realtors/profile`, {
         headers,
       });
 

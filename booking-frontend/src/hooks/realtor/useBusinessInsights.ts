@@ -82,7 +82,7 @@ export function useBusinessInsights(
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
       const response = await fetch(
-        `${baseUrl}/api/realtors/analytics?timeRange=${currentTimeRange}`,
+        `${baseUrl}/realtors/analytics?timeRange=${currentTimeRange}`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,

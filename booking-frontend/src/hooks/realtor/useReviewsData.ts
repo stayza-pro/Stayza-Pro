@@ -97,8 +97,8 @@ export function useReviewsData(
       // If propertyId is provided, fetch reviews for that property
       // Otherwise, fetch all reviews for the realtor's properties
       const endpoint = propertyId
-        ? `${baseUrl}/api/properties/${propertyId}/reviews?page=${currentPage}&limit=${limit}`
-        : `${baseUrl}/api/realtors/reviews?page=${currentPage}&limit=${limit}`;
+        ? `${baseUrl}/properties/${propertyId}/reviews?page=${currentPage}&limit=${limit}`
+        : `${baseUrl}/realtors/reviews?page=${currentPage}&limit=${limit}`;
 
       const response = await fetch(endpoint, {
         headers: {
@@ -206,7 +206,7 @@ export function useReviewsData(
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
 
         const result = await fetch(
-          `${baseUrl}/api/reviews/${reviewId}/respond`,
+          `${baseUrl}/reviews/${reviewId}/respond`,
           {
             method: "POST",
             headers: {
@@ -236,7 +236,7 @@ export function useReviewsData(
         const baseUrl =
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
 
-        const result = await fetch(`${baseUrl}/api/reviews/${reviewId}/flag`, {
+        const result = await fetch(`${baseUrl}/reviews/${reviewId}/flag`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -264,7 +264,7 @@ export function useReviewsData(
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
 
         const result = await fetch(
-          `${baseUrl}/api/reviews/${reviewId}/unflag`,
+          `${baseUrl}/reviews/${reviewId}/unflag`,
           {
             method: "POST",
             headers: {

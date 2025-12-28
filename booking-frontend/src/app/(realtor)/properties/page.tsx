@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -13,7 +13,6 @@ import {
   Building2,
   Plus,
   Search,
-  Filter,
   Edit,
   Trash2,
   Eye,
@@ -22,23 +21,14 @@ import {
   Loader2,
   Home,
   Copy,
-  Grid3x3,
   List,
   Star,
   Bed,
   Bath,
-  Maximize2,
-  TrendingUp,
-  Calendar,
   CheckCircle2,
   Clock,
   XCircle,
-  Sparkles,
   LayoutGrid,
-  BarChart3,
-  Heart,
-  Share2,
-  MoreVertical,
   SlidersHorizontal,
   ChevronDown,
   X,
@@ -76,14 +66,32 @@ export default function PropertiesPage() {
     showSuccess("Copied to clipboard!");
   };
 
-  useEffect(() => {
-    fetchProperties();
-  }, [currentPage, searchQuery, selectedStatus, sortBy]);
+  const fetchProperties = useCallback(async () => {
+    if (!user) {
+      console.log("No user available yet");
+      setLoading(false);
+      return;
+    }
 
-  const fetchProperties = async () => {
+    // Log full user object to see what's available
+    console.log("🔍 Full user object:", user);
+    console.log("🔍 User role:", user.role);
+    console.log("🔍 User realtor:", user.realtor);
+    console.log("🔍 User ID:", user.id);
+
+    // Use user.id directly since the backend creates properties with req.realtor?.id || req.user!.id
+    const realtorId = user.realtor?.id || user.id;
+
+    if (!realtorId) {
+      console.log("❌ No realtor ID or user ID available");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await propertyService.getHostProperties(undefined, {
+      console.log("✅ Fetching properties for ID:", realtorId);
+      const response = await propertyService.getHostProperties(realtorId, {
         page: currentPage,
         limit: 12,
         query: searchQuery || undefined,
@@ -99,7 +107,11 @@ export default function PropertiesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, currentPage, searchQuery]);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties, selectedStatus, sortBy]);
 
   const handleDelete = async (id: string) => {
     showConfirm(
