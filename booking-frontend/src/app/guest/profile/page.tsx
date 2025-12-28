@@ -37,7 +37,6 @@ export default function GuestProfilePage() {
     firstName: "",
     lastName: "",
     email: "",
-    phone: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -59,7 +58,6 @@ export default function GuestProfilePage() {
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         email: user.email || "",
-        phone: user.phone || "",
       });
 
       // Set profile image from user avatar
@@ -87,10 +85,6 @@ export default function GuestProfilePage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (formData.phone && !/^\+?[\d\s-()]+$/.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid phone number";
-    }
-
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address";
     }
@@ -115,7 +109,6 @@ export default function GuestProfilePage() {
         formDataToSend.append("firstName", formData.firstName);
       if (formData.lastName)
         formDataToSend.append("lastName", formData.lastName);
-      if (formData.phone) formDataToSend.append("phone", formData.phone);
 
       // Add avatar file if selected
       if (avatarFile) {
@@ -349,33 +342,6 @@ export default function GuestProfilePage() {
                   <p className="text-xs text-gray-500 mt-1.5">
                     Email cannot be changed
                   </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Phone size={16} />
-                    Phone Number
-                  </label>
-                  <Input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="w-full !bg-white border-gray-200 focus:border-2 rounded-xl"
-                    style={{ backgroundColor: "#ffffff", color: "#111827" }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = primaryColor;
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = "";
-                    }}
-                    placeholder="+234 800 000 0000"
-                  />
-                  {errors.phone && (
-                    <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
-                      <AlertCircle size={12} />
-                      {errors.phone}
-                    </p>
-                  )}
                 </div>
               </div>
 

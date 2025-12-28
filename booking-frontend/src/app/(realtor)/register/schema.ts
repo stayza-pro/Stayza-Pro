@@ -1,15 +1,6 @@
 import { z } from "zod";
 
-// Import libphonenumber-js for international phone validation
-import {
-  parsePhoneNumber,
-  isValidPhoneNumber,
-  CountryCode,
-} from "libphonenumber-js";
-
 // Validation utilities
-// Nigerian phone regex for fallback validation
-const nigerianPhoneRegex = /^(\+?2340?|2340?|0)?[789]\d{9}$/;
 // Allow mixed case in subdomain input - will be normalized to lowercase
 const subdomainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
 const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
@@ -19,84 +10,6 @@ export const normalizeSubdomain = (subdomain: string): string => {
   return subdomain.toLowerCase().trim();
 };
 
-// Enhanced phone number validation and normalization helper
-export const validatePhoneNumber = (
-  phone: string,
-  defaultCountry: CountryCode = "NG"
-): {
-  isValid: boolean;
-  formatted: string;
-  country: string;
-  errorMessage?: string;
-} => {
-  if (!phone || !phone.trim()) {
-    return {
-      isValid: false,
-      formatted: "",
-      country: defaultCountry,
-      errorMessage: "Phone number is required",
-    };
-  }
-
-  try {
-    // Try to parse with libphonenumber-js (supports international formats)
-    const phoneNumber = parsePhoneNumber(phone, defaultCountry);
-
-    if (phoneNumber && isValidPhoneNumber(phone, defaultCountry)) {
-      return {
-        isValid: true,
-        formatted: phoneNumber.format("INTERNATIONAL"),
-        country: phoneNumber.country || defaultCountry,
-      };
-    }
-  } catch (error) {
-    // Fall back to basic validation if parsing fails
-  }
-
-  // Fallback: Check if it matches Nigerian format specifically
-  const cleanPhone = phone.replace(/[^\d+]/g, "");
-  if (nigerianPhoneRegex.test(cleanPhone)) {
-    return {
-      isValid: true,
-      formatted: phone,
-      country: "NG",
-    };
-  }
-
-  // Check if it looks like an international number
-  if (
-    cleanPhone.startsWith("+") &&
-    cleanPhone.length >= 8 &&
-    cleanPhone.length <= 15
-  ) {
-    try {
-      const parsed = parsePhoneNumber(phone);
-      if (parsed && parsed.isValid()) {
-        return {
-          isValid: true,
-          formatted: parsed.format("INTERNATIONAL"),
-          country: parsed.country || "Unknown",
-        };
-      }
-    } catch {
-      // Continue to error case
-    }
-  }
-
-  return {
-    isValid: false,
-    formatted: phone,
-    country: defaultCountry,
-    errorMessage:
-      "Please enter a valid phone number (e.g. +234 807 123 4567, +1 555 123 4567)",
-  };
-};
-
-// Legacy normalization helper for backward compatibility
-export const normalizePhoneNumber = (phone: string): string => {
-  const result = validatePhoneNumber(phone);
-  return result.formatted || phone;
-};
 const urlRegex =
   /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
 
@@ -113,22 +26,7 @@ export const realtorRegistrationSchema = z
 
     businessEmail: z.string().email("Invalid email format"),
 
-    phoneNumber: z
-      .string()
-      .refine(
-        (val) => {
-          const validation = validatePhoneNumber(val, "NG");
-          return validation.isValid;
-        },
-        {
-          message:
-            "Please enter a valid phone number (e.g. +234 807 123 4567, +1 555 123 4567)",
-        }
-      )
-      .transform((val) => {
-        const validation = validatePhoneNumber(val, "NG");
-        return validation.formatted;
-      }),
+    // Phone number removed for MVP
 
     password: z
       .string()
@@ -248,14 +146,7 @@ export const realtorRegistrationSchema = z
       .nullable()
       .optional(),
 
-    // Step 4: Social & Media
-    socials: z
-      .record(
-        z.string(),
-        z.string().regex(urlRegex, "Invalid URL format").optional()
-      )
-      .optional(),
-    whatsappType: z.enum(["personal", "business"]),
+    // Social media & WhatsApp removed for MVP
 
     // Step 5: Compliance & Review
     termsAccepted: z
@@ -287,13 +178,7 @@ export const formSteps = [
     id: "account",
     title: "Account Details",
     description: "Create your login credentials",
-    fields: [
-      "fullName",
-      "businessEmail",
-      "phoneNumber",
-      "password",
-      "confirmPassword",
-    ],
+    fields: ["fullName", "businessEmail", "password", "confirmPassword"],
   },
   {
     id: "business",
@@ -321,12 +206,6 @@ export const formSteps = [
       "customSecondaryColor",
       "customAccentColor",
     ],
-  },
-  {
-    id: "social",
-    title: "Social Profiles",
-    description: "Connect your social media accounts",
-    fields: ["socials", "whatsappType"],
   },
   {
     id: "review",

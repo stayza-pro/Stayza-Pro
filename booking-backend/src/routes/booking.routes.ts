@@ -915,7 +915,6 @@ router.get(
               select: {
                 id: true,
                 businessName: true,
-                businessPhone: true,
                 user: {
                   select: {
                     firstName: true,
@@ -942,7 +941,6 @@ router.get(
             firstName: true,
             lastName: true,
             email: true,
-            phone: true,
           },
         },
         payment: true,

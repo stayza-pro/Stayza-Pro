@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Mail, CheckCircle, RefreshCw, ArrowLeft } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -8,7 +8,7 @@ import Card from "@/components/ui/Card";
 import { toast } from "react-hot-toast";
 import Link from "next/link";
 
-export default function CheckEmailPage() {
+function CheckEmailContent() {
   const [isResending, setIsResending] = useState(false);
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "your email";
@@ -130,5 +130,13 @@ export default function CheckEmailPage() {
         </Card.Content>
       </Card>
     </div>
+  );
+}
+
+export default function CheckEmailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <CheckEmailContent />
+    </Suspense>
   );
 }

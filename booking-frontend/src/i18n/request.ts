@@ -1,11 +1,7 @@
-import { getRequestConfig } from "next-intl/server";
-
-export default getRequestConfig(async ({ locale }) => {
-  // Ensure locale is defined, fallback to 'en'
-  const validLocale = locale || "en";
-
+// i18n removed for MVP. This is a lightweight stub to preserve imports.
+export default async function getRequestConfigStub() {
   return {
-    locale: validLocale,
-    messages: (await import(`../messages/${validLocale}.json`)).default,
+    locale: "en",
+    messages: {},
   };
-});
+}

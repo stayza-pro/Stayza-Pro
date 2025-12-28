@@ -6,7 +6,6 @@ export const registerSchema = Joi.object({
   password: Joi.string().min(8).required(),
   firstName: Joi.string().min(2).max(50).required(),
   lastName: Joi.string().min(2).max(50).required(),
-  phone: Joi.string().optional(),
   role: Joi.string().valid("GUEST", "REALTOR").optional(),
   country: Joi.string().optional(),
   city: Joi.string().optional(),
@@ -31,7 +30,6 @@ export const resetPasswordSchema = Joi.object({
 export const updateProfileSchema = Joi.object({
   firstName: Joi.string().min(2).max(50).optional(),
   lastName: Joi.string().min(2).max(50).optional(),
-  phone: Joi.string().optional(),
 });
 
 // Property validation schemas

@@ -35,8 +35,8 @@ import {
   buildFilterSummary,
   type AdminBooking,
   type BookingSearchFilters,
-  type BookingStatus,
 } from "@/services/adminBookingsService";
+import { BookingStatus } from "@/types";
 import { getAnalytics, PlatformAnalytics } from "@/services/adminService";
 
 interface BookingsPageProps {}

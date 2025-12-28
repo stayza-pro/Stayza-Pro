@@ -99,7 +99,6 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
-  phone?: string;
   role: UserRole;
   isEmailVerified: boolean;
   avatar?: string;
@@ -131,8 +130,6 @@ export interface Realtor {
   slug: string;
   description?: string;
   logoUrl?: string;
-  website?: string;
-  businessPhone?: string;
   businessEmail?: string;
   businessAddress?: string;
 
@@ -141,15 +138,6 @@ export interface Realtor {
   secondaryColor?: string;
   accentColor?: string;
   brandColorHex: string; // Legacy field
-
-  // Social media
-  websiteUrl?: string;
-  instagramUrl?: string;
-  twitterUrl?: string;
-  linkedinUrl?: string;
-  facebookUrl?: string;
-  youtubeUrl?: string;
-  whatsappType?: string;
 
   status: RealtorStatus;
   corporateRegNumber?: string;

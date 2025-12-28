@@ -595,7 +595,6 @@ router.post(
       // User data
       fullName,
       businessEmail,
-      phoneNumber,
       password,
       // Business data
       agencyName,
@@ -608,9 +607,8 @@ router.post(
       secondaryColor,
       accentColor,
       brandColorHex, // Legacy support
-      // Social media
+      // Social media (removed for MVP)
       socials,
-      whatsappType,
       // File uploads (URLs from temporary storage)
       logoUrl,
       cacDocumentUrl,
@@ -670,7 +668,7 @@ router.post(
           fullName: fullName || `${firstName} ${lastName}`,
           firstName,
           lastName,
-          phone: phoneNumber,
+          // phone removed for MVP
           businessAddress,
           role: "REALTOR",
           isEmailVerified: false,
@@ -695,7 +693,6 @@ router.post(
           tagline,
           description: tagline, // Use tagline as initial description
           corporateRegNumber,
-          businessPhone: phoneNumber, // Map phone to businessPhone
           status: "PENDING", // All new realtors start as pending
           // Branding colors
           primaryColor: primaryColor || brandColorHex || "#3B82F6",
@@ -707,12 +704,7 @@ router.post(
           // Generate website URL from subdomain
           websiteUrl: `https://${slug}.stayza.pro`,
           // Social media URLs
-          instagramUrl: socials?.instagram || socials?.instagramUrl,
-          twitterUrl: socials?.twitter || socials?.twitterUrl,
-          linkedinUrl: socials?.linkedin || socials?.linkedinUrl,
-          facebookUrl: socials?.facebook || socials?.facebookUrl,
-          youtubeUrl: socials?.youtube || socials?.youtubeUrl,
-          whatsappType: whatsappType || "business",
+          // Social URLs and WhatsApp removed for MVP
         },
         include: {
           user: {
@@ -944,7 +936,6 @@ router.get(
             email: true,
             firstName: true,
             lastName: true,
-            phone: true,
             createdAt: true,
           },
         },
@@ -1066,7 +1057,6 @@ router.put(
             email: true,
             firstName: true,
             lastName: true,
-            phone: true,
           },
         },
       },

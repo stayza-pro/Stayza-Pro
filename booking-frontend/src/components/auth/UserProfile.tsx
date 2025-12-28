@@ -11,7 +11,6 @@ export const UserProfile: React.FC = () => {
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
-    phone: user?.phone || "",
     country: user?.country || "",
     city: user?.city || "",
     address: user?.address || "",
@@ -42,7 +41,6 @@ export const UserProfile: React.FC = () => {
     setFormData({
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
-      phone: user?.phone || "",
       country: user?.country || "",
       city: user?.city || "",
       address: user?.address || "",
@@ -175,13 +173,13 @@ export const UserProfile: React.FC = () => {
               htmlFor="phone"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Phone Number
+              Last Name
             </label>
             <Input
-              id="phone"
-              name="phone"
-              type="tel"
-              value={formData.phone}
+              id="lastName"
+              name="lastName"
+              type="text"
+              value={formData.lastName}
               onChange={handleInputChange}
               disabled={!isEditing || isLoading}
             />

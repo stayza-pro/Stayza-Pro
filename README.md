@@ -20,7 +20,6 @@ Create a scalable SaaS platform that democratizes property booking technology fo
 - ✅ **Booking & Revenue Management** - Real-time booking tracking and financial analytics
 - ✅ **Guest Communication** - Integrated messaging and notification system
 - ✅ **Business Verification** - CAC (Corporate Affairs Commission) integration for Nigeria
-- ✅ **Multi-language Support** - English, French, and Portuguese
 
 ### 🎫 **For Guests**
 - ✅ **Advanced Property Search** - Filter by location, price, amenities, and availability
@@ -37,6 +36,17 @@ Create a scalable SaaS platform that democratizes property booking technology fo
 
 ---
 
+## 🚫 **Features Removed for MVP**
+
+To maintain simplicity and focus for the initial launch:
+- ❌ **Paid Plans/Subscriptions** - Only free tier available (paid tiers deferred)
+- ❌ **Multi-language Support** - English only (i18n/localization removed)
+- ❌ **Social Media Integration** - No social auth or profile links
+- ❌ **WhatsApp Integration** - No WhatsApp/WhatsApp Business features
+- ❌ **Phone Number Requirements** - Email-only communication
+
+---
+
 ## 🏗️ **System Architecture**
 
 ```
@@ -48,11 +58,10 @@ Create a scalable SaaS platform that democratizes property booking technology fo
 │  │   Frontend Layer    │    │        Backend Layer            ││
 │  │   (Next.js 14)      │◄──►│     (Node.js/Express)           ││
 │  │                     │    │                                  ││
-│  │ ├── Multi-language  │    │ ├── REST API (OpenAPI)          ││
-│  │ ├── Realtor Dash    │    │ ├── JWT Authentication          ││
-│  │ ├── Guest Booking   │    │ ├── Paystack Integration        ││
-│  │ ├── Admin Panel     │    │ ├── Email System (SMTP)         ││
-│  │ ├── Analytics UI    │    │ ├── File Upload (Multer)        ││
+│  │ ├── Realtor Dash    │    │ ├── REST API (OpenAPI)          ││
+│  │ ├── Guest Booking   │    │ ├── JWT Authentication          ││
+│  │ ├── Admin Panel     │    │ ├── Paystack Integration        ││
+│  │ ├── Analytics UI    │    │ ├── Email System (SMTP)         ││
 │  │ └── Review System   │    │ └── Notification Service        ││
 │  └─────────────────────┘    └──────────────────────────────────┘│
 │                                                                 │
@@ -1001,8 +1010,7 @@ Critical Paths: 100% coverage (auth, payments, bookings)
 ```yaml
 Commission Structure:
   - Standard bookings: 10% platform fee
-  - Premium listings: 8% platform fee
-  - Volume discounts for high-performing realtors
+  - All realtors currently on free tier (paid plans deferred)
 
 Revenue Distribution:
   - Guest pays total amount
@@ -1010,35 +1018,19 @@ Revenue Distribution:
   - Realtor receives 90% (minus payment processing)
 ```
 
-#### **2. Subscription Tiers**
+#### **2. Subscription Tiers (Future)**
 ```yaml
-Basic Plan (Free):
-  - Up to 3 property listings
-  - Basic analytics
-  - Standard support
-  - 10% transaction fee
-
-Professional Plan ($29/month):
-  - Unlimited property listings
-  - Advanced analytics and reporting
-  - Priority customer support
-  - Custom branding options
-  - 8% transaction fee
-
-Enterprise Plan ($99/month):
-  - Everything in Professional
-  - Custom domain mapping
-  - API access for integrations
-  - Dedicated account manager
-  - 6% transaction fee
+Note: Paid subscription plans are not yet implemented. 
+All realtors currently have access to all features for free.
+Subscription tiers planned for future releases.
 ```
 
-#### **3. Additional Revenue Streams**
+#### **3. Additional Revenue Streams (Future)**
 ```yaml
-Featured Listings:
-  - Premium property placement: $10/month per property
-  - Homepage feature spots: $50/month
-  - Search result boosting: $20/month
+Featured Listings (Planned):
+  - Premium property placement
+  - Homepage feature spots
+  - Search result boosting
 
 Value-Added Services:
   - Professional photography: $100 per session
@@ -1087,10 +1079,11 @@ Growth Targets:
 ### **Phase 2: Advanced Features (Q2-Q3 2026)**
 ```yaml
 - IoT integration (smart locks, sensors)
-- Dynamic pricing algorithms
 - Multi-currency support and international expansion
 - Advanced CRM features for realtors
 - Automated check-in/check-out systems
+- Paid subscription tiers and pricing plans
+- Multi-language support (i18n)
 ```
 
 ### **Phase 3: Market Expansion (Q4 2026 - 2027)**
@@ -1174,10 +1167,17 @@ Media & Press: press@stayza.com
 
 ### **Community**
 ```yaml
+## 🤝 **Community & Support**
+
+```yaml
+Documentation: https://docs.stayza.com
+Email: support@stayza.com
+GitHub Issues: https://github.com/stayza/platform/issues
 Discord Server: https://discord.gg/stayza
-Twitter: @StayzaPlatform
-LinkedIn: Stayza Platform
 Blog: https://blog.stayza.com
+
+Note: Social media integration is not yet enabled. 
+Follow us on our main channels for updates.
 ```
 
 ---

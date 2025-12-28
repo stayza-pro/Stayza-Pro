@@ -734,7 +734,6 @@ export const getDisputeById = async (disputeId: string) => {
               firstName: true,
               lastName: true,
               email: true,
-              phone: true,
             },
           },
           property: {

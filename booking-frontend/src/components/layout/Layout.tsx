@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { Header } from "./Header";
-import { Footer } from "./Footer";
 import { Sidebar } from "./Sidebar";
 
 interface LayoutProps {
@@ -28,12 +27,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {showHeader && (
-        <GuestHeader
-          currentPage="profile"
-          searchPlaceholder="Search location..."
-        />
-      )}
+      {showHeader && <Header />}
 
       <div className="flex flex-1">
         {showSidebar && (
@@ -71,8 +65,6 @@ export const Layout: React.FC<LayoutProps> = ({
           <div className="p-4 lg:p-8">{children}</div>
         </main>
       </div>
-
-      {showFooter && <Footer />}
     </div>
   );
 };

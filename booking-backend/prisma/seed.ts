@@ -34,7 +34,6 @@ async function main() {
       lastName: "Administrator",
       role: UserRole.ADMIN,
       isEmailVerified: true,
-      phone: "+1555123000",
     },
   });
 
@@ -49,7 +48,7 @@ async function main() {
       lastName: "Anderson",
       role: UserRole.REALTOR,
       isEmailVerified: true,
-      phone: "+1415555201",
+
       businessAddress: "1847 Union Street, San Francisco, CA 94123",
     },
   });
@@ -77,7 +76,6 @@ async function main() {
       lastName: "Thompson",
       role: UserRole.GUEST,
       isEmailVerified: true,
-      phone: "+447123456789",
     },
   });
 

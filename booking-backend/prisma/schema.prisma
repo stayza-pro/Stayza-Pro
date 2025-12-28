@@ -8,13 +8,13 @@ datasource db {
 }
 
 model User {
-   id                       String                  @id @default(cuid())
-   email                    String                  @unique
-   password                 String
-   firstName                String
-   lastName                 String
-   role                     UserRole                @default(GUEST)
-   phone                    String?
+   id        String   @id @default(cuid())
+   email     String   @unique
+   password  String
+   firstName String
+   lastName  String
+   role      UserRole @default(GUEST)
+
    avatar                   String?
    createdAt                DateTime                @default(now())
    updatedAt                DateTime                @updatedAt
@@ -48,27 +48,21 @@ model User {
 }
 
 model Realtor {
-   id                        String          @id @default(cuid())
-   userId                    String          @unique
-   businessName              String
-   slug                      String          @unique
-   logoUrl                   String?
-   isActive                  Boolean         @default(true)
-   createdAt                 DateTime        @default(now())
-   updatedAt                 DateTime        @updatedAt
-   accentColor               String?         @default("#F59E0B")
-   corporateRegNumber        String?
-   facebookUrl               String?
-   instagramUrl              String?
-   linkedinUrl               String?
-   primaryColor              String          @default("#000000")
-   secondaryColor            String?         @default("#10B981")
-   tagline                   String?
-   twitterUrl                String?
-   websiteUrl                String?
-   whatsappType              String?         @default("business")
-   youtubeUrl                String?
-   businessPhone             String?
+   id                 String   @id @default(cuid())
+   userId             String   @unique
+   businessName       String
+   slug               String   @unique
+   logoUrl            String?
+   isActive           Boolean  @default(true)
+   createdAt          DateTime @default(now())
+   updatedAt          DateTime @updatedAt
+   accentColor        String?  @default("#F59E0B")
+   corporateRegNumber String?
+   primaryColor       String   @default("#000000")
+   secondaryColor     String?  @default("#10B981")
+   tagline            String?
+   websiteUrl         String?
+
    cacDocumentUrl            String?
    description               String?
    status                    RealtorStatus   @default(PENDING)

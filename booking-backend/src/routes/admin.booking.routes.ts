@@ -240,7 +240,7 @@ router.get(
               firstName: true,
               lastName: true,
               email: true,
-              phone: true,
+              // phone: true,
             },
           },
           payment: {
@@ -495,7 +495,7 @@ router.get(
                     firstName: true,
                     lastName: true,
                     email: true,
-                    phone: true,
+                    // phone: true,
                   },
                 },
               },

@@ -160,64 +160,37 @@ const PaymentSuccessContent = () => {
 
         // If we have a reference, use the standard verification flow
         if (reference) {
-          // Decide provider: prefer explicit query param; otherwise infer by presence of Paystack meta
-          const isPaystack =
-            provider === "paystack" ||
-            (!!storedMeta && provider !== "flutterwave");
+          // Use Paystack verification (Flutterwave has been removed)
+          const result = await paymentService.verifyPaystackPayment({
+            reference,
+          });
+          toast.success("Payment verified successfully.");
+          setStatus("success");
 
-          if (isPaystack) {
-            const result = await paymentService.verifyPaystackPayment({
-              reference,
-            });
-            toast.success("Payment verified successfully.");
-            setStatus("success");
+          const resolvedPaymentId =
+            storedPaymentId || result.payment?.id || null;
+          const resolvedBookingId =
+            result.booking?.id ||
+            result.payment?.booking?.id ||
+            storedBookingId ||
+            null;
 
-            const resolvedPaymentId =
-              storedPaymentId || result.payment?.id || null;
-            const resolvedBookingId =
-              result.booking?.id ||
-              result.payment?.booking?.id ||
-              storedBookingId ||
-              null;
+          if (resolvedPaymentId) setPaymentId(resolvedPaymentId);
+          if (resolvedBookingId) setBookingId(resolvedBookingId);
 
-            if (resolvedPaymentId) setPaymentId(resolvedPaymentId);
-            if (resolvedBookingId) setBookingId(resolvedBookingId);
+          if (resolvedPaymentId && !payment) {
+            try {
+              const paymentRecord = await paymentService.getPayment(
+                resolvedPaymentId
+              );
+              setPayment(paymentRecord);
+            } catch {}
+          }
 
-            if (resolvedPaymentId && !payment) {
-              try {
-                const paymentRecord = await paymentService.getPayment(
-                  resolvedPaymentId
-                );
-                setPayment(paymentRecord);
-              } catch {}
-            }
-
-            if (resolvedBookingId) {
-              setTimeout(() => {
-                router.push(`/booking/confirmation/${resolvedBookingId}`);
-              }, 2000);
-            }
-          } else {
-            // Flutterwave: use transaction_id when available; backend expects 'reference' but uses it as transactionId
-            const txId = flutterwaveTransactionId || reference;
-            const result = await paymentService.verifyFlutterwavePayment({
-              reference: txId!,
-            });
-            toast.success("Payment verified successfully.");
-            setStatus("success");
-
-            const resolvedPaymentId = result.payment?.id || null;
-            const resolvedBookingId =
-              result.booking?.id || result.payment?.booking?.id || null;
-
-            if (resolvedPaymentId) setPaymentId(resolvedPaymentId);
-            if (resolvedBookingId) setBookingId(resolvedBookingId);
-
-            if (resolvedBookingId) {
-              setTimeout(() => {
-                router.push(`/booking/confirmation/${resolvedBookingId}`);
-              }, 2000);
-            }
+          if (resolvedBookingId) {
+            setTimeout(() => {
+              router.push(`/booking/confirmation/${resolvedBookingId}`);
+            }, 2000);
           }
         } else {
           // No reference and no bookingId - can't verify

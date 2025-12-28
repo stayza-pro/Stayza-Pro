@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MessageCircle, Send, Search } from "lucide-react";
 import { Card, Input, Button } from "@/components/ui";
@@ -29,7 +29,7 @@ interface Conversation {
   unreadCount: number;
 }
 
-export default function MessagesPage() {
+function MessagesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading } = useCurrentUser();
@@ -313,5 +313,13 @@ export default function MessagesPage() {
         primaryColor={primaryColor}
       />
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <MessagesContent />
+    </Suspense>
   );
 }

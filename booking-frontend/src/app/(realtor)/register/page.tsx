@@ -38,7 +38,6 @@ import { palette } from "@/app/(marketing)/content";
 import {
   realtorRegistrationSchema,
   type RealtorRegistrationFormData,
-  validatePhoneNumber,
 } from "./schema";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { GuidedTipsCarousel } from "./GuidedTipsCarousel";
@@ -133,7 +132,6 @@ function RealtorRegistrationContent() {
       // Account Info (Step 1)
       fullName: "",
       businessEmail: "",
-      phoneNumber: "",
       password: "",
       confirmPassword: "",
 
@@ -155,13 +153,7 @@ function RealtorRegistrationContent() {
       customAccentColor: "",
       logo: null,
 
-      // Social Media (Step 4)
-      socials: {
-        instagram: "",
-        twitter: "",
-        facebook: "",
-      },
-      whatsappType: "personal",
+      // Social media removed for MVP
 
       // Review & Compliance (Step 5)
       termsAccepted: false,
@@ -249,7 +241,6 @@ function RealtorRegistrationContent() {
       fields: [
         "fullName",
         "businessEmail",
-        "phoneNumber",
         "password",
         "confirmPassword",
       ],
@@ -274,13 +265,6 @@ function RealtorRegistrationContent() {
       icon: Palette,
       description: "Customize your brand appearance",
       fields: ["primaryColor", "secondaryColor", "accentColor"],
-    },
-    {
-      id: "social",
-      title: "Social & Contact",
-      icon: Share2,
-      description: "Add your social media profiles",
-      fields: ["socials", "whatsappType"],
     },
     {
       id: "review",
@@ -454,23 +438,6 @@ function RealtorRegistrationContent() {
           validationErrors.push("Business email is required");
           isValid = false;
         }
-        if (!currentData.phoneNumber?.trim()) {
-          validationErrors.push("Phone number is required");
-          isValid = false;
-        } else {
-          // Validate phone number format using international validation
-          const phoneValidation = validatePhoneNumber(
-            currentData.phoneNumber,
-            "NG"
-          );
-          if (!phoneValidation.isValid) {
-            validationErrors.push(
-              phoneValidation.errorMessage ||
-                "Invalid phone number format. Please enter a valid international number (e.g. +234 807 123 4567, +1 555 123 4567)"
-            );
-            isValid = false;
-          }
-        }
         if (!currentData.password) {
           validationErrors.push("Password is required");
           isValid = false;
@@ -511,13 +478,6 @@ function RealtorRegistrationContent() {
         }
         if (!currentData.accentColor) {
           validationErrors.push("Accent color selection is required");
-          isValid = false;
-        }
-        break;
-
-      case 3: // Social & Contact
-        if (!socialValidation.isValid) {
-          validationErrors.push("Please fix social media URL errors");
           isValid = false;
         }
         break;
@@ -958,29 +918,6 @@ function RealtorRegistrationContent() {
                 className="block text-sm font-medium mb-2"
                 style={{ color: palette.neutralDark }}
               >
-                Phone Number
-              </label>
-              <PhoneNumberFormatter
-                value={watchedData.phoneNumber || ""}
-                onChange={(raw, formatted, isValid) => {
-                  setValue("phoneNumber", formatted);
-                  if (isValid) {
-                    clearErrors("phoneNumber");
-                  }
-                }}
-                defaultCountry="NG"
-                preferredCountries={["NG", "US", "GB", "CA", "AU"]}
-                showCountrySelector={true}
-                error={errors.phoneNumber?.message}
-                placeholder="Enter your phone number"
-              />
-            </div>
-
-            <div>
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ color: palette.neutralDark }}
-              >
                 Password
               </label>
               <div className="relative">
@@ -1406,52 +1343,7 @@ function RealtorRegistrationContent() {
           </div>
         );
 
-      case 3: // Social Media
-        return (
-          <div className="space-y-6">
-            {/* WhatsApp type selection is now handled within SocialMediaValidator */}
-
-            <SocialMediaValidator
-              profiles={
-                Object.fromEntries(
-                  Object.entries(watchedData.socials || {}).filter(
-                    ([_, value]) => value !== undefined
-                  )
-                ) as Record<string, string>
-              }
-              onChange={(updatedProfiles) => {
-                setValue("socials", updatedProfiles);
-                clearErrors("socials");
-              }}
-              whatsappType={watchedData.whatsappType}
-              onWhatsappTypeChange={(type) => {
-                setValue("whatsappType", type);
-                clearErrors("whatsappType");
-              }}
-              onValidationChange={(isValid, errors) => {
-                setSocialValidation({ isValid, errors });
-
-                // Clear or set form errors based on validation
-                if (isValid) {
-                  clearErrors("socials");
-                } else {
-                  // Set errors for invalid social media URLs
-                  Object.entries(errors).forEach(([platform, message]) => {
-                    // We can't directly set nested errors, so we'll handle this in the validation
-                    console.log(
-                      `Social media validation error for ${platform}: ${message}`
-                    );
-                  });
-                }
-              }}
-              maxProfiles={6}
-              required={[]} // No social media platforms are required
-              className="mt-4"
-            />
-          </div>
-        );
-
-      case 4: // Review & Compliance
+      case 3: // Review & Compliance (social media step removed)
         return (
           <div className="space-y-6">
             <div>
@@ -1912,8 +1804,7 @@ function RealtorRegistrationContent() {
           canContinue={
             isValid &&
             !Object.keys(errors).length &&
-            (currentStep !== 0 || emailValidation.isValid) &&
-            (currentStep !== 3 || socialValidation.isValid)
+            (currentStep !== 0 || emailValidation.isValid)
           }
           isLastStep={currentStep === formSteps.length - 1}
           isSubmitting={isSubmitting || registrationApi.isLoading}

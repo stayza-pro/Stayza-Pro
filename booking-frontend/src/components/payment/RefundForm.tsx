@@ -143,12 +143,8 @@ export const RefundForm: React.FC<RefundFormProps> = ({
   };
 
   const getRefundTimeframe = (): string => {
-    switch (payment.method) {
-      case "FLUTTERWAVE":
-        return "3-7 business days";
-      default:
-        return "3-7 business days";
-    }
+    // All refunds take 3-7 business days (Flutterwave has been removed)
+    return "3-7 business days";
   };
 
   return (

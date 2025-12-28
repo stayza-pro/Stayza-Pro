@@ -351,12 +351,6 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                     <Mail className="h-4 w-4 mr-2" />
                     {booking.guest?.email || "No email"}
                   </div>
-                  {booking.guest?.phone && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Phone className="h-4 w-4 mr-2" />
-                      {booking.guest.phone}
-                    </div>
-                  )}
                 </div>
               )}
             </div>

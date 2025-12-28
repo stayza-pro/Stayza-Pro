@@ -192,12 +192,6 @@ export const CacManagement: React.FC<CacManagementProps> = ({
               <Mail className="h-4 w-4 mr-2" />
               {realtor.user?.email}
             </div>
-            {realtor.businessPhone && (
-              <div className="flex items-center">
-                <Phone className="h-4 w-4 mr-2" />
-                {realtor.businessPhone}
-              </div>
-            )}
             {realtor.corporateRegNumber && (
               <div className="flex items-center">
                 <Building2 className="h-4 w-4 mr-2" />

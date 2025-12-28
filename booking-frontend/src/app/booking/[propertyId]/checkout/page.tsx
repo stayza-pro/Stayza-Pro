@@ -59,7 +59,6 @@ export default function BookingCheckoutPage() {
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     email: user?.email || "",
-    phone: user?.phone || "",
     specialRequests: "",
     agreeToTerms: false,
     paymentMethod: "paystack" as "paystack" | "flutterwave",
@@ -87,7 +86,6 @@ export default function BookingCheckoutPage() {
         firstName: user.firstName || prev.firstName,
         lastName: user.lastName || prev.lastName,
         email: user.email || prev.email,
-        phone: user.phone || prev.phone,
       }));
     }
   }, [user]);
@@ -169,9 +167,6 @@ export default function BookingCheckoutPage() {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Invalid email address";
-    }
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
     }
     if (!formData.agreeToTerms) {
       newErrors.agreeToTerms = "You must agree to the terms and conditions";
@@ -409,27 +404,6 @@ export default function BookingCheckoutPage() {
                   />
                   {errors.email && (
                     <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-2"
-                    style={{ color: secondaryColor }}
-                  >
-                    Phone Number *
-                  </label>
-                  <Input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className={`w-full px-4 py-3 bg-transparent border-2 ${
-                      errors.phone ? "border-red-500" : "border-gray-200"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                    placeholder="Enter phone number"
-                  />
-                  {errors.phone && (
-                    <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
                   )}
                 </div>
 

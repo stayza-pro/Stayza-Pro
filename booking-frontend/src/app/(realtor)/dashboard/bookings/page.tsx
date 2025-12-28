@@ -398,9 +398,6 @@ export default function BookingsPage() {
                       <p className="text-sm text-gray-600">
                         {selectedBooking.guest?.email}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        {selectedBooking.guest?.phone || "No phone"}
-                      </p>
                     </div>
                   </div>
                 </div>

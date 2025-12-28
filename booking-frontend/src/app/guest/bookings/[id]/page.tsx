@@ -165,7 +165,7 @@ export default function BookingDetailsPage() {
     return (
       booking.status === "CONFIRMED" &&
       hoursDiff > 24 &&
-      booking.paymentStatus !== "REFUNDED"
+      booking.paymentStatus !== "REFUNDED_TO_CUSTOMER"
     );
   };
 
@@ -375,12 +375,6 @@ export default function BookingDetailsPage() {
                     <div className="flex items-center text-sm text-gray-600 mt-1">
                       <Mail className="h-4 w-4 mr-2" />
                       <span>{booking.property.realtor.businessEmail}</span>
-                    </div>
-                  )}
-                  {booking.property.realtor.businessPhone && (
-                    <div className="flex items-center text-sm text-gray-600 mt-1">
-                      <Phone className="h-4 w-4 mr-2" />
-                      <span>{booking.property.realtor.businessPhone}</span>
                     </div>
                   )}
                 </div>

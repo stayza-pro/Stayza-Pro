@@ -1,30 +1,8 @@
-import { createNavigation } from "next-intl/navigation";
-import { defineRouting } from "next-intl/routing";
-
-export const routing = defineRouting({
-  // A list of all locales that are supported
-  locales: ["en", "fr", "pt"],
-
-  // Used when no locale matches
+// i18n routing removed for MVP. Provide lightweight stubs to avoid runtime errors.
+export const routing = {
+  locales: ["en"],
   defaultLocale: "en",
+  pathnames: { "/": "/" },
+};
 
-  // The pathname for each locale - only include routes that exist in [locale] directory
-  pathnames: {
-    "/": "/",
-    "/about": {
-      en: "/about",
-      fr: "/a-propos",
-      pt: "/sobre",
-    },
-    "/properties": {
-      en: "/properties",
-      fr: "/proprietes",
-      pt: "/propriedades",
-    },
-  },
-});
-
-// Lightweight wrappers around Next.js' navigation APIs
-// that will consider the routing configuration
-export const { Link, redirect, usePathname, useRouter, getPathname } =
-  createNavigation(routing);
+export const Link = (props: any) => props.children;

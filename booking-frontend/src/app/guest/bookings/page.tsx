@@ -344,8 +344,8 @@ export default function GuestBookingsPage() {
                 {
                   bookings.filter((b: Booking) => {
                     const now = new Date();
-                    const checkIn = new Date(b.checkIn);
-                    const checkOut = new Date(b.checkOut);
+                    const checkIn = new Date(b.checkInDate);
+                    const checkOut = new Date(b.checkOutDate);
                     return (
                       checkIn > now ||
                       (checkIn <= now &&
@@ -381,8 +381,8 @@ export default function GuestBookingsPage() {
                   icon: Calendar,
                   count: bookings.filter((b: Booking) => {
                     const now = new Date();
-                    const checkIn = new Date(b.checkIn);
-                    const checkOut = new Date(b.checkOut);
+                    const checkIn = new Date(b.checkInDate);
+                    const checkOut = new Date(b.checkOutDate);
                     return (
                       checkIn > now ||
                       (checkIn <= now &&
@@ -397,7 +397,7 @@ export default function GuestBookingsPage() {
                   icon: CheckCircle,
                   count: bookings.filter((b: Booking) => {
                     const now = new Date();
-                    const checkOut = new Date(b.checkOut);
+                    const checkOut = new Date(b.checkOutDate);
                     return checkOut < now && b.status !== "CANCELLED";
                   }).length,
                 },

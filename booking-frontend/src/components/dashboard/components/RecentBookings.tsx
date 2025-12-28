@@ -325,8 +325,8 @@ export default function RecentBookings({
                         <Calendar className="w-4 h-4 text-gray-400" />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            {formatDate(booking.checkInDate)} -{" "}
-                            {formatDate(booking.checkOutDate)}
+                            {formatDate(booking.checkIn)} -{" "}
+                            {formatDate(booking.checkOut)}
                           </p>
                           <p className="text-xs text-gray-600">
                             {booking.nights} night
