@@ -98,10 +98,14 @@ export const BookingList: React.FC<BookingListProps> = ({
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           );
         case "checkIn":
-          return new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime();
+          return (
+            new Date(a.checkInDate).getTime() -
+            new Date(b.checkInDate).getTime()
+          );
         case "checkOut":
           return (
-            new Date(a.checkOutDate).getTime() - new Date(b.checkOutDate).getTime()
+            new Date(a.checkOutDate).getTime() -
+            new Date(b.checkOutDate).getTime()
           );
         case "price":
           return b.totalPrice - a.totalPrice;

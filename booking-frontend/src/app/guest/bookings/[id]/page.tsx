@@ -412,7 +412,8 @@ export default function BookingDetailsPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Guests</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {booking.totalGuests} {booking.totalGuests === 1 ? "guest" : "guests"}
+                    {booking.totalGuests}{" "}
+                    {booking.totalGuests === 1 ? "guest" : "guests"}
                   </p>
                 </div>
 

@@ -238,12 +238,7 @@ function RealtorRegistrationContent() {
       title: "Account Setup",
       icon: User,
       description: "Create your account credentials",
-      fields: [
-        "fullName",
-        "businessEmail",
-        "password",
-        "confirmPassword",
-      ],
+      fields: ["fullName", "businessEmail", "password", "confirmPassword"],
     },
     {
       id: "business",

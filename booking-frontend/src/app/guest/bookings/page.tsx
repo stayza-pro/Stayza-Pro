@@ -506,7 +506,10 @@ export default function GuestBookingsPage() {
             {filteredBookings.map((booking: Booking, index) => {
               const status = getStatusConfig(booking.status);
               const StatusIcon = status.icon;
-              const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
+              const nights = calculateNights(
+                booking.checkInDate,
+                booking.checkOutDate
+              );
               const ongoing = isOngoing(booking);
 
               return (
