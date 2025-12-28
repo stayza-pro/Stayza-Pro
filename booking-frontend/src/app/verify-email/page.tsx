@@ -222,6 +222,7 @@ function VerifyEmailContent() {
                       Redirecting automatically in a few seconds...
                     </p>
                   </>
+                ) : (
                   <>
                     <Link
                       href="/"

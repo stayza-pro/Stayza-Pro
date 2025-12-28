@@ -17,7 +17,12 @@ import {
 } from "lucide-react";
 
 export default function HowItWorksPage() {
-  const { brandColor: primaryColor, realtorName } = useRealtorBranding();
+  const {
+    brandColor: primaryColor,
+    realtorName,
+    tagline,
+    description,
+  } = useRealtorBranding();
 
   const guestSteps = [
     {
@@ -281,7 +286,12 @@ export default function HowItWorksPage() {
         </div>
       </div>
 
-      <Footer />
+      <Footer
+        realtorName={realtorName}
+        tagline={tagline}
+        description={description}
+        primaryColor={primaryColor}
+      />
     </div>
   );
 }

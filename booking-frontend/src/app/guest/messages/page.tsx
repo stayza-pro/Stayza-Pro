@@ -60,14 +60,14 @@ function MessagesContent() {
     }
   }, [isAuthenticated, user]);
 
-  // Fetch messages when constring | Date) => {
-    return new Date(date).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
+  // Fetch messages when conversation is selected
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages();
+    }
+  }, [selectedConversation]);
 
-  const formatDate = (date: string |= async () => {
+  const fetchConversations = async () => {
     try {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
@@ -88,21 +88,27 @@ function MessagesContent() {
     try {
       setIsLoadingMessages(true);
       const selectedConv = conversations.find(
-        (c) => c.propertyId === selectedConversation || c.bookingId === selectedConversation
+        (c) =>
+          c.propertyId === selectedConversation ||
+          c.bookingId === selectedConversation
       );
 
       if (!selectedConv) return;
 
       let response;
       if (selectedConv.propertyId) {
-        response = await messageService.getPropertyMessages(selectedConv.propertyId);
+        response = await messageService.getPropertyMessages(
+          selectedConv.propertyId
+        );
       } else if (selectedConv.bookingId) {
-        response = await messageService.getBookingMessages(selectedConv.bookingId);
+        response = await messageService.getBookingMessages(
+          selectedConv.bookingId
+        );
       }
 
       if (response?.success && response.data) {
         setMessages(response.data);
-        
+
         // Mark conversation as read
         if (selectedConv.propertyId || selectedConv.bookingId) {
           await messageService.markConversationAsRead(
@@ -125,7 +131,9 @@ function MessagesContent() {
     if (!messageText.trim() || !selectedConversation) return;
 
     const selectedConv = conversations.find(
-      (c) => c.propertyId === selectedConversation || c.bookingId === selectedConversation
+      (c) =>
+        c.propertyId === selectedConversation ||
+        c.bookingId === selectedConversation
     );
 
     if (!selectedConv) return;
@@ -135,13 +143,19 @@ function MessagesContent() {
       let response;
 
       if (selectedConv.propertyId) {
-        response = await messageService.sendPropertyInquiry(selectedConv.propertyId, {
-          content: messageText.trim(),
-        });
+        response = await messageService.sendPropertyInquiry(
+          selectedConv.propertyId,
+          {
+            content: messageText.trim(),
+          }
+        );
       } else if (selectedConv.bookingId) {
-        response = await messageService.sendBookingMessage(selectedConv.bookingId, {
-          content: messageText.trim(),
-        });
+        response = await messageService.sendBookingMessage(
+          selectedConv.bookingId,
+          {
+            content: messageText.trim(),
+          }
+        );
       }
 
       if (response?.success) {
@@ -229,7 +243,9 @@ function MessagesContent() {
               {isLoadingConversations ? (
                 <div className="p-8 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
-                  <p className="text-gray-600 text-sm">Loading conversations...</p>
+                  <p className="text-gray-600 text-sm">
+                    Loading conversations...
+                  </p>
                 </div>
               ) : conversations.length === 0 ? (
                 <div className="p-8 text-center">
@@ -238,16 +254,18 @@ function MessagesContent() {
                 </div>
               ) : (
                 conversations
-                  .filter((conversation) =>
-                    conversation.otherUser.firstName
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase()) ||
-                    conversation.otherUser.lastName
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase())
+                  .filter(
+                    (conversation) =>
+                      conversation.otherUser.firstName
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()) ||
+                      conversation.otherUser.lastName
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase())
                   )
                   .map((conversation) => {
-                    const conversationId = conversation.propertyId || conversation.bookingId || "";
+                    const conversationId =
+                      conversation.propertyId || conversation.bookingId || "";
                     return (
                       <button
                         key={conversationId}
@@ -290,7 +308,7 @@ function MessagesContent() {
                             {conversation.lastMessage.content}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
-                            {formatDate(conversation.lastMessage.createdAt)}
+                            {formatDate(new Date(conversation.lastMessage.createdAt))}
                           </p>
                         </div>
                       </button>
@@ -308,10 +326,12 @@ function MessagesContent() {
                 <div className="p-4 border-b border-gray-200 flex items-center">
                   {(() => {
                     const selectedConv = conversations.find(
-                      (c) => c.propertyId === selectedConversation || c.bookingId === selectedConversation
+                      (c) =>
+                        c.propertyId === selectedConversation ||
+                        c.bookingId === selectedConversation
                     );
                     if (!selectedConv) return null;
-                    
+
                     return (
                       <>
                         <div
@@ -387,7 +407,7 @@ function MessagesContent() {
                                   : "#6b7280",
                             }}
                           >
-                            {formatTime(message.createdAt)}
+                            {formatTime(new Date(message.createdAt))}
                           </p>
                         </div>
                       </div>

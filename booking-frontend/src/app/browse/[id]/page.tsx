@@ -107,7 +107,7 @@ export default function PropertyDetailsPage() {
       if (user && propertyId) {
         try {
           const favorited = await favoritesService.checkFavorite(propertyId);
-          setIsFavorited(favorited);
+          setIsFavorited(favorited.data.isFavorited);
         } catch (error) {
           console.error("Error checking favorite status:", error);
         }
@@ -175,7 +175,7 @@ export default function PropertyDetailsPage() {
         await favoritesService.removeFavorite(propertyId);
         toast.success("Removed from favorites");
       } else {
-        await favoritesService.addFavorite(propertyId);
+        await favoritesService.addFavorite({ propertyId });
         toast.success("Added to favorites");
       }
       setIsFavorited(!isFavorited);

@@ -801,15 +801,18 @@ function RealtorRegistrationContent() {
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
         url: window.location.href,
-        currentStep: step,
+        currentStep: currentStep,
       },
     });
 
     // Track error event for analytics
     trackAction("registration_error", "registration", {
       errorType: error?.message || "unknown",
-      step: step,
+      step: currentStep,
     });
+
+    const errorReport = {
+      error: error?.message || "unknown",
       formData: {
         step: currentStep,
         // Don't include sensitive data
