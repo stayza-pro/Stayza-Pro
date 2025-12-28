@@ -4,7 +4,10 @@ import React, { createContext, useContext, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/notifications/useToast";
 import { ToastContainer } from "@/components/notifications/Toast";
-import { NotificationSocketData } from "@/types/notifications";
+import {
+  NotificationSocketData,
+  NotificationPriority,
+} from "@/types/notifications";
 
 interface NotificationContextType {
   // Add any shared notification state or methods here if needed
@@ -46,15 +49,13 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
               const duration = getNotificationDuration(notification.priority);
 
               switch (notification.priority) {
-                case "HIGH":
-                case "URGENT":
-                  error(notification.title, notification.message, duration);
+                case "high":
+                case "urgent":
+                  error(notification.title, notification.message, { duration });
                   break;
-                case "MEDIUM":
-                  warning(notification.title, notification.message, duration);
-                  break;
+                case "normal":
                 default:
-                  info(notification.title, notification.message, duration);
+                  info(notification.title, notification.message, { duration });
               }
             }
           );
@@ -95,7 +96,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   );
 }
 
-function getNotificationDuration(priority: string): number {
+function getNotificationDuration(priority: NotificationPriority): number {
   switch (priority) {
     case "urgent":
       return 10000; // 10 seconds

@@ -108,7 +108,7 @@ export default function EditPropertyPage() {
     showConfirm("Are you sure you want to delete this image?", async () => {
       try {
         const imageId = existingImages[index].id;
-        await propertyService.deletePropertyImage(propertyId, imageId);
+        await propertyService.deleteImage(propertyId, imageId);
         setExistingImages((prev) => prev.filter((_, i) => i !== index));
         showSuccess("Image deleted successfully");
       } catch (error: any) {
