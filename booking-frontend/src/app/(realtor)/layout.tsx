@@ -19,6 +19,7 @@ import {
   Bell,
   LayoutGrid,
   RefreshCw,
+  Wallet,
 } from "lucide-react";
 
 export default function RealtorLayout({
@@ -61,14 +62,14 @@ export default function RealtorLayout({
       setActiveNav("properties");
     } else if (currentPath.includes("/bookings")) {
       setActiveNav("bookings");
-    } else if (currentPath.includes("/review-moderation")) {
-      setActiveNav("review-moderation");
+    } else if (currentPath.includes("/escrow")) {
+      setActiveNav("escrow-tracker");
     } else if (currentPath.includes("/refund-requests")) {
       setActiveNav("refund-requests");
     } else if (currentPath.includes("/revenue")) {
       setActiveNav("revenue");
-    } else if (currentPath.includes("/analytics")) {
-      setActiveNav("analytics");
+    } else if (currentPath.includes("/payouts")) {
+      setActiveNav("payouts");
     } else if (currentPath.includes("/notifications")) {
       setActiveNav("notifications");
     } else if (currentPath.includes("/settings")) {
@@ -154,10 +155,10 @@ export default function RealtorLayout({
       href: "/bookings",
     },
     {
-      id: "review-moderation",
-      label: "Review Moderation",
+      id: "escrow-tracker",
+      label: "Escrow Tracker",
       icon: Shield,
-      href: "/review-moderation",
+      href: "/escrow",
     },
     {
       id: "refund-requests",
@@ -167,16 +168,11 @@ export default function RealtorLayout({
     },
     {
       id: "revenue",
-      label: "Revenue",
+      label: "Revenue & Analytics",
       icon: DollarSign,
       href: "/revenue",
     },
-    {
-      id: "analytics",
-      label: "Analytics",
-      icon: BarChart3,
-      href: "/analytics",
-    },
+    { id: "payouts", label: "Payouts", icon: Wallet, href: "/payouts" },
     {
       id: "notifications",
       label: "Notifications",

@@ -62,6 +62,30 @@ export const bookingService = {
     return response as PaginatedResponse<Booking>;
   },
 
+  // Get realtor's bookings (alias for getHostBookings)
+  getRealtorBookings: async (
+    searchParams?: SearchParams
+  ): Promise<Booking[]> => {
+    const params = new URLSearchParams();
+
+    if (searchParams) {
+      Object.keys(searchParams).forEach((key) => {
+        const value = searchParams[key as keyof SearchParams];
+        if (value !== undefined && value !== null) {
+          params.append(key, String(value));
+        }
+      });
+    }
+
+    const queryString = params.toString();
+    const url = queryString
+      ? `/bookings/realtor-bookings?${queryString}`
+      : "/bookings/realtor-bookings";
+
+    const response = await apiClient.get<Booking[]>(url);
+    return response.data || [];
+  },
+
   // Get single booking
   getBooking: async (id: string): Promise<Booking> => {
     const response = await apiClient.get<Booking>(`/bookings/${id}`);

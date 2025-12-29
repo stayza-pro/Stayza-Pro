@@ -91,6 +91,68 @@ export const authenticate = async (
   }
 };
 
+// Optional authentication - doesn't reject if no token present
+export const optionalAuthenticate = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      // No token provided - continue without user
+      next();
+      return;
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+      const decoded = jwt.verify(token, config.JWT_SECRET) as JWTPayload;
+
+      // Get user from database
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          avatar: true,
+          createdAt: true,
+          updatedAt: true,
+          referredByRealtorId: true,
+          referredByRealtor: {
+            select: {
+              id: true,
+              businessName: true,
+              tagline: true,
+              logoUrl: true,
+              primaryColor: true,
+              secondaryColor: true,
+              accentColor: true,
+              description: true,
+            },
+          },
+        },
+      });
+
+      if (user) {
+        req.user = user as any;
+      }
+    } catch (error) {
+      // Token invalid or expired - continue without user
+      console.log("Optional auth failed:", error);
+    }
+
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
 export const authorize = (...roles: UserRole[]) => {
   return (
     req: AuthenticatedRequest,

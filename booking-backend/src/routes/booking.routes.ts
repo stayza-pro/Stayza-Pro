@@ -172,11 +172,14 @@ router.post(
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const checkInDateOnly = new Date(checkIn);
     checkInDateOnly.setHours(0, 0, 0, 0);
 
-    if (checkInDateOnly < today) {
-      throw new AppError("Check-in date cannot be in the past", 400);
+    if (checkInDateOnly < tomorrow) {
+      throw new AppError("Check-in date must be at least tomorrow", 400);
     }
 
     const nights = Math.ceil(
@@ -188,19 +191,21 @@ router.post(
 
     const cleaningFee = property.cleaningFee ? Number(property.cleaningFee) : 0;
     const securityDeposit = property.securityDeposit
-      ? Number(property.securityDeposit)
+      ? Math.round(Number(property.securityDeposit) * 100) / 100
       : 0;
 
     // NEW COMMISSION STRUCTURE
     // Calculate service fee: 2% of (room fee + cleaning fee)
     const subtotal = roomFee + cleaningFee;
-    const serviceFee = subtotal * 0.02; // 2% service fee
+    const serviceFee = Math.round(subtotal * 0.02 * 100) / 100; // 2% service fee
 
     // Platform fee: 10% of room fee (deducted at release, not charged to guest)
-    const platformFee = roomFee * 0.1;
+    const platformFee = Math.round(roomFee * 0.1 * 100) / 100;
 
     // Total amount customer pays
-    const total = roomFee + cleaningFee + serviceFee + securityDeposit;
+    const total =
+      Math.round((roomFee + cleaningFee + serviceFee + securityDeposit) * 100) /
+      100;
 
     // Realtor earnings breakdown
     const cleaningFeeImmediate = cleaningFee; // Released immediately
@@ -213,10 +218,12 @@ router.post(
       data: {
         roomFee: Number(roomFee.toFixed(2)),
         cleaningFee: Number(cleaningFee.toFixed(2)),
-        serviceFee: Number(serviceFee.toFixed(2)), // 2% of subtotal
+        serviceFee: Number(serviceFee.toFixed(2)), // 2% of (room + cleaning)
         securityDeposit: Number(securityDeposit.toFixed(2)),
-        subtotal: Number(subtotal.toFixed(2)), // room + cleaning
-        total: Number(total.toFixed(2)), // subtotal + serviceFee + deposit
+        subtotal: Number(roomFee.toFixed(2)), // Room fee only (for display)
+        taxes: 0, // No taxes in current implementation
+        fees: Number(serviceFee.toFixed(2)), // Service fee shown separately
+        total: Number(total.toFixed(2)), // room + cleaning + serviceFee + deposit
         currency: property.currency,
         nights,
         breakdown: {
@@ -241,6 +248,7 @@ router.post(
           // Commission rates
           platformFeeRate: "10%",
           serviceFeeRate: "2%",
+          serviceFeeDescription: "2% of (room fee + cleaning fee)",
         },
       },
     });
@@ -302,11 +310,14 @@ router.get(
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const checkInDateOnly = new Date(checkInDate);
     checkInDateOnly.setHours(0, 0, 0, 0);
 
-    if (checkInDateOnly < today) {
-      throw new AppError("Check-in date cannot be in the past", 400);
+    if (checkInDateOnly < tomorrow) {
+      throw new AppError("Check-in date must be at least tomorrow", 400);
     }
 
     const property = await prisma.property.findUnique({
@@ -463,11 +474,14 @@ router.post(
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const checkInDateOnly = new Date(checkIn);
     checkInDateOnly.setHours(0, 0, 0, 0);
 
-    if (checkInDateOnly < today) {
-      throw new AppError("Check-in date cannot be in the past", 400);
+    if (checkInDateOnly < tomorrow) {
+      throw new AppError("Check-in date must be at least tomorrow", 400);
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -824,9 +838,18 @@ router.get(
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
+    // Get realtor record from user ID
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user!.id },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
     const where: any = {
       property: {
-        realtorId: req.user!.id,
+        realtorId: realtor.id,
       },
     };
 
@@ -850,6 +873,9 @@ router.get(
           guest: {
             select: {
               id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
             },
           },
           payment: true,

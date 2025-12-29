@@ -29,8 +29,9 @@ export default function NotificationsPage() {
   const { user } = useAuth();
   const { branding } = useBranding();
   const { showSuccess, showError } = useAlert();
-  const realtorSubdomain = getRealtorSubdomain();
 
+  const [mounted, setMounted] = useState(false);
+  const [realtorSubdomain, setRealtorSubdomain] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,12 @@ export default function NotificationsPage() {
     secondary: "#1E40AF",
     accent: "#F59E0B",
   };
+
+  // Only get subdomain on client side
+  useEffect(() => {
+    setMounted(true);
+    setRealtorSubdomain(getRealtorSubdomain());
+  }, []);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -343,28 +350,6 @@ export default function NotificationsPage() {
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Notification Settings Quick Access */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Settings className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">
-                    Notification Preferences
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    Manage how you receive notifications
-                  </p>
-                </div>
-              </div>
-              <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-                Configure
-              </button>
-            </div>
           </div>
         </div>
       </div>

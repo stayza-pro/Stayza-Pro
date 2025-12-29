@@ -92,6 +92,7 @@ export default function PropertyDetailsPage() {
   const [showCheckInCalendar, setShowCheckInCalendar] = useState(false);
   const [showCheckOutCalendar, setShowCheckOutCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
 
   // Debug: Log property data
   React.useEffect(() => {
@@ -100,6 +101,42 @@ export default function PropertyDetailsPage() {
       console.log("Property images:", property.images);
     }
   }, [property]);
+
+  // Fetch unavailable dates from backend
+  React.useEffect(() => {
+    const fetchUnavailableDates = async () => {
+      if (!propertyId) return;
+
+      try {
+        const API_URL =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+        const response = await fetch(
+          `${API_URL}/bookings/properties/${propertyId}/calendar?months=6`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data?.calendar) {
+            // Extract dates that are not available
+            const bookedDates = result.data.calendar
+              .filter((day: any) => !day.available)
+              .map((day: any) => day.date);
+            setUnavailableDates(bookedDates);
+            console.log("📅 Loaded unavailable dates:", bookedDates.length);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching unavailable dates:", error);
+      }
+    };
+
+    fetchUnavailableDates();
+  }, [propertyId]);
 
   // Check if property is favorited
   React.useEffect(() => {
@@ -251,7 +288,11 @@ export default function PropertyDetailsPage() {
   const isDateDisabled = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return date < today;
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateString = formatDateToString(date);
+    // Disable dates before tomorrow (including today) and dates that are already booked
+    return date < tomorrow || unavailableDates.includes(dateString);
   };
 
   const handleDateClick = (
@@ -366,7 +407,7 @@ export default function PropertyDetailsPage() {
     }
 
     return (
-      <div className="absolute z-50 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80">
+      <div className="r z-50 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80">
         {/* Calendar Header */}
         <div className="flex items-center justify-between mb-4">
           <button
@@ -431,11 +472,13 @@ export default function PropertyDetailsPage() {
   }
 
   const formatPrice = (price: number) => {
+    // Round to 2 decimal places to avoid floating point issues
+    const roundedPrice = Math.round(Number(price) * 100) / 100;
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: property.currency || "NGN",
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(roundedPrice);
   };
 
   return (
@@ -840,22 +883,12 @@ export default function PropertyDetailsPage() {
                   </div>
 
                   {/* Optional Fees Display */}
-                  {(property.serviceFee ||
-                    property.cleaningFee ||
-                    property.securityDeposit) && (
+                  {(property.cleaningFee || property.securityDeposit) && (
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <p className="text-xs font-semibold text-gray-700 mb-2">
                         Additional Charges:
                       </p>
                       <div className="space-y-1 text-sm text-gray-600">
-                        {property.serviceFee && (
-                          <div className="flex justify-between">
-                            <span>Service fee:</span>
-                            <span className="font-medium">
-                              {formatPrice(property.serviceFee)}
-                            </span>
-                          </div>
-                        )}
                         {property.cleaningFee && (
                           <div className="flex justify-between">
                             <span>Cleaning fee:</span>
@@ -864,6 +897,20 @@ export default function PropertyDetailsPage() {
                             </span>
                           </div>
                         )}
+                        {/* Service fee is 2% of (room + cleaning fee) */}
+                        {(() => {
+                          const roomFee = Number(property.pricePerNight) || 0;
+                          const cleaningFee = Number(property.cleaningFee) || 0;
+                          const serviceFee = (roomFee + cleaningFee) * 0.02;
+                          return serviceFee > 0 ? (
+                            <div className="flex justify-between">
+                              <span>Service fee (2%):</span>
+                              <span className="font-medium">
+                                {formatPrice(serviceFee)}
+                              </span>
+                            </div>
+                          ) : null;
+                        })()}
                         {property.securityDeposit && (
                           <div className="flex justify-between">
                             <span>Security deposit:</span>
@@ -875,8 +922,8 @@ export default function PropertyDetailsPage() {
                       </div>
                       <p className="text-xs text-gray-500 mt-2 italic">
                         {property.securityDeposit
-                          ? "Security deposit is refundable after checkout"
-                          : "These fees will be added to your total"}
+                          ? "Service fee and cleaning fee are nonrefundable. Security deposit is refundable after checkout."
+                          : "Service fee and cleaning fee are nonrefundable."}
                       </p>
                     </div>
                   )}

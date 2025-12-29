@@ -163,7 +163,31 @@ function OTPVerificationContent() {
       });
 
       if (!response.ok) {
-        throw new Error(result.message || "Verification failed");
+        // Handle specific error status codes with user-friendly messages
+        let errorMessage = result.message;
+
+        if (response.status === 400) {
+          if (result.message?.includes("expired")) {
+            errorMessage =
+              "Your verification code has expired. Please request a new one.";
+          } else if (
+            result.message?.includes("invalid") ||
+            result.message?.includes("incorrect")
+          ) {
+            errorMessage =
+              "Invalid verification code. Please check and try again.";
+          } else {
+            errorMessage =
+              result.message || "Verification failed. Please check your code.";
+          }
+        } else if (response.status === 404) {
+          errorMessage = "Account not found. Please register first.";
+        } else if (response.status === 429) {
+          errorMessage =
+            "Too many attempts. Please wait a few minutes and try again.";
+        }
+
+        throw new Error(errorMessage);
       }
 
       if (result.data) {
@@ -248,7 +272,25 @@ function OTPVerificationContent() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "Failed to resend code");
+        // Handle specific error status codes with user-friendly messages
+        let errorMessage = result.message;
+
+        if (response.status === 404) {
+          errorMessage =
+            "Account not found. Please register first or check your email address.";
+        } else if (response.status === 400) {
+          if (result.message?.includes("guest accounts")) {
+            errorMessage = "This feature is only available for guest accounts.";
+          } else {
+            errorMessage =
+              result.message || "Invalid request. Please try again.";
+          }
+        } else if (response.status === 429) {
+          errorMessage =
+            "Too many requests. Please wait a moment before trying again.";
+        }
+
+        throw new Error(errorMessage);
       }
 
       toast.success("New verification code sent!");

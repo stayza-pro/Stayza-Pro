@@ -61,7 +61,6 @@ export default function BookingCheckoutPage() {
     email: user?.email || "",
     specialRequests: "",
     agreeToTerms: false,
-    paymentMethod: "paystack" as "paystack" | "flutterwave",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -195,9 +194,9 @@ export default function BookingCheckoutPage() {
         specialRequests: formData.specialRequests,
       });
 
-      // Redirect to payment page with payment method
+      // Redirect to payment page with Paystack as the only payment method
       router.push(
-        `/booking/${propertyId}/payment?bookingId=${booking.id}&paymentMethod=${formData.paymentMethod}`
+        `/booking/${propertyId}/payment?bookingId=${booking.id}&paymentMethod=paystack`
       );
     } catch (error: any) {
       console.error("Booking error:", error);
@@ -440,41 +439,23 @@ export default function BookingCheckoutPage() {
               </h2>
 
               <div className="space-y-3">
-                {/* Paystack Option */}
-                <button
-                  type="button"
-                  onClick={() => handleInputChange("paymentMethod", "paystack")}
-                  className={`w-full border-2 rounded-xl p-4 transition-all ${
-                    formData.paymentMethod === "paystack"
-                      ? "border-2"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                  style={
-                    formData.paymentMethod === "paystack"
-                      ? {
-                          borderColor: brandColor,
-                          backgroundColor: `${brandColor}08`,
-                        }
-                      : undefined
-                  }
+                {/* Paystack Option - Only payment method */}
+                <div
+                  className="w-full border-2 rounded-xl p-4"
+                  style={{
+                    borderColor: brandColor,
+                    backgroundColor: `${brandColor}08`,
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div
                         className="w-12 h-12 rounded-lg flex items-center justify-center mr-4"
-                        style={
-                          formData.paymentMethod === "paystack"
-                            ? { backgroundColor: `${brandColor}15` }
-                            : { backgroundColor: "#f3f4f6" }
-                        }
+                        style={{ backgroundColor: `${brandColor}15` }}
                       >
                         <CreditCard
                           className="h-6 w-6"
-                          style={
-                            formData.paymentMethod === "paystack"
-                              ? { color: brandColor }
-                              : { color: "#9ca3af" }
-                          }
+                          style={{ color: brandColor }}
                         />
                       </div>
                       <div className="text-left">
@@ -484,71 +465,9 @@ export default function BookingCheckoutPage() {
                         </p>
                       </div>
                     </div>
-                    {formData.paymentMethod === "paystack" && (
-                      <Check
-                        className="h-6 w-6"
-                        style={{ color: brandColor }}
-                      />
-                    )}
+                    <Check className="h-6 w-6" style={{ color: brandColor }} />
                   </div>
-                </button>
-
-                {/* Flutterwave Option */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleInputChange("paymentMethod", "flutterwave")
-                  }
-                  className={`w-full border-2 rounded-xl p-4 transition-all ${
-                    formData.paymentMethod === "flutterwave"
-                      ? "border-2"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                  style={
-                    formData.paymentMethod === "flutterwave"
-                      ? {
-                          borderColor: brandColor,
-                          backgroundColor: `${brandColor}08`,
-                        }
-                      : undefined
-                  }
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div
-                        className="w-12 h-12 rounded-lg flex items-center justify-center mr-4"
-                        style={
-                          formData.paymentMethod === "flutterwave"
-                            ? { backgroundColor: `${brandColor}15` }
-                            : { backgroundColor: "#f3f4f6" }
-                        }
-                      >
-                        <CreditCard
-                          className="h-6 w-6"
-                          style={
-                            formData.paymentMethod === "flutterwave"
-                              ? { color: brandColor }
-                              : { color: "#9ca3af" }
-                          }
-                        />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-semibold text-gray-900">
-                          Flutterwave
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Secure international payment gateway
-                        </p>
-                      </div>
-                    </div>
-                    {formData.paymentMethod === "flutterwave" && (
-                      <Check
-                        className="h-6 w-6"
-                        style={{ color: brandColor }}
-                      />
-                    )}
-                  </div>
-                </button>
+                </div>
 
                 {/* Security Notice */}
                 <div
@@ -566,11 +485,7 @@ export default function BookingCheckoutPage() {
                     <p className="font-semibold mb-1">🔒 Secure Payment</p>
                     <p>
                       Your payment information is encrypted and secure. You will
-                      be redirected to{" "}
-                      {formData.paymentMethod === "paystack"
-                        ? "Paystack"
-                        : "Flutterwave"}{" "}
-                      to complete your payment safely.
+                      be redirected to Paystack to complete your payment safely.
                     </p>
                   </div>
                 </div>
@@ -766,24 +681,24 @@ export default function BookingCheckoutPage() {
                         </span>
                       </div>
 
-                      {bookingCalculation.serviceFee > 0 && (
-                        <div className="flex justify-between text-gray-700">
-                          <span className="text-sm">Service fee</span>
-                          <span className="font-medium">
-                            {formatPrice(
-                              bookingCalculation.serviceFee,
-                              bookingCalculation.currency
-                            )}
-                          </span>
-                        </div>
-                      )}
-
                       {bookingCalculation.cleaningFee > 0 && (
                         <div className="flex justify-between text-gray-700">
                           <span className="text-sm">Cleaning fee</span>
                           <span className="font-medium">
                             {formatPrice(
                               bookingCalculation.cleaningFee,
+                              bookingCalculation.currency
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                      {bookingCalculation.serviceFee > 0 && (
+                        <div className="flex justify-between text-gray-700">
+                          <span className="text-sm">Service fee (2%)</span>
+                          <span className="font-medium">
+                            {formatPrice(
+                              bookingCalculation.serviceFee,
                               bookingCalculation.currency
                             )}
                           </span>

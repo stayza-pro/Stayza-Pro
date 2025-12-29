@@ -103,7 +103,26 @@ function GuestLoginContent() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "Failed to send OTP");
+        // Handle specific error status codes with user-friendly messages
+        let errorMessage = result.message;
+
+        if (response.status === 404) {
+          errorMessage =
+            "No account found with this email address. Please sign up first or check your email.";
+        } else if (response.status === 400) {
+          if (result.message?.includes("guest accounts")) {
+            errorMessage =
+              "This login method is only for guest accounts. Please use the regular login page.";
+          } else if (result.message?.includes("valid email")) {
+            errorMessage = "Please enter a valid email address.";
+          } else {
+            errorMessage =
+              result.message ||
+              "Invalid request. Please check your email and try again.";
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
       // Show OTP in toast if in development mode

@@ -1,5 +1,4 @@
 // Modern Realtor Dashboard Components
-export { default as RealtorDashboardLayout } from "./RealtorDashboardLayout";
 export { default as DashboardHome } from "./DashboardHome";
 
 // Dashboard Context
@@ -16,5 +15,4 @@ export { default as TopBar } from "./components/TopBar";
 
 // Placeholder Components (for navigation compatibility)
 export { default as BusinessProfileManager } from "./BusinessProfileManager";
-export { default as RealtorReviewsManager } from "./RealtorReviewsManager";
 export { default as RealtorSupportCenter } from "./RealtorSupportCenter";

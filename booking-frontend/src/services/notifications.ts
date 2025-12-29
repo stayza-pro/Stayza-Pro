@@ -83,8 +83,8 @@ class NotificationApiService {
   // Mark all notifications as read
   async markAllAsRead(): Promise<void> {
     try {
-      await axios.put(
-        `${API_BASE_URL}/notifications/mark-all-read`,
+      await axios.patch(
+        `${API_BASE_URL}/notifications/read-all`,
         {},
         { headers: this.getAuthHeaders() }
       );
@@ -97,47 +97,11 @@ class NotificationApiService {
   // Delete notification
   async deleteNotification(notificationId: string): Promise<void> {
     try {
-      await axios.delete(
-        `${API_BASE_URL}/notifications/${notificationId}`,
-        {
-          headers: this.getAuthHeaders(),
-        }
-      );
+      await axios.delete(`${API_BASE_URL}/notifications/${notificationId}`, {
+        headers: this.getAuthHeaders(),
+      });
     } catch (error) {
       console.error("Error deleting notification:", error);
-      throw error;
-    }
-  }
-
-  // Get notification preferences
-  async getPreferences(): Promise<NotificationPreferences> {
-    try {
-      const response = await axios.get<NotificationPreferencesResponse>(
-        `${API_BASE_URL}/notifications/preferences`,
-        { headers: this.getAuthHeaders() }
-      );
-
-      return response.data.data;
-    } catch (error) {
-      console.error("Error fetching notification preferences:", error);
-      throw error;
-    }
-  }
-
-  // Update notification preferences
-  async updatePreferences(
-    preferences: Partial<NotificationPreferences>
-  ): Promise<NotificationPreferences> {
-    try {
-      const response = await axios.put<NotificationPreferencesResponse>(
-        `${API_BASE_URL}/notifications/preferences`,
-        preferences,
-        { headers: this.getAuthHeaders() }
-      );
-
-      return response.data.data;
-    } catch (error) {
-      console.error("Error updating notification preferences:", error);
       throw error;
     }
   }

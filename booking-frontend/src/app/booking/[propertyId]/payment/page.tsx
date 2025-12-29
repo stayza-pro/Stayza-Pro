@@ -164,23 +164,127 @@ export default function PaymentPage() {
 
       console.log("✅ Paystack initialization response:", response);
 
-      if (!response.authorizationUrl) {
-        throw new Error("No authorization URL received from server");
+      if (!response.reference) {
+        throw new Error("No payment reference received from server");
       }
 
-      // Store payment metadata for verification after redirect
-      localStorage.setItem(
-        "paystackPaymentMeta",
-        JSON.stringify({
-          bookingId: booking.id,
-          paymentId: response.paymentId,
-          reference: response.reference,
-        })
-      );
+      // Check if Paystack script is loaded
+      if (!window.PaystackPop) {
+        throw new Error(
+          "Paystack payment system not loaded. Please refresh the page."
+        );
+      }
 
-      // Redirect to Paystack hosted payment page
-      console.log("🔗 Redirecting to Paystack:", response.authorizationUrl);
-      window.location.href = response.authorizationUrl;
+      // Initialize Paystack Popup (inline payment)
+      const handler = window.PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        email: currentUser.email,
+        amount: Math.round(booking.totalPrice * 100), // Amount in kobo
+        currency: booking.currency || "NGN",
+        ref: response.reference,
+        metadata: {
+          bookingId: booking.id,
+          propertyId: booking.propertyId,
+          userId: currentUser.id,
+          custom_fields: [
+            {
+              display_name: "Booking ID",
+              variable_name: "booking_id",
+              value: booking.id,
+            },
+            {
+              display_name: "Property",
+              variable_name: "property_name",
+              value: booking.property?.name || "N/A",
+            },
+          ],
+        },
+        onClose: function () {
+          console.log("Payment popup closed");
+          setPaymentStatus("ready");
+          setError("Payment was cancelled. Please try again when ready.");
+        },
+        callback: function (paystackResponse: any) {
+          console.log("✅ Payment successful:", paystackResponse);
+          console.log(
+            "✅ Reference from Paystack:",
+            paystackResponse.reference
+          );
+          console.log(
+            "✅ Full Paystack response structure:",
+            JSON.stringify(paystackResponse, null, 2)
+          );
+
+          // Handle verification in a separate async call
+          const verifyAndRedirect = async () => {
+            setPaymentStatus("processing");
+
+            try {
+              // Paystack popup callback returns { reference, trxref, trans, transaction }
+              const reference =
+                paystackResponse.reference || paystackResponse.trxref;
+
+              if (!reference) {
+                throw new Error("No reference found in Paystack response");
+              }
+
+              console.log("🔍 Verifying payment with reference:", reference);
+
+              // Verify payment with backend
+              const verifyResponse = await paymentService.verifyPaystackPayment(
+                {
+                  reference: reference,
+                }
+              );
+
+              console.log("✅ Verification response:", verifyResponse);
+
+              if (verifyResponse.success) {
+                setPaymentStatus("success");
+
+                // Store payment metadata for success page
+                if (verifyResponse.payment && verifyResponse.booking) {
+                  localStorage.setItem(
+                    "paystackPaymentMeta",
+                    JSON.stringify({
+                      paymentId: verifyResponse.payment.id,
+                      bookingId: verifyResponse.booking.id,
+                      reference: reference,
+                    })
+                  );
+                }
+
+                // Redirect directly to booking confirmation page
+                const bookingId = verifyResponse.booking?.id || booking.id;
+                setTimeout(() => {
+                  router.push(`/booking/confirmation/${bookingId}`);
+                }, 1500);
+              } else {
+                throw new Error(
+                  verifyResponse.message || "Payment verification failed"
+                );
+              }
+            } catch (err: any) {
+              console.error("❌ Payment verification error:", err);
+              console.error("❌ Error details:", {
+                message: err.message,
+                response: err.response?.data,
+                status: err.response?.status,
+              });
+              setPaymentStatus("failed");
+              setError(
+                err.response?.data?.message ||
+                  err.message ||
+                  "Payment completed but verification failed. Please contact support."
+              );
+            }
+          };
+
+          verifyAndRedirect();
+        },
+      });
+
+      handler.openIframe();
     } catch (err: any) {
       console.error("❌ Paystack initialization error:", err);
       setPaymentStatus("failed");
@@ -453,7 +557,11 @@ export default function PaymentPage() {
                     {booking.property?.images?.[0] && (
                       <div className="relative h-48 rounded-lg overflow-hidden">
                         <img
-                          src={booking.property.images[0]}
+                          src={
+                            typeof booking.property.images[0] === "string"
+                              ? booking.property.images[0]
+                              : booking.property.images[0].url
+                          }
                           alt={booking.property.title}
                           className="w-full h-full object-cover"
                         />
@@ -660,24 +768,24 @@ export default function PaymentPage() {
                             </span>
                           </div>
 
-                          {priceBreakdown.serviceFee > 0 && (
-                            <div className="flex justify-between text-gray-700">
-                              <span className="text-sm">Service fee</span>
-                              <span className="font-medium">
-                                {formatPrice(
-                                  priceBreakdown.serviceFee,
-                                  priceBreakdown.currency
-                                )}
-                              </span>
-                            </div>
-                          )}
-
                           {priceBreakdown.cleaningFee > 0 && (
                             <div className="flex justify-between text-gray-700">
                               <span className="text-sm">Cleaning fee</span>
                               <span className="font-medium">
                                 {formatPrice(
                                   priceBreakdown.cleaningFee,
+                                  priceBreakdown.currency
+                                )}
+                              </span>
+                            </div>
+                          )}
+
+                          {priceBreakdown.serviceFee > 0 && (
+                            <div className="flex justify-between text-gray-700">
+                              <span className="text-sm">Service fee (2%)</span>
+                              <span className="font-medium">
+                                {formatPrice(
+                                  priceBreakdown.serviceFee,
                                   priceBreakdown.currency
                                 )}
                               </span>

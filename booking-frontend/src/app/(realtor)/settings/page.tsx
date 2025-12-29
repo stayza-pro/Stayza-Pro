@@ -34,13 +34,7 @@ import type { Realtor, CacStatus } from "@/types";
 // API URL for direct backend calls
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
 
-type TabId =
-  | "profile"
-  | "branding"
-  | "business"
-  | "payout"
-  | "notifications"
-  | "security";
+type TabId = "profile" | "branding" | "business" | "payout" | "security";
 
 interface Tab {
   id: TabId;
@@ -53,7 +47,6 @@ const tabs: Tab[] = [
   { id: "branding", label: "Branding", icon: Palette },
   { id: "business", label: "Business & CAC", icon: Building2 },
   { id: "payout", label: "Payout Settings", icon: CreditCard },
-  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
 ];
 
@@ -92,6 +85,14 @@ export default function SettingsPage() {
     businessName: user?.realtor?.businessName || "",
     tagline: user?.realtor?.tagline || "",
     businessPhone: user?.realtor?.businessPhone || "",
+    slug: user?.realtor?.slug || "",
+  });
+
+  // Commission & Fees State
+  const [commissionInfo, setCommissionInfo] = useState({
+    platformCommission: 10, // 10% platform fee
+    transactionFee: 1.5, // 1.5% transaction fee
+    realtorShare: 90, // 90% for room fees
   });
 
   // Branding State
@@ -114,16 +115,6 @@ export default function SettingsPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
   const [hasPayoutAccount, setHasPayoutAccount] = useState(false);
-
-  // Notification Preferences
-  const [notificationPrefs, setNotificationPrefs] = useState({
-    emailBookings: true,
-    emailReviews: true,
-    emailPayments: true,
-    emailPromotions: false,
-    smsBookings: false,
-    smsPayments: false,
-  });
 
   // Security State
   const [securityData, setSecurityData] = useState({
@@ -409,6 +400,11 @@ export default function SettingsPage() {
   };
 
   const handleProfileSave = async () => {
+    if (!profileData.slug || profileData.slug.length < 3) {
+      showError("Subdomain must be at least 3 characters long");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const response = await fetch(`${API_URL}/realtors/profile`, {
@@ -421,6 +417,7 @@ export default function SettingsPage() {
           businessName: profileData.businessName,
           tagline: profileData.tagline,
           businessPhone: profileData.businessPhone,
+          slug: profileData.slug,
         }),
       });
 
@@ -637,59 +634,6 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Read-only Personal Information */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  value={profileData.firstName}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed text-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Cannot be changed</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  value={profileData.lastName}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed text-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Cannot be changed</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={profileData.email}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed text-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Cannot be changed</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Personal Phone
-                </label>
-                <input
-                  type="tel"
-                  value={profileData.phone}
-                  disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed text-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Cannot be changed</p>
-              </div>
-
               {/* Editable Business Information */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -747,6 +691,82 @@ export default function SettingsPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="+234 XXX XXX XXXX"
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Booking Subdomain *
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={profileData.slug}
+                    onChange={(e) => {
+                      const value = e.target.value
+                        .toLowerCase()
+                        .replace(/[^a-z0-9-]/g, "")
+                        .replace(/--+/g, "-")
+                        .slice(0, 50);
+                      setProfileData({
+                        ...profileData,
+                        slug: value,
+                      });
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                    placeholder="your-agency-name"
+                  />
+                  <span className="text-gray-600 font-mono">.stayza.pro</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Only lowercase letters, numbers, and hyphens. This will be
+                  your booking site URL.
+                </p>
+              </div>
+            </div>
+
+            {/* Commission & Fees Display */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+              <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
+                Commission & Fee Structure
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-blue-700 mb-1">
+                    Platform Commission
+                  </p>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {commissionInfo.platformCommission}%
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    On completed bookings
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700 mb-1">Transaction Fee</p>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {commissionInfo.transactionFee}%
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Payment processing
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700 mb-1">Your Earnings</p>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {commissionInfo.realtorShare}%
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Of room fees released
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-blue-200">
+                <p className="text-xs text-blue-700">
+                  💡 <strong>Note:</strong> You receive 100% of cleaning fees
+                  and {commissionInfo.realtorShare}% of room fees after guest
+                  checkout.
+                </p>
               </div>
             </div>
 
@@ -1389,148 +1409,6 @@ export default function SettingsPage() {
           </div>
         );
 
-      case "notifications":
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Notification Preferences
-              </h2>
-              <p className="text-gray-600">
-                Manage how you receive updates about your bookings and account
-              </p>
-            </div>
-
-            <div className="space-y-6">
-              {/* Email Notifications */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Email Notifications
-                </h3>
-                <div className="space-y-4">
-                  {[
-                    {
-                      id: "emailBookings",
-                      label: "Booking Updates",
-                      description:
-                        "New bookings, cancellations, and modifications",
-                    },
-                    {
-                      id: "emailReviews",
-                      label: "Reviews & Ratings",
-                      description:
-                        "When guests leave reviews for your properties",
-                    },
-                    {
-                      id: "emailPayments",
-                      label: "Payments & Payouts",
-                      description: "Payment receipts and payout notifications",
-                    },
-                    {
-                      id: "emailPromotions",
-                      label: "Promotions & Tips",
-                      description:
-                        "Marketing updates and tips to improve your listings",
-                    },
-                  ].map((item) => (
-                    <label
-                      key={item.id}
-                      className="flex items-start gap-3 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={
-                          notificationPrefs[
-                            item.id as keyof typeof notificationPrefs
-                          ]
-                        }
-                        onChange={(e) =>
-                          setNotificationPrefs({
-                            ...notificationPrefs,
-                            [item.id]: e.target.checked,
-                          })
-                        }
-                        className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {item.label}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {item.description}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* SMS Notifications */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  SMS Notifications
-                </h3>
-                <div className="space-y-4">
-                  {[
-                    {
-                      id: "smsBookings",
-                      label: "Urgent Booking Alerts",
-                      description: "Critical booking notifications via SMS",
-                    },
-                    {
-                      id: "smsPayments",
-                      label: "Payment Confirmations",
-                      description: "Instant payment and payout confirmations",
-                    },
-                  ].map((item) => (
-                    <label
-                      key={item.id}
-                      className="flex items-start gap-3 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={
-                          notificationPrefs[
-                            item.id as keyof typeof notificationPrefs
-                          ]
-                        }
-                        onChange={(e) =>
-                          setNotificationPrefs({
-                            ...notificationPrefs,
-                            [item.id]: e.target.checked,
-                          })
-                        }
-                        className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {item.label}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {item.description}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => showSuccess("Notification preferences saved")}
-                style={{ backgroundColor: brandColor }}
-                className="px-6 py-3 text-white rounded-lg font-medium flex items-center gap-2"
-              >
-                <Save className="w-5 h-5" />
-                Save Preferences
-              </motion.button>
-            </div>
-          </div>
-        );
-
       case "security":
         return (
           <div className="space-y-6">
@@ -1627,88 +1505,28 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Two-Factor Authentication (Coming Soon) */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 opacity-60">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Two-Factor Authentication
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Add an extra layer of security to your account (Coming Soon)
-              </p>
-              <button
-                disabled
-                className="px-4 py-2 bg-gray-400 text-white rounded-lg font-medium cursor-not-allowed"
-              >
-                Enable 2FA
-              </button>
-            </div>
-
-            {/* Delete Account - Danger Zone */}
-            <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
-              <div className="flex items-start gap-3 mb-4">
-                <AlertTriangle className="w-6 h-6 text-red-600 mt-1 flex-shrink-0" />
+            {/* Delete Account */}
+            <div className="border-t border-gray-200 pt-6 mt-6">
+              <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-red-900 mb-1">
-                    Danger Zone
+                  <h3 className="text-sm font-medium text-gray-900 mb-1">
+                    Delete Account
                   </h3>
-                  <p className="text-red-800 text-sm">
-                    Once you delete your account, there is no going back. Please
-                    be certain.
+                  <p className="text-sm text-gray-600">
+                    Permanently delete your account and all associated data
                   </p>
                 </div>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDeleteAccount}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Account
+                </motion.button>
               </div>
-
-              <div className="bg-white border border-red-200 rounded-lg p-4 mb-4">
-                <h4 className="font-semibold text-gray-900 mb-2">
-                  What will be deleted:
-                </h4>
-                <ul className="space-y-1 text-sm text-gray-700">
-                  <li className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                    Your realtor profile and business information
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                    All properties and listings
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                    All bookings, reviews, and ratings
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                    All payment records and transaction history
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                    Your subdomain and branding
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                    All uploaded images and documents
-                  </li>
-                </ul>
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleDeleteAccount}
-                disabled={isSaving}
-                className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Deleting Account...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-5 h-5" />
-                    Delete My Account
-                  </>
-                )}
-              </motion.button>
             </div>
           </div>
         );

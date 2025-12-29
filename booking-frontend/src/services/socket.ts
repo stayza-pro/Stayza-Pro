@@ -119,20 +119,23 @@ export class SocketService {
       position: "top-right" as const,
     };
 
-    switch (notification.priority) {
-      case "urgent":
-        toast.error(`${notification.title}: ${notification.message}`, options);
-        break;
-      case "high":
-        toast.success(
-          `${notification.title}: ${notification.message}`,
-          options
-        );
-        break;
-      default:
-        toast(`${notification.title}: ${notification.message}`, options);
-        break;
-    }
+    // Toasts are now handled by useRealTimeUpdates hook to avoid duplicates
+    // Uncomment below if you need toast notifications at socket level
+
+    // switch (notification.priority) {
+    //   case "urgent":
+    //     toast.error(`${notification.title}: ${notification.message}`, options);
+    //     break;
+    //   case "high":
+    //     toast.success(
+    //       `${notification.title}: ${notification.message}`,
+    //       options
+    //     );
+    //     break;
+    //   default:
+    //     toast(`${notification.title}: ${notification.message}`, options);
+    //     break;
+    // }
   }
 
   // Socket actions

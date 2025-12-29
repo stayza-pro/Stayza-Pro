@@ -111,7 +111,31 @@ function GuestRegistrationContent() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "Registration failed");
+        // Handle specific error status codes with user-friendly messages
+        let errorMessage = result.message;
+
+        if (response.status === 409 || response.status === 400) {
+          if (
+            result.message?.includes("already exists") ||
+            result.message?.includes("already registered")
+          ) {
+            errorMessage =
+              "An account with this email already exists. Please login instead.";
+          } else if (result.message?.includes("email")) {
+            errorMessage =
+              result.message ||
+              "Invalid email address. Please check and try again.";
+          } else {
+            errorMessage =
+              result.message ||
+              "Registration failed. Please check your information.";
+          }
+        } else if (response.status === 429) {
+          errorMessage =
+            "Too many registration attempts. Please wait a moment and try again.";
+        }
+
+        throw new Error(errorMessage);
       }
 
       // Show OTP in toast if in development mode

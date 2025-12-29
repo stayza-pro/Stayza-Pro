@@ -82,18 +82,23 @@ export const paymentService = {
   verifyPaystackPayment: async (
     data: PaystackVerificationRequest
   ): Promise<PaystackVerificationResponse> => {
-    // apiClient returns res.data which contains { success, message, data }
+    // apiClient unwraps the backend response automatically
+    // Backend: {success, message, data: {payment, booking}}
+    // apiClient returns: {success, message, data: {payment, booking}}
     const response = await apiClient.post<{
       success: boolean;
       message: string;
       data?: { payment?: Payment; booking?: any };
     }>("/payments/verify-paystack", data);
 
+    console.log("🔍 Raw verification response:", response);
+    console.log("🔍 response.data:", response.data);
+
     return {
-      success: response.data.success,
-      message: response.data.message,
-      payment: response.data.data?.payment,
-      booking: response.data.data?.booking,
+      success: response.success,
+      message: response.message || "Payment verification completed",
+      payment: response.data?.data?.payment,
+      booking: response.data?.data?.booking,
     };
   },
 

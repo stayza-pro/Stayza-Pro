@@ -18,6 +18,20 @@ export function useRealTimeUpdates() {
   const [latestNotification, setLatestNotification] =
     useState<NotificationSocketData | null>(null);
 
+  // Track shown notifications to prevent duplicates
+  const [shownNotifications, setShownNotifications] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Clear old shown notifications after 5 minutes to prevent memory leak
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShownNotifications(new Set());
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (user && token) {
       // Connect to WebSocket
@@ -27,10 +41,7 @@ export function useRealTimeUpdates() {
       const unsubscribeConnection = socketService.onConnection(() => {
         console.log("✅ Real-time connection established");
         setIsConnected(true);
-        toast.success("Connected to real-time updates", {
-          duration: 2000,
-          icon: "🔄",
-        });
+        // Connection toast disabled to prevent spam
       });
 
       const unsubscribeDisconnection = socketService.onDisconnection(() => {
@@ -41,6 +52,14 @@ export function useRealTimeUpdates() {
       // Set up notification listener
       const unsubscribeNotification = socketService.onNotification(
         (notification: NotificationSocketData) => {
+          // Check if we've already shown this notification
+          if (shownNotifications.has(notification.id)) {
+            return; // Skip duplicate
+          }
+
+          // Mark as shown
+          setShownNotifications((prev) => new Set(prev).add(notification.id));
+
           setLatestNotification(notification);
 
           // Add to recent updates
@@ -60,44 +79,11 @@ export function useRealTimeUpdates() {
 
           setRecentUpdates((prev) => [update, ...prev].slice(0, 10));
 
-          // Show different notifications based on type
-          switch (update.type) {
-            case "booking":
-              toast(notification.message, {
-                duration: 5000,
-                icon: "📅",
-                style: {
-                  maxWidth: "500px",
-                },
-              });
-              break;
-
-            case "payment":
-              toast.success(notification.message, {
-                duration: 6000,
-                icon: "💰",
-                style: {
-                  maxWidth: "500px",
-                },
-              });
-              break;
-
-            case "review":
-              toast(notification.message, {
-                duration: 5000,
-                icon: "⭐",
-                style: {
-                  maxWidth: "500px",
-                },
-              });
-              break;
-
-            default:
-              toast(notification.message, {
-                icon: "🔔",
-                duration: 4000,
-              });
-          }
+          // All toast notifications disabled - check NotificationCenter bell icon for notifications
+          console.log(
+            `📢 ${update.type.toUpperCase()} notification:`,
+            notification.message
+          );
         }
       );
 

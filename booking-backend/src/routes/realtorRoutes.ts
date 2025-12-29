@@ -1420,7 +1420,8 @@ router.get(
       },
     });
 
-    const totalRevenue = await prisma.booking.aggregate({
+    // Calculate total revenue from completed bookings
+    const completedRevenue = await prisma.booking.aggregate({
       where: {
         property: {
           realtorId: realtor.id,
@@ -1431,6 +1432,41 @@ router.get(
         totalPrice: true,
       },
     });
+
+    // Calculate released funds from escrow (cleaning fees already released + room fees that are released)
+    const releasedCleaningFees = await prisma.escrowEvent.aggregate({
+      where: {
+        eventType: "RELEASE_CLEANING_FEE",
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    const releasedRoomFees = await prisma.escrowEvent.aggregate({
+      where: {
+        eventType: "RELEASE_ROOM_FEE_SPLIT",
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    // Total revenue = completed bookings + released cleaning fees + released room fees (minus platform cut)
+    const totalRevenue =
+      Number(completedRevenue._sum.totalPrice || 0) +
+      Number(releasedCleaningFees._sum?.amount || 0) +
+      Number(releasedRoomFees._sum?.amount || 0) * 0.9; // Realtor gets 90% of room fee
 
     const lastMonthRevenue = await prisma.booking.aggregate({
       where: {
@@ -1500,9 +1536,7 @@ router.get(
     return res.json({
       success: true,
       data: {
-        totalRevenue: parseFloat(
-          totalRevenue._sum.totalPrice?.toString() || "0"
-        ),
+        totalRevenue: parseFloat(totalRevenue.toFixed(2)),
         revenueChange: {
           value: 12.5, // Calculate actual percentage change
           type: "increase",
@@ -2708,6 +2742,7 @@ router.get(
         },
       },
       select: {
+        id: true,
         totalPrice: true,
         createdAt: true,
         checkInDate: true,
@@ -2717,27 +2752,77 @@ router.get(
       },
     });
 
-    // Group data by date for chart
-    const revenueByDate: { [key: string]: number } = {};
+    // Get released escrow funds within the time range
+    const releasedEscrowEvents = await prisma.escrowEvent.findMany({
+      where: {
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+        },
+        eventType: {
+          in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
+        },
+        executedAt: {
+          gte: startDate,
+          lte: now,
+        },
+      },
+      select: {
+        amount: true,
+        executedAt: true,
+        eventType: true,
+      },
+      orderBy: {
+        executedAt: "asc",
+      },
+    });
 
+    // Group data by date for chart (completed bookings + released escrow)
+    const revenueByDate: { [key: string]: number } = {};
+    const bookingsByDate: { [key: string]: number } = {};
+
+    // Add completed bookings
     bookings.forEach((booking) => {
       const date = booking.createdAt.toISOString().split("T")[0];
       revenueByDate[date] =
         (revenueByDate[date] || 0) + parseFloat(booking.totalPrice.toString());
+      bookingsByDate[date] = (bookingsByDate[date] || 0) + 1;
     });
 
-    // Convert to array format
+    // Add released escrow funds
+    releasedEscrowEvents.forEach((event) => {
+      const date = event.executedAt.toISOString().split("T")[0];
+      const amount =
+        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
+          ? Number(event.amount) * 0.9 // Realtor gets 90%
+          : Number(event.amount); // Full cleaning fee
+      revenueByDate[date] = (revenueByDate[date] || 0) + amount;
+    });
+
+    // Convert to array format with bookings count
     const chartData = Object.entries(revenueByDate).map(([date, revenue]) => ({
       date,
       revenue,
       amount: revenue,
+      bookings: bookingsByDate[date] || 0,
     }));
 
-    // Calculate totals
-    const totalRevenue = bookings.reduce(
+    // Calculate totals (completed bookings + released escrow)
+    const completedBookingsTotal = bookings.reduce(
       (sum, booking) => sum + parseFloat(booking.totalPrice.toString()),
       0
     );
+
+    const releasedEscrowTotal = releasedEscrowEvents.reduce((sum, event) => {
+      const amount =
+        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
+          ? Number(event.amount) * 0.9
+          : Number(event.amount);
+      return sum + amount;
+    }, 0);
+
+    const totalRevenue = completedBookingsTotal + releasedEscrowTotal;
     const totalBookings = bookings.length;
 
     // Calculate previous period for comparison
@@ -3348,6 +3433,376 @@ router.get(
       data: {
         hasPayoutAccount: !!realtor.paystackSubAccountCode,
         subAccountCode: realtor.paystackSubAccountCode,
+      },
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/realtors/payouts/pending:
+ *   get:
+ *     summary: Get pending payouts (released but untransferred funds)
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Pending payouts retrieved successfully
+ */
+router.get(
+  "/payouts/pending",
+  authenticate,
+  requireRole("REALTOR"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    // Get released escrow events that haven't been transferred
+    const pendingPayouts = await prisma.escrowEvent.findMany({
+      where: {
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+        },
+        eventType: {
+          in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
+        },
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            property: {
+              select: {
+                title: true,
+              },
+            },
+            payment: {
+              select: {
+                id: true,
+                realtorTransferInitiated: true,
+                realtorTransferCompleted: true,
+                transferFailed: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        executedAt: "desc",
+      },
+    });
+
+    // Filter only those that haven't been transferred successfully
+    const pendingList = pendingPayouts.filter(
+      (event: any) =>
+        !event.booking?.payment?.realtorTransferCompleted &&
+        !event.booking?.payment?.realtorTransferInitiated
+    );
+
+    // Calculate amounts (realtor gets 90% of room fee, 100% of cleaning fee)
+    const formatted = pendingList.map((event: any) => {
+      const amount =
+        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
+          ? Number(event.amount) * 0.9
+          : Number(event.amount);
+
+      return {
+        bookingId: event.booking.id,
+        propertyTitle: event.booking.property.title,
+        amount: Math.round(amount * 100) / 100,
+        releaseDate: event.executedAt,
+        eventType: event.eventType,
+      };
+    });
+
+    const totalPending = formatted.reduce((sum, item) => sum + item.amount, 0);
+
+    res.json({
+      success: true,
+      data: {
+        pendingPayouts: formatted,
+        totalPending: Math.round(totalPending * 100) / 100,
+        hasPayoutAccount: !!realtor.paystackSubAccountCode,
+      },
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/realtors/payouts/history:
+ *   get:
+ *     summary: Get payout history
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payout history retrieved successfully
+ */
+router.get(
+  "/payouts/history",
+  authenticate,
+  requireRole("REALTOR"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    // Get all escrow events with transfers (both successful and failed)
+    const payoutHistory = await prisma.escrowEvent.findMany({
+      where: {
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+          payment: {
+            OR: [
+              { NOT: { realtorTransferCompleted: null } },
+              { NOT: { realtorTransferInitiated: null } },
+              { transferFailed: true },
+            ],
+          },
+        },
+        eventType: {
+          in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
+        },
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            payment: {
+              select: {
+                id: true,
+                realtorTransferReference: true,
+                realtorTransferInitiated: true,
+                realtorTransferCompleted: true,
+                transferFailed: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        executedAt: "desc",
+      },
+      take: 50,
+    });
+
+    // Format for display
+    const formatted = payoutHistory.map((event: any) => {
+      const amount =
+        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
+          ? Number(event.amount) * 0.9
+          : Number(event.amount);
+
+      let status = "PENDING";
+      if (event.booking?.payment?.realtorTransferCompleted) {
+        status = "COMPLETED";
+      } else if (event.booking?.payment?.transferFailed) {
+        status = "FAILED";
+      } else if (event.booking?.payment?.realtorTransferInitiated) {
+        status = "PROCESSING";
+      }
+
+      return {
+        id: event.id,
+        bookingId: event.booking.id,
+        amount: Math.round(amount * 100) / 100,
+        status,
+        createdAt: event.executedAt,
+        processedAt: event.booking?.payment?.realtorTransferCompleted,
+        reference: event.booking?.payment?.realtorTransferReference,
+        notes:
+          status === "FAILED"
+            ? "Transfer failed. Please contact support."
+            : undefined,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        history: formatted,
+      },
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/realtors/payouts/request:
+ *   post:
+ *     summary: Request manual payout
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Payout request submitted successfully
+ *       400:
+ *         description: Invalid request or no bank account set up
+ */
+router.post(
+  "/payouts/request",
+  authenticate,
+  requireRole("REALTOR"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { amount } = req.body;
+
+    if (!req.user) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    // Check if bank account is set up
+    if (!realtor.paystackSubAccountCode) {
+      throw new AppError(
+        "Please set up your bank account in Settings before requesting a payout",
+        400
+      );
+    }
+
+    if (!amount || amount <= 0) {
+      throw new AppError("Invalid payout amount", 400);
+    }
+
+    // Get pending escrow events
+    const pendingEvents = await prisma.escrowEvent.findMany({
+      where: {
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+        },
+        eventType: {
+          in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
+        },
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            payment: {
+              select: {
+                id: true,
+                realtorTransferCompleted: true,
+                realtorTransferInitiated: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Filter untransferred events
+    const untransferred = pendingEvents.filter(
+      (e: any) =>
+        !e.booking?.payment?.realtorTransferCompleted &&
+        !e.booking?.payment?.realtorTransferInitiated
+    );
+
+    if (untransferred.length === 0) {
+      throw new AppError("No funds available for withdrawal", 400);
+    }
+
+    // Calculate total available
+    const totalAvailable = untransferred.reduce((sum: number, event: any) => {
+      const eventAmount =
+        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
+          ? Number(event.amount) * 0.9
+          : Number(event.amount);
+      return sum + eventAmount;
+    }, 0);
+
+    if (amount > totalAvailable) {
+      throw new AppError(
+        `Requested amount (₦${amount}) exceeds available balance (₦${totalAvailable.toFixed(
+          2
+        )})`,
+        400
+      );
+    }
+
+    // Mark payments as transfer initiated (manual payout request)
+    const paymentIds = untransferred.map((e: any) => e.booking!.payment!.id);
+
+    await prisma.payment.updateMany({
+      where: {
+        id: {
+          in: paymentIds,
+        },
+      },
+      data: {
+        realtorTransferInitiated: new Date(),
+        realtorTransferReference: `manual-${Date.now()}`,
+      },
+    });
+
+    // Create admin notification for manual payout processing
+    await createAdminNotification({
+      type: "PAYOUT_REQUEST",
+      title: "Manual Payout Request",
+      message: `${
+        realtor.businessName
+      } has requested a manual payout of ₦${amount.toFixed(2)}`,
+      data: {
+        realtorId: realtor.id,
+        businessName: realtor.businessName,
+        amount,
+        paymentIds,
+        subAccountCode: realtor.paystackSubAccountCode,
+      },
+      priority: "high",
+    });
+
+    res.json({
+      success: true,
+      message:
+        "Payout request submitted successfully. Funds will be transferred within 24-48 hours.",
+      data: {
+        amount,
+        reference: `manual-${Date.now()}`,
+        estimatedCompletion: "24-48 hours",
       },
     });
   })

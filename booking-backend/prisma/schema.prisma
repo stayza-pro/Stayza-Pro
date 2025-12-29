@@ -254,6 +254,12 @@ model Payment {
    depositPartialRefundAmount    Decimal? @db.Decimal(10, 2) // Remaining deposit after deduction
    depositPartialRefundReference String? // Payment gateway reference for partial deposit refund
 
+   // Manual payout tracking
+   realtorTransferInitiated DateTime? // When realtor initiated manual payout
+   realtorTransferCompleted DateTime? // When payout was completed
+   realtorTransferReference String? // Payment gateway reference for realtor payout
+   transferFailed           Boolean   @default(false) // Whether transfer failed
+
    // Legacy fields
    metadata              Json?
    paidAt                DateTime?

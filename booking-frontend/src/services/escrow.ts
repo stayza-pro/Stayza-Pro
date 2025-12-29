@@ -64,6 +64,55 @@ export interface SystemHealthStats {
   };
 }
 
+// New Escrow Tracker Types
+export interface FundStatus {
+  status: string;
+  amount: number;
+  realtorAmount?: number;
+  platformAmount?: number;
+  releasedAt?: string;
+  refundedAt?: string;
+}
+
+export interface TimerStatus {
+  date: string;
+  isPast: boolean;
+  remainingMs: number;
+}
+
+export interface DisputeInfo {
+  hasDispute: boolean;
+  disputeId?: string;
+  status?: string;
+  openedAt?: string;
+  resolvedAt?: string;
+}
+
+export interface EscrowStatusData {
+  bookingId: string;
+  funds: {
+    roomFee: FundStatus;
+    cleaningFee: FundStatus;
+    securityDeposit: FundStatus;
+    serviceFee: FundStatus;
+    platformFee: FundStatus;
+  };
+  timers: {
+    checkInWindow: TimerStatus;
+    roomFeeRelease: TimerStatus;
+    depositRefund: TimerStatus;
+    disputeWindow: TimerStatus;
+  };
+  dispute: DisputeInfo;
+  events: Array<{
+    id: string;
+    type: string;
+    description: string;
+    amount?: number;
+    createdAt: string;
+  }>;
+}
+
 /**
  * Get escrow events for a booking
  */
@@ -105,10 +154,22 @@ export async function getWebhookDeliveryStatus(bookingId: string) {
   return response.data;
 }
 
+/**
+ * Get escrow status for a booking (guest or realtor)
+ */
+export async function getEscrowStatus(
+  bookingId: string
+): Promise<EscrowStatusData> {
+  const response = await api.get(`/escrow/${bookingId}`);
+  // Backend wraps response in {success, message, data} structure
+  return response.data.data;
+}
+
 export const escrowService = {
   getBookingEscrowEvents,
   getActiveJobLocks,
   getSystemHealthStats,
   forceReleaseJobLock,
   getWebhookDeliveryStatus,
+  getEscrowStatus,
 };

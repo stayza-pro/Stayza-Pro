@@ -99,14 +99,11 @@ export function useRevenueData(
           totalRevenue: result.data.totalRevenue || totalRevenue,
           averageRevenue,
           peakRevenue,
-          revenueChange: result.data.periodChange || {
+          revenueChange: result.data.revenueChange || {
             value: 0,
             type: "increase",
           },
-          totalBookings:
-            chartData.reduce((sum, d) => sum + d.bookings, 0) ||
-            result.data.totalBookings ||
-            0,
+          totalBookings: result.data.totalBookings || 0,
           bookingsChange: result.data.bookingsChange || {
             value: 0,
             type: "increase",

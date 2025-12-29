@@ -215,8 +215,12 @@ export const updatePaymentCommission = async (
     throw new AppError("Payment not found", 404);
   }
 
-  // Allow commission calculation for ESCROW_HELD (verified) or COMPLETED payments
-  if (payment.status !== "ESCROW_HELD" && payment.status !== "COMPLETED") {
+  // Allow commission calculation for ESCROW_HELD, PARTIAL_RELEASED, or COMPLETED payments
+  if (
+    payment.status !== "ESCROW_HELD" &&
+    payment.status !== "COMPLETED" &&
+    payment.status !== "PARTIAL_RELEASED"
+  ) {
     throw new AppError(
       "Cannot calculate commission for incomplete payment",
       400

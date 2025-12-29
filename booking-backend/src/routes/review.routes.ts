@@ -252,7 +252,7 @@ router.post(
 
     // Create review with transaction
     const review = await prisma.$transaction(async (tx) => {
-      // Create the review
+      // Create the review (auto-published)
       const newReview = await tx.review.create({
         data: {
           bookingId,
@@ -267,6 +267,7 @@ router.post(
           locationRating,
           valueRating,
           isVerified: true, // Mark as verified since booking is completed
+          isVisible: true, // Auto-publish reviews without moderation
         },
       });
 

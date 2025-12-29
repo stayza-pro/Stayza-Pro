@@ -17,7 +17,11 @@ import {
 import { updatePaymentCommission } from "@/services/commission";
 import { ReceiptGenerator } from "@/services/receiptGenerator";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
-import { authenticate, authorize } from "@/middleware/auth";
+import {
+  authenticate,
+  authorize,
+  optionalAuthenticate,
+} from "@/middleware/auth";
 import { config } from "@/config/index";
 import { logger } from "@/utils/logger";
 
@@ -72,95 +76,13 @@ router.get(
       });
     }
 
-    // Redirect to verification endpoint or return success page
-    // For now, return simple success page with instructions
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Payment Processing</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            }
-            .container {
-              background: white;
-              padding: 40px;
-              border-radius: 10px;
-              box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-              text-align: center;
-              max-width: 500px;
-            }
-            h1 { color: #333; margin-bottom: 20px; }
-            .reference {
-              background: #f0f0f0;
-              padding: 10px;
-              border-radius: 5px;
-              font-family: monospace;
-              margin: 20px 0;
-            }
-            .btn {
-              background: #667eea;
-              color: white;
-              border: none;
-              padding: 15px 30px;
-              border-radius: 5px;
-              cursor: pointer;
-              font-size: 16px;
-              margin-top: 20px;
-            }
-            .btn:hover { background: #5568d3; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>✅ Payment Initiated</h1>
-            <p>Your payment has been received. Please verify to complete the process.</p>
-            <div class="reference">Reference: ${payment.reference}</div>
-            <button class="btn" onclick="verifyPayment()">Verify Payment Now</button>
-            <p style="margin-top: 20px; color: #666; font-size: 14px;">
-              Or verify manually using:<br>
-              <code>POST /api/payments/verify-${payment.method.toLowerCase()}</code>
-            </p>
-          </div>
-          <script>
-            async function verifyPayment() {
-              try {
-                const response = await fetch('/api/payments/verify-${payment.method.toLowerCase()}', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
-                  },
-                  body: JSON.stringify({
-                    ${
-                      payment.method === "PAYSTACK"
-                        ? `reference: '${payment.reference}'`
-                        : `transactionId: '${payment.reference}'`
-                    }
-                  })
-                });
-                const data = await response.json();
-                if (data.success) {
-                  alert('✅ Payment verified successfully!');
-                  window.location.href = '/api/payments/${payment.id}';
-                } else {
-                  alert('❌ Verification failed: ' + data.message);
-                }
-              } catch (error) {
-                alert('❌ Error: ' + error.message);
-              }
-            }
-          </script>
-        </body>
-      </html>
-    `);
+    // Redirect to frontend success page with reference
+    const frontendUrl = config.FRONTEND_URL || "http://localhost:3000";
+    const successUrl = `${frontendUrl}/booking/payment/success?reference=${
+      payment.reference
+    }&provider=${payment.method.toLowerCase()}`;
+
+    return res.redirect(successUrl);
   })
 );
 
@@ -439,6 +361,7 @@ router.post(
         accessCode: paystackResponse.data.access_code,
         reference: payment.reference,
         paymentId: payment.id,
+        publicKey: config.PAYSTACK_PUBLIC_KEY, // For inline payment
       },
     });
   })
@@ -472,7 +395,7 @@ router.post(
  */
 router.post(
   "/verify-paystack",
-  authenticate,
+  optionalAuthenticate,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const { reference } = req.body;
 
@@ -766,7 +689,7 @@ router.post(
 
     await prisma.notification.create({
       data: {
-        userId: payment.booking.property.realtorId,
+        userId: payment.booking.property.realtor.userId,
         type: "BOOKING_CONFIRMED",
         title: "New Booking",
         message: `New booking confirmed for ${payment.booking.property.title}. Payment held in escrow.`,

@@ -30,6 +30,7 @@ import disputeRoutes from "@/routes/dispute.routes";
 import systemRoutes from "@/routes/system.routes";
 import messageRoutes from "@/routes/message.routes";
 import favoritesRoutes from "@/routes/favorites.routes";
+import escrowRoutes from "@/routes/escrow.routes";
 
 const app = express();
 
@@ -279,6 +280,7 @@ app.use("/api/disputes", disputeRoutes);
 app.use("/api/admin/system", systemRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/favorites", favoritesRoutes);
+app.use("/api/escrow", escrowRoutes);
 
 // 404 handler
 app.use(notFound);
