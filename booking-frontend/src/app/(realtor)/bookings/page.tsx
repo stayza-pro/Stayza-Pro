@@ -7,6 +7,7 @@ import { useAlert } from "@/context/AlertContext";
 import { useAuth } from "@/context/AuthContext";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 import { Booking, BookingStatus } from "@/types";
+import { useRouter } from "next/navigation";
 import {
   Calendar,
   User,
@@ -27,6 +28,7 @@ import { format } from "date-fns";
 import { motion } from "framer-motion";
 
 export default function RealtorBookingsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { branding } = useBranding();
   const { showSuccess, showConfirm } = useAlert();
@@ -427,23 +429,35 @@ export default function RealtorBookingsPage() {
                           {status.label}
                         </div>
 
-                        {booking.status === "PENDING" && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleConfirm(booking.id)}
-                              className="px-4 py-2 text-white rounded-xl text-sm font-bold transition-all hover:opacity-90"
-                              style={{ backgroundColor: brandColor }}
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => handleCancel(booking.id)}
-                              className="px-4 py-2 border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 transition-all"
-                            >
-                              Decline
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() =>
+                              router.push(`/bookings/${booking.id}`)
+                            }
+                            className="px-4 py-2 border border-gray-300 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all flex items-center gap-2"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Details
+                          </button>
+
+                          {booking.status === "PENDING" && (
+                            <>
+                              <button
+                                onClick={() => handleConfirm(booking.id)}
+                                className="px-4 py-2 text-white rounded-xl text-sm font-bold transition-all hover:opacity-90"
+                                style={{ backgroundColor: brandColor }}
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => handleCancel(booking.id)}
+                                className="px-4 py-2 border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 transition-all"
+                              >
+                                Decline
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

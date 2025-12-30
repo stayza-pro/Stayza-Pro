@@ -690,12 +690,28 @@ export default function GuestBookingsPage() {
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
-                            router.push(`/guest/bookings/${booking.id}`);
+                            // If booking is unpaid (PENDING payment), redirect to checkout
+                            if (
+                              booking.status === "PENDING" &&
+                              booking.payment?.status === "PENDING"
+                            ) {
+                              router.push(
+                                `/guest/bookings/${booking.id}/checkout`
+                              );
+                            } else {
+                              // Otherwise, show booking details
+                              router.push(`/guest/bookings/${booking.id}`);
+                            }
                           }}
                           className="text-white font-semibold py-2 px-4 hover:opacity-90"
                           style={{ backgroundColor: primaryColor }} // Lighter touch - primary for CTA
                         >
-                          <span>View Details</span>
+                          <span>
+                            {booking.status === "PENDING" &&
+                            booking.payment?.status === "PENDING"
+                              ? "Complete Payment"
+                              : "View Details"}
+                          </span>
                           <ChevronRight className="h-4 w-4 ml-2" />
                         </Button>
                       </div>

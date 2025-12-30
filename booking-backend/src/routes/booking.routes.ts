@@ -10,6 +10,7 @@ import { AuthenticatedRequest, BookingSearchQuery } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { createBookingSchema, updateBookingSchema } from "@/utils/validation";
 import { refundPolicyService } from "@/services/refundPolicy";
+import { calculateRefundSplit, processBookingRefund } from "@/services/refund";
 import { paystackService } from "@/services/paystack";
 import { config } from "@/config";
 import { sendBookingCancellation } from "@/services/email";
@@ -589,6 +590,7 @@ router.post(
               realtor: {
                 select: {
                   id: true,
+                  userId: true,
                 },
               },
             },
@@ -619,7 +621,7 @@ router.post(
       await notificationService.createAndSendNotification(guestNotification);
 
       const realtorNotification = {
-        userId: result.property.realtor.id,
+        userId: result.property.realtor.userId,
         type: "BOOKING_CONFIRMED" as const,
         title: "New Booking Request",
         message: `${req.user!.firstName || "A guest"} has requested to book "${
@@ -1141,6 +1143,152 @@ router.put(
 
 /**
  * @swagger
+ * /api/bookings/{id}/cancel-preview:
+ *   get:
+ *     summary: Preview cancellation refund amount
+ *     description: Get refund breakdown before confirming cancellation
+ *     tags: [Bookings]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Booking ID
+ *     responses:
+ *       200:
+ *         description: Refund preview calculated successfully
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Booking not found
+ */
+router.get(
+  "/:id/cancel-preview",
+  authenticate,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        property: {
+          select: {
+            id: true,
+            title: true,
+            realtorId: true,
+          },
+        },
+        payment: {
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    const isGuest = booking.guestId === userId;
+    const isAdmin = req.user!.role === "ADMIN";
+
+    if (!isGuest && !isAdmin) {
+      throw new AppError("Not authorized to cancel this booking", 403);
+    }
+
+    const cancellationCheck = await canCancelBooking(id);
+
+    if (!cancellationCheck.canCancel) {
+      return res.json({
+        canCancel: false,
+        reason: cancellationCheck.reason,
+        refundInfo: null,
+      });
+    }
+
+    const totalAmount = Number(booking.totalPrice);
+    const refundSplit = calculateRefundSplit(booking.checkInDate, totalAmount);
+
+    const now = new Date();
+    const hoursUntilCheckIn =
+      (booking.checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    let customerPercent: number;
+    let realtorPercent: number;
+    let platformPercent: number;
+
+    switch (refundSplit.tier) {
+      case "EARLY":
+        customerPercent = 90;
+        realtorPercent = 7;
+        platformPercent = 3;
+        break;
+      case "MEDIUM":
+        customerPercent = 70;
+        realtorPercent = 20;
+        platformPercent = 10;
+        break;
+      case "LATE":
+        customerPercent = 0;
+        realtorPercent = 80;
+        platformPercent = 20;
+        break;
+      case "NONE":
+        customerPercent = 0;
+        realtorPercent = 0;
+        platformPercent = 0;
+        break;
+      default:
+        customerPercent = 0;
+        realtorPercent = 0;
+        platformPercent = 0;
+    }
+
+    const refundInfo = {
+      tier: refundSplit.tier,
+      customerRefund: refundSplit.customerRefund,
+      realtorPayout: refundSplit.realtorPayout,
+      platformFee: refundSplit.stayzaPayout,
+      breakdown: {
+        customerPercent,
+        realtorPercent,
+        platformPercent,
+      },
+      hoursUntilCheckIn: Math.round(hoursUntilCheckIn * 10) / 10,
+      totalAmount,
+      currency: booking.currency,
+      warning:
+        refundSplit.tier === "LATE"
+          ? "⚠️ Late cancellation: You will NOT receive any refund if you cancel now."
+          : refundSplit.tier === "NONE"
+          ? "❌ Cannot cancel after check-in time."
+          : null,
+    };
+
+    return res.json({
+      canCancel: refundSplit.tier !== "NONE", // Prevent cancel for NONE tier
+      refundInfo,
+      bookingDetails: {
+        id: booking.id,
+        propertyTitle: booking.property.title,
+        checkInDate: booking.checkInDate,
+        checkOutDate: booking.checkOutDate,
+        status: booking.status,
+        paymentStatus: booking.payment?.status,
+      },
+    });
+  })
+);
+
+/**
+ * @swagger
  * /api/bookings/{id}/cancel:
  *   put:
  *     summary: Cancel booking
@@ -1179,6 +1327,8 @@ router.put(
     const { id } = req.params;
     const { reason } = req.body;
 
+    console.log("🚨 CANCEL BOOKING CALLED - Booking ID:", id);
+
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: {
@@ -1190,6 +1340,7 @@ router.put(
                 businessName: true,
                 user: {
                   select: {
+                    id: true,
                     email: true,
                   },
                 },
@@ -1246,55 +1397,157 @@ router.put(
     }
 
     let refundInfo: any = null;
-    if (
-      cancellationCheck.refundEligible &&
-      booking.payment?.status === "COMPLETED"
-    ) {
-      try {
-        const { processBookingRefund, calculateRefundSplit } = await import(
-          "@/services/refund"
-        );
+    let refundRequest: any = null;
 
+    console.log("💳 Payment status:", booking.payment?.status);
+
+    // Only create refund requests for EARLY and MEDIUM tiers (guest gets refund)
+    // LATE tier: No refund request (guest gets 0%), but realtor gets 80%
+    // NONE tier: Cancellation not allowed (handled by canCancelBooking)
+    // Handle both COMPLETED and PARTIAL_RELEASED payments (partial release means escrow was partially distributed but refund still needed)
+    if (
+      booking.payment?.status === "COMPLETED" ||
+      booking.payment?.status === "PARTIAL_RELEASED"
+    ) {
+      console.log(
+        "✅ Payment is COMPLETED or PARTIAL_RELEASED, proceeding with refund logic"
+      );
+      try {
         const refundSplit = calculateRefundSplit(
           booking.checkInDate,
           Number(booking.totalPrice)
         );
 
-        const refundResult = await processBookingRefund(id);
-
-        refundInfo = {
-          eligible: true,
-          tier: refundResult.tier,
-          totalAmount: refundResult.totalAmount,
+        console.log("💰 Refund calculation:", {
+          tier: refundSplit.tier,
           customerRefund: refundSplit.customerRefund,
           realtorPayout: refundSplit.realtorPayout,
-          stayzaPayout: refundSplit.stayzaPayout,
-          breakdown: {
-            customer: `${
-              refundSplit.tier === "EARLY"
-                ? "90%"
-                : refundSplit.tier === "MEDIUM"
-                ? "70%"
-                : "0%"
-            }`,
-            realtor: `${
-              refundSplit.tier === "EARLY"
-                ? "7%"
-                : refundSplit.tier === "MEDIUM"
-                ? "20%"
-                : "80%"
-            }`,
-            stayza: `${
-              refundSplit.tier === "EARLY"
-                ? "3%"
-                : refundSplit.tier === "MEDIUM"
-                ? "10%"
-                : "20%"
-            }`,
-          },
-          status: "processed",
-        };
+          checkInDate: booking.checkInDate,
+        });
+
+        // Only create refund request for EARLY and MEDIUM tiers
+        // (tiers where guest actually gets money back)
+        if (refundSplit.tier === "EARLY" || refundSplit.tier === "MEDIUM") {
+          console.log(
+            "✅ Creating refund request for",
+            refundSplit.tier,
+            "tier"
+          );
+          const refundRequestData: any = {
+            bookingId: booking.id,
+            paymentId: booking.payment.id,
+            requestedBy: booking.guestId,
+            requestedAmount: refundSplit.customerRefund,
+            currency: booking.currency,
+            reason: "BOOKING_CANCELLED",
+            customerNotes: reason || "Booking cancelled by guest",
+            realtorId: booking.property.realtor.id,
+          };
+          // Auto-approve for EARLY and MEDIUM tiers (guest gets refund)
+          refundRequestData.status = "REALTOR_APPROVED";
+          refundRequestData.realtorApprovedAt = new Date();
+          refundRequestData.realtorReason = "AUTO_APPROVED";
+          refundRequestData.realtorNotes = `Automatically approved based on ${
+            refundSplit.tier
+          } tier cancellation policy (${
+            refundSplit.tier === "EARLY" ? "90%" : "70%"
+          } refund to guest)`;
+          refundRequestData.actualRefundAmount = refundSplit.customerRefund;
+
+          // Create the refund request in database
+          console.log(
+            "🔍 Creating refund request with data:",
+            refundRequestData
+          );
+          refundRequest = await prisma.refundRequest.create({
+            data: refundRequestData,
+          });
+          console.log("✅ Refund request created:", refundRequest.id);
+
+          // Process the refund through existing service
+          console.log("🔍 Processing booking refund...");
+          const refundResult = await processBookingRefund(id);
+          console.log("✅ Refund processed:", refundResult);
+
+          refundInfo = {
+            eligible: true,
+            tier: refundResult.tier,
+            totalAmount: refundResult.totalAmount,
+            customerRefund: refundSplit.customerRefund,
+            realtorPayout: refundSplit.realtorPayout,
+            stayzaPayout: refundSplit.stayzaPayout,
+            refundRequestId: refundRequest.id,
+            breakdown: {
+              customer: refundSplit.tier === "EARLY" ? "90%" : "70%",
+              realtor: refundSplit.tier === "EARLY" ? "7%" : "20%",
+              stayza: refundSplit.tier === "EARLY" ? "3%" : "10%",
+            },
+            status: "auto_approved",
+          };
+        } else if (refundSplit.tier === "LATE") {
+          console.log(
+            "⚠️ LATE tier - Creating REJECTED refund request (guest gets 0%)"
+          );
+          // LATE tier: Create a rejected refund request to show in dashboard
+          // Guest gets 0%, realtor gets 80%, platform gets 20%
+          const refundRequestData: any = {
+            bookingId: booking.id,
+            paymentId: booking.payment.id,
+            requestedBy: booking.guestId,
+            requestedAmount: 0, // Guest requested cancellation but gets nothing
+            currency: booking.currency,
+            reason: "BOOKING_CANCELLED",
+            customerNotes: reason || "Booking cancelled by guest",
+            realtorId: booking.property.realtor.id,
+            status: "REALTOR_REJECTED", // Auto-rejected for LATE tier
+            realtorApprovedAt: new Date(),
+            realtorReason: "AUTO_REJECTED",
+            realtorNotes:
+              "Automatically rejected based on LATE tier cancellation policy (cancelled within 12 hours of check-in - 0% refund to guest, 80% to realtor, 20% to platform)",
+            actualRefundAmount: 0,
+          };
+
+          console.log(
+            "🔍 Creating rejected refund request with data:",
+            refundRequestData
+          );
+          refundRequest = await prisma.refundRequest.create({
+            data: refundRequestData,
+          });
+          console.log("✅ Rejected refund request created:", refundRequest.id);
+
+          // Update payment split - no actual refund to customer
+          await prisma.payment.update({
+            where: { id: booking.payment.id },
+            data: {
+              status: "REFUNDED_TO_CUSTOMER",
+              refundAmount: 0,
+              refundedAt: new Date(),
+              platformCommission: refundSplit.stayzaPayout,
+              realtorEarnings: refundSplit.realtorPayout,
+            },
+          });
+
+          refundInfo = {
+            eligible: false,
+            tier: "LATE",
+            totalAmount: Number(booking.totalPrice),
+            customerRefund: 0,
+            realtorPayout: refundSplit.realtorPayout,
+            stayzaPayout: refundSplit.stayzaPayout,
+            refundRequestId: refundRequest.id, // Include the rejected request ID
+            breakdown: {
+              customer: "0%",
+              realtor: "80%",
+              stayza: "20%",
+            },
+            status: "auto_rejected",
+            message:
+              "Late cancellation: No refund to guest. Amount distributed to realtor and platform.",
+          };
+        }
       } catch (refundError) {
+        console.error("❌ Refund processing failed:", refundError);
         logger.error("Refund processing failed:", refundError);
         refundInfo = {
           eligible: true,
@@ -1329,13 +1582,21 @@ router.put(
       );
       await notificationService.createAndSendNotification(guestNotification);
 
+      // Notify realtor with refund details
+      let realtorMessage = `Booking for "${booking.property.title}" has been cancelled`;
+      if (reason) realtorMessage += `. Reason: ${reason}`;
+
+      if (refundRequest) {
+        realtorMessage += `. Refund automatically approved - guest receives ${refundInfo.breakdown.customer}, you receive ${refundInfo.breakdown.realtor}.`;
+      } else if (refundInfo?.tier === "LATE") {
+        realtorMessage += `. Late cancellation - guest receives no refund, you receive 80% of payment.`;
+      }
+
       const realtorNotification = {
-        userId: booking.property.realtorId,
+        userId: booking.property.realtor.user.id,
         type: "BOOKING_CANCELLED" as const,
         title: "Booking Cancelled",
-        message: `Booking for "${booking.property.title}" has been cancelled${
-          reason ? `. Reason: ${reason}` : ""
-        }`,
+        message: realtorMessage,
         bookingId: booking.id,
         propertyId: booking.property.id,
       };
@@ -1353,6 +1614,16 @@ router.put(
       data: {
         booking: transitionResult.booking,
         refund: refundInfo,
+        refundRequest: refundRequest
+          ? {
+              id: refundRequest.id,
+              status: refundRequest.status,
+              requestedAmount: refundRequest.requestedAmount,
+              actualRefundAmount: refundRequest.actualRefundAmount,
+              reason: refundRequest.reason,
+              createdAt: refundRequest.createdAt,
+            }
+          : null,
         cancellation: {
           reason: reason || "Booking cancelled by user",
           cancelledBy: isAdmin ? "admin" : "guest",

@@ -18,6 +18,7 @@ import {
   Clock,
   XCircle,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
 import { Footer } from "@/components/guest/sections";
@@ -29,6 +30,7 @@ import { useQuery, useMutation, useQueryClient } from "react-query";
 import { bookingService } from "@/services/bookings";
 import { BookingStatus } from "@/types";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
+import { toast } from "react-hot-toast";
 
 export default function BookingDetailsPage() {
   const params = useParams();
@@ -49,6 +51,10 @@ export default function BookingDetailsPage() {
 
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
 
   // Mark auth as checked once we've gotten a result
   React.useEffect(() => {
@@ -71,15 +77,132 @@ export default function BookingDetailsPage() {
     enabled: !!user && !!bookingId,
   });
 
+  // Redirect unpaid bookings to checkout page
+  React.useEffect(() => {
+    if (
+      booking &&
+      booking.status === "PENDING" &&
+      booking.payment?.status === "PENDING"
+    ) {
+      router.push(`/guest/bookings/${bookingId}/checkout`);
+    }
+  }, [booking, bookingId, router]);
+
+  // Fetch cancellation preview when modal opens
+  const {
+    data: cancellationPreview,
+    isLoading: previewLoading,
+    error: previewError,
+    refetch: refetchPreview,
+  } = useQuery({
+    queryKey: ["cancellation-preview", bookingId],
+    queryFn: async () => {
+      console.log("Fetching preview for:", bookingId);
+      try {
+        const result = await bookingService.previewCancellation(bookingId);
+        console.log("Preview result:", result);
+        if (!result) {
+          console.error("Preview returned null/undefined");
+          throw new Error("No preview data received");
+        }
+        return result;
+      } catch (error: any) {
+        console.error("Preview fetch failed:", error);
+        console.error("Error details:", {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status,
+        });
+        throw error;
+      }
+    },
+    enabled: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    staleTime: 0,
+    cacheTime: 0,
+    retry: false,
+  });
+
+  // Fetch preview when modal opens
+  React.useEffect(() => {
+    if (showCancelModal && bookingId) {
+      console.log("Modal opened, triggering refetch");
+      refetchPreview();
+    }
+  }, [showCancelModal, bookingId, refetchPreview]);
+
+  // Debug logging
+  React.useEffect(() => {
+    if (showCancelModal) {
+      console.log("Modal state:", {
+        previewLoading,
+        hasError: !!previewError,
+        hasData: !!cancellationPreview,
+        bookingId,
+      });
+    }
+  }, [
+    showCancelModal,
+    previewLoading,
+    previewError,
+    cancellationPreview,
+    bookingId,
+  ]);
+
   // Cancel booking mutation
   const cancelMutation = useMutation({
     mutationFn: (reason: string) =>
       bookingService.cancelBooking(bookingId, reason),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["guest-bookings"] });
       setShowCancelModal(false);
       setCancelReason("");
+
+      // Show success message with refund details
+      const { refundRequest, refund } = response.data;
+      let message = "Booking cancelled successfully.";
+
+      if (refundRequest) {
+        if (
+          refundRequest.status === "REALTOR_APPROVED" &&
+          refund?.customerRefund > 0
+        ) {
+          message += ` Your refund of ₦${refund.customerRefund.toLocaleString()} has been automatically approved.`;
+        } else if (
+          refundRequest.status === "REALTOR_APPROVED" &&
+          refund?.customerRefund === 0
+        ) {
+          message += " Late cancellation - no refund applicable.";
+        } else {
+          message += " Your refund request has been created.";
+        }
+      }
+
+      toast.success(message, {
+        duration: 5000,
+      });
+    },
+    onError: (error: any) => {
+      toast.error(
+        error?.response?.data?.message || "Failed to cancel booking",
+        { duration: 4000 }
+      );
+    },
+  });
+
+  // Request refund mutation
+  const refundMutation = useMutation({
+    mutationFn: ({ amount, reason }: { amount: number; reason: string }) =>
+      bookingService.requestRefund(bookingId, amount, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["guest-bookings"] });
+      setShowRefundModal(false);
+      setRefundAmount("");
+      setRefundReason("");
     },
   });
 
@@ -89,6 +212,62 @@ export default function BookingDetailsPage() {
       return;
     }
     cancelMutation.mutate(cancelReason);
+  };
+
+  const handleRequestRefund = () => {
+    if (!refundAmount || parseFloat(refundAmount) <= 0) {
+      alert("Please enter a valid refund amount");
+      return;
+    }
+    if (!refundReason.trim()) {
+      alert("Please provide a refund reason");
+      return;
+    }
+    if (parseFloat(refundAmount) > booking!.totalPrice) {
+      alert("Refund amount cannot exceed the total booking amount");
+      return;
+    }
+    refundMutation.mutate({
+      amount: parseFloat(refundAmount),
+      reason: refundReason,
+    });
+  };
+
+  const calculateRefundTier = () => {
+    if (!booking) return null;
+    const checkIn = new Date(booking.checkInDate);
+    const now = new Date();
+    const hoursUntilCheckIn =
+      (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    // Match backend refund tier logic
+    if (hoursUntilCheckIn >= 24) return "EARLY"; // 24+ hours: 90% refund
+    if (hoursUntilCheckIn >= 12) return "MEDIUM"; // 12-24 hours: 70% refund
+    if (hoursUntilCheckIn > 0) return "LATE"; // 0-12 hours: 0% refund
+    return "NONE"; // After check-in: no cancellation
+  };
+
+  const getRefundBreakdown = () => {
+    if (!booking) return null;
+    const tier = calculateRefundTier();
+    const total = booking.totalPrice;
+
+    const breakdowns = {
+      EARLY: { guest: 0.9, realtor: 0.07, platform: 0.03 },
+      MEDIUM: { guest: 0.7, realtor: 0.2, platform: 0.1 },
+      LATE: { guest: 0, realtor: 0.8, platform: 0.2 },
+      NONE: { guest: 0, realtor: 0, platform: 0 },
+    };
+
+    const breakdown =
+      breakdowns[tier as keyof typeof breakdowns] || breakdowns.NONE;
+
+    return {
+      tier,
+      guestRefund: total * breakdown.guest,
+      realtorPayout: total * breakdown.realtor,
+      platformFee: total * breakdown.platform,
+    };
   };
 
   const handleDownloadReceipt = () => {
@@ -162,9 +341,23 @@ export default function BookingDetailsPage() {
     const checkIn = new Date(booking.checkInDate);
     const now = new Date();
     const hoursDiff = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    // Allow cancellation for PENDING, PAID, or CONFIRMED bookings
+    // Can cancel anytime BEFORE check-in (even with 0% refund in LATE tier)
+    // Cannot cancel after check-in time has passed
     return (
-      booking.status === "CONFIRMED" &&
-      hoursDiff > 24 &&
+      (booking.status === "PENDING" ||
+        booking.status === "PAID" ||
+        booking.status === "CONFIRMED") &&
+      hoursDiff > 0 && // Before check-in time
+      booking.paymentStatus !== "REFUNDED_TO_CUSTOMER"
+    );
+  };
+
+  const canRequestRefund = () => {
+    if (!booking) return false;
+    return (
+      (booking.status === "CANCELLED" || booking.status === "COMPLETED") &&
       booking.paymentStatus !== "REFUNDED_TO_CUSTOMER"
     );
   };
@@ -529,6 +722,8 @@ export default function BookingDetailsPage() {
                       Cancel Booking
                     </Button>
                   )}
+
+                  {/* Refunds are automatic on cancellation - no manual request needed */}
                 </div>
               </Card>
 
@@ -560,37 +755,400 @@ export default function BookingDetailsPage() {
       {/* Cancel Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-6">
+          <Card className="max-w-2xl w-full p-6">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">
               Cancel Booking
             </h3>
+
+            {previewLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <span className="ml-3 text-gray-600">
+                  Calculating refund...
+                </span>
+              </div>
+            ) : previewError ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800 font-medium">
+                  Error loading cancellation details
+                </p>
+                <p className="text-red-600 text-sm mt-1">
+                  {(previewError as any)?.response?.data?.message ||
+                    "Please try again later"}
+                </p>
+                <Button
+                  onClick={() => setShowCancelModal(false)}
+                  className="mt-4 w-full"
+                  variant="outline"
+                >
+                  Close
+                </Button>
+              </div>
+            ) : cancellationPreview && !cancellationPreview.canCancel ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800 font-medium">
+                  Cannot cancel this booking
+                </p>
+                <p className="text-red-600 text-sm mt-1">
+                  {cancellationPreview.reason}
+                </p>
+                <Button
+                  onClick={() => setShowCancelModal(false)}
+                  className="mt-4 w-full"
+                  variant="outline"
+                >
+                  Close
+                </Button>
+              </div>
+            ) : cancellationPreview?.canCancel &&
+              cancellationPreview.refundInfo ? (
+              <>
+                {/* Warning for LATE tier (no refund) */}
+                {cancellationPreview.refundInfo.tier === "LATE" && (
+                  <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-red-900 font-bold text-lg mb-1">
+                          ⚠️ No Refund Available
+                        </p>
+                        <p className="text-red-800 text-sm">
+                          You are cancelling within 12 hours of check-in. You
+                          will <strong>NOT receive any refund</strong> if you
+                          proceed with this cancellation.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Refund Breakdown */}
+                <div
+                  className={`${
+                    cancellationPreview.refundInfo.tier === "LATE"
+                      ? "bg-red-50 border-red-200"
+                      : "bg-green-50 border-green-200"
+                  } border rounded-lg p-4 mb-4`}
+                >
+                  <h4
+                    className={`font-semibold mb-3 ${
+                      cancellationPreview.refundInfo.tier === "LATE"
+                        ? "text-red-900"
+                        : "text-green-900"
+                    }`}
+                  >
+                    Refund Breakdown
+                  </h4>
+
+                  <div className="space-y-3">
+                    {/* Time Until Check-in */}
+                    <div
+                      className={`flex justify-between items-center py-2 border-b ${
+                        cancellationPreview.refundInfo.tier === "LATE"
+                          ? "border-red-200"
+                          : "border-green-200"
+                      }`}
+                    >
+                      <span
+                        className={`text-sm ${
+                          cancellationPreview.refundInfo.tier === "LATE"
+                            ? "text-red-800"
+                            : "text-green-800"
+                        }`}
+                      >
+                        Time until check-in:
+                      </span>
+                      <span
+                        className={`font-medium ${
+                          cancellationPreview.refundInfo.tier === "LATE"
+                            ? "text-red-900"
+                            : "text-green-900"
+                        }`}
+                      >
+                        {cancellationPreview.refundInfo.hoursUntilCheckIn.toFixed(
+                          1
+                        )}{" "}
+                        hours
+                      </span>
+                    </div>
+
+                    {/* Refund Tier */}
+                    <div
+                      className={`flex justify-between items-center py-2 border-b ${
+                        cancellationPreview.refundInfo.tier === "LATE"
+                          ? "border-red-200"
+                          : "border-green-200"
+                      }`}
+                    >
+                      <span
+                        className={`text-sm ${
+                          cancellationPreview.refundInfo.tier === "LATE"
+                            ? "text-red-800"
+                            : "text-green-800"
+                        }`}
+                      >
+                        Cancellation Tier:
+                      </span>
+                      <span
+                        className={`font-medium ${
+                          cancellationPreview.refundInfo.tier === "LATE"
+                            ? "text-red-900"
+                            : "text-green-900"
+                        }`}
+                      >
+                        {cancellationPreview.refundInfo.tier === "EARLY" &&
+                          "Early (24+ hours)"}
+                        {cancellationPreview.refundInfo.tier === "MEDIUM" &&
+                          "Medium (12-24 hours)"}
+                        {cancellationPreview.refundInfo.tier === "LATE" &&
+                          "Late (0-12 hours)"}
+                        {cancellationPreview.refundInfo.tier === "NONE" &&
+                          "No Refund"}
+                      </span>
+                    </div>
+
+                    {/* Original Amount */}
+                    <div
+                      className={`flex justify-between items-center py-2 border-b ${
+                        cancellationPreview.refundInfo.tier === "LATE"
+                          ? "border-red-200"
+                          : "border-green-200"
+                      }`}
+                    >
+                      <span
+                        className={`text-sm ${
+                          cancellationPreview.refundInfo.tier === "LATE"
+                            ? "text-red-800"
+                            : "text-green-800"
+                        }`}
+                      >
+                        Total Paid:
+                      </span>
+                      <span
+                        className={`font-medium ${
+                          cancellationPreview.refundInfo.tier === "LATE"
+                            ? "text-red-900"
+                            : "text-green-900"
+                        }`}
+                      >
+                        ₦
+                        {cancellationPreview.refundInfo.totalAmount.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Your Refund */}
+                    <div
+                      className={`flex justify-between items-center py-3 -mx-4 px-4 rounded ${
+                        cancellationPreview.refundInfo.tier === "LATE"
+                          ? "bg-red-100"
+                          : "bg-green-100"
+                      }`}
+                    >
+                      <span
+                        className={`text-base font-semibold ${
+                          cancellationPreview.refundInfo.tier === "LATE"
+                            ? "text-red-900"
+                            : "text-green-900"
+                        }`}
+                      >
+                        You will receive:
+                      </span>
+                      <span
+                        className={`text-lg font-bold ${
+                          cancellationPreview.refundInfo.tier === "LATE"
+                            ? "text-red-900"
+                            : "text-green-900"
+                        }`}
+                      >
+                        ₦
+                        {cancellationPreview.refundInfo.customerRefund.toLocaleString()}
+                        <span className="text-sm font-normal ml-2">
+                          (
+                          {
+                            cancellationPreview.refundInfo.breakdown
+                              .customerPercent
+                          }
+                          %)
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-gray-600 mb-4">
+                  Please provide a reason for cancellation:
+                </p>
+
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+                  placeholder="Reason for cancellation..."
+                />
+
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={handleCancelBooking}
+                    variant="primary"
+                    className="flex-1"
+                    disabled={cancelMutation.isLoading || !cancelReason.trim()}
+                  >
+                    {cancelMutation.isLoading
+                      ? "Processing..."
+                      : "Confirm Cancellation"}
+                  </Button>
+                  <Button
+                    onClick={() => setShowCancelModal(false)}
+                    variant="outline"
+                    className="flex-1"
+                    disabled={cancelMutation.isLoading}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-600">Loading cancellation details...</p>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Refund Request Modal */}
+      {showRefundModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Request Refund
+            </h3>
             <p className="text-gray-600 mb-4">
-              Are you sure you want to cancel this booking? Please provide a
-              reason for cancellation.
+              Please specify the refund amount and provide a reason for your
+              refund request. An admin will review your request.
             </p>
 
+            {/* Refund Tier Info for Cancelled Bookings */}
+            {booking?.status === "CANCELLED" && (
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-blue-900 mb-2">
+                  📊 Cancellation Refund Breakdown
+                </p>
+                {(() => {
+                  const breakdown = getRefundBreakdown();
+                  if (!breakdown) return null;
+                  const tierLabels = {
+                    EARLY: "Early Cancellation (24+ hours)",
+                    MEDIUM: "Medium Cancellation (12-24 hours)",
+                    LATE: "Late Cancellation (0-12 hours)",
+                    NONE: "No Refund Available",
+                  };
+                  return (
+                    <>
+                      <p className="text-xs text-blue-800 mb-2">
+                        <strong>
+                          {
+                            tierLabels[
+                              breakdown.tier as keyof typeof tierLabels
+                            ]
+                          }
+                        </strong>
+                      </p>
+                      <div className="space-y-1 text-xs text-blue-700">
+                        <div className="flex justify-between">
+                          <span>Your refund:</span>
+                          <span className="font-semibold">
+                            {formatPrice(
+                              breakdown.guestRefund,
+                              booking.currency
+                            )}{" "}
+                            (
+                            {Math.round(
+                              (breakdown.guestRefund / booking.totalPrice) * 100
+                            )}
+                            %)
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Realtor keeps:</span>
+                          <span>
+                            {formatPrice(
+                              breakdown.realtorPayout,
+                              booking.currency
+                            )}{" "}
+                            (
+                            {Math.round(
+                              (breakdown.realtorPayout / booking.totalPrice) *
+                                100
+                            )}
+                            %)
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Platform fee:</span>
+                          <span>
+                            {formatPrice(
+                              breakdown.platformFee,
+                              booking.currency
+                            )}{" "}
+                            (
+                            {Math.round(
+                              (breakdown.platformFee / booking.totalPrice) * 100
+                            )}
+                            %)
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label
+                htmlFor="refundAmount"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Refund Amount (Maximum:{" "}
+                {formatPrice(booking?.totalPrice || 0, booking?.currency)})
+              </label>
+              <input
+                id="refundAmount"
+                type="number"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                max={booking?.totalPrice}
+                min={0}
+                step="0.01"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter amount..."
+              />
+            </div>
+
             <textarea
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
               rows={4}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-              placeholder="Reason for cancellation..."
+              placeholder="Reason for refund request..."
             />
 
             <div className="flex space-x-3">
               <Button
-                onClick={handleCancelBooking}
+                onClick={handleRequestRefund}
                 variant="primary"
                 className="flex-1"
-                disabled={cancelMutation.isLoading}
+                disabled={refundMutation.isLoading}
               >
-                {cancelMutation.isLoading ? "Cancelling..." : "Confirm Cancel"}
+                {refundMutation.isLoading ? "Submitting..." : "Submit Request"}
               </Button>
               <Button
-                onClick={() => setShowCancelModal(false)}
+                onClick={() => setShowRefundModal(false)}
                 variant="outline"
                 className="flex-1"
-                disabled={cancelMutation.isLoading}
+                disabled={refundMutation.isLoading}
               >
                 Close
               </Button>

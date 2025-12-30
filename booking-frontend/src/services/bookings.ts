@@ -92,6 +92,12 @@ export const bookingService = {
     return response.data;
   },
 
+  // Get single realtor booking
+  getRealtorBooking: async (id: string): Promise<Booking> => {
+    const response = await apiClient.get<Booking>(`/bookings/${id}`);
+    return response.data;
+  },
+
   // Update booking status (hosts only)
   updateBookingStatus: async (
     id: string,
@@ -104,16 +110,102 @@ export const bookingService = {
   },
 
   // Cancel booking (guests can cancel within refund period)
-  cancelBooking: async (id: string, reason?: string): Promise<Booking> => {
-    const response = await apiClient.patch<Booking>(`/bookings/${id}/cancel`, {
+  cancelBooking: async (
+    id: string,
+    reason?: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      booking: Booking;
+      refund: any;
+      refundRequest: any;
+      cancellation: any;
+    };
+  }> => {
+    const response = await apiClient.put<{
+      success: boolean;
+      message: string;
+      data: {
+        booking: Booking;
+        refund: any;
+        refundRequest: any;
+        cancellation: any;
+      };
+    }>(`/bookings/${id}/cancel`, {
       reason,
     });
-    return response.data;
+    // Backend returns data directly without nested ApiResponse wrapper
+    return response as any;
+  },
+
+  // Preview cancellation refund before confirming
+  previewCancellation: async (
+    id: string
+  ): Promise<{
+    canCancel: boolean;
+    reason?: string;
+    refundInfo?: {
+      tier: "EARLY" | "MEDIUM" | "LATE" | "NONE";
+      customerRefund: number;
+      realtorPayout: number;
+      platformFee: number;
+      breakdown: {
+        customerPercent: number;
+        realtorPercent: number;
+        platformPercent: number;
+      };
+      hoursUntilCheckIn: number;
+      totalAmount: number;
+      currency: string;
+    };
+    bookingDetails?: {
+      id: string;
+      propertyTitle: string;
+      checkInDate: string;
+      checkOutDate: string;
+      status: string;
+      paymentStatus: string;
+    };
+  }> => {
+    const response = await apiClient.get<{
+      canCancel: boolean;
+      reason?: string;
+      refundInfo?: {
+        tier: "EARLY" | "MEDIUM" | "LATE" | "NONE";
+        customerRefund: number;
+        realtorPayout: number;
+        platformFee: number;
+        breakdown: {
+          customerPercent: number;
+          realtorPercent: number;
+          platformPercent: number;
+        };
+        hoursUntilCheckIn: number;
+        totalAmount: number;
+        currency: string;
+      };
+      bookingDetails?: {
+        id: string;
+        propertyTitle: string;
+        checkInDate: string;
+        checkOutDate: string;
+        status: string;
+        paymentStatus: string;
+      };
+    }>(`/bookings/${id}/cancel-preview`);
+    // Backend returns data directly without ApiResponse wrapper
+    return response as any;
   },
 
   // Request refund for booking
-  requestRefund: async (id: string, reason: string): Promise<Booking> => {
+  requestRefund: async (
+    id: string,
+    amount: number,
+    reason: string
+  ): Promise<Booking> => {
     const response = await apiClient.post<Booking>(`/bookings/${id}/refund`, {
+      amount,
       reason,
     });
     return response.data;

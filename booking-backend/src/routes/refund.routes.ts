@@ -279,6 +279,13 @@ router.get(
       prisma.refundRequest.count({ where }),
     ]);
 
+    console.log("📋 Refund Requests Query Result:", {
+      realtorId: realtor.id,
+      totalFound: total,
+      requestsCount: refundRequests.length,
+      statuses: refundRequests.map((r) => r.status),
+    });
+
     const totalPages = Math.ceil(total / limitNum);
 
     return res.json({

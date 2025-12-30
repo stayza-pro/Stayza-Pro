@@ -3358,13 +3358,15 @@ router.post(
 
     try {
       // Create Paystack subaccount
+      // Platform keeps 10% commission automatically via subaccount split
+      // Remaining 90% held by platform for escrow control (timed releases + manual payouts)
       const subAccountData = await createSubAccount({
         id: realtor.id,
         businessName: realtor.businessName,
         businessEmail: realtor.user.email,
         bankCode: bankCode,
         accountNumber: accountNumber,
-        percentageCharge: 93, // Realtor gets 93% (7% platform commission)
+        percentageCharge: 10, // Platform takes 10% commission, rest held in escrow
       });
 
       // Save bank details and subaccount code to database
@@ -3763,46 +3765,86 @@ router.post(
       );
     }
 
-    // Mark payments as transfer initiated (manual payout request)
+    // Initiate actual Paystack transfer (semi-automatic payout)
     const paymentIds = untransferred.map((e: any) => e.booking!.payment!.id);
+    const transferReference = `manual_payout_${realtor.id}_${Date.now()}`;
 
-    await prisma.payment.updateMany({
-      where: {
-        id: {
-          in: paymentIds,
-        },
-      },
-      data: {
-        realtorTransferInitiated: new Date(),
-        realtorTransferReference: `manual-${Date.now()}`,
-      },
-    });
+    try {
+      // Import paystack service at top if not already imported
+      const paystackService = require("../services/paystack");
 
-    // Create admin notification for manual payout processing
-    await createAdminNotification({
-      type: "PAYOUT_REQUEST",
-      title: "Manual Payout Request",
-      message: `${
-        realtor.businessName
-      } has requested a manual payout of ₦${amount.toFixed(2)}`,
-      data: {
+      // Initiate Paystack transfer to realtor's bank account
+      const transferResult = await paystackService.initiateTransfer({
+        amount: amount,
+        recipient: realtor.paystackSubAccountCode!,
+        reason: `Manual payout withdrawal`,
+        reference: transferReference,
+      });
+
+      logger.info("Manual payout transfer initiated", {
         realtorId: realtor.id,
-        businessName: realtor.businessName,
         amount,
-        paymentIds,
-        subAccountCode: realtor.paystackSubAccountCode,
-      },
-      priority: "high",
-    });
+        reference: transferReference,
+        transferId: transferResult.id,
+      });
+
+      // Mark payments as transferred
+      await prisma.payment.updateMany({
+        where: {
+          id: {
+            in: paymentIds,
+          },
+        },
+        data: {
+          realtorTransferInitiated: new Date(),
+          realtorTransferReference: transferReference,
+        },
+      });
+
+      // Create notification for realtor
+      await prisma.notification.create({
+        data: {
+          userId: req.user.id,
+          type: "PAYMENT_COMPLETED",
+          title: "Payout Initiated",
+          message: `Your payout of ₦${amount.toFixed(2)} is being processed`,
+          priority: "medium",
+        },
+      });
+    } catch (transferError: any) {
+      logger.error("Manual payout transfer failed", {
+        realtorId: realtor.id,
+        amount,
+        error: transferError.message,
+      });
+
+      // Mark as failed
+      await prisma.payment.updateMany({
+        where: {
+          id: {
+            in: paymentIds,
+          },
+        },
+        data: {
+          realtorTransferInitiated: new Date(),
+          transferFailed: true,
+        },
+      });
+
+      throw new AppError(
+        `Transfer failed: ${transferError.message}. Please try again or contact support.`,
+        500
+      );
+    }
 
     res.json({
       success: true,
       message:
-        "Payout request submitted successfully. Funds will be transferred within 24-48 hours.",
+        "Payout initiated successfully. Funds will be transferred to your account shortly.",
       data: {
         amount,
-        reference: `manual-${Date.now()}`,
-        estimatedCompletion: "24-48 hours",
+        reference: transferReference,
+        status: "processing",
       },
     });
   })

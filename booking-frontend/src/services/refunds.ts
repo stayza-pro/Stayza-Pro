@@ -25,20 +25,17 @@ export interface RefundRequest {
     id: string;
     property: {
       title: string;
-      realtor: {
-        businessName: string;
-      };
-    };
-    guest: {
-      firstName: string;
-      lastName: string;
-      email: string;
     };
   };
   payment?: {
     amount: number;
     currency: string;
-    method: string;
+    refundAmount?: number;
+  };
+  requester?: {
+    firstName: string;
+    lastName: string;
+    email: string;
   };
 }
 
@@ -117,7 +114,7 @@ export const refundService = {
     page?: number;
     limit?: number;
     status?: RefundStatus;
-  }): Promise<PaginatedResponse<RefundRequest>> => {
+  }): Promise<any> => {
     const queryParams = new URLSearchParams();
 
     if (params?.page) queryParams.append("page", params.page.toString());
@@ -127,8 +124,10 @@ export const refundService = {
     const url = queryParams.toString()
       ? `/refunds/realtor/pending?${queryParams}`
       : "/refunds/realtor/pending";
-    const response = await apiClient.get<RefundRequest[]>(url);
-    return response as PaginatedResponse<RefundRequest>;
+    const response = await apiClient.get(url);
+    // Backend returns { success, data: RefundRequest[], pagination, message }
+    // apiClient.get returns the whole response as-is
+    return response;
   },
 
   // Realtor: Approve or reject refund request

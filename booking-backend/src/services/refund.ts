@@ -1,5 +1,7 @@
 import { PrismaClient, RefundTier } from "@prisma/client";
 import { config } from "../config";
+import { processRefund as paystackProcessRefund } from "./paystack";
+import { logger } from "../utils/logger";
 
 const prisma = new PrismaClient();
 
@@ -86,7 +88,11 @@ export const processBookingRefund = async (bookingId: string) => {
     throw new Error("Booking not found");
   }
 
-  if (!booking.payment || booking.payment.status !== "COMPLETED") {
+  if (
+    !booking.payment ||
+    (booking.payment.status !== "COMPLETED" &&
+      booking.payment.status !== "PARTIAL_RELEASED")
+  ) {
     throw new Error("No completed payment found for this booking");
   }
 
@@ -105,6 +111,37 @@ export const processBookingRefund = async (bookingId: string) => {
     },
   });
 
+  // Only process Paystack refund if customer actually gets money back
+  let paystackRefundData = null;
+  if (refundSplit.customerRefund > 0 && booking.payment.reference) {
+    try {
+      logger.info("💳 Initiating Paystack refund", {
+        reference: booking.payment.reference,
+        amount: refundSplit.customerRefund,
+        tier: refundSplit.tier,
+      });
+
+      paystackRefundData = await paystackProcessRefund(
+        booking.payment.reference,
+        refundSplit.customerRefund
+      );
+
+      logger.info("✅ Paystack refund successful", {
+        refundId: paystackRefundData.id,
+        amount: paystackRefundData.amount,
+        status: paystackRefundData.status,
+      });
+    } catch (error: any) {
+      logger.error("❌ Paystack refund failed", {
+        error: error.message,
+        reference: booking.payment.reference,
+        amount: refundSplit.customerRefund,
+      });
+      // Continue with database updates even if Paystack fails
+      // Admin can manually process the refund later
+    }
+  }
+
   // Update payment record
   await prisma.payment.update({
     where: { id: booking.payment.id },
@@ -114,6 +151,15 @@ export const processBookingRefund = async (bookingId: string) => {
       refundedAt: new Date(),
       platformCommission: refundSplit.stayzaPayout,
       realtorEarnings: refundSplit.realtorPayout,
+      // Store Paystack refund transaction ID if successful
+      ...(paystackRefundData && {
+        metadata: {
+          ...(booking.payment.metadata as any),
+          paystackRefundId: paystackRefundData.id,
+          paystackRefundStatus: paystackRefundData.status,
+          paystackRefundReference: paystackRefundData.transaction_reference,
+        },
+      }),
     },
   });
 
@@ -122,6 +168,7 @@ export const processBookingRefund = async (bookingId: string) => {
     refundSplit,
     tier: refundSplit.tier,
     totalAmount,
+    paystackRefund: paystackRefundData,
   };
 };
 

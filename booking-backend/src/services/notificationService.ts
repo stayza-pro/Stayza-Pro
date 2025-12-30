@@ -261,9 +261,12 @@ export class NotificationService {
       const unreadCount = await this.getUnreadCount(data.userId);
       this.io.to(`user:${data.userId}`).emit("unread_count", unreadCount);
 
-      // TODO: Send email/push notifications based on user preferences
+      // Send email/push notifications asynchronously (non-blocking)
       if (data.emailEnabled !== false) {
-        await this.sendEmailNotification(data.userId, notification);
+        // Fire and forget - don't wait for email to complete
+        this.sendEmailNotification(data.userId, notification).catch((error) => {
+          logger.error(`Failed to send email notification: ${error.message}`);
+        });
       }
     } catch (error) {
       console.error("Error creating notification:", error);
@@ -445,6 +448,12 @@ export class NotificationService {
     notification: any
   ): Promise<void> {
     try {
+      // Skip email in development if SMTP is not configured
+      if (!config.SMTP_USER || !config.SMTP_PASS) {
+        logger.info("Skipping email notification (SMTP not configured)");
+        return;
+      }
+
       // Get user email
       const user = await prisma.user.findUnique({
         where: { id: userId },

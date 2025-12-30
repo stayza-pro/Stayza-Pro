@@ -355,21 +355,41 @@ export async function canCancelBooking(
     };
   }
 
-  // Check timing for refund eligibility
+  // Check timing - prevent cancellation after check-in (NONE tier)
   const now = new Date();
   const checkInDate = new Date(booking.checkInDate);
   const hoursUntilCheckIn =
     (checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-  // Example business rule: Full refund if cancelled 24+ hours before check-in
-  const refundEligible = hoursUntilCheckIn >= 24;
+  // NONE tier: After check-in time, no cancellation allowed
+  if (hoursUntilCheckIn <= 0) {
+    return {
+      canCancel: false,
+      reason: "Cannot cancel booking after check-in time",
+      refundEligible: false,
+    };
+  }
+
+  // Determine refund eligibility based on tier
+  // EARLY (24+ hours): 90% refund
+  // MEDIUM (12-24 hours): 70% refund
+  // LATE (0-12 hours): 0% refund (but cancellation allowed)
+  const refundEligible = hoursUntilCheckIn >= 12; // Only EARLY and MEDIUM get refunds
+
+  let reason = "";
+  if (hoursUntilCheckIn >= 24) {
+    reason = "EARLY cancellation: 90% refund to guest";
+  } else if (hoursUntilCheckIn >= 12) {
+    reason = "MEDIUM cancellation: 70% refund to guest";
+  } else {
+    reason =
+      "LATE cancellation: No refund to guest (realtor receives 80%, platform 20%)";
+  }
 
   return {
     canCancel: true,
     refundEligible,
-    reason: refundEligible
-      ? "Full refund available"
-      : "Cancellation allowed but refund may be limited due to timing",
+    reason,
   };
 }
 

@@ -311,6 +311,10 @@ if (require.main === module) {
   startPayoutCron();
   console.log(`⏰ CRON jobs started`);
 
+  // Start unpaid booking auto-cancellation cron
+  const { startUnpaidBookingCron } = require("@/jobs/unpaidBookingCron");
+  startUnpaidBookingCron();
+
   // Start escrow job scheduler
   const { initializeScheduledJobs } = require("@/jobs/scheduler");
   initializeScheduledJobs();

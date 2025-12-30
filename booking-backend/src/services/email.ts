@@ -13,9 +13,9 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false, // Allow self-signed certificates
   },
-  connectionTimeout: 60000, // 60 seconds
-  greetingTimeout: 30000, // 30 seconds
-  socketTimeout: 60000, // 60 seconds
+  connectionTimeout: 5000, // 5 seconds (reduced from 60)
+  greetingTimeout: 3000, // 3 seconds (reduced from 30)
+  socketTimeout: 5000, // 5 seconds (reduced from 60)
 });
 
 // Stayza Brand Colors

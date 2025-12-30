@@ -31,7 +31,7 @@ export const createSubAccount = async (realtor: {
       business_name: realtor.businessName,
       settlement_bank: realtor.bankCode,
       account_number: realtor.accountNumber,
-      percentage_charge: realtor.percentageCharge || 93, // Realtor gets 93% (100% - 7% platform commission)
+      percentage_charge: realtor.percentageCharge || 10, // Platform keeps 10% commission, rest held in escrow
       description: `Subaccount for ${realtor.businessName}`,
       primary_contact_email: realtor.businessEmail,
       metadata: {

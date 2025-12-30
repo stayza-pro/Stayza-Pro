@@ -306,6 +306,7 @@ router.post(
               select: {
                 id: true,
                 businessName: true,
+                userId: true,
                 user: {
                   select: {
                     firstName: true,
@@ -336,7 +337,7 @@ router.post(
     try {
       const notificationService = NotificationService.getInstance();
       const realtorNotification = notificationHelpers.reviewReceived(
-        completeReview!.property.realtor.id,
+        completeReview!.property.realtor.userId,
         completeReview!.id,
         completeReview!.property.title,
         rating
