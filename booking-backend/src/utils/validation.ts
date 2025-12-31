@@ -32,6 +32,48 @@ export const updateProfileSchema = Joi.object({
   lastName: Joi.string().min(2).max(50).optional(),
 });
 
+// Realtor registration validation schema
+export const realtorRegisterSchema = Joi.object({
+  fullName: Joi.string().min(3).max(100).required(),
+  businessEmail: Joi.string().email().required(),
+  password: Joi.string().min(8).required(),
+  phoneNumber: Joi.string()
+    .pattern(/^\+?[1-9]\d{1,14}$/)
+    .required()
+    .messages({
+      "string.pattern.base": "Please provide a valid phone number",
+      "any.required": "Phone number is required",
+    }),
+  agencyName: Joi.string().min(3).max(100).required(),
+  customSubdomain: Joi.string()
+    .pattern(/^[a-z0-9-]+$/)
+    .min(3)
+    .max(50)
+    .required()
+    .messages({
+      "string.pattern.base":
+        "Subdomain can only contain lowercase letters, numbers, and hyphens",
+    }),
+  tagline: Joi.string().max(200).optional(),
+  businessAddress: Joi.string().max(500).optional(),
+  corporateRegNumber: Joi.string().max(50).optional(),
+  primaryColor: Joi.string()
+    .pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
+    .optional(),
+  secondaryColor: Joi.string()
+    .pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
+    .optional(),
+  accentColor: Joi.string()
+    .pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
+    .optional(),
+  brandColorHex: Joi.string()
+    .pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
+    .optional(),
+  logoUrl: Joi.string().uri().optional(),
+  cacDocumentUrl: Joi.string().uri().optional(),
+  socials: Joi.object().optional(),
+});
+
 // Property validation schemas
 export const createPropertySchema = Joi.object({
   title: Joi.string().min(10).max(200).required(),

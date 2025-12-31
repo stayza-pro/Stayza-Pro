@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import PhoneInput from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 import {
   Rocket,
   Home,
@@ -34,13 +36,14 @@ import {
   Eye,
   EyeOff,
   Phone,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAuthStore } from "@/store/authStore";
-import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import Link from "next/link";
+import { palette } from "@/app/(marketing)/content";
 
 interface OnboardingStep {
   id: string;
@@ -53,7 +56,14 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { autoLogin } = useAuthStore();
-  const { brandColor, secondaryColor, accentColor } = useRealtorBranding();
+
+  // Use Stayza Pro marketing palette values with CSS var fallbacks for easier theming tweaks
+  const brandColor = "var(--marketing-primary, #1E3A8A)";
+  const secondaryColor = "var(--marketing-accent, #047857)";
+  const accentColor = "var(--marketing-accent, #F97316)";
+  const surfaceColor = "var(--marketing-surface, " + palette.neutralLight + ")";
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
   const [currentStep, setCurrentStep] = useState(0);
   const [canSkip, setCanSkip] = useState(false); // Can't skip account creation
@@ -95,6 +105,80 @@ export default function OnboardingPage() {
   });
 
   const [photoPreview, setPhotoPreview] = useState<string[]>([]);
+  const [passwordStrength, setPasswordStrength] = useState({
+    label: "",
+    score: 0,
+    percent: 0,
+    color: "#94A3B8",
+  });
+  const [subdomainStatus, setSubdomainStatus] = useState<{
+    state: "idle" | "checking" | "available" | "unavailable" | "error";
+    message: string;
+  }>({ state: "idle", message: "" });
+  const [isCheckingSubdomain, setIsCheckingSubdomain] = useState(false);
+
+  const evaluatePasswordStrength = useCallback((password: string) => {
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+
+    const percent = Math.min(100, (score / 5) * 100);
+
+    if (score <= 1) return { label: "Weak", score, percent, color: "#EF4444" };
+    if (score <= 3) return { label: "Fair", score, percent, color: "#F59E0B" };
+    if (score === 4)
+      return { label: "Strong", score, percent, color: "#047857" }; // Actual hex value
+    return { label: "Excellent", score, percent, color: "#1E3A8A" }; // Actual hex value
+  }, []);
+
+  const checkSubdomainAvailability = useCallback(
+    async (value: string) => {
+      if (!value) {
+        setSubdomainStatus({ state: "idle", message: "" });
+        return;
+      }
+
+      setIsCheckingSubdomain(true);
+      setSubdomainStatus({
+        state: "checking",
+        message: "Checking availability...",
+      });
+
+      try {
+        const response = await fetch(
+          `${API_URL}/realtors/check-subdomain?subdomain=${value}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const available =
+            data?.data?.available ?? data?.available ?? data?.isAvailable;
+
+          setSubdomainStatus({
+            state: available ? "available" : "unavailable",
+            message: available ? "Subdomain is available" : "Already taken",
+          });
+        } else {
+          setSubdomainStatus({
+            state: "error",
+            message: "Unable to verify right now",
+          });
+        }
+      } catch (error) {
+        console.error("Subdomain check failed", error);
+        setSubdomainStatus({
+          state: "error",
+          message: "Check your connection and try again",
+        });
+      } finally {
+        setIsCheckingSubdomain(false);
+      }
+    },
+    [API_URL]
+  );
 
   const steps: OnboardingStep[] = [
     {
@@ -137,6 +221,23 @@ export default function OnboardingPage() {
     { id: "ac", label: "Air Conditioning", icon: Wind },
     { id: "kitchen", label: "Kitchen", icon: Coffee },
   ];
+
+  useEffect(() => {
+    setPasswordStrength(evaluatePasswordStrength(accountData.password));
+  }, [accountData.password, evaluatePasswordStrength]);
+
+  useEffect(() => {
+    if (!accountData.subdomain) {
+      setSubdomainStatus({ state: "idle", message: "" });
+      return;
+    }
+
+    const handler = setTimeout(() => {
+      checkSubdomainAvailability(accountData.subdomain);
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [accountData.subdomain, checkSubdomainAvailability]);
 
   useEffect(() => {
     // If user is already logged in, skip account creation
@@ -210,7 +311,8 @@ export default function OnboardingPage() {
     if (
       !accountData.email ||
       !accountData.password ||
-      !accountData.businessName
+      !accountData.businessName ||
+      !accountData.phoneNumber
     ) {
       toast.error("Please fill in all required fields");
       return;
@@ -231,6 +333,16 @@ export default function OnboardingPage() {
       return;
     }
 
+    if (subdomainStatus.state === "unavailable") {
+      toast.error("Subdomain is already taken");
+      return;
+    }
+
+    if (subdomainStatus.state === "checking") {
+      toast.error("Please wait while we verify your subdomain");
+      return;
+    }
+
     // Validate subdomain format
     const subdomainRegex = /^[a-z0-9-]+$/;
     if (!subdomainRegex.test(accountData.subdomain)) {
@@ -243,22 +355,20 @@ export default function OnboardingPage() {
     setIsCreatingAccount(true);
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
-
-      const response = await fetch(`${API_URL}/auth/register/realtor`, {
+      const response = await fetch(`${API_URL}/realtors/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: accountData.email,
+          fullName: accountData.businessName, // Using businessName as fullName for now
+          businessEmail: accountData.email,
           password: accountData.password,
-          businessName: accountData.businessName,
           phoneNumber: accountData.phoneNumber,
-          subdomain: accountData.subdomain,
-          businessType: "Property Management",
-          country: "Nigeria",
+          agencyName: accountData.businessName,
+          customSubdomain: accountData.subdomain,
+          tagline: `${accountData.businessName} - Property Management`,
+          businessAddress: "Nigeria", // Default for MVP
         }),
       });
 
@@ -302,8 +412,6 @@ export default function OnboardingPage() {
 
   const submitProperty = async () => {
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
       const token = localStorage.getItem("accessToken");
 
       // Upload photos first
@@ -363,8 +471,6 @@ export default function OnboardingPage() {
 
   const submitPayoutInfo = async () => {
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
       const token = localStorage.getItem("accessToken");
 
       const response = await fetch(`${API_URL}/realtors/payout-settings`, {
@@ -443,186 +549,404 @@ export default function OnboardingPage() {
   const progress = ((currentStep + 1) / steps.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      {/* Skip button */}
+    <div className="relative min-h-screen overflow-hidden marketing-theme">
+      <div className="absolute inset-0 opacity-25">
+        <motion.div
+          className="absolute top-0 right-0 w-96 h-96 rounded-full"
+          animate={{ x: [0, 50, 0], y: [0, -30, 0], scale: [1, 1.1, 1] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            backgroundColor:
+              "color-mix(in srgb, var(--marketing-primary, #1E3A8A) 35%, #ffffff)",
+          }}
+        />
+        <motion.div
+          className="absolute bottom-0 left-0 w-80 h-80 rounded-full"
+          animate={{ x: [0, -40, 0], y: [0, 40, 0], scale: [1, 1.2, 1] }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            backgroundColor:
+              "color-mix(in srgb, var(--marketing-accent, #F97316) 25%, #ffffff)",
+          }}
+        />
+        <motion.div
+          className="absolute top-1/2 left-1/2 w-64 h-64 rounded-full"
+          animate={{
+            x: [-30, 30, -30],
+            y: [-20, 20, -20],
+            scale: [1, 1.15, 1],
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            backgroundColor:
+              "color-mix(in srgb, var(--marketing-primary, #1E3A8A) 18%, #38BDF8 20%)",
+          }}
+        />
+      </div>
+
       {canSkip && currentStep < steps.length - 1 && (
         <button
           onClick={handleSkip}
-          className="fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 bg-white rounded-lg shadow-md hover:shadow-lg transition-all"
+          className="fixed top-6 right-6 z-50 flex items-center gap-2 rounded-full border border-marketing-subtle bg-white/70 px-4 py-2 text-sm font-medium text-marketing-muted shadow-sm backdrop-blur transition hover:text-marketing-foreground"
         >
           <X className="h-4 w-4" />
-          <span className="text-sm font-medium">Skip for now</span>
+          <span>Skip for now</span>
         </button>
       )}
 
-      {/* Progress bar */}
-      <div className="fixed top-0 left-0 right-0 h-1 bg-gray-200 z-40">
+      <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-marketing-subtle">
         <motion.div
           className="h-full"
           style={{ backgroundColor: brandColor }}
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.35 }}
         />
       </div>
 
-      {/* Main content */}
-      <div className="max-w-4xl w-full">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-2xl shadow-2xl p-8 md:p-12"
-          >
-            {/* Step indicator */}
-            <div className="flex items-center justify-center mb-8">
-              <div className="flex items-center space-x-2">
-                {steps.map((step, index) => (
-                  <React.Fragment key={step.id}>
-                    <div
-                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${
-                        index <= currentStep
-                          ? "text-white"
-                          : "bg-gray-200 text-gray-400"
-                      }`}
-                      style={
-                        index <= currentStep
-                          ? { backgroundColor: brandColor }
-                          : undefined
-                      }
-                    >
-                      {index < currentStep ? (
-                        <CheckCircle className="h-5 w-5" />
-                      ) : (
-                        <span className="text-sm font-semibold">
-                          {index + 1}
-                        </span>
-                      )}
-                    </div>
-                    {index < steps.length - 1 && (
-                      <div
-                        className={`w-12 h-0.5 transition-all ${
-                          index < currentStep ? "" : "bg-gray-200"
-                        }`}
-                        style={
-                          index < currentStep
-                            ? { backgroundColor: brandColor }
-                            : undefined
-                        }
-                      />
-                    )}
-                  </React.Fragment>
-                ))}
-              </div>
+      <div className="relative z-10 flex flex-col lg:flex-row min-h-screen">
+        <motion.div
+          className="relative lg:w-5/12 p-8 lg:p-12 flex flex-col justify-between overflow-hidden"
+          style={{ background: "var(--marketing-primary)" }}
+          initial={{ x: -80, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.7 }}
+        >
+          <div className="absolute inset-0 opacity-30">
+            <motion.div
+              className="absolute top-0 right-0 w-72 h-72 rounded-full"
+              animate={{ x: [0, 40, 0], y: [0, -30, 0], scale: [1, 1.05, 1] }}
+              transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                backgroundColor:
+                  "color-mix(in srgb, var(--marketing-primary, #1E3A8A) 30%, #FFFFFF)",
+              }}
+            />
+            <motion.div
+              className="absolute bottom-10 left-0 w-64 h-64 rounded-full"
+              animate={{ x: [0, -30, 0], y: [0, 30, 0], scale: [1, 1.15, 1] }}
+              transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                backgroundColor:
+                  "color-mix(in srgb, var(--marketing-accent, #F97316) 22%, #FFFFFF)",
+              }}
+            />
+          </div>
+
+          <div className="relative z-10">
+            <Link
+              href="/realtor/login"
+              className="inline-flex items-center space-x-2 text-white/80 hover:text-white transition-colors group mb-8"
+            >
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <span className="text-sm font-medium">Back to Login</span>
+            </Link>
+
+            <div className="max-w-xl">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mb-6"
+              >
+                <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20 mb-6">
+                  <Sparkles className="w-4 h-4 text-orange-300" />
+                  <span className="text-sm text-white font-medium">
+                    Stayza Pro Onboarding
+                  </span>
+                </div>
+
+                <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+                  Launch Your
+                  <br />
+                  <span className="text-blue-100">Branded Hosting Hub</span>
+                </h1>
+
+                <p className="text-lg text-white/85 font-normal leading-relaxed">
+                  Guided setup that mirrors the Realtor portal aesthetic—keep
+                  guests impressed from day one.
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="grid grid-cols-2 gap-4"
+              >
+                <StatPill
+                  label="Avg. time to launch"
+                  value="12 min"
+                  color="#F59E0B"
+                />
+                <StatPill
+                  label="Realtors live today"
+                  value="340+"
+                  color="#22C55E"
+                />
+                <StatPill
+                  label="Guest trust boost"
+                  value="+38%"
+                  color="#38BDF8"
+                />
+                <StatPill
+                  label="Retention uplift"
+                  value="+21%"
+                  color="#C084FC"
+                />
+              </motion.div>
+            </div>
+          </div>
+
+          <div className="relative z-10 mt-10 text-white/70 text-sm space-y-2">
+            <div className="flex items-center space-x-2">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Verification-ready flows</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Globe className="w-4 h-4" />
+              <span>Subdomain setup baked in</span>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="lg:w-7/12 flex items-stretch justify-center p-6 lg:p-12"
+          style={{
+            background:
+              "linear-gradient(to bottom right, var(--marketing-surface), var(--marketing-background))",
+          }}
+          initial={{ x: 80, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.7 }}
+        >
+          <div className="w-full max-w-5xl">
+            <div className="mb-8 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-marketing-muted">
+                Stayza Pro Onboarding
+              </p>
+              <h1 className="mt-3 text-3xl font-bold text-marketing-foreground md:text-4xl">
+                Launch your branded short-let business in minutes
+              </h1>
+              <p className="mx-auto mt-3 max-w-2xl text-base text-marketing-muted md:text-lg">
+                Polished flows that match the Realtor login experience—account
+                creation, property setup, and payouts in one guided lane.
+              </p>
             </div>
 
-            {/* Step content */}
-            {currentStep === 0 && (
-              <AccountCreationStep
-                accountData={accountData}
-                setAccountData={setAccountData}
-                showPassword={showPassword}
-                setShowPassword={setShowPassword}
-                showConfirmPassword={showConfirmPassword}
-                setShowConfirmPassword={setShowConfirmPassword}
-                brandColor={brandColor}
-              />
-            )}
-
-            {currentStep === 1 && (
-              <WelcomeStep brandColor={brandColor} accentColor={accentColor} />
-            )}
-
-            {currentStep === 2 && (
-              <PropertyStep
-                propertyData={propertyData}
-                setPropertyData={setPropertyData}
-                photoPreview={photoPreview}
-                handlePhotoUpload={handlePhotoUpload}
-                removePhoto={removePhoto}
-                commonAmenities={commonAmenities}
-                toggleAmenity={toggleAmenity}
-                brandColor={brandColor}
-              />
-            )}
-
-            {currentStep === 3 && (
-              <PayoutStep
-                payoutData={payoutData}
-                setPayoutData={setPayoutData}
-                brandColor={brandColor}
-              />
-            )}
-
-            {currentStep === 4 && (
-              <CompleteStep
-                brandColor={brandColor}
-                isCompleting={isCompleting}
-              />
-            )}
-
-            {/* Navigation buttons */}
-            {currentStep < steps.length - 1 && (
-              <div className="flex items-center justify-between mt-8">
-                {currentStep === 0 ? (
-                  <Link
-                    href="/realtor/login"
-                    className="flex items-center space-x-2 px-6 py-3 text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                    <span>Back to Login</span>
-                  </Link>
-                ) : (
-                  <button
-                    onClick={handleBack}
-                    disabled={currentStep === 1 && user}
-                    className="flex items-center space-x-2 px-6 py-3 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                    <span>Back</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={handleNext}
-                  disabled={isCreatingAccount}
-                  className="flex items-center space-x-2 px-8 py-3 text-white rounded-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: brandColor }}
+            <div className="grid gap-6">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -24 }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="marketing-card-elevated rounded-[28px] p-6 md:p-10"
                 >
-                  {isCreatingAccount ? (
-                    <>
-                      <span className="font-semibold">Creating Account...</span>
-                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-semibold">
-                        {currentStep === 0 ? "Create Account" : "Continue"}
-                      </span>
-                      <ArrowRight className="h-5 w-5" />
-                    </>
+                  <div className="mb-8 flex flex-col gap-4 text-marketing-foreground md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.5em] text-marketing-subtle">
+                        Step {currentStep + 1} of {steps.length}
+                      </p>
+                      <h2 className="mt-2 text-2xl font-bold">
+                        {steps[currentStep]?.title}
+                      </h2>
+                      <p className="mt-1 text-sm text-marketing-muted">
+                        {steps[currentStep]?.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-full border border-marketing-subtle px-4 py-2 text-sm font-medium text-marketing-muted">
+                      <div
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: brandColor }}
+                      />
+                      Guided Mode Active
+                    </div>
+                  </div>
+
+                  <div className="mb-10 flex flex-wrap items-center justify-center gap-3">
+                    {steps.map((step, index) => {
+                      const Icon = step.icon;
+                      const isActive = index === currentStep;
+                      const isCompleted = index < currentStep;
+                      return (
+                        <div key={step.id} className="flex items-center gap-3">
+                          <div
+                            className={`flex h-11 w-11 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all ${
+                              isActive || isCompleted
+                                ? "text-white"
+                                : "border-marketing-subtle bg-marketing-elevated text-marketing-muted"
+                            }`}
+                            style={
+                              isActive || isCompleted
+                                ? {
+                                    borderColor: "transparent",
+                                    backgroundColor: isCompleted
+                                      ? secondaryColor
+                                      : brandColor,
+                                  }
+                                : undefined
+                            }
+                          >
+                            {isCompleted ? (
+                              <CheckCircle className="h-5 w-5" />
+                            ) : Icon ? (
+                              <Icon className="h-4 w-4" />
+                            ) : (
+                              index + 1
+                            )}
+                          </div>
+                          {index < steps.length - 1 && (
+                            <div
+                              className={`hidden h-px w-10 bg-marketing-subtle md:block ${
+                                index < currentStep
+                                  ? "opacity-100"
+                                  : "opacity-40"
+                              }`}
+                              style={{
+                                backgroundColor:
+                                  index < currentStep ? brandColor : undefined,
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {currentStep === 0 && (
+                    <AccountCreationStep
+                      accountData={accountData}
+                      setAccountData={setAccountData}
+                      showPassword={showPassword}
+                      setShowPassword={setShowPassword}
+                      showConfirmPassword={showConfirmPassword}
+                      setShowConfirmPassword={setShowConfirmPassword}
+                      brandColor={brandColor}
+                      passwordStrength={passwordStrength}
+                      subdomainStatus={subdomainStatus}
+                      isCheckingSubdomain={isCheckingSubdomain}
+                    />
                   )}
-                </button>
-              </div>
-            )}
 
-            {currentStep === steps.length - 1 && !isCompleting && (
-              <div className="flex justify-center mt-8">
-                <button
-                  onClick={completeOnboarding}
-                  className="px-8 py-3 text-white rounded-lg shadow-lg hover:shadow-xl transition-all text-lg font-semibold"
-                  style={{ backgroundColor: brandColor }}
-                >
-                  Go to Dashboard
-                </button>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+                  {currentStep === 1 && (
+                    <WelcomeStep
+                      brandColor={brandColor}
+                      accentColor={accentColor}
+                    />
+                  )}
+
+                  {currentStep === 2 && (
+                    <PropertyStep
+                      propertyData={propertyData}
+                      setPropertyData={setPropertyData}
+                      photoPreview={photoPreview}
+                      handlePhotoUpload={handlePhotoUpload}
+                      removePhoto={removePhoto}
+                      commonAmenities={commonAmenities}
+                      toggleAmenity={toggleAmenity}
+                      brandColor={brandColor}
+                    />
+                  )}
+
+                  {currentStep === 3 && (
+                    <PayoutStep
+                      payoutData={payoutData}
+                      setPayoutData={setPayoutData}
+                      brandColor={brandColor}
+                    />
+                  )}
+
+                  {currentStep === 4 && (
+                    <CompleteStep
+                      brandColor={brandColor}
+                      isCompleting={isCompleting}
+                    />
+                  )}
+
+                  {currentStep < steps.length - 1 && (
+                    <div className="mt-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      {currentStep === 0 ? (
+                        <Link
+                          href="/realtor/login"
+                          className="flex items-center gap-2 text-sm font-semibold text-marketing-muted transition-colors hover:text-marketing-foreground"
+                        >
+                          <ArrowLeft className="h-5 w-5" />
+                          <span>Back to Login</span>
+                        </Link>
+                      ) : (
+                        <button
+                          onClick={handleBack}
+                          disabled={currentStep === 1 && user}
+                          className="flex items-center gap-2 text-sm font-semibold text-marketing-muted transition-colors hover:text-marketing-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <ArrowLeft className="h-5 w-5" />
+                          <span>Back</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={handleNext}
+                        disabled={isCreatingAccount}
+                        className="marketing-button-primary flex items-center gap-2 rounded-full px-8 py-3 text-base font-semibold text-white shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isCreatingAccount ? (
+                          <>
+                            <span className="font-semibold">
+                              Creating Account...
+                            </span>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-semibold">
+                              {currentStep === 0
+                                ? "Create Account"
+                                : "Continue"}
+                            </span>
+                            <ArrowRight className="h-5 w-5" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {currentStep === steps.length - 1 && !isCompleting && (
+                    <div className="mt-10 flex justify-center">
+                      <button
+                        onClick={completeOnboarding}
+                        className="marketing-button-primary rounded-full px-10 py-3 text-lg font-semibold text-white shadow-xl transition-all hover:shadow-2xl"
+                      >
+                        Go to Dashboard
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+        </motion.div>
       </div>
+    </div>
+  );
+}
+
+function StatPill({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-4 shadow-sm">
+      <p className="text-xs text-white/80 font-medium mb-1">{label}</p>
+      <p className="text-2xl font-bold" style={{ color }}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -636,6 +960,9 @@ function AccountCreationStep({
   showConfirmPassword,
   setShowConfirmPassword,
   brandColor,
+  passwordStrength,
+  subdomainStatus,
+  isCheckingSubdomain,
 }: {
   accountData: any;
   setAccountData: any;
@@ -644,10 +971,23 @@ function AccountCreationStep({
   showConfirmPassword: boolean;
   setShowConfirmPassword: any;
   brandColor: string;
+  passwordStrength: {
+    label: string;
+    score: number;
+    percent: number;
+    color: string;
+  };
+  subdomainStatus: { state: string; message: string };
+  isCheckingSubdomain: boolean;
 }) {
   const formatSubdomain = (value: string) => {
     return value.toLowerCase().replace(/[^a-z0-9-]/g, "");
   };
+
+  const inputClass =
+    "w-full pl-10 pr-4 py-3 border-2 rounded-lg bg-marketing-elevated border-marketing-subtle text-marketing-foreground placeholder:text-marketing-muted focus:border-marketing-accent focus:ring-2 ring-marketing-focus focus:outline-none transition-all";
+  const iconClass =
+    "absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-marketing-muted";
 
   return (
     <div className="space-y-6">
@@ -659,7 +999,7 @@ function AccountCreationStep({
         >
           <Rocket className="h-8 w-8" style={{ color: brandColor }} />
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <h2 className="text-3xl font-bold text-gray-100 mb-2">
           Create Your Host Account
         </h2>
         <p className="text-gray-600">
@@ -675,7 +1015,7 @@ function AccountCreationStep({
             Business Name <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Building className={iconClass} />
             <input
               type="text"
               value={accountData.businessName}
@@ -683,7 +1023,7 @@ function AccountCreationStep({
                 setAccountData({ ...accountData, businessName: e.target.value })
               }
               placeholder="Your Property Management Company"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 outline-none transition-all"
+              className={inputClass}
             />
           </div>
         </div>
@@ -694,7 +1034,7 @@ function AccountCreationStep({
             Email Address <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Mail className={iconClass} />
             <input
               type="email"
               value={accountData.email}
@@ -702,7 +1042,7 @@ function AccountCreationStep({
                 setAccountData({ ...accountData, email: e.target.value })
               }
               placeholder="your@email.com"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 outline-none transition-all"
+              className={inputClass}
             />
           </div>
         </div>
@@ -710,18 +1050,22 @@ function AccountCreationStep({
         {/* Phone Number */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Phone Number
+            Phone Number <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="tel"
+            <Phone className={iconClass} />
+            <PhoneInput
+              international
+              defaultCountry="NG"
               value={accountData.phoneNumber}
-              onChange={(e) =>
-                setAccountData({ ...accountData, phoneNumber: e.target.value })
+              onChange={(value) =>
+                setAccountData({ ...accountData, phoneNumber: value || "" })
               }
               placeholder="+234 800 000 0000"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 outline-none transition-all"
+              className="phone-input-custom"
+              style={{
+                paddingLeft: "2.5rem",
+              }}
             />
           </div>
         </div>
@@ -733,7 +1077,7 @@ function AccountCreationStep({
           </label>
           <div className="flex items-center space-x-2">
             <div className="relative flex-1">
-              <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Globe className={iconClass} />
               <input
                 type="text"
                 value={accountData.subdomain}
@@ -744,7 +1088,7 @@ function AccountCreationStep({
                   })
                 }
                 placeholder="yourcompany"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 outline-none transition-all"
+                className={inputClass}
               />
             </div>
             <span className="text-gray-500 font-medium">.stayza.pro</span>
@@ -752,6 +1096,42 @@ function AccountCreationStep({
           <p className="text-xs text-gray-500 mt-1">
             Lowercase letters, numbers, and hyphens only
           </p>
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            {isCheckingSubdomain && (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                <span className="text-gray-600">Checking availability...</span>
+              </>
+            )}
+            {!isCheckingSubdomain && subdomainStatus.state === "available" && (
+              <>
+                <CheckCircle
+                  className="h-4 w-4"
+                  style={{ color: brandColor }}
+                />
+                <span className="text-green-600">
+                  {subdomainStatus.message}
+                </span>
+              </>
+            )}
+            {!isCheckingSubdomain &&
+              subdomainStatus.state === "unavailable" && (
+                <>
+                  <X className="h-4 w-4 text-red-500" />
+                  <span className="text-red-600">
+                    {subdomainStatus.message}
+                  </span>
+                </>
+              )}
+            {!isCheckingSubdomain && subdomainStatus.state === "error" && (
+              <>
+                <X className="h-4 w-4 text-orange-500" />
+                <span className="text-orange-600">
+                  {subdomainStatus.message}
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Password */}
@@ -760,7 +1140,7 @@ function AccountCreationStep({
             Password <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Lock className={iconClass} />
             <input
               type={showPassword ? "text" : "password"}
               value={accountData.password}
@@ -768,12 +1148,12 @@ function AccountCreationStep({
                 setAccountData({ ...accountData, password: e.target.value })
               }
               placeholder="Create a strong password"
-              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 outline-none transition-all"
+              className={inputClass + " pr-12"}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-marketing-muted hover:text-marketing-foreground"
             >
               {showPassword ? (
                 <EyeOff className="h-5 w-5" />
@@ -782,7 +1162,26 @@ function AccountCreationStep({
               )}
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
+          <div className="mt-2">
+            <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+              <span>Password strength</span>
+              <span style={{ color: passwordStrength.color }}>
+                {passwordStrength.label || ""}
+              </span>
+            </div>
+            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${passwordStrength.percent}%`,
+                  backgroundColor: passwordStrength.color,
+                }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Use 12+ characters with numbers & symbols for best strength.
+            </p>
+          </div>
         </div>
 
         {/* Confirm Password */}
@@ -791,7 +1190,7 @@ function AccountCreationStep({
             Confirm Password <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Lock className={iconClass} />
             <input
               type={showConfirmPassword ? "text" : "password"}
               value={accountData.confirmPassword}
@@ -802,12 +1201,12 @@ function AccountCreationStep({
                 })
               }
               placeholder="Confirm your password"
-              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 outline-none transition-all"
+              className={inputClass + " pr-12"}
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-marketing-muted hover:text-marketing-foreground"
             >
               {showConfirmPassword ? (
                 <EyeOff className="h-5 w-5" />
@@ -1330,6 +1729,58 @@ function CompleteStep({
           <p className="text-gray-600">Taking you to your dashboard...</p>
         </motion.div>
       )}
+
+      {/* Custom PhoneInput Styles */}
+      <style jsx global>{`
+        .phone-input-custom .PhoneInputInput {
+          width: 100%;
+          padding: 0.75rem 1rem 0.75rem 2.5rem;
+          border: 2px solid rgb(229 231 235);
+          border-radius: 0.5rem;
+          background-color: rgb(249 250 251);
+          color: rgb(17 24 39);
+          outline: none;
+          transition: all 0.2s;
+        }
+
+        .phone-input-custom .PhoneInputInput:focus {
+          border-color: #f97316;
+          ring: 2px;
+          ring-color: rgba(249, 115, 22, 0.1);
+        }
+
+        .phone-input-custom .PhoneInputInput::placeholder {
+          color: rgb(156 163 175);
+        }
+
+        .phone-input-custom .PhoneInputCountry {
+          position: absolute;
+          left: 2.5rem;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 10;
+        }
+
+        .phone-input-custom .PhoneInputCountryIcon {
+          width: 1.5rem;
+          height: 1.5rem;
+          border-radius: 0.125rem;
+        }
+
+        .phone-input-custom .PhoneInputCountrySelect {
+          font-size: 0.875rem;
+          padding: 0.25rem;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+        }
+
+        .phone-input-custom .PhoneInputCountrySelectArrow {
+          width: 0.5rem;
+          height: 0.5rem;
+          color: rgb(107 114 128);
+        }
+      `}</style>
     </div>
   );
 }

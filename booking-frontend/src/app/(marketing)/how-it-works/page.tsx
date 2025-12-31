@@ -155,7 +155,7 @@ export default function HowItWorksPage() {
 
         <div className="text-center">
           <Link
-            href="/browse"
+            href="/guest/browse"
             className="inline-flex items-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
             style={{ backgroundColor: primaryColor }}
           >
@@ -207,10 +207,10 @@ export default function HowItWorksPage() {
             })}
           </div>
 
-          <div className="text-center">
+          <div className=\"text-center\">
             <Link
-              href="/onboarding"
-              className="inline-flex items-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
+              href=\"/realtor/onboarding\"
+              className=\"inline-flex items-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity\"
               style={{ backgroundColor: primaryColor }}
             >
               Become a Host
@@ -266,14 +266,14 @@ export default function HowItWorksPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/browse"
+              href="/guest/browse"
               className="inline-flex items-center justify-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
               style={{ backgroundColor: primaryColor }}
             >
               Browse Properties
             </Link>
             <Link
-              href="/onboarding"
+              href="/realtor/onboarding"
               className="inline-flex items-center justify-center px-8 py-3 rounded-xl font-semibold border-2 hover:bg-gray-50 transition-colors"
               style={{
                 borderColor: primaryColor,

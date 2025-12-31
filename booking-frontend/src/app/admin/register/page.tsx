@@ -99,7 +99,7 @@ export default function AdminRegisterPage() {
                 Register as Guest
               </Link>
               <Link
-                href="/onboarding"
+                href="/realtor/onboarding"
                 className="block w-full py-2 px-4 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
               >
                 Apply as Realtor

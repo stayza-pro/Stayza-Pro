@@ -85,10 +85,10 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className=\"hidden md:flex items-center space-x-8\">
             <Link
-              href="/browse"
-              className="transition-colors hover:opacity-80"
+              href=\"/guest/browse\"
+              className=\"transition-colors hover:opacity-80\"
               style={{ color: brandColor }}
             >
               Browse Properties
@@ -295,11 +295,11 @@ export const Header: React.FC = () => {
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4">
-            <div className="space-y-2">
+          <div className=\"md:hidden border-t border-gray-200 py-4\">
+            <div className=\"space-y-2\">
               <Link
-                href="/browse"
-                className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                href=\"/guest/browse\"
+                className=\"block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors\"
               >
                 Browse Properties
               </Link>

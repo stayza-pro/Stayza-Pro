@@ -36,6 +36,7 @@ import {
   cacSubmissionLimiter,
   cacAppealLimiter,
 } from "@/middleware/rateLimiter";
+import { realtorRegisterSchema } from "@/utils/validation";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -591,11 +592,19 @@ router.post(
 router.post(
   "/register",
   asyncHandler(async (req: Request, res: Response) => {
+    // Validate request body with Joi schema
+    const { error, value } = realtorRegisterSchema.validate(req.body);
+
+    if (error) {
+      throw new AppError(error.details[0].message, 400);
+    }
+
     const {
       // User data
       fullName,
       businessEmail,
       password,
+      phoneNumber,
       // Business data
       agencyName,
       tagline,
@@ -612,12 +621,13 @@ router.post(
       // File uploads (URLs from temporary storage)
       logoUrl,
       cacDocumentUrl,
-    } = req.body;
+    } = value;
 
     if (
       !fullName ||
       !businessEmail ||
       !password ||
+      !phoneNumber ||
       !agencyName ||
       !customSubdomain
     ) {
@@ -668,7 +678,7 @@ router.post(
           fullName: fullName || `${firstName} ${lastName}`,
           firstName,
           lastName,
-          // phone removed for MVP
+          phone: phoneNumber,
           businessAddress,
           role: "REALTOR",
           isEmailVerified: false,

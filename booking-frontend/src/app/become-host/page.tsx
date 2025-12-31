@@ -8,7 +8,7 @@ export default function BecomeHostRedirectPage() {
 
   useEffect(() => {
     // Redirect to realtor onboarding
-    router.replace("/onboarding");
+    router.replace("/realtor/onboarding");
   }, [router]);
 
   return (

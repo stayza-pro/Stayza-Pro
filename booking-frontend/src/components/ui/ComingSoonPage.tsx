@@ -57,10 +57,10 @@ export default function ComingSoonPage({
             <div className="text-sm text-gray-500">
               <p>Want to be notified when this feature launches?</p>
               <Link
-                href="/early-access"
+                href="/get-started"
                 className="text-indigo-600 hover:text-indigo-800 font-semibold"
               >
-                Join our early access list →
+                Get started with Stayza →
               </Link>
             </div>
           </div>
@@ -80,7 +80,7 @@ export default function ComingSoonPage({
               <span>User Authentication</span>
             </Link>
             <Link
-              href="/browse"
+              href="/guest/browse"
               className="flex items-center space-x-2 text-green-600 hover:text-green-800"
             >
               <span>✓</span>

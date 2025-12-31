@@ -14,6 +14,7 @@ model User {
    firstName String
    lastName  String
    role      UserRole @default(GUEST)
+   phone     String?
 
    avatar                   String?
    createdAt                DateTime                @default(now())

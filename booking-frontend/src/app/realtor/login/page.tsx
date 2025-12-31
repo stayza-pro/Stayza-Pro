@@ -547,7 +547,7 @@ function RealtorLoginContent() {
                 <p className="text-sm text-marketing-muted">
                   Don't have a realtor account?{" "}
                   <Link
-                    href="/onboarding"
+                    href="/realtor/onboarding"
                     className="font-semibold text-marketing-accent hover:text-marketing-primary transition-colors"
                   >
                     Apply to become a realtor
