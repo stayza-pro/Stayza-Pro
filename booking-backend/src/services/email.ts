@@ -1,22 +1,29 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { config } from "@/config";
 
-// Create SMTP transporter
-const transporter = nodemailer.createTransport({
-  host: config.SMTP_HOST,
-  port: config.SMTP_PORT,
-  secure: config.SMTP_SECURE, // true for port 465, false for other ports
-  auth: {
-    user: config.SMTP_USER,
-    pass: config.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // Allow self-signed certificates
-  },
-  connectionTimeout: 5000, // 5 seconds (reduced from 60)
-  greetingTimeout: 3000, // 3 seconds (reduced from 30)
-  socketTimeout: 5000, // 5 seconds (reduced from 60)
-});
+// Initialize Resend client
+const resend = new Resend(config.RESEND_API_KEY);
+
+// Fallback to Nodemailer for development if Resend not configured
+import nodemailer from "nodemailer";
+const nodemailerTransporter =
+  config.NODE_ENV === "development"
+    ? nodemailer.createTransport({
+        host: config.SMTP_HOST,
+        port: config.SMTP_PORT,
+        secure: config.SMTP_SECURE,
+        auth: {
+          user: config.SMTP_USER,
+          pass: config.SMTP_PASS,
+        },
+        tls: {
+          rejectUnauthorized: false,
+        },
+        connectionTimeout: 5000,
+        greetingTimeout: 3000,
+        socketTimeout: 5000,
+      })
+    : null;
 
 // Stayza Brand Colors
 const brandColors = {
@@ -772,25 +779,67 @@ export const sendEmail = async (
   attachments?: any[]
 ) => {
   try {
-    // Verify transporter connection before sending
-    await transporter.verify();
-    console.log("SMTP connection verified successfully");
+    // Use Resend in production/staging
+    if (config.RESEND_API_KEY && config.NODE_ENV !== "development") {
+      console.log(
+        "📧 Sending email via Resend to:",
+        Array.isArray(to) ? to.join(", ") : to
+      );
 
-    const mailOptions = {
-      from: `"Stayza Pro" <${config.SMTP_USER}>`,
-      to: Array.isArray(to) ? to.join(", ") : to,
+      const result = await resend.emails.send({
+        from: "Stayza Pro <noreply@stayza.pro>", // Update with your verified Resend domain
+        to: Array.isArray(to) ? to : [to],
+        subject: template.subject,
+        html: template.html,
+      });
+
+      console.log("✅ Email sent successfully via Resend:", result.data?.id);
+      return { success: true, messageId: result.data?.id };
+    }
+
+    // Fallback to Nodemailer for development
+    if (nodemailerTransporter) {
+      console.log(
+        "📧 Sending email via Nodemailer (dev mode) to:",
+        Array.isArray(to) ? to.join(", ") : to
+      );
+
+      await nodemailerTransporter.verify();
+      console.log("SMTP connection verified successfully");
+
+      const mailOptions = {
+        from: `"Stayza Pro" <${config.SMTP_USER}>`,
+        to: Array.isArray(to) ? to.join(", ") : to,
+        subject: template.subject,
+        html: template.html,
+        attachments: attachments || [],
+      };
+
+      const info = await nodemailerTransporter.sendMail(mailOptions);
+      console.log("✅ Email sent successfully via Nodemailer:", info.messageId);
+      return { success: true, messageId: info.messageId };
+    }
+
+    // No email service configured - log to console (development only)
+    console.warn(
+      "⚠️  No email service configured. Email would have been sent:"
+    );
+    console.log({
+      to: Array.isArray(to) ? to : [to],
       subject: template.subject,
-      html: template.html,
-      attachments: attachments || [],
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully:", info.messageId);
-    return { success: true, messageId: info.messageId };
+      html: template.html.substring(0, 100) + "...",
+    });
+    return { success: true, messageId: "dev-mode-no-send" };
   } catch (error: any) {
-    console.error("Error sending email:", error);
+    console.error("❌ Error sending email:", error);
 
-    // Provide more specific error messages
+    // Resend-specific errors
+    if (error.name === "ResendError") {
+      console.error("Resend API error:", error.message);
+      throw new Error(`Email service error: ${error.message}`);
+    }
+
+    // Nodemailer-specific errors
     if (error.code === "EAUTH") {
       console.error(
         "SMTP Authentication failed. Please check your email credentials."

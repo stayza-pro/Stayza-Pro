@@ -39,6 +39,7 @@ export const config = {
     process.env.SMTP_SECURE,
     (process.env.SMTP_PORT || "587") === "465"
   ),
+  RESEND_API_KEY: process.env.RESEND_API_KEY, // Optional - will fallback to SMTP if not provided
 
   // Frontend
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",

@@ -66,8 +66,11 @@ export default function RealtorLayout({
       setActiveNav("escrow-tracker");
     } else if (currentPath.includes("/refund-requests")) {
       setActiveNav("refund-requests");
-    } else if (currentPath.includes("/revenue")) {
-      setActiveNav("revenue");
+    } else if (
+      currentPath.includes("/earnings") ||
+      currentPath.includes("/revenue")
+    ) {
+      setActiveNav("earnings");
     } else if (currentPath.includes("/payouts")) {
       setActiveNav("payouts");
     } else if (currentPath.includes("/notifications")) {
@@ -167,10 +170,10 @@ export default function RealtorLayout({
       href: "/refund-requests",
     },
     {
-      id: "revenue",
-      label: "Revenue & Analytics",
-      icon: DollarSign,
-      href: "/revenue",
+      id: "earnings",
+      label: "Earnings & Analytics",
+      icon: BarChart3,
+      href: "/earnings",
     },
     { id: "payouts", label: "Payouts", icon: Wallet, href: "/payouts" },
     {

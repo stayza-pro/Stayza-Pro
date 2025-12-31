@@ -476,6 +476,21 @@ function RealtorLoginContent() {
                   </div>
                 </motion.div>
 
+                {/* Forgot Password Link */}
+                <motion.div
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.95 }}
+                  className="flex justify-end"
+                >
+                  <Link
+                    href="/realtor/forgot-password"
+                    className="text-sm font-medium text-marketing-accent hover:text-marketing-primary transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </motion.div>
+
                 {/* Submit Button */}
                 <motion.button
                   initial={{ y: 20, opacity: 0 }}
@@ -532,7 +547,7 @@ function RealtorLoginContent() {
                 <p className="text-sm text-marketing-muted">
                   Don't have a realtor account?{" "}
                   <Link
-                    href="/realtor/register"
+                    href="/onboarding"
                     className="font-semibold text-marketing-accent hover:text-marketing-primary transition-colors"
                   >
                     Apply to become a realtor
