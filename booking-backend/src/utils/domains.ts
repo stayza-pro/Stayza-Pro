@@ -116,16 +116,9 @@ export function getEmailVerificationUrl(
 
   console.log("[Backend] Generated verification URL path:", path);
 
-  if (userType === "realtor" && realtorSlug) {
-    // Realtor verification happens on their subdomain
-    return buildSubdomainUrl(realtorSlug, path);
-  } else if (userType === "admin") {
-    // Admin verification happens on main domain
-    return buildMainDomainUrl(path);
-  } else {
-    // Guest verification can happen on main domain or current context
-    return buildMainDomainUrl(path);
-  }
+  // All email verifications happen on main domain for consistency
+  // The verify-email page is at the root level and handles all user types
+  return buildMainDomainUrl(path);
 }
 
 /**

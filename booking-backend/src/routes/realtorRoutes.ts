@@ -3519,13 +3519,8 @@ router.post(
       throw new AppError("Realtor profile not found", 404);
     }
 
-    // Check if CAC is approved
-    if (realtor.cacStatus !== "APPROVED") {
-      throw new AppError(
-        "CAC verification must be approved before setting up payout account",
-        403
-      );
-    }
+    // NOTE: Payout setup is allowed for all registered realtors (PENDING or APPROVED)
+    // Only property listing requires CAC approval (handled by requireApprovedRealtor middleware)
 
     try {
       // Create Paystack subaccount

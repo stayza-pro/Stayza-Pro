@@ -42,6 +42,7 @@ import {
   Phone,
   Loader2,
   PlayCircle,
+  Palette,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -61,6 +62,47 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { autoLogin } = useAuthStore();
+
+  // Helper function to redirect to realtor subdomain dashboard
+  const redirectToRealtorDashboard = () => {
+    const currentUser = user || useAuthStore.getState().user;
+
+    if (currentUser?.role === "REALTOR" && (currentUser as any).realtor?.slug) {
+      // Construct realtor subdomain URL
+      const realtorSlug = (currentUser as any).realtor.slug;
+      const redirectUrl = `http://${realtorSlug}.${window.location.host}/dashboard`;
+
+      console.log("🔄 Redirecting to realtor subdomain:", redirectUrl);
+
+      // Check if cross-domain redirect
+      const currentHost = window.location.host;
+      try {
+        const redirectHost = new URL(redirectUrl, window.location.origin).host;
+
+        if (currentHost !== redirectHost) {
+          // Cross-domain redirect - add tokens to URL
+          const { accessToken, refreshToken } = useAuthStore.getState();
+          if (accessToken && refreshToken) {
+            const redirectUrlObj = new URL(redirectUrl);
+            redirectUrlObj.searchParams.set("token", accessToken);
+            redirectUrlObj.searchParams.set("refresh", refreshToken);
+
+            console.log("🔐 Adding tokens to cross-domain redirect");
+            window.location.href = redirectUrlObj.toString();
+            return;
+          }
+        }
+      } catch (urlError) {
+        console.error("URL parsing error:", urlError);
+      }
+
+      // Fallback to direct navigation
+      window.location.href = redirectUrl;
+    } else {
+      // Fallback to default dashboard
+      router.push("/dashboard");
+    }
+  };
 
   // Use Stayza Pro marketing palette values with CSS var fallbacks for easier theming tweaks
   const brandColor = "var(--marketing-primary, #1E3A8A)";
@@ -93,6 +135,17 @@ export default function OnboardingPage() {
   const [detectedCountry, setDetectedCountry] = useState<
     CountryCode | undefined
   >("NG");
+
+  // Branding customization state
+  const [brandingData, setBrandingData] = useState({
+    logoFile: null as File | null,
+    tagline: "",
+    description: "",
+    primaryColor: "#1E3A8A",
+    secondaryColor: "#047857",
+    accentColor: "#F97316",
+  });
+  const [logoPreview, setLogoPreview] = useState<string>("");
 
   // Property form state
   const [propertyData, setPropertyData] = useState({
@@ -202,10 +255,10 @@ export default function OnboardingPage() {
       icon: Rocket,
     },
     {
-      id: "welcome",
-      title: "Welcome to Stayza! 🎉",
-      description: "Let's get you set up in just 2 simple steps",
-      icon: Sparkles,
+      id: "branding",
+      title: "Customize Your Brand",
+      description: "Make your booking site uniquely yours",
+      icon: Palette,
     },
     {
       id: "tutorial",
@@ -276,7 +329,7 @@ export default function OnboardingPage() {
       )
     ) {
       localStorage.setItem(`onboarding_completed_${user?.id}`, "true");
-      router.push("/realtor/dashboard");
+      redirectToRealtorDashboard();
     }
   };
 
@@ -294,12 +347,14 @@ export default function OnboardingPage() {
         // Only submit if user filled in the form
         await submitPayoutInfo();
       }
-      // Always move to next step (payout is optional)
+      // Move to final step and complete onboarding
       setCurrentStep(currentStep + 1);
+      // Clear tokens on final step - user must verify email
+      setTimeout(() => {
+        completeOnboarding();
+      }, 100);
     } else if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
-    } else {
-      completeOnboarding();
     }
   };
 
@@ -428,30 +483,31 @@ export default function OnboardingPage() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success("Account created successfully!");
+        toast.success(
+          "Account created successfully! Continue to complete your profile.",
+          { duration: 4000 }
+        );
 
-        // Auto-login
-        if (data.data?.accessToken) {
-          localStorage.setItem("accessToken", data.data.accessToken);
-          if (data.data.refreshToken) {
-            localStorage.setItem("refreshToken", data.data.refreshToken);
-          }
-
-          // Auto-login the user
-          if (data.data.user) {
-            autoLogin(
-              {
-                accessToken: data.data.accessToken,
-                refreshToken: data.data.refreshToken || "",
-              },
-              data.data.user
-            );
-          }
-
-          // Move to next step
-          setCanSkip(true);
-          setCurrentStep(1);
+        // Store user email for the final verification step
+        if (accountData.email) {
+          localStorage.setItem("pendingVerificationEmail", accountData.email);
         }
+
+        // Store temporary access token for onboarding flow (if provided)
+        // This allows completing payout setup before email verification
+        if (data.data?.accessToken || data.accessToken) {
+          const token = data.data?.accessToken || data.accessToken;
+          localStorage.setItem("accessToken", token);
+
+          // Also store user data if provided
+          if (data.data?.user || data.user) {
+            const userData = data.data?.user || data.user;
+            localStorage.setItem("user", JSON.stringify(userData));
+          }
+        }
+
+        // Move to next step (branding)
+        setCurrentStep(currentStep + 1);
       } else {
         // Backend returns error in data.error.message format
         const errorMessage =
@@ -563,11 +619,12 @@ export default function OnboardingPage() {
   };
 
   const completeOnboarding = () => {
+    // Clear temporary tokens - user must verify email and login
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+
+    // Don't redirect - just mark as completing to show the verification message
     setIsCompleting(true);
-    localStorage.setItem(`onboarding_completed_${user?.id}`, "true");
-    setTimeout(() => {
-      router.push("/realtor/dashboard");
-    }, 2000);
   };
 
   const handleCacFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -955,9 +1012,12 @@ export default function OnboardingPage() {
                   )}
 
                   {currentStep === 1 && (
-                    <WelcomeStep
+                    <BrandingStep
+                      brandingData={brandingData}
+                      setBrandingData={setBrandingData}
+                      logoPreview={logoPreview}
+                      setLogoPreview={setLogoPreview}
                       brandColor={brandColor}
-                      accentColor={accentColor}
                     />
                   )}
 
@@ -1029,16 +1089,7 @@ export default function OnboardingPage() {
                     </div>
                   )}
 
-                  {currentStep === steps.length - 1 && !isCompleting && (
-                    <div className="mt-10 flex justify-center">
-                      <button
-                        onClick={completeOnboarding}
-                        className="marketing-button-primary rounded-full px-10 py-3 text-lg font-semibold text-white shadow-xl transition-all hover:shadow-2xl"
-                      >
-                        Go to Dashboard
-                      </button>
-                    </div>
-                  )}
+                  {/* No button needed on final step - user should check email */}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -1408,7 +1459,7 @@ function AccountCreationStep({
                   <Upload className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-gray-100">
                     {cacFilePreview}
                   </p>
                   <p className="text-xs text-gray-500">
@@ -1551,88 +1602,332 @@ function AccountCreationStep({
   );
 }
 
-// Welcome Step Component
-function WelcomeStep({
+// Branding Customization Step Component
+function BrandingStep({
+  brandingData,
+  setBrandingData,
+  logoPreview,
+  setLogoPreview,
   brandColor,
-  accentColor,
 }: {
+  brandingData: any;
+  setBrandingData: any;
+  logoPreview: string;
+  setLogoPreview: any;
   brandColor: string;
-  accentColor: string;
 }) {
-  const benefits = [
-    {
-      icon: TrendingUp,
-      title: "Grow Your Business",
-      description: "Reach more guests with your custom branded website",
-    },
-    {
-      icon: Users,
-      title: "Manage Bookings",
-      description: "Track reservations and communicate with guests easily",
-    },
-    {
-      icon: DollarSign,
-      title: "Get Paid Fast",
-      description: "Secure escrow payments released within 24-48 hours",
-    },
-    {
-      icon: Calendar,
-      title: "Smart Calendar",
-      description: "Prevent double bookings with automatic availability sync",
-    },
-  ];
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Logo file size must be less than 5MB");
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload an image file");
+        return;
+      }
+
+      setBrandingData((prev: any) => ({ ...prev, logoFile: file }));
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeLogo = () => {
+    setBrandingData((prev: any) => ({ ...prev, logoFile: null }));
+    setLogoPreview("");
+  };
 
   return (
-    <div className="text-center">
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.2, type: "spring" }}
-        className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
-        style={{ backgroundColor: `${accentColor}20` }}
-      >
-        <Sparkles className="h-10 w-10" style={{ color: accentColor }} />
-      </motion.div>
-
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">
-        Welcome to Stayza Pro! 🎉
-      </h1>
-      <p className="text-lg text-gray-600 mb-12 max-w-2xl mx-auto">
-        You're just a few steps away from receiving your first booking. Let's
-        set up your account together!
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {benefits.map((benefit, index) => {
-          const Icon = benefit.icon;
-          return (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + index * 0.1 }}
-              className="p-6 bg-gray-50 rounded-xl text-left"
-            >
-              <div
-                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
-                style={{ backgroundColor: `${brandColor}20` }}
-              >
-                <Icon className="h-6 w-6" style={{ color: brandColor }} />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {benefit.title}
-              </h3>
-              <p className="text-gray-600">{benefit.description}</p>
-            </motion.div>
-          );
-        })}
+    <div className="space-y-8">
+      <div className="text-center mb-8">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: "spring" }}
+          className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
+          style={{ backgroundColor: `${brandColor}20` }}
+        >
+          <Palette className="h-10 w-10" style={{ color: brandColor }} />
+        </motion.div>
+        <h2 className="text-3xl font-bold text-marketing-foreground mb-3">
+          Make It Yours
+        </h2>
+        <p className="text-marketing-muted max-w-2xl mx-auto">
+          Customize your booking site with your brand colors, logo, and
+          messaging
+        </p>
       </div>
+
+      {/* Logo Upload */}
+      <div>
+        <label className="block text-sm font-semibold text-marketing-foreground mb-3">
+          Business Logo (Optional)
+        </label>
+        <div className="flex items-start gap-4">
+          {logoPreview ? (
+            <div className="relative">
+              <div className="w-32 h-32 rounded-xl border-2 border-marketing-subtle bg-marketing-elevated overflow-hidden">
+                <Image
+                  src={logoPreview}
+                  alt="Logo preview"
+                  width={128}
+                  height={128}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <button
+                onClick={removeLogo}
+                className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <label className="w-32 h-32 rounded-xl border-2 border-dashed border-marketing-subtle bg-marketing-elevated hover:border-marketing-accent hover:bg-marketing-surface cursor-pointer transition-all flex flex-col items-center justify-center gap-2">
+              <Upload className="w-6 h-6 text-marketing-muted" />
+              <span className="text-xs text-marketing-muted font-medium">
+                Upload Logo
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+            </label>
+          )}
+          <div className="flex-1">
+            <p className="text-sm text-marketing-muted mb-2">
+              Upload your business logo to appear on your booking site
+            </p>
+            <ul className="text-xs text-marketing-muted space-y-1">
+              <li>• Recommended: Square image (500x500px)</li>
+              <li>• Max file size: 5MB</li>
+              <li>• Format: JPG, PNG, or SVG</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Tagline */}
+      <div>
+        <label className="block text-sm font-semibold text-marketing-foreground mb-3">
+          Tagline{" "}
+          <span className="text-marketing-muted font-normal">(Optional)</span>
+        </label>
+        <input
+          type="text"
+          value={brandingData.tagline}
+          onChange={(e) =>
+            setBrandingData((prev: any) => ({
+              ...prev,
+              tagline: e.target.value,
+            }))
+          }
+          placeholder="e.g., Your trusted property partner"
+          maxLength={100}
+          className="w-full px-4 py-3 border-2 rounded-lg bg-marketing-elevated border-marketing-subtle text-marketing-foreground placeholder:text-marketing-muted focus:border-marketing-accent focus:ring-2 ring-marketing-focus focus:outline-none transition-all"
+        />
+        <p className="text-xs text-marketing-muted mt-2">
+          {brandingData.tagline.length}/100 characters
+        </p>
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-semibold text-marketing-foreground mb-3">
+          About Your Business{" "}
+          <span className="text-marketing-muted font-normal">(Optional)</span>
+        </label>
+        <textarea
+          value={brandingData.description}
+          onChange={(e) =>
+            setBrandingData((prev: any) => ({
+              ...prev,
+              description: e.target.value,
+            }))
+          }
+          placeholder="Tell guests about your business, your properties, and what makes you special..."
+          rows={4}
+          maxLength={500}
+          className="w-full px-4 py-3 border-2 rounded-lg bg-marketing-elevated border-marketing-subtle text-marketing-foreground placeholder:text-marketing-muted focus:border-marketing-accent focus:ring-2 ring-marketing-focus focus:outline-none transition-all resize-none"
+        />
+        <p className="text-xs text-marketing-muted mt-2">
+          {brandingData.description.length}/500 characters
+        </p>
+      </div>
+
+      {/* Brand Colors */}
+      <div>
+        <label className="block text-sm font-semibold text-marketing-foreground mb-4">
+          Brand Colors
+        </label>
+        <div className="grid grid-cols-1 gap-4">
+          {/* Primary Color */}
+          <div>
+            <label className="block text-xs font-medium text-marketing-muted mb-2">
+              Primary Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={brandingData.primaryColor}
+                onChange={(e) =>
+                  setBrandingData((prev: any) => ({
+                    ...prev,
+                    primaryColor: e.target.value,
+                  }))
+                }
+                className="w-12 h-12 rounded-lg border-2 border-marketing-subtle cursor-pointer"
+              />
+              <input
+                type="text"
+                value={brandingData.primaryColor}
+                onChange={(e) =>
+                  setBrandingData((prev: any) => ({
+                    ...prev,
+                    primaryColor: e.target.value,
+                  }))
+                }
+                placeholder="#1E3A8A"
+                className="flex-1 px-3 py-2 text-sm border-2 rounded-lg bg-marketing-elevated border-marketing-subtle text-marketing-foreground focus:border-marketing-accent focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Secondary Color */}
+          <div>
+            <label className="block text-xs font-medium text-marketing-muted mb-2">
+              Secondary Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={brandingData.secondaryColor}
+                onChange={(e) =>
+                  setBrandingData((prev: any) => ({
+                    ...prev,
+                    secondaryColor: e.target.value,
+                  }))
+                }
+                className="w-12 h-12 rounded-lg border-2 border-marketing-subtle cursor-pointer"
+              />
+              <input
+                type="text"
+                value={brandingData.secondaryColor}
+                onChange={(e) =>
+                  setBrandingData((prev: any) => ({
+                    ...prev,
+                    secondaryColor: e.target.value,
+                  }))
+                }
+                placeholder="#047857"
+                className="flex-1 px-3 py-2 text-sm border-2 rounded-lg bg-marketing-elevated border-marketing-subtle text-marketing-foreground focus:border-marketing-accent focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Accent Color */}
+          <div>
+            <label className="block text-xs font-medium text-marketing-muted mb-2">
+              Accent Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={brandingData.accentColor}
+                onChange={(e) =>
+                  setBrandingData((prev: any) => ({
+                    ...prev,
+                    accentColor: e.target.value,
+                  }))
+                }
+                className="w-12 h-12 rounded-lg border-2 border-marketing-subtle cursor-pointer"
+              />
+              <input
+                type="text"
+                value={brandingData.accentColor}
+                onChange={(e) =>
+                  setBrandingData((prev: any) => ({
+                    ...prev,
+                    accentColor: e.target.value,
+                  }))
+                }
+                placeholder="#F97316"
+                className="flex-1 px-3 py-2 text-sm border-2 rounded-lg bg-marketing-elevated border-marketing-subtle text-marketing-foreground focus:border-marketing-accent focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-marketing-muted mt-3">
+          💡 These colors will be used across your booking site for buttons,
+          headers, and accents
+        </p>
+      </div>
+
+      {/* <div
+        className="p-6 rounded-xl border-2 border-marketing-subtle"
+        style={{
+          background: `linear-gradient(135deg, ${brandingData.primaryColor}10 0%, ${brandingData.secondaryColor}10 100%)`,
+        }}
+      >
+        <div className="flex items-center gap-4 mb-4">
+          {logoPreview ? (
+            <div className="w-16 h-16 rounded-lg overflow-hidden bg-white">
+              <Image
+                src={logoPreview}
+                alt="Logo"
+                width={64}
+                height={64}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div
+              className="w-16 h-16 rounded-lg flex items-center justify-center text-2xl font-bold text-white"
+              style={{ backgroundColor: brandingData.primaryColor }}
+            >
+              {brandingData.tagline
+                ? brandingData.tagline.charAt(0).toUpperCase()
+                : "?"}
+            </div>
+          )}
+          <div>
+            <h3
+              className="text-xl font-bold"
+              style={{ color: brandingData.primaryColor }}
+            >
+              {brandingData.tagline || "Your Business Name"}
+            </h3>
+            <p className="text-sm text-marketing-muted">
+              {brandingData.description
+                ? brandingData.description.substring(0, 60) + "..."
+                : "Your business description will appear here"}
+            </p>
+          </div>
+        </div>
+        <button
+          className="px-6 py-2 rounded-lg font-semibold text-white transition-colors"
+          style={{ backgroundColor: brandingData.accentColor }}
+        >
+          Preview Button
+        </button>
+      </div> */}
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>⏱️ Takes only 5 minutes!</strong> You can skip and complete
-          this later, but we recommend finishing now to start receiving bookings
-          faster.
+          <strong>✨ Don't worry!</strong> You can always change these settings
+          later from your dashboard.
         </p>
       </div>
     </div>
@@ -1653,7 +1948,7 @@ function VideoTutorialStep({ brandColor }: { brandColor: string }) {
         <PlayCircle className="h-10 w-10" style={{ color: brandColor }} />
       </motion.div>
 
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">
+      <h1 className="text-4xl font-bold text-gray-100 mb-4">
         How to Add Your Properties 📹
       </h1>
       <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
@@ -1724,7 +2019,7 @@ function VideoTutorialStep({ brandColor }: { brandColor: string }) {
               >
                 <Icon className="h-6 w-6" style={{ color: brandColor }} />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-100 mb-2">
                 {tip.title}
               </h3>
               <p className="text-sm text-gray-600">{tip.description}</p>
@@ -1763,7 +2058,7 @@ function PropertyStep({
 }: any) {
   return (
     <div>
-      <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">
+      <h2 className="text-3xl font-bold text-gray-100 mb-2 text-center">
         Add Your First Property
       </h2>
       <p className="text-gray-600 mb-8 text-center">
@@ -2077,7 +2372,7 @@ function PayoutStep({
         >
           <ShieldCheck className="h-8 w-8" style={{ color: brandColor }} />
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <h2 className="text-3xl font-bold text-gray-100 mb-2">
           Setup Your Payouts
         </h2>
         <p className="text-gray-600">
@@ -2195,6 +2490,80 @@ function CompleteStep({
   brandColor: string;
   isCompleting: boolean;
 }) {
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const userEmail =
+    typeof window !== "undefined"
+      ? localStorage.getItem("pendingVerificationEmail")
+      : null;
+
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+
+  // Cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(
+        () => setResendCooldown(resendCooldown - 1),
+        1000
+      );
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  const handleResendVerification = async () => {
+    if (!userEmail || isResending || resendCooldown > 0) return;
+
+    setIsResending(true);
+
+    try {
+      const response = await fetch(`${API_URL}/auth/resend-verification`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          type: "realtor",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Verification email sent! Please check your inbox.");
+        setResendCooldown(60); // 60 second cooldown
+      } else {
+        const errorMessage =
+          data.error?.message ||
+          data.message ||
+          "Failed to resend verification email.";
+        toast.error(errorMessage);
+      }
+    } catch (error: any) {
+      console.error("Resend verification error:", error);
+
+      // Check if it's a timeout or network error
+      const isTimeoutError =
+        error.message?.includes("timeout") ||
+        error.message?.includes("Timeout") ||
+        error.code === "ETIMEDOUT";
+
+      if (isTimeoutError) {
+        toast.error(
+          "Email service is temporarily unavailable. Your verification link was already sent to your email. Please check your inbox and spam folder.",
+          { duration: 8000 }
+        );
+      } else {
+        toast.error(
+          "Failed to resend verification email. Please try again later."
+        );
+      }
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="text-center py-8">
       <motion.div
@@ -2204,80 +2573,124 @@ function CompleteStep({
         className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6"
         style={{ backgroundColor: `${brandColor}20` }}
       >
-        <CheckCircle className="h-12 w-12" style={{ color: brandColor }} />
+        <Mail className="h-12 w-12" style={{ color: brandColor }} />
       </motion.div>
 
       <motion.h1
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="text-4xl font-bold text-gray-900 mb-4"
+        className="text-4xl font-bold text-gray-100 mb-4"
       >
-        You're All Set! 🎉
+        One More Step! 📧
       </motion.h1>
 
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto"
+        className="text-lg text-gray-600 mb-6 max-w-2xl mx-auto"
       >
-        Congratulations! Your property is now live and ready to receive
-        bookings. Let's explore your dashboard and start growing your business.
+        We've sent a verification email to{" "}
+        <strong className="text-gray-900">{userEmail || "your email"}</strong>
       </motion.p>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto mb-8"
+        className="max-w-md mx-auto mb-8"
       >
-        {[
-          {
-            icon: Home,
-            title: "Property Listed",
-            description: "Your property is live",
-          },
-          {
-            icon: Wallet,
-            title: "Payouts Ready",
-            description: "Bank account connected",
-          },
-          {
-            icon: Rocket,
-            title: "Ready to Earn",
-            description: "Start receiving bookings",
-          },
-        ].map((item, index) => {
-          const Icon = item.icon;
-          return (
-            <div key={index} className="p-6 bg-gray-50 rounded-xl">
-              <div
-                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-3"
-                style={{ backgroundColor: `${brandColor}20` }}
-              >
-                <Icon className="h-6 w-6" style={{ color: brandColor }} />
+        <div className="bg-gradient-to-br from-orange-50 to-blue-50 border-2 border-orange-200 rounded-2xl p-8">
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-sm">
+                1
               </div>
-              <h3 className="font-semibold text-gray-900 mb-1">{item.title}</h3>
-              <p className="text-sm text-gray-600">{item.description}</p>
+              <div className="text-left">
+                <p className="text-gray-900 font-semibold">Check your inbox</p>
+                <p className="text-sm text-gray-600">
+                  Look for an email from Stayza
+                </p>
+              </div>
             </div>
-          );
-        })}
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-sm">
+                2
+              </div>
+              <div className="text-left">
+                <p className="text-gray-900 font-semibold">
+                  Click the verification link
+                </p>
+                <p className="text-sm text-gray-600">
+                  This confirms your email address
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-sm">
+                3
+              </div>
+              <div className="text-left">
+                <p className="text-gray-900 font-semibold">
+                  Login to your dashboard
+                </p>
+                <p className="text-sm text-gray-600">
+                  Start managing your properties
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
-      {isCompleting && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        className="space-y-4"
+      >
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+          <p className="text-sm text-gray-600">Didn't receive the email?</p>
+          <button
+            onClick={handleResendVerification}
+            disabled={isResending || resendCooldown > 0}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor:
+                resendCooldown > 0 ? "#E5E7EB" : `${brandColor}15`,
+              color: resendCooldown > 0 ? "#6B7280" : brandColor,
+            }}
+          >
+            {isResending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : resendCooldown > 0 ? (
+              <>Resend in {resendCooldown}s</>
+            ) : (
+              <>
+                <Mail className="h-4 w-4" />
+                Resend Email
+              </>
+            )}
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Check your spam folder if you don't see it in your inbox
+        </p>
+
+        <Link
+          href="/realtor/login"
+          className="inline-flex items-center gap-2 text-sm font-semibold transition-colors hover:underline"
+          style={{ color: brandColor }}
         >
-          <div
-            className="animate-spin rounded-full h-8 w-8 border-b-2 mb-3"
-            style={{ borderColor: brandColor }}
-          />
-          <p className="text-gray-600">Taking you to your dashboard...</p>
-        </motion.div>
-      )}
+          Already verified? Login here
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </motion.div>
     </div>
   );
 }

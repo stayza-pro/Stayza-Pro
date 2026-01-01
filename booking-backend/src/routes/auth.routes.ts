@@ -763,12 +763,22 @@ router.post(
       user.email
     );
 
-    await sendEmailVerification(
-      user.email,
-      user.firstName || "User",
-      verificationUrl
-    );
+    // Try to send email, but don't fail the request if email service is down
+    try {
+      await sendEmailVerification(
+        user.email,
+        user.firstName || "User",
+        verificationUrl
+      );
+      logger.info(`Verification email sent successfully to ${user.email}`);
+    } catch (emailError: any) {
+      logger.error("Failed to send verification email:", emailError);
+      // Log the error but don't throw - user data is already updated
+      // In production, you might want to queue this for retry
+    }
 
+    // Always return success to prevent email enumeration
+    // Token is already updated in DB, user can try resending again
     res.json({
       success: true,
       message: "Verification email sent successfully",

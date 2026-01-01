@@ -57,40 +57,18 @@ function VerifyEmailContent() {
           setResult({
             success: true,
             message: data.message || "Email verified successfully!",
-            redirectUrl: data.redirectUrl,
+            redirectUrl: "/realtor/login",
           });
-          toast.success("Email verified successfully!");
+          toast.success("Email verified successfully! Redirecting to login...");
 
-          // Auto-login: Use auth store for proper authentication
-          if (data.authTokens && data.user) {
-            console.log("🔐 Auto-login: Processing authentication tokens");
-            autoLogin(data.authTokens, data.user);
-            toast.success("You have been automatically logged in!");
-          }
+          // Don't auto-login - user should login manually after verification
+          // This ensures a clean authentication flow
 
-          // Auto-redirect after successful verification
-          if (data.redirectUrl) {
-            setTimeout(() => {
-              console.log("🔄 Auto-redirecting to:", data.redirectUrl);
-
-              // Check if it's a cross-domain redirect
-              const currentHost = window.location.host;
-              const redirectHost = new URL(
-                data.redirectUrl,
-                window.location.origin
-              ).host;
-
-              if (currentHost !== redirectHost) {
-                // Cross-domain redirect
-                console.log("🌐 Cross-domain redirect detected");
-                window.location.href = data.redirectUrl;
-              } else {
-                // Same-domain redirect
-                console.log("🔗 Same-domain redirect");
-                router.push(data.redirectUrl);
-              }
-            }, 3000); // Wait 3 seconds to show success message
-          }
+          // Auto-redirect to login page after successful verification
+          setTimeout(() => {
+            console.log("🔄 Redirecting to login page");
+            router.push("/realtor/login");
+          }, 3000); // Wait 3 seconds to show success message
         } else {
           setResult({
             success: false,
