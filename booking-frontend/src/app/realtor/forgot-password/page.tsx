@@ -40,7 +40,9 @@ export default function RealtorForgotPasswordPage() {
         setEmailSent(true);
         toast.success("Password reset link sent! Check your email.");
       } else {
-        toast.error(data.message || "Failed to send reset link");
+        const errorMessage =
+          data.error?.message || data.message || "Failed to send reset link";
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error("Forgot password error:", error);

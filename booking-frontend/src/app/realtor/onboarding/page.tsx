@@ -3,8 +3,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import {
+  parsePhoneNumber,
+  CountryCode,
+  getCountries,
+  getCountryCallingCode,
+} from "libphonenumber-js";
 import {
   Rocket,
   Home,
@@ -37,6 +41,7 @@ import {
   EyeOff,
   Phone,
   Loader2,
+  PlayCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAuthStore } from "@/store/authStore";
@@ -72,15 +77,22 @@ export default function OnboardingPage() {
 
   // Account creation state
   const [accountData, setAccountData] = useState({
+    fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
     businessName: "",
     phoneNumber: "",
     subdomain: "",
+    cacNumber: "",
   });
+  const [cacFile, setCacFile] = useState<File | null>(null);
+  const [cacFilePreview, setCacFilePreview] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [detectedCountry, setDetectedCountry] = useState<
+    CountryCode | undefined
+  >("NG");
 
   // Property form state
   const [propertyData, setPropertyData] = useState({
@@ -99,10 +111,12 @@ export default function OnboardingPage() {
 
   // Payout form state
   const [payoutData, setPayoutData] = useState({
+    bankCode: "",
     bankName: "",
     accountNumber: "",
     accountName: "",
   });
+  const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
 
   const [photoPreview, setPhotoPreview] = useState<string[]>([]);
   const [passwordStrength, setPasswordStrength] = useState({
@@ -190,25 +204,25 @@ export default function OnboardingPage() {
     {
       id: "welcome",
       title: "Welcome to Stayza! 🎉",
-      description: "Let's get you set up in just 3 simple steps",
+      description: "Let's get you set up in just 2 simple steps",
       icon: Sparkles,
     },
     {
-      id: "property",
-      title: "Add Your First Property",
-      description: "List a property to start receiving bookings",
-      icon: Home,
+      id: "tutorial",
+      title: "How to Add Your Properties",
+      description: "Watch this quick video tutorial",
+      icon: PlayCircle,
     },
     {
       id: "payout",
-      title: "Setup Payouts",
-      description: "Connect your bank account to receive payments",
+      title: "Setup Payouts (Optional)",
+      description: "You can skip this and setup payments later in settings",
       icon: Wallet,
     },
     {
       id: "complete",
       title: "You're All Set! 🚀",
-      description: "Your property is live and ready for bookings",
+      description: "Your account is ready for bookings",
       icon: CheckCircle,
     },
   ];
@@ -246,7 +260,7 @@ export default function OnboardingPage() {
         `onboarding_completed_${user.id}`
       );
       if (hasCompletedOnboarding === "true") {
-        router.push("/dashboard");
+        router.push("/realtor/dashboard");
       } else {
         // Skip to welcome step if account already exists
         setCurrentStep(1);
@@ -262,7 +276,7 @@ export default function OnboardingPage() {
       )
     ) {
       localStorage.setItem(`onboarding_completed_${user?.id}`, "true");
-      router.push("/dashboard");
+      router.push("/realtor/dashboard");
     }
   };
 
@@ -270,29 +284,19 @@ export default function OnboardingPage() {
     if (currentStep === 0) {
       // Create account
       await createAccount();
-    } else if (currentStep === 2) {
-      // Validate property form
-      if (!propertyData.title || !propertyData.pricePerNight) {
-        toast.error("Please fill in required fields");
-        return;
-      }
-      // Submit property (simplified for onboarding)
-      await submitProperty();
     } else if (currentStep === 3) {
-      // Validate payout form
+      // Payout step - optional, skip if form is empty
       if (
-        !payoutData.bankName ||
-        !payoutData.accountNumber ||
-        !payoutData.accountName
+        payoutData.bankCode &&
+        payoutData.accountNumber &&
+        payoutData.accountName
       ) {
-        toast.error("Please fill in all payout details");
-        return;
+        // Only submit if user filled in the form
+        await submitPayoutInfo();
       }
-      // Submit payout info
-      await submitPayoutInfo();
-    }
-
-    if (currentStep < steps.length - 1) {
+      // Always move to next step (payout is optional)
+      setCurrentStep(currentStep + 1);
+    } else if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
       completeOnboarding();
@@ -305,10 +309,10 @@ export default function OnboardingPage() {
       setCurrentStep(currentStep - 1);
     }
   };
-
   const createAccount = async () => {
     // Validate form
     if (
+      !accountData.fullName ||
       !accountData.email ||
       !accountData.password ||
       !accountData.businessName ||
@@ -325,6 +329,16 @@ export default function OnboardingPage() {
 
     if (accountData.password !== accountData.confirmPassword) {
       toast.error("Passwords do not match");
+      return;
+    }
+
+    if (!accountData.cacNumber || !accountData.cacNumber.trim()) {
+      toast.error("CAC registration number is required");
+      return;
+    }
+
+    if (!cacFile) {
+      toast.error("CAC certificate upload is required");
       return;
     }
 
@@ -355,18 +369,57 @@ export default function OnboardingPage() {
     setIsCreatingAccount(true);
 
     try {
+      // Upload CAC document (REQUIRED)
+      if (!cacFile) {
+        toast.error("CAC certificate is required");
+        setIsCreatingAccount(false);
+        return;
+      }
+
+      toast("Uploading CAC document...");
+      const cacDocumentUrl = await uploadCacDocument(cacFile);
+      if (!cacDocumentUrl) {
+        toast.error("Failed to upload CAC document. Please try again.");
+        setIsCreatingAccount(false);
+        return;
+      }
+
+      // Format phone number to E.164 format
+      let formattedPhone = accountData.phoneNumber;
+
+      // If phone doesn't start with +, add country code
+      if (!formattedPhone.startsWith("+")) {
+        const digitsOnly = formattedPhone.replace(/\D/g, "");
+
+        // If it's a Nigerian local number starting with 0, convert it
+        if (digitsOnly.startsWith("0") && detectedCountry === "NG") {
+          formattedPhone = `+234${digitsOnly.substring(1)}`;
+        }
+        // Otherwise, add the detected country code
+        else if (detectedCountry) {
+          const countryCode = getCountryCallingCode(detectedCountry);
+          formattedPhone = `+${countryCode}${digitsOnly}`;
+        }
+        // Fallback: if no country detected, add + prefix
+        else {
+          formattedPhone = `+${digitsOnly}`;
+        }
+      }
+
       const response = await fetch(`${API_URL}/realtors/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fullName: accountData.businessName, // Using businessName as fullName for now
+          fullName: accountData.fullName,
           businessEmail: accountData.email,
           password: accountData.password,
-          phoneNumber: accountData.phoneNumber,
+          phoneNumber: formattedPhone,
           agencyName: accountData.businessName,
           customSubdomain: accountData.subdomain,
+          corporateRegNumber: accountData.cacNumber,
+          cacDocumentUrl: cacDocumentUrl,
           tagline: `${accountData.businessName} - Property Management`,
           businessAddress: "Nigeria", // Default for MVP
         }),
@@ -400,7 +453,10 @@ export default function OnboardingPage() {
           setCurrentStep(1);
         }
       } else {
-        toast.error(data.message || "Failed to create account");
+        // Backend returns error in data.error.message format
+        const errorMessage =
+          data.error?.message || data.message || "Failed to create account";
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error("Registration error:", error);
@@ -414,23 +470,8 @@ export default function OnboardingPage() {
     try {
       const token = localStorage.getItem("accessToken");
 
-      // Upload photos first
+      // Skip photo upload for onboarding - photos are optional
       const photoUrls: string[] = [];
-      for (const photo of propertyData.photos) {
-        const formData = new FormData();
-        formData.append("file", photo);
-
-        const uploadRes = await fetch(`${API_URL}/upload`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          photoUrls.push(uploadData.data.url);
-        }
-      }
 
       // Create property
       const response = await fetch(`${API_URL}/properties`, {
@@ -473,13 +514,14 @@ export default function OnboardingPage() {
     try {
       const token = localStorage.getItem("accessToken");
 
-      const response = await fetch(`${API_URL}/realtors/payout-settings`, {
+      const response = await fetch(`${API_URL}/realtors/payout/account`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          bankCode: payoutData.bankCode,
           bankName: payoutData.bankName,
           accountNumber: payoutData.accountNumber,
           accountName: payoutData.accountName,
@@ -488,8 +530,29 @@ export default function OnboardingPage() {
 
       if (response.ok) {
         toast.success("Payout information saved!");
+      } else if (response.status === 403) {
+        // CAC not approved - this is expected during onboarding, skip silently
+        const errorData = await response.json();
+        // Check for CAC verification error in both old and new error formats
+        const errorMessage =
+          errorData.error?.message || errorData.message || "";
+        if (
+          errorMessage.includes("CAC verification") ||
+          errorMessage.includes("CAC")
+        ) {
+          // Don't throw error, just inform user they can set this up later
+          console.log("Payout setup skipped - CAC verification required");
+          // This is not an error during onboarding, so we just log it
+        } else {
+          throw new Error(errorMessage || "Access denied");
+        }
       } else {
-        throw new Error("Failed to save payout info");
+        const errorData = await response.json();
+        const errorMessage =
+          errorData.error?.message ||
+          errorData.message ||
+          "Failed to save payout info";
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error("Error saving payout info:", error);
@@ -503,8 +566,67 @@ export default function OnboardingPage() {
     setIsCompleting(true);
     localStorage.setItem(`onboarding_completed_${user?.id}`, "true");
     setTimeout(() => {
-      router.push("/dashboard");
+      router.push("/realtor/dashboard");
     }, 2000);
+  };
+
+  const handleCacFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type (PDF, images)
+      const validTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+      ];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Please upload a PDF or image file (JPEG, PNG)");
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        toast.error("File size must be less than 5MB");
+        return;
+      }
+
+      setCacFile(file);
+      setCacFilePreview(file.name);
+    }
+  };
+
+  const removeCacFile = () => {
+    setCacFile(null);
+    setCacFilePreview("");
+  };
+
+  const uploadCacDocument = async (file: File): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append("cacCertificate", file);
+
+    try {
+      const response = await fetch(`${API_URL}/realtors/upload-temp-cac`, {
+        method: "POST",
+        headers: {
+          // No Content-Type header - let browser set it with boundary for FormData
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return result.data.url;
+      } else {
+        const error = await response.json();
+        console.error("CAC upload error:", error);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error uploading CAC document:", error);
+      return null;
+    }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -728,10 +850,6 @@ export default function OnboardingPage() {
               <h1 className="mt-3 text-3xl font-bold text-marketing-foreground md:text-4xl">
                 Launch your branded short-let business in minutes
               </h1>
-              <p className="mx-auto mt-3 max-w-2xl text-base text-marketing-muted md:text-lg">
-                Polished flows that match the Realtor login experience—account
-                creation, property setup, and payouts in one guided lane.
-              </p>
             </div>
 
             <div className="grid gap-6">
@@ -827,6 +945,12 @@ export default function OnboardingPage() {
                       passwordStrength={passwordStrength}
                       subdomainStatus={subdomainStatus}
                       isCheckingSubdomain={isCheckingSubdomain}
+                      detectedCountry={detectedCountry}
+                      setDetectedCountry={setDetectedCountry}
+                      cacFile={cacFile}
+                      cacFilePreview={cacFilePreview}
+                      handleCacFileUpload={handleCacFileUpload}
+                      removeCacFile={removeCacFile}
                     />
                   )}
 
@@ -838,22 +962,15 @@ export default function OnboardingPage() {
                   )}
 
                   {currentStep === 2 && (
-                    <PropertyStep
-                      propertyData={propertyData}
-                      setPropertyData={setPropertyData}
-                      photoPreview={photoPreview}
-                      handlePhotoUpload={handlePhotoUpload}
-                      removePhoto={removePhoto}
-                      commonAmenities={commonAmenities}
-                      toggleAmenity={toggleAmenity}
-                      brandColor={brandColor}
-                    />
+                    <VideoTutorialStep brandColor={brandColor} />
                   )}
 
                   {currentStep === 3 && (
                     <PayoutStep
                       payoutData={payoutData}
                       setPayoutData={setPayoutData}
+                      isVerifyingAccount={isVerifyingAccount}
+                      setIsVerifyingAccount={setIsVerifyingAccount}
                       brandColor={brandColor}
                     />
                   )}
@@ -963,6 +1080,12 @@ function AccountCreationStep({
   passwordStrength,
   subdomainStatus,
   isCheckingSubdomain,
+  detectedCountry,
+  setDetectedCountry,
+  cacFile,
+  cacFilePreview,
+  handleCacFileUpload,
+  removeCacFile,
 }: {
   accountData: any;
   setAccountData: any;
@@ -979,7 +1102,72 @@ function AccountCreationStep({
   };
   subdomainStatus: { state: string; message: string };
   isCheckingSubdomain: boolean;
+  detectedCountry: CountryCode | undefined;
+  setDetectedCountry: (country: CountryCode | undefined) => void;
+  cacFile: File | null;
+  cacFilePreview: string;
+  handleCacFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  removeCacFile: () => void;
 }) {
+  // Helper function to get flag emoji from country code
+  const getFlagEmoji = (countryCode: string) => {
+    if (!countryCode) return "🌍";
+    const codePoints = countryCode
+      .toUpperCase()
+      .split("")
+      .map((char) => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  };
+
+  // Helper function to detect country from phone number
+  const detectCountry = (phoneInput: string): CountryCode | undefined => {
+    const digitsOnly = phoneInput.replace(/\D/g, "");
+
+    if (!digitsOnly) return "NG";
+
+    // Try parsing with libphonenumber first (most accurate)
+    try {
+      const withPlus = phoneInput.startsWith("+")
+        ? phoneInput
+        : `+${digitsOnly}`;
+      const phoneNumber = parsePhoneNumber(withPlus);
+      if (phoneNumber && phoneNumber.country) {
+        return phoneNumber.country;
+      }
+    } catch (error) {
+      // Continue to manual detection
+    }
+
+    // Try matching against all country codes
+    const allCountries = getCountries();
+    for (const country of allCountries) {
+      try {
+        const callingCode = getCountryCallingCode(country);
+        if (digitsOnly.startsWith(callingCode)) {
+          return country;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+
+    // Special cases for common patterns
+    // US/CA (10 digits without code, or starts with 1)
+    if (
+      digitsOnly.length === 10 ||
+      (digitsOnly.length === 11 && digitsOnly.startsWith("1"))
+    ) {
+      return "US";
+    }
+
+    // Nigeria local format (starts with 0)
+    if (digitsOnly.startsWith("0") && digitsOnly.length <= 11) {
+      return "NG";
+    }
+
+    return undefined;
+  };
+
   const formatSubdomain = (value: string) => {
     return value.toLowerCase().replace(/[^a-z0-9-]/g, "");
   };
@@ -1009,10 +1197,29 @@ function AccountCreationStep({
 
       {/* Form */}
       <div className="space-y-4">
+        {/* Full Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Full Name <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <Mail className={iconClass} />
+            <input
+              type="text"
+              value={accountData.fullName}
+              onChange={(e) =>
+                setAccountData({ ...accountData, fullName: e.target.value })
+              }
+              placeholder="John Smith"
+              className={inputClass}
+            />
+          </div>
+        </div>
+
         {/* Business Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Business Name <span className="text-red-500">*</span>
+            Business/Agency Name <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <Building className={iconClass} />
@@ -1022,7 +1229,7 @@ function AccountCreationStep({
               onChange={(e) =>
                 setAccountData({ ...accountData, businessName: e.target.value })
               }
-              placeholder="Your Property Management Company"
+              placeholder="Smith Property Management"
               className={inputClass}
             />
           </div>
@@ -1052,20 +1259,35 @@ function AccountCreationStep({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Phone Number <span className="text-red-500">*</span>
           </label>
-          <div className="relative">
+          <div className="relative flex items-center">
             <Phone className={iconClass} />
-            <PhoneInput
-              international
-              defaultCountry="NG"
+
+            {/* Country Flag Display */}
+            <div className="absolute left-10 top-1/2 transform -translate-y-1/2 flex items-center">
+              <span className="text-2xl mr-2">
+                {detectedCountry ? getFlagEmoji(detectedCountry) : "🌍"}
+              </span>
+              <span className="text-sm text-gray-600 font-medium">
+                {detectedCountry &&
+                  `+${getCountryCallingCode(detectedCountry)}`}
+              </span>
+            </div>
+
+            <input
+              type="tel"
               value={accountData.phoneNumber}
-              onChange={(value) =>
-                setAccountData({ ...accountData, phoneNumber: value || "" })
-              }
-              placeholder="+234 800 000 0000"
-              className="phone-input-custom"
-              style={{
-                paddingLeft: "2.5rem",
+              onChange={(e) => {
+                const value = e.target.value;
+                setAccountData({ ...accountData, phoneNumber: value });
+
+                // Detect country from input
+                const country = detectCountry(value);
+                if (country) {
+                  setDetectedCountry(country);
+                }
               }}
+              placeholder="0800 000 0000"
+              className={inputClass + " pl-28"}
             />
           </div>
         </div>
@@ -1132,6 +1354,80 @@ function AccountCreationStep({
               </>
             )}
           </div>
+        </div>
+
+        {/* CAC Registration Number */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            CAC Registration Number
+          </label>
+          <div className="relative">
+            <Building className={iconClass} />
+            <input
+              type="text"
+              value={accountData.cacNumber}
+              onChange={(e) =>
+                setAccountData({ ...accountData, cacNumber: e.target.value })
+              }
+              placeholder="1234567"
+              className={inputClass}
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Corporate Affairs Commission registration number
+          </p>
+        </div>
+
+        {/* CAC Document Upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            CAC Certificate
+          </label>
+          {!cacFilePreview ? (
+            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors bg-gray-50">
+              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600 font-medium">
+                  Click to upload CAC certificate
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  PDF, JPG, or PNG (Max 5MB)
+                </p>
+              </div>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleCacFileUpload}
+                className="hidden"
+              />
+            </label>
+          ) : (
+            <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-300 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded">
+                  <Upload className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {cacFilePreview}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {cacFile ? `${(cacFile.size / 1024).toFixed(1)} KB` : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={removeCacFile}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-gray-500 mt-1">
+            CAC certificate is required for account approval
+          </p>
         </div>
 
         {/* Password */}
@@ -1343,6 +1639,117 @@ function WelcomeStep({
   );
 }
 
+// Video Tutorial Step Component
+function VideoTutorialStep({ brandColor }: { brandColor: string }) {
+  return (
+    <div className="text-center">
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.2, type: "spring" }}
+        className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
+        style={{ backgroundColor: `${brandColor}20` }}
+      >
+        <PlayCircle className="h-10 w-10" style={{ color: brandColor }} />
+      </motion.div>
+
+      <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        How to Add Your Properties 📹
+      </h1>
+      <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+        Watch this quick tutorial to learn how to add and manage your properties
+        on Stayza Pro.
+      </p>
+
+      {/* Video Player Placeholder */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="relative aspect-video max-w-4xl mx-auto mb-8 rounded-xl overflow-hidden shadow-2xl bg-gray-900"
+      >
+        {/* Placeholder for video - replace with actual video URL */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <PlayCircle className="h-20 w-20 text-white mb-4 mx-auto" />
+            <p className="text-white text-lg font-medium">
+              Video Tutorial Coming Soon
+            </p>
+            <p className="text-gray-300 text-sm mt-2">
+              This is where your tutorial video will be embedded
+            </p>
+          </div>
+        </div>
+        {/* Uncomment and add your video URL when ready:
+        <iframe
+          src="YOUR_VIDEO_URL_HERE"
+          className="absolute inset-0 w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        ></iframe>
+        */}
+      </motion.div>
+
+      {/* Quick Tips */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        {[
+          {
+            icon: Home,
+            title: "Property Details",
+            description: "Add photos, pricing, and amenities",
+          },
+          {
+            icon: Calendar,
+            title: "Availability",
+            description: "Set your calendar and booking rules",
+          },
+          {
+            icon: DollarSign,
+            title: "Get Bookings",
+            description: "Go live and start earning",
+          },
+        ].map((tip, index) => {
+          const Icon = tip.icon;
+          return (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 + index * 0.1 }}
+              className="p-6 bg-gray-50 rounded-xl"
+            >
+              <div
+                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
+                style={{ backgroundColor: `${brandColor}20` }}
+              >
+                <Icon className="h-6 w-6" style={{ color: brandColor }} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {tip.title}
+              </h3>
+              <p className="text-sm text-gray-600">{tip.description}</p>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Info Note */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-8 max-w-2xl mx-auto">
+        <div className="flex items-start space-x-3">
+          <ShieldCheck className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-blue-800 text-left">
+            <p className="font-medium mb-1">Add properties anytime</p>
+            <p>
+              You can add your properties from your dashboard after completing
+              this onboarding. Watch this video first to understand the process!
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Property Step Component
 function PropertyStep({
   propertyData,
@@ -1529,24 +1936,137 @@ function PropertyStep({
 }
 
 // Payout Step Component
-function PayoutStep({ payoutData, setPayoutData, brandColor }: any) {
-  const nigerianBanks = [
-    "Access Bank",
-    "GTBank",
-    "First Bank",
-    "UBA",
-    "Zenith Bank",
-    "Stanbic IBTC",
-    "Sterling Bank",
-    "Fidelity Bank",
-    "Union Bank",
-    "Wema Bank",
-    "Polaris Bank",
-    "Ecobank",
-    "FCMB",
-    "Keystone Bank",
-    "Heritage Bank",
-  ];
+function PayoutStep({
+  payoutData,
+  setPayoutData,
+  isVerifyingAccount,
+  setIsVerifyingAccount,
+  brandColor,
+}: any) {
+  const [banks, setBanks] = useState<Array<{ code: string; name: string }>>([]);
+  const [isLoadingBanks, setIsLoadingBanks] = useState(true);
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+
+  useEffect(() => {
+    // Fetch banks from backend
+    const fetchBanks = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        const response = await fetch(`${API_URL}/realtors/payout/banks`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setBanks(data.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching banks:", error);
+        // Fallback to some common Nigerian banks
+        setBanks([
+          { code: "044", name: "Access Bank" },
+          { code: "058", name: "GTBank" },
+          { code: "011", name: "First Bank" },
+          { code: "033", name: "UBA" },
+          { code: "057", name: "Zenith Bank" },
+        ]);
+      } finally {
+        setIsLoadingBanks(false);
+      }
+    };
+
+    fetchBanks();
+  }, [API_URL]);
+
+  // Auto-verify account when number is complete
+  useEffect(() => {
+    const verifyAccount = async () => {
+      if (!payoutData.accountNumber || !payoutData.bankCode) {
+        return;
+      }
+
+      if (payoutData.accountNumber.length !== 10) {
+        return;
+      }
+
+      // Don't re-verify if account name is already set for this number
+      if (payoutData.accountName) {
+        return;
+      }
+
+      try {
+        setIsVerifyingAccount(true);
+        const token = localStorage.getItem("accessToken");
+        const response = await fetch(`${API_URL}/realtors/payout/verify`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            accountNumber: payoutData.accountNumber,
+            bankCode: payoutData.bankCode,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPayoutData({
+            ...payoutData,
+            accountName: data.data.account_name,
+          });
+        } else {
+          const errorData = await response.json();
+          const errorMessage =
+            errorData.error?.message ||
+            errorData.message ||
+            "Unable to verify account";
+          // Only show error if it's not a test mode limit error
+          if (
+            !errorMessage.includes("Test mode") &&
+            !errorMessage.includes("daily limit")
+          ) {
+            toast.error(errorMessage);
+          }
+          setPayoutData({
+            ...payoutData,
+            accountName: "",
+          });
+        }
+      } catch (error: any) {
+        // Silently fail for network errors during auto-verification
+        console.error("Auto-verification failed:", error);
+        setPayoutData({
+          ...payoutData,
+          accountName: "",
+        });
+      } finally {
+        setIsVerifyingAccount(false);
+      }
+    };
+
+    // Debounce verification by 500ms
+    const timer = setTimeout(() => {
+      verifyAccount();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [payoutData.accountNumber, payoutData.bankCode, API_URL]);
+
+  const handleBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedBank = banks.find((bank) => bank.code === e.target.value);
+    if (selectedBank) {
+      setPayoutData({
+        ...payoutData,
+        bankCode: selectedBank.code,
+        bankName: selectedBank.name,
+        accountName: "", // Reset account name when bank changes
+      });
+    }
+  };
 
   return (
     <div>
@@ -1572,16 +2092,17 @@ function PayoutStep({ payoutData, setPayoutData, brandColor }: any) {
             Bank Name <span className="text-red-500">*</span>
           </label>
           <select
-            value={payoutData.bankName}
-            onChange={(e) =>
-              setPayoutData({ ...payoutData, bankName: e.target.value })
-            }
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+            value={payoutData.bankCode}
+            onChange={handleBankChange}
+            disabled={isLoadingBanks}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
-            <option value="">Select your bank</option>
-            {nigerianBanks.map((bank) => (
-              <option key={bank} value={bank}>
-                {bank}
+            <option value="">
+              {isLoadingBanks ? "Loading banks..." : "Select your bank"}
+            </option>
+            {banks.map((bank) => (
+              <option key={bank.code} value={bank.code}>
+                {bank.name}
               </option>
             ))}
           </select>
@@ -1592,31 +2113,53 @@ function PayoutStep({ payoutData, setPayoutData, brandColor }: any) {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Account Number <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
-            value={payoutData.accountNumber}
-            onChange={(e) =>
-              setPayoutData({ ...payoutData, accountNumber: e.target.value })
-            }
-            placeholder="0123456789"
-            maxLength={10}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={payoutData.accountNumber}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setPayoutData({
+                  ...payoutData,
+                  accountNumber: value,
+                  accountName: "", // Reset account name when number changes
+                });
+              }}
+              placeholder="0123456789"
+              maxLength={10}
+              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+            />
+            {isVerifyingAccount && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              </div>
+            )}
+            {!isVerifyingAccount &&
+              payoutData.accountName &&
+              payoutData.accountNumber.length === 10 && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                </div>
+              )}
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            {isVerifyingAccount
+              ? "Verifying account..."
+              : "Enter a 10-digit account number"}
+          </p>
         </div>
 
         {/* Account Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Account Name <span className="text-red-500">*</span>
+            Account Name
           </label>
           <input
             type="text"
             value={payoutData.accountName}
-            onChange={(e) =>
-              setPayoutData({ ...payoutData, accountName: e.target.value })
-            }
-            placeholder="John Doe"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+            readOnly
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+            placeholder="Will be auto-filled after account verification"
           />
         </div>
 
@@ -1626,9 +2169,15 @@ function PayoutStep({ payoutData, setPayoutData, brandColor }: any) {
             <ShieldCheck className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-blue-800">
               <p className="font-medium mb-1">Your money is safe</p>
-              <p>
+              <p className="mb-2">
                 We use Paystack for secure payment processing. Funds are
                 released 24-48 hours after guest check-in.
+              </p>
+              <p className="text-xs text-blue-700">
+                <strong>Note:</strong> Payout account setup requires CAC
+                verification approval. If you're just registering, you can
+                complete this step later in Settings after your CAC documents
+                are verified.
               </p>
             </div>
           </div>
@@ -1729,58 +2278,6 @@ function CompleteStep({
           <p className="text-gray-600">Taking you to your dashboard...</p>
         </motion.div>
       )}
-
-      {/* Custom PhoneInput Styles */}
-      <style jsx global>{`
-        .phone-input-custom .PhoneInputInput {
-          width: 100%;
-          padding: 0.75rem 1rem 0.75rem 2.5rem;
-          border: 2px solid rgb(229 231 235);
-          border-radius: 0.5rem;
-          background-color: rgb(249 250 251);
-          color: rgb(17 24 39);
-          outline: none;
-          transition: all 0.2s;
-        }
-
-        .phone-input-custom .PhoneInputInput:focus {
-          border-color: #f97316;
-          ring: 2px;
-          ring-color: rgba(249, 115, 22, 0.1);
-        }
-
-        .phone-input-custom .PhoneInputInput::placeholder {
-          color: rgb(156 163 175);
-        }
-
-        .phone-input-custom .PhoneInputCountry {
-          position: absolute;
-          left: 2.5rem;
-          top: 50%;
-          transform: translateY(-50%);
-          z-index: 10;
-        }
-
-        .phone-input-custom .PhoneInputCountryIcon {
-          width: 1.5rem;
-          height: 1.5rem;
-          border-radius: 0.125rem;
-        }
-
-        .phone-input-custom .PhoneInputCountrySelect {
-          font-size: 0.875rem;
-          padding: 0.25rem;
-          border: none;
-          background: transparent;
-          cursor: pointer;
-        }
-
-        .phone-input-custom .PhoneInputCountrySelectArrow {
-          width: 0.5rem;
-          height: 0.5rem;
-          color: rgb(107 114 128);
-        }
-      `}</style>
     </div>
   );
 }

@@ -81,7 +81,9 @@ export const getAllSettings = async (
   } catch (error: any) {
     console.error("Error fetching settings:", error);
     throw new Error(
-      error.response?.data?.message || "Failed to fetch settings"
+      error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        "Failed to fetch settings"
     );
   }
 };
@@ -100,7 +102,9 @@ export const getSettingByKey = async (
   } catch (error: any) {
     console.error(`Error fetching setting ${key}:`, error);
     throw new Error(
-      error.response?.data?.message || `Failed to fetch setting ${key}`
+      error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        `Failed to fetch setting ${key}`
     );
   }
 };
@@ -121,7 +125,9 @@ export const getSettingsByCategory = async (
   } catch (error: any) {
     console.error(`Error fetching ${category} settings:`, error);
     throw new Error(
-      error.response?.data?.message || `Failed to fetch ${category} settings`
+      error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        `Failed to fetch ${category} settings`
     );
   }
 };
@@ -142,7 +148,9 @@ export const updateSetting = async (
   } catch (error: any) {
     console.error(`Error updating setting ${key}:`, error);
     throw new Error(
-      error.response?.data?.message || `Failed to update setting ${key}`
+      error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        `Failed to update setting ${key}`
     );
   }
 };
@@ -162,7 +170,9 @@ export const createSetting = async (
   } catch (error: any) {
     console.error("Error creating setting:", error);
     throw new Error(
-      error.response?.data?.message || "Failed to create setting"
+      error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        "Failed to create setting"
     );
   }
 };

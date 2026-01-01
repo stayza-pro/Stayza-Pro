@@ -56,7 +56,10 @@ export const realtorRegisterSchema = Joi.object({
     }),
   tagline: Joi.string().max(200).optional(),
   businessAddress: Joi.string().max(500).optional(),
-  corporateRegNumber: Joi.string().max(50).optional(),
+  corporateRegNumber: Joi.string().min(5).max(50).required().messages({
+    "string.empty": "CAC registration number is required",
+    "any.required": "CAC registration number is required",
+  }),
   primaryColor: Joi.string()
     .pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
     .optional(),
@@ -70,7 +73,10 @@ export const realtorRegisterSchema = Joi.object({
     .pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
     .optional(),
   logoUrl: Joi.string().uri().optional(),
-  cacDocumentUrl: Joi.string().uri().optional(),
+  cacDocumentUrl: Joi.string().uri().required().messages({
+    "string.empty": "CAC certificate document is required",
+    "any.required": "CAC certificate document is required",
+  }),
   socials: Joi.object().optional(),
 });
 

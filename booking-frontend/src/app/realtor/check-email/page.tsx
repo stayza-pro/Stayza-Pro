@@ -36,7 +36,11 @@ function CheckEmailContent() {
       if (data.success) {
         toast.success("Verification email sent! Please check your inbox.");
       } else {
-        toast.error(data.message || "Failed to resend verification email");
+        const errorMessage =
+          data.error?.message ||
+          data.message ||
+          "Failed to resend verification email";
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error("Resend verification error:", error);

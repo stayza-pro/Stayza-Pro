@@ -199,7 +199,7 @@ export const RefundManagement: React.FC<RefundManagementProps> = ({
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm font-medium text-gray-600">Pending</div>
           <div className="text-2xl font-bold text-yellow-600 mt-1">
-            {refunds?.data?.filter((r) =>
+            {refunds?.data?.filter((r: RefundRequest) =>
               ["PENDING_REALTOR_APPROVAL", "ADMIN_PROCESSING"].includes(
                 r.status
               )
@@ -210,15 +210,18 @@ export const RefundManagement: React.FC<RefundManagementProps> = ({
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm font-medium text-gray-600">Completed</div>
           <div className="text-2xl font-bold text-green-600 mt-1">
-            {refunds?.data?.filter((r) => r.status === "COMPLETED").length ?? 0}
+            {refunds?.data?.filter(
+              (r: RefundRequest) => r.status === "COMPLETED"
+            ).length ?? 0}
           </div>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm font-medium text-gray-600">Rejected</div>
           <div className="text-2xl font-bold text-red-600 mt-1">
-            {refunds?.data?.filter((r) => r.status === "REALTOR_REJECTED")
-              .length ?? 0}
+            {refunds?.data?.filter(
+              (r: RefundRequest) => r.status === "REALTOR_REJECTED"
+            ).length ?? 0}
           </div>
         </div>
       </div>
@@ -257,7 +260,7 @@ export const RefundManagement: React.FC<RefundManagementProps> = ({
               </div>
             </div>
           ) : (
-            refunds?.data?.map((refund) => (
+            refunds?.data?.map((refund: RefundRequest) => (
               <div
                 key={refund.id}
                 className="px-6 py-4 hover:bg-gray-50 cursor-pointer"

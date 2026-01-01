@@ -548,6 +548,97 @@ router.post(
 
 /**
  * @swagger
+ * /api/realtors/upload-temp-cac:
+ *   post:
+ *     summary: Upload temporary CAC certificate during registration
+ *     description: Upload CAC certificate before realtor registration (no auth required)
+ *     tags: [Realtors]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cacCertificate:
+ *                 type: string
+ *                 format: binary
+ *                 description: CAC certificate file (PDF, JPG, PNG)
+ *     responses:
+ *       200:
+ *         description: CAC certificate uploaded successfully
+ *       400:
+ *         description: Bad request or invalid file
+ *       500:
+ *         description: Upload failed
+ */
+router.post(
+  "/upload-temp-cac",
+  asyncHandler(async (req: Request, res: Response) => {
+    return new Promise((resolve, reject) => {
+      cacUploadMiddleware(req, res, async (err: any) => {
+        if (err) {
+          reject(new AppError(err.message || "File upload failed", 400));
+          return;
+        }
+
+        if (!req.file) {
+          reject(new AppError("Please upload a CAC certificate file", 400));
+          return;
+        }
+
+        try {
+          let resourceType = "auto";
+          let config: any = {
+            folder: "temp-cac-certificates",
+            public_id: `temp-cac-${Date.now()}`,
+          };
+
+          // Configure based on file type
+          if (req.file.mimetype.startsWith("image/")) {
+            resourceType = "image";
+            config.transformation = [
+              {
+                width: 1200,
+                height: 1600,
+                crop: "limit",
+                quality: "auto",
+                format: "auto",
+              },
+            ];
+          } else if (req.file.mimetype === "application/pdf") {
+            resourceType = "raw";
+          }
+
+          config.resource_type = resourceType;
+
+          // Upload to Cloudinary
+          const base64Data = `data:${
+            req.file.mimetype
+          };base64,${req.file.buffer.toString("base64")}`;
+          const result = await cloudinary.uploader.upload(base64Data, config);
+
+          res.json({
+            success: true,
+            message: "CAC certificate uploaded successfully",
+            data: {
+              url: result.secure_url,
+              id: result.public_id,
+            },
+          });
+
+          resolve(true);
+        } catch (error) {
+          logger.error("CAC upload error:", error);
+          reject(new AppError("Failed to upload CAC certificate", 500));
+        }
+      });
+    });
+  })
+);
+
+/**
+ * @swagger
  * /api/realtors/register:
  *   post:
  *     summary: Register as a realtor
@@ -589,6 +680,70 @@ router.post(
  *             schema:
  *               $ref: '#/components/schemas/ApiError'
  */
+
+/**
+ * @swagger
+ * /realtors/check-subdomain:
+ *   get:
+ *     summary: Check if a subdomain is available
+ *     tags: [Realtors]
+ *     parameters:
+ *       - in: query
+ *         name: subdomain
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The subdomain to check
+ *     responses:
+ *       200:
+ *         description: Subdomain availability status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     available:
+ *                       type: boolean
+ *       400:
+ *         description: Bad request
+ */
+router.get(
+  "/check-subdomain",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { subdomain } = req.query;
+
+    if (!subdomain || typeof subdomain !== "string") {
+      throw new AppError("Subdomain is required", 400);
+    }
+
+    // Validate subdomain format
+    const subdomainRegex = /^[a-z0-9-]+$/;
+    if (!subdomainRegex.test(subdomain)) {
+      throw new AppError(
+        "Subdomain can only contain lowercase letters, numbers, and hyphens",
+        400
+      );
+    }
+
+    // Check if subdomain is already taken
+    const existingRealtor = await prisma.realtor.findUnique({
+      where: { slug: subdomain },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        available: !existingRealtor,
+      },
+    });
+  })
+);
+
 router.post(
   "/register",
   asyncHandler(async (req: Request, res: Response) => {
@@ -629,9 +784,14 @@ router.post(
       !password ||
       !phoneNumber ||
       !agencyName ||
-      !customSubdomain
+      !customSubdomain ||
+      !corporateRegNumber ||
+      !cacDocumentUrl
     ) {
-      throw new AppError("Required fields are missing", 400);
+      throw new AppError(
+        "Required fields are missing (including CAC details)",
+        400
+      );
     }
 
     // Check if user already exists
@@ -704,13 +864,14 @@ router.post(
           description: tagline, // Use tagline as initial description
           corporateRegNumber,
           status: "PENDING", // All new realtors start as pending
+          cacStatus: "PENDING", // CAC starts as pending verification
           // Branding colors
           primaryColor: primaryColor || brandColorHex || "#3B82F6",
           secondaryColor: secondaryColor || "#1E40AF",
           accentColor: accentColor || "#F59E0B",
           // File uploads
           logoUrl: logoUrl || null,
-          cacDocumentUrl: cacDocumentUrl || null,
+          cacDocumentUrl: cacDocumentUrl,
           // Generate website URL from subdomain
           websiteUrl: `https://${slug}.stayza.pro`,
           // Social media URLs

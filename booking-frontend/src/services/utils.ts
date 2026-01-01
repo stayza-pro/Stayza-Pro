@@ -9,6 +9,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
 interface ErrorResponseShape {
   data?: {
     message?: string;
+    error?: {
+      message?: string;
+      code?: string;
+      statusCode?: number;
+    };
     errors?: unknown[];
   };
   status?: number;
@@ -71,6 +76,15 @@ export const serviceUtils = {
     if (isErrorShape(error)) {
       const data = error.response?.data;
       if (isRecord(data)) {
+        // Check for error.message format (new backend format)
+        if (
+          isRecord(data.error) &&
+          typeof data.error.message === "string" &&
+          data.error.message.trim().length
+        ) {
+          return data.error.message;
+        }
+        // Check for direct message format (fallback)
         if (typeof data.message === "string" && data.message.trim().length) {
           return data.message;
         }

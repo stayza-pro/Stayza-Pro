@@ -207,10 +207,10 @@ export default function HowItWorksPage() {
             })}
           </div>
 
-          <div className=\"text-center\">
+          <div className="text-center">
             <Link
-              href=\"/realtor/onboarding\"
-              className=\"inline-flex items-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity\"
+              href="/realtor/onboarding"
+              className="inline-flex items-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
               style={{ backgroundColor: primaryColor }}
             >
               Become a Host

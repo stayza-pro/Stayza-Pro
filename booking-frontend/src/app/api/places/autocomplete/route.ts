@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Force dynamic rendering for this API route
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/places/autocomplete
  * Location autocomplete using free Photon API (OpenStreetMap)

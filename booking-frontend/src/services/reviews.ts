@@ -444,6 +444,10 @@ export const reviewService = {
 
   extractErrorMessage: (error: any): string => {
     if (typeof error === "string") return error;
+    // Check for backend error format: { error: { message: "..." } }
+    if (error?.response?.data?.error?.message)
+      return error.response.data.error.message;
+    // Fallback to direct message
     if (error?.response?.data?.message) return error.response.data.message;
     if (error?.message) return error.message;
     return "An unexpected error occurred";

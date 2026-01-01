@@ -27,6 +27,7 @@ import { bookingService } from "@/services/bookings";
 import { BookingStatus } from "@/types";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
 import { format } from "date-fns";
+import { toast as showToast } from "react-hot-toast";
 
 export default function RealtorBookingDetailsPage() {
   const params = useParams();
@@ -68,26 +69,23 @@ export default function RealtorBookingDetailsPage() {
         const refundReq = response.data.refundRequest;
         const refundInfo = response.data.refund;
 
-        toast({
-          title: "Booking Cancelled",
-          description: `Refund request ${
+        showToast.success(
+          `Booking Cancelled. Refund request ${
             refundReq.status === "REALTOR_APPROVED"
               ? "auto-approved"
               : "created"
           } per policy. Guest receives: ₦${
             refundInfo?.customerRefund?.toLocaleString() || 0
-          }, You receive: ₦${refundInfo?.realtorPayout?.toLocaleString() || 0}`,
-          variant: "default",
-        });
+          }, You receive: ₦${refundInfo?.realtorPayout?.toLocaleString() || 0}`
+        );
+      } else {
+        showToast.success("Booking cancelled successfully");
       }
     },
     onError: (error: any) => {
-      toast({
-        title: "Cancellation Failed",
-        description:
-          error?.response?.data?.message || "Failed to cancel booking",
-        variant: "destructive",
-      });
+      showToast.error(
+        error?.response?.data?.message || "Failed to cancel booking"
+      );
     },
   });
 
@@ -733,4 +731,8 @@ export default function RealtorBookingDetailsPage() {
       )}
     </div>
   );
+}
+
+function toast(arg0: { title: string; description: string; variant: string }) {
+  throw new Error("Function not implemented.");
 }

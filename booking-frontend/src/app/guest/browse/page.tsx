@@ -1,17 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useProperties } from "../../hooks/useProperties";
-import { GuestHeader } from "../../components/guest/sections/GuestHeader";
-import { Footer } from "../../components/guest/sections/Footer";
-import { PropertyGrid } from "../../components/property/PropertyGrid";
-import { SearchFilters } from "../../components/property/SearchFilters";
+import { useProperties } from "@/hooks/useProperties";
+import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { Footer } from "@/components/guest/sections/Footer";
+import { PropertyGrid } from "@/components/property/PropertyGrid";
+import { SearchFilters } from "@/components/property/SearchFilters";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import type {
-  PropertyFilters,
-  PropertyType,
-  PropertyAmenity,
-} from "../../types";
+import type { PropertyFilters, PropertyType, PropertyAmenity } from "@/types";
 
 interface FiltersState {
   priceRange: { min: number; max: number };

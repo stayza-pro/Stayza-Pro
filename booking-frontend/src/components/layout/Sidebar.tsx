@@ -320,11 +320,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
         </nav>
 
         {/* Quick Actions */}
-        <div className=\"p-4 border-t border-gray-200\">
-          <div className=\"space-y-2\">
+        <div className="p-4 border-t border-gray-200">
+          <div className="space-y-2">
             <Link
-              href=\"/guest/browse\"
-              className=\"flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors\"
+              href="/guest/browse"
+              className="flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
               onClick={onClose}
             >
               <svg

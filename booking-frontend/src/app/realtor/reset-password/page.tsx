@@ -93,8 +93,10 @@ function ResetPasswordContent() {
           router.push("/realtor/login");
         }, 2000);
       } else {
-        setError(data.message || "Failed to reset password");
-        toast.error(data.message || "Failed to reset password");
+        const errorMessage =
+          data.error?.message || data.message || "Failed to reset password";
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error("Reset password error:", error);
