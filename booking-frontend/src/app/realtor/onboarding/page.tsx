@@ -337,6 +337,10 @@ export default function OnboardingPage() {
     if (currentStep === 0) {
       // Create account
       await createAccount();
+    } else if (currentStep === 1) {
+      // Branding step - save branding data
+      await submitBrandingData();
+      setCurrentStep(currentStep + 1);
     } else if (currentStep === 3) {
       // Payout step - optional, skip if form is empty
       if (
@@ -519,6 +523,80 @@ export default function OnboardingPage() {
       toast.error("Failed to create account. Please try again.");
     } finally {
       setIsCreatingAccount(false);
+    }
+  };
+
+  const submitBrandingData = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        toast.error("Authentication required. Please log in again.");
+        return;
+      }
+
+      let logoUrl = "";
+
+      // Upload logo if provided
+      if (brandingData.logoFile) {
+        toast("Uploading logo...");
+        const formData = new FormData();
+        formData.append("logo", brandingData.logoFile);
+
+        const logoResponse = await fetch(
+          `${API_URL}/realtors/upload?type=logo`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          }
+        );
+
+        if (logoResponse.ok) {
+          const logoResult = await logoResponse.json();
+          logoUrl = logoResult.data.url;
+        } else {
+          toast.error("Failed to upload logo. Continuing without it.");
+        }
+      }
+
+      // Save branding data (colors, tagline, description)
+      const brandingPayload: any = {
+        tagline: brandingData.tagline || "",
+        description: brandingData.description || "",
+        primaryColor: brandingData.primaryColor,
+        secondaryColor: brandingData.secondaryColor,
+        accentColor: brandingData.accentColor,
+      };
+
+      // Add logo URL if uploaded
+      if (logoUrl) {
+        brandingPayload.logoUrl = logoUrl;
+      }
+
+      console.log("🎨 Saving branding data:", brandingPayload);
+
+      const response = await fetch(`${API_URL}/realtors/profile`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(brandingPayload),
+      });
+
+      if (response.ok) {
+        toast.success("Branding saved successfully!");
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || "Failed to save branding");
+      }
+    } catch (error) {
+      console.error("Error saving branding:", error);
+      toast.error(
+        "Failed to save branding. You can update it later from settings."
+      );
     }
   };
 

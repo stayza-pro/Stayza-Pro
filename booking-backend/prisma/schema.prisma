@@ -60,8 +60,8 @@ model Realtor {
    updatedAt          DateTime @updatedAt
    accentColor        String?  @default("#F59E0B")
    corporateRegNumber String?
-   primaryColor       String   @default("#000000")
-   secondaryColor     String?  @default("#10B981")
+   primaryColor       String   @default("#3B82F6")
+   secondaryColor     String?  @default("#1E40AF")
    tagline            String?
    websiteUrl         String?
 

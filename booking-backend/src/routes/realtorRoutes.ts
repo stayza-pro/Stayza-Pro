@@ -403,6 +403,7 @@ router.get(
  */
 router.post(
   "/upload",
+  authenticate,
   asyncHandler(async (req: Request, res: Response) => {
     const { type } = req.query;
 
@@ -1005,6 +1006,8 @@ router.post(
         slug,
         corporateRegNumber,
         primaryColor: brandColorHex || "#3B82F6",
+        secondaryColor: "#1E40AF",
+        accentColor: "#F59E0B",
       },
       include: {
         user: {
@@ -1150,7 +1153,6 @@ router.put(
       businessName,
       tagline,
       description,
-      businessPhone,
       corporateRegNumber,
       logoUrl,
       brandColorHex,
@@ -1193,7 +1195,6 @@ router.put(
     if (businessName) updateData.businessName = businessName;
     if (tagline !== undefined) updateData.tagline = tagline;
     if (description !== undefined) updateData.description = description;
-    if (businessPhone !== undefined) updateData.businessPhone = businessPhone;
     if (corporateRegNumber !== undefined)
       updateData.corporateRegNumber = corporateRegNumber;
     if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
@@ -1210,8 +1211,9 @@ router.put(
     // Support both old brandColorHex and new color system
     if (brandColorHex) updateData.primaryColor = brandColorHex;
     if (primaryColor) updateData.primaryColor = primaryColor;
-    if (secondaryColor) updateData.secondaryColor = secondaryColor;
-    if (accentColor) updateData.accentColor = accentColor;
+    if (secondaryColor !== undefined)
+      updateData.secondaryColor = secondaryColor;
+    if (accentColor !== undefined) updateData.accentColor = accentColor;
 
     // Generate new slug if business name changed
     if (businessName && businessName !== realtor.businessName) {

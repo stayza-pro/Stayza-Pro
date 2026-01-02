@@ -162,14 +162,16 @@ function GuestLoginContent() {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#FFF8F0", // Warm beige/off-white background
+        backgroundColor: primaryColor ? `${primaryColor}05` : "#FFF8F0", // Subtle brand-tinted background
       }}
     >
       {/* Header - Minimal & Clean */}
       <div
         style={{
           background: "white",
-          borderBottom: "1px solid #e5e7eb",
+          borderBottom: `1px solid ${
+            secondaryColor ? `${secondaryColor}30` : "#e5e7eb"
+          }`,
           position: "sticky",
           top: 0,
           zIndex: 50,

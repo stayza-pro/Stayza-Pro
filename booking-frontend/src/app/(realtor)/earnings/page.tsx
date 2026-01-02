@@ -145,14 +145,17 @@ export default function EarningsPage() {
     brandColor,
     secondaryColor,
     accentColor,
-    "#8884d8",
-    "#82ca9d",
+    brandColor + "99", // 60% opacity
+    secondaryColor + "99", // 60% opacity
   ];
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div
+          className="animate-spin rounded-full h-12 w-12 border-b-2"
+          style={{ borderColor: brandColor }}
+        ></div>
       </div>
     );
   }
@@ -530,7 +533,13 @@ export default function EarningsPage() {
                     </div>
                   </td>
                   <td className="py-4 text-center">
-                    <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                    <span
+                      className="px-3 py-1 rounded-full text-sm font-medium"
+                      style={{
+                        backgroundColor: brandColor + "20",
+                        color: brandColor,
+                      }}
+                    >
                       {property.bookings}
                     </span>
                   </td>

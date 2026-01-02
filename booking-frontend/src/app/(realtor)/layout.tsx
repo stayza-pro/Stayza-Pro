@@ -20,6 +20,7 @@ import {
   LayoutGrid,
   RefreshCw,
   Wallet,
+  LogOut,
 } from "lucide-react";
 
 export default function RealtorLayout({
@@ -34,6 +35,7 @@ export default function RealtorLayout({
   const { branding } = useBranding();
   const [activeNav, setActiveNav] = useState("dashboard");
   const [mounted, setMounted] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<
     ReturnType<typeof getSubdomainInfo>
   >({
@@ -41,6 +43,23 @@ export default function RealtorLayout({
     type: "main",
     isMultiTenant: false,
   });
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+
+      // Call logout from auth store
+      const { useAuthStore } = await import("@/store/authStore");
+      await useAuthStore.getState().logout();
+
+      // Redirect to realtor login on main domain
+      window.location.href = "http://localhost:3000/realtor/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Still redirect even if logout fails
+      window.location.href = "http://localhost:3000/realtor/login";
+    }
+  };
 
   // Hydration-safe: Only get subdomain info on client-side
   useEffect(() => {
@@ -260,7 +279,20 @@ export default function RealtorLayout({
             </nav>
 
             {/* Footer - Powered by Stayza */}
-            <div className="px-4 py-4 border-t border-gray-200">
+            <div className="px-4 py-4 border-t border-gray-200 space-y-3">
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-colors text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="flex-1 text-left text-sm font-medium">
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </span>
+              </button>
+
+              {/* Branding */}
               <div className="text-center">
                 <p className="text-xs text-gray-400">
                   Powered by{" "}

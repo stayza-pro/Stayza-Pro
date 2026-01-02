@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { bookingService } from "@/services/bookings";
 import { Booking } from "@/types";
 import { useAlert } from "@/context/AlertContext";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import {
   Calendar,
   Clock,
@@ -31,7 +32,7 @@ const STATUS_COLORS = {
   PENDING: "bg-yellow-100 text-yellow-800",
   CONFIRMED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
-  COMPLETED: "bg-blue-100 text-blue-800",
+  COMPLETED: "", // Will use dynamic brand colors
 };
 
 const STATUS_FILTERS: { value: BookingStatus; label: string }[] = [
@@ -44,6 +45,7 @@ const STATUS_FILTERS: { value: BookingStatus; label: string }[] = [
 
 export default function BookingsPage() {
   const { showSuccess, showError } = useAlert();
+  const { brandColor } = useRealtorBranding();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<BookingStatus>("ALL");
@@ -115,7 +117,10 @@ export default function BookingsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2
+            className="h-12 w-12 animate-spin mx-auto mb-4"
+            style={{ color: brandColor }}
+          />
           <p className="text-gray-600">Loading bookings...</p>
         </div>
       </div>
@@ -156,9 +161,14 @@ export default function BookingsPage() {
                 }}
                 className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
                   selectedStatus === filter.value
-                    ? "bg-blue-600 text-white"
+                    ? "text-white"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
+                style={
+                  selectedStatus === filter.value
+                    ? { backgroundColor: brandColor }
+                    : undefined
+                }
               >
                 {filter.label}
               </button>
@@ -214,8 +224,14 @@ export default function BookingsPage() {
                   <tr key={booking.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User className="h-5 w-5 text-blue-600" />
+                        <div
+                          className="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: brandColor + "20" }}
+                        >
+                          <User
+                            className="h-5 w-5"
+                            style={{ color: brandColor }}
+                          />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
@@ -260,10 +276,20 @@ export default function BookingsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          STATUS_COLORS[
-                            booking.status as keyof typeof STATUS_COLORS
-                          ]
+                          booking.status === "COMPLETED"
+                            ? ""
+                            : STATUS_COLORS[
+                                booking.status as keyof typeof STATUS_COLORS
+                              ]
                         }`}
+                        style={
+                          booking.status === "COMPLETED"
+                            ? {
+                                backgroundColor: brandColor + "20",
+                                color: brandColor,
+                              }
+                            : undefined
+                        }
                       >
                         {booking.status}
                       </span>
@@ -271,7 +297,8 @@ export default function BookingsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => openDetailModal(booking)}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
+                        className="mr-4 hover:opacity-80"
+                        style={{ color: brandColor }}
                       >
                         <Eye className="h-5 w-5" />
                       </button>

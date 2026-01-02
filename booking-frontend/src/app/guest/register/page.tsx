@@ -188,14 +188,16 @@ function GuestRegistrationContent() {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#FFF8F0", // Warm beige/off-white background
+        backgroundColor: primaryColor ? `${primaryColor}05` : "#FFF8F0", // Subtle brand-tinted background
       }}
     >
       {/* Header - Minimal & Clean */}
       <div
         style={{
           background: "white",
-          borderBottom: "1px solid #e5e7eb",
+          borderBottom: `1px solid ${
+            secondaryColor ? `${secondaryColor}30` : "#e5e7eb"
+          }`,
           position: "sticky",
           top: 0,
           zIndex: 50,
@@ -637,7 +639,7 @@ export default function GuestRegisterPage() {
         <div
           style={{
             minHeight: "100vh",
-            backgroundColor: "#FFF8F0", // Warm beige/off-white background
+            backgroundColor: "#FFF8F0",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -648,7 +650,7 @@ export default function GuestRegisterPage() {
               width: 40,
               height: 40,
               border: "3px solid #e5e7eb",
-              borderTop: "3px solid #3B82F6",
+              borderTop: "3px solid #3B82F6", // Keep default blue for fallback loader
               borderRadius: "50%",
               animation: "spin 0.8s linear infinite",
             }}

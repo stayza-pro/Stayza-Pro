@@ -84,7 +84,6 @@ export default function SettingsPage() {
     phone: user?.phone || "",
     businessName: user?.realtor?.businessName || "",
     tagline: user?.realtor?.tagline || "",
-    businessPhone: user?.realtor?.businessPhone || "",
     slug: user?.realtor?.slug || "",
   });
 
@@ -98,8 +97,8 @@ export default function SettingsPage() {
   // Branding State
   const [brandingData, setBrandingData] = useState({
     logoUrl: user?.realtor?.logoUrl || "",
-    primaryColor: user?.realtor?.primaryColor || "#000000",
-    secondaryColor: user?.realtor?.secondaryColor || "#10B981",
+    primaryColor: user?.realtor?.primaryColor || "#3B82F6",
+    secondaryColor: user?.realtor?.secondaryColor || "#1E40AF",
     accentColor: user?.realtor?.accentColor || "#F59E0B",
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -148,6 +147,18 @@ export default function SettingsPage() {
       fetchCacStatus();
     }
   }, [activeTab]);
+
+  // Update branding data when user data changes
+  useEffect(() => {
+    if (user?.realtor) {
+      setBrandingData({
+        logoUrl: user.realtor.logoUrl || "",
+        primaryColor: user.realtor.primaryColor || "#3B82F6",
+        secondaryColor: user.realtor.secondaryColor || "#1E40AF",
+        accentColor: user.realtor.accentColor || "#F59E0B",
+      });
+    }
+  }, [user]);
 
   // Fetch banks and payout settings
   useEffect(() => {
@@ -228,7 +239,7 @@ export default function SettingsPage() {
     formData.append("logo", logoFile);
 
     try {
-      const response = await fetch(`${API_URL}/realtors/upload-logo`, {
+      const response = await fetch(`${API_URL}/realtors/upload?type=logo`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -238,7 +249,7 @@ export default function SettingsPage() {
 
       if (response.ok) {
         const result = await response.json();
-        return result.data.realtor.logoUrl;
+        return result.data.url;
       } else {
         const error = await response.json();
         showError(error.message || "Failed to upload logo");
@@ -416,8 +427,6 @@ export default function SettingsPage() {
         body: JSON.stringify({
           businessName: profileData.businessName,
           tagline: profileData.tagline,
-          businessPhone: profileData.businessPhone,
-          slug: profileData.slug,
         }),
       });
 
@@ -451,18 +460,25 @@ export default function SettingsPage() {
         }
       }
 
+      // Only include fields that should be updated
+      const updatePayload: any = {
+        primaryColor: brandingData.primaryColor,
+        secondaryColor: brandingData.secondaryColor,
+        accentColor: brandingData.accentColor,
+      };
+
+      // Only include logoUrl if it was changed (new upload) or if it exists
+      if (logoFile || logoUrl) {
+        updatePayload.logoUrl = logoUrl;
+      }
+
       const response = await fetch(`${API_URL}/realtors/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
-        body: JSON.stringify({
-          primaryColor: brandingData.primaryColor,
-          secondaryColor: brandingData.secondaryColor,
-          accentColor: brandingData.accentColor,
-          logoUrl: logoUrl,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (response.ok) {
@@ -675,97 +691,22 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Business Phone *
-                </label>
-                <input
-                  type="tel"
-                  value={profileData.businessPhone}
-                  onChange={(e) =>
-                    setProfileData({
-                      ...profileData,
-                      businessPhone: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="+234 XXX XXX XXXX"
-                />
-              </div>
-
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Your Booking Subdomain *
+                  Your Booking Subdomain
                 </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={profileData.slug}
-                    onChange={(e) => {
-                      const value = e.target.value
-                        .toLowerCase()
-                        .replace(/[^a-z0-9-]/g, "")
-                        .replace(/--+/g, "-")
-                        .slice(0, 50);
-                      setProfileData({
-                        ...profileData,
-                        slug: value,
-                      });
-                    }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                    disabled
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed font-mono"
                     placeholder="your-agency-name"
                   />
                   <span className="text-gray-600 font-mono">.stayza.pro</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Only lowercase letters, numbers, and hyphens. This will be
-                  your booking site URL.
-                </p>
-              </div>
-            </div>
-
-            {/* Commission & Fees Display */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-              <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                <CreditCard className="w-4 h-4" />
-                Commission & Fee Structure
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-blue-700 mb-1">
-                    Platform Commission
-                  </p>
-                  <p className="text-2xl font-bold text-blue-900">
-                    {commissionInfo.platformCommission}%
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    On completed bookings
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-blue-700 mb-1">Transaction Fee</p>
-                  <p className="text-2xl font-bold text-blue-900">
-                    {commissionInfo.transactionFee}%
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Payment processing
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-blue-700 mb-1">Your Earnings</p>
-                  <p className="text-2xl font-bold text-blue-900">
-                    {commissionInfo.realtorShare}%
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Of room fees released
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-blue-200">
-                <p className="text-xs text-blue-700">
-                  💡 <strong>Note:</strong> You receive 100% of cleaning fees
-                  and {commissionInfo.realtorShare}% of room fees after guest
-                  checkout.
+                  Your subdomain cannot be changed after registration.
                 </p>
               </div>
             </div>

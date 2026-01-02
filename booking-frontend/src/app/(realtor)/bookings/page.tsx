@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { DashboardHeader } from "@/components/realtor/DashboardHeader";
 
 export default function RealtorBookingsPage() {
   const router = useRouter();
@@ -159,71 +160,18 @@ export default function RealtorBookingsPage() {
     );
   }
 
+  function showAlert(arg0: string, arg1: string): void {
+    throw new Error("Function not implemented.");
+  }
+
   return (
     <div className="space-y-6">
-      {/* Enhanced Header */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-200">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {user?.firstName || "User"} 👋
-            </h1>
-            <div className="flex items-center space-x-3">
-              <span className="text-gray-600 text-sm">Your website:</span>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="relative group"
-              >
-                <span
-                  className="font-bold px-4 py-2 rounded-lg text-sm border-2 cursor-pointer"
-                  style={{
-                    color: brandColor,
-                    backgroundColor: brandColor + "10",
-                    borderColor: brandColor + "30",
-                  }}
-                  onClick={() =>
-                    copyToClipboard(
-                      `https://${realtorSubdomain || "yourcompany"}.stayza.pro`
-                    )
-                  }
-                >
-                  {realtorSubdomain || "yourcompany"}.stayza.pro
-                </span>
-              </motion.div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() =>
-                copyToClipboard(
-                  `https://${realtorSubdomain || "yourcompany"}.stayza.pro`
-                )
-              }
-              className="px-5 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-medium hover:border-gray-300 hover:shadow-lg transition-all flex items-center space-x-2 bg-white"
-            >
-              <Copy className="w-4 h-4 text-gray-600" />
-              <span className="text-gray-700">Copy Link</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() =>
-                window.open(
-                  `https://${realtorSubdomain || "yourcompany"}.stayza.pro`,
-                  "_blank"
-                )
-              }
-              className="px-5 py-2.5 text-white rounded-xl text-sm font-bold hover:shadow-lg transition-all flex items-center space-x-2"
-              style={{ backgroundColor: brandColor }}
-            >
-              <Eye className="w-4 h-4" />
-              <span>Preview Site</span>
-            </motion.button>
-          </div>
-        </div>
-      </div>
+      {/* Dashboard Header */}
+      <DashboardHeader
+        onCopySuccess={() =>
+          showAlert("Website link copied to clipboard!", "success")
+        }
+      />
 
       {/* Section Title */}
       <div>

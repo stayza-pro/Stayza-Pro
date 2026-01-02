@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useAlert } from "@/context/AlertContext";
-import { useBranding } from "@/hooks/useBranding";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 import { notificationApiService } from "@/services/notifications";
 import { Notification } from "@/types/notifications";
@@ -21,13 +21,14 @@ import {
   AlertCircle,
   Wallet,
 } from "lucide-react";
+import { DashboardHeader } from "@/components/realtor/DashboardHeader";
 import { formatDistanceToNow } from "date-fns";
 
 type FilterType = "all" | "unread" | "BOOKING" | "REVIEW" | "PAYMENT";
 
 export default function NotificationsPage() {
   const { user } = useAuth();
-  const { branding } = useBranding();
+  const { brandColor, secondaryColor, accentColor } = useRealtorBranding();
   const { showSuccess, showError } = useAlert();
 
   const [mounted, setMounted] = useState(false);
@@ -37,12 +38,6 @@ export default function NotificationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>("all");
   const [unreadCount, setUnreadCount] = useState(0);
-
-  const brandColors = branding?.colors || {
-    primary: "#3B82F6",
-    secondary: "#1E40AF",
-    accent: "#F59E0B",
-  };
 
   // Only get subdomain on client side
   useEffect(() => {
@@ -120,7 +115,7 @@ export default function NotificationsPage() {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "BOOKING":
-        return <Calendar className="w-5 h-5 text-blue-600" />;
+        return <Calendar className="w-5 h-5" style={{ color: brandColor }} />;
       case "REVIEW":
         return <Star className="w-5 h-5 text-yellow-600" />;
       case "PAYMENT":
@@ -133,52 +128,10 @@ export default function NotificationsPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6 flex-shrink-0">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
-              Welcome back, {user?.firstName || "User"} 👋
-            </h1>
-            <p className="text-gray-600 flex items-center space-x-2">
-              <span>Your website:</span>
-              <span
-                className="font-semibold px-3 py-1 rounded-md text-sm"
-                style={{
-                  color: brandColors.primary,
-                  backgroundColor: brandColors.primary + "15",
-                }}
-              >
-                {realtorSubdomain || "yourcompany"}.stayza.pro
-              </span>
-            </p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() =>
-                copyToClipboard(
-                  `https://${realtorSubdomain || "yourcompany"}.stayza.pro`
-                )
-              }
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center space-x-2"
-            >
-              <Copy className="w-4 h-4" />
-              <span>Copy Link</span>
-            </button>
-            <button
-              onClick={() =>
-                window.open(
-                  `https://${realtorSubdomain || "yourcompany"}.stayza.pro`,
-                  "_blank"
-                )
-              }
-              className="px-4 py-2 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all flex items-center space-x-2"
-              style={{ backgroundColor: brandColors.primary }}
-            >
-              <Eye className="w-4 h-4" />
-              <span>Preview Site</span>
-            </button>
-          </div>
-        </div>
+      <div className="px-8 py-6 flex-shrink-0">
+        <DashboardHeader
+          onCopySuccess={() => showSuccess("Website link copied to clipboard!")}
+        />
       </div>
 
       {/* Page Content */}
@@ -197,7 +150,8 @@ export default function NotificationsPage() {
               <button
                 onClick={handleMarkAllAsRead}
                 disabled={unreadCount === 0}
-                className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ color: brandColor }}
               >
                 Mark all as read
               </button>
@@ -220,13 +174,24 @@ export default function NotificationsPage() {
                     onClick={() => setFilter(tab.key as FilterType)}
                     className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
                       filter === tab.key
-                        ? "border-blue-500 text-blue-600"
+                        ? "text-gray-700 hover:text-gray-700 hover:border-gray-300"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                     }`}
+                    style={
+                      filter === tab.key
+                        ? { borderBottomColor: brandColor, color: brandColor }
+                        : {}
+                    }
                   >
                     {tab.label}
                     {tab.count !== undefined && tab.count > 0 && (
-                      <span className="ml-2 bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
+                      <span
+                        className="ml-2 px-2 py-0.5 rounded-full text-xs"
+                        style={{
+                          backgroundColor: brandColor + "20",
+                          color: brandColor,
+                        }}
+                      >
                         {tab.count}
                       </span>
                     )}
@@ -239,7 +204,10 @@ export default function NotificationsPage() {
             {loading && (
               <div className="p-12">
                 <div className="text-center">
-                  <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+                  <Loader2
+                    className="w-12 h-12 animate-spin mx-auto mb-4"
+                    style={{ color: brandColor }}
+                  />
                   <p className="text-gray-600">Loading notifications...</p>
                 </div>
               </div>
@@ -256,7 +224,8 @@ export default function NotificationsPage() {
                   <p className="text-gray-600 mb-4">{error}</p>
                   <button
                     onClick={fetchNotifications}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                    className="px-4 py-2 text-white rounded-lg text-sm"
+                    style={{ backgroundColor: brandColor }}
                   >
                     Try Again
                   </button>
@@ -289,15 +258,21 @@ export default function NotificationsPage() {
                 {notifications.map((notification: any) => (
                   <div
                     key={notification.id}
-                    className={`p-6 hover:bg-gray-50 transition-colors ${
-                      !notification.isRead ? "bg-blue-50" : ""
-                    }`}
+                    className="p-6 hover:bg-gray-50 transition-colors"
+                    style={
+                      !notification.isRead
+                        ? { backgroundColor: brandColor + "10" }
+                        : {}
+                    }
                   >
                     <div className="flex items-start space-x-4">
                       <div
-                        className={`p-2 rounded-lg ${
-                          !notification.isRead ? "bg-blue-100" : "bg-gray-100"
-                        }`}
+                        className="p-2 rounded-lg"
+                        style={{
+                          backgroundColor: !notification.isRead
+                            ? brandColor + "20"
+                            : "#f3f4f6",
+                        }}
                       >
                         {getNotificationIcon(notification.type)}
                       </div>
@@ -329,7 +304,11 @@ export default function NotificationsPage() {
                                 onClick={() =>
                                   handleMarkAsRead(notification.id)
                                 }
-                                className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                                className="p-2 rounded-lg transition-colors"
+                                style={{
+                                  color: brandColor,
+                                  backgroundColor: brandColor + "10",
+                                }}
                                 title="Mark as read"
                               >
                                 <Check className="w-4 h-4" />
