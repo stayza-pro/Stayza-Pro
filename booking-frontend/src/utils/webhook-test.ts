@@ -347,15 +347,12 @@ export async function testWebhookFlow(
   console.log("");
 
   // Step 5: Summary
-  if (
-    finalPaymentStatus === "COMPLETED" &&
-    finalBookingStatus === "CONFIRMED"
-  ) {
+  if (finalPaymentStatus === "HELD" && finalBookingStatus === "CONFIRMED") {
     console.log("🎉 SUCCESS: Webhook auto-verification working correctly!");
   } else {
     console.warn("⚠️  WARNING: Status not updated as expected");
     console.warn(
-      `Expected: COMPLETED/CONFIRMED, Got: ${finalPaymentStatus}/${finalBookingStatus}`
+      `Expected: HELD/CONFIRMED, Got: ${finalPaymentStatus}/${finalBookingStatus}`
     );
   }
 }

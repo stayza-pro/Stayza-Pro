@@ -380,7 +380,7 @@ router.get(
         where: { status: BookingStatus.PENDING },
       }),
       prisma.booking.count({
-        where: { status: BookingStatus.CONFIRMED },
+        where: { status: BookingStatus.ACTIVE },
       }),
       prisma.booking.count({
         where: { status: BookingStatus.CANCELLED },
@@ -395,7 +395,7 @@ router.get(
       }),
       prisma.payment.aggregate({
         where: {
-          status: "COMPLETED",
+          status: { in: ["PARTIALLY_RELEASED", "SETTLED"] },
           booking: {
             status: BookingStatus.COMPLETED,
           },
@@ -1139,8 +1139,8 @@ router.post(
             refundAmount: newRefundAmount,
             refundedAt: new Date(),
             status: isFullyRefunded
-              ? PaymentStatus.REFUNDED_TO_CUSTOMER
-              : PaymentStatus.REFUNDED_TO_CUSTOMER,
+              ? PaymentStatus.REFUNDED
+              : PaymentStatus.REFUNDED,
             metadata: {
               ...((refundRequest.payment.metadata as any) || {}),
               refunds: [

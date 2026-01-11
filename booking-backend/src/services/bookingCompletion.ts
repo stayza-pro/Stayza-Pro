@@ -1,7 +1,7 @@
 import { prisma } from "@/config/database";
 import { auditLogger } from "@/services/auditLogger";
 import { config } from "@/config";
-import { PaymentStatus } from "@prisma/client";
+import { PaymentStatus, BookingStatus } from "@prisma/client";
 
 /**
  * Marks bookings as COMPLETED when their checkout date has passed
@@ -12,7 +12,7 @@ export async function completePastBookings(now: Date = new Date()) {
   // Find candidate bookings
   const candidates = await prisma.booking.findMany({
     where: {
-      status: "CONFIRMED",
+      status: "ACTIVE",
       checkOutDate: { lt: now },
     },
     select: { id: true, guestId: true, checkOutDate: true },
@@ -32,11 +32,11 @@ export async function completePastBookings(now: Date = new Date()) {
           select: { status: true, checkOutDate: true },
         });
         if (!fresh) return;
-        if (fresh.status !== "CONFIRMED") return; // state changed concurrently
+        if (fresh.status !== "ACTIVE") return; // state changed concurrently
         if (fresh.checkOutDate >= now) return; // edge case
         await tx.booking.update({
           where: { id: b.id },
-          data: { status: "COMPLETED" },
+          data: { status: BookingStatus.COMPLETED },
         });
       });
       processedIds.push(b.id);
@@ -44,7 +44,7 @@ export async function completePastBookings(now: Date = new Date()) {
         .log("BOOKING_STATUS_UPDATE", "BOOKING", {
           entityId: b.id,
           userId: b.guestId,
-          details: { auto: true, newStatus: "COMPLETED" },
+          details: { auto: true, newStatus: "RELEASED" },
         })
         .catch(() => {});
     } catch (err) {
@@ -91,7 +91,10 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
         if (fresh.status !== "PENDING") return;
         if (fresh.createdAt >= threshold) return;
 
-        if (fresh.payment?.status === PaymentStatus.COMPLETED) {
+        if (
+          fresh.payment?.status === PaymentStatus.PARTIALLY_RELEASED ||
+          fresh.payment?.status === PaymentStatus.SETTLED
+        ) {
           return;
         }
 

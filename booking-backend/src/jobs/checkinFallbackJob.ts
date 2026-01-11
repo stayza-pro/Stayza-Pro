@@ -17,7 +17,7 @@ export const processCheckinFallbacks = async (): Promise<void> => {
     const eligibleBookings = await prisma.booking.findMany({
       where: {
         status: {
-          in: ["CONFIRMED", "PAID"], // Payment completed but not checked in
+          in: ["ACTIVE"], // Payment completed but not checked in
         },
         checkInDate: {
           lte: fallbackThreshold, // Check-in time + 30 minutes has passed
@@ -25,7 +25,7 @@ export const processCheckinFallbacks = async (): Promise<void> => {
         checkinConfirmedAt: null, // Not yet confirmed
         payment: {
           status: {
-            in: ["PARTIAL_RELEASED", "ESCROW_HELD"],
+            in: ["HELD"], // Payment must be in escrow
           },
         },
       },

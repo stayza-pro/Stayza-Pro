@@ -107,8 +107,12 @@ export default function PaymentPage() {
         );
         setBooking(bookingData);
 
-        // Check if already paid
-        if (bookingData.paymentStatus === "COMPLETED") {
+        // Check if already paid (HELD or later status means payment processed)
+        if (
+          bookingData.paymentStatus === "HELD" ||
+          bookingData.paymentStatus === "PARTIALLY_RELEASED" ||
+          bookingData.paymentStatus === "SETTLED"
+        ) {
           setPaymentStatus("success");
           setTimeout(() => {
             router.push(`/booking/confirmation/${bookingId}`);

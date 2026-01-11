@@ -15,11 +15,11 @@ export const processDepositRefunds = async (): Promise<void> => {
     // Find bookings eligible for deposit refund
     const eligibleBookings = await prisma.booking.findMany({
       where: {
-        status: "CHECKED_OUT",
+        status: "ACTIVE",
+        stayStatus: "CHECKED_OUT", // Guest has checked out
         depositRefundEligibleAt: {
           lte: now, // Refund time has passed
         },
-        realtorDisputeOpened: false, // No active realtor dispute
         payment: {
           depositRefunded: false, // Not already refunded
           depositInEscrow: true, // Deposit is in escrow
@@ -48,6 +48,24 @@ export const processDepositRefunds = async (): Promise<void> => {
 
     for (const booking of eligibleBookings) {
       try {
+        // ✅ CHECK FOR ACTIVE DEPOSIT DISPUTES (Dispute V2 system)
+        const activeDispute = await prisma.dispute.findFirst({
+          where: {
+            bookingId: booking.id,
+            disputeSubject: "SECURITY_DEPOSIT",
+            status: {
+              in: ["OPEN", "AWAITING_RESPONSE", "ESCALATED"],
+            },
+          },
+        });
+
+        if (activeDispute) {
+          logger.info(
+            `Skipping booking ${booking.id}: Active deposit dispute exists (${activeDispute.status})`
+          );
+          continue; // Skip this booking
+        }
+
         await processBookingDepositRefund(booking);
       } catch (error) {
         logger.error(
@@ -77,51 +95,26 @@ const processBookingDepositRefund = async (booking: any): Promise<void> => {
     `Refunding deposit for booking ${booking.id}: ₦${securityDeposit}`
   );
 
-  // In a real implementation, this would call Paystack API
-  // to refund the security deposit to guest
-  // For now, we'll simulate the refund and update database
-
   try {
-    // TODO: Implement actual payment gateway refund
-    // const refundResult = await paystackService.refund({
-    //   transactionReference: payment.reference,
-    //   amount: securityDeposit.toNumber() * 100, // Convert to kobo
-    // });
+    // ✅ USE ESCROW SERVICE FOR PROPER REFUND HANDLING
+    // This includes:
+    // - Paystack refund API call
+    // - Escrow status updates
+    // - Payment record updates
+    // - Escrow event logging
+    await escrowService.returnSecurityDeposit(
+      booking.id,
+      payment.id,
+      booking.guestId
+    );
 
-    const refundReference = `DEPOSIT_REFUND_${booking.id}_${Date.now()}`;
-    const now = new Date();
-
-    // Update payment record
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        depositRefunded: true,
-        depositReleasedAt: now,
-        refundAmount: securityDeposit,
-        refundedAt: now,
-        status: "COMPLETED",
-      },
-    });
-
-    // Update booking status
+    // Update booking status to COMPLETED
     await prisma.booking.update({
       where: { id: booking.id },
       data: {
         status: "COMPLETED",
         payoutStatus: "COMPLETED",
-        payoutCompletedAt: now,
-      },
-    });
-
-    // Log escrow event
-    await escrowService.logEscrowEvent({
-      bookingId: booking.id,
-      eventType: "RELEASE_DEPOSIT_TO_CUSTOMER",
-      amount: securityDeposit,
-      description: `Security deposit of ₦${securityDeposit} refunded to guest`,
-      metadata: {
-        refundReference,
-        refundAmount: securityDeposit.toString(),
+        payoutCompletedAt: new Date(),
       },
     });
 

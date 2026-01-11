@@ -41,6 +41,7 @@ model User {
    reviews                  Review[]
    referredByRealtor        Realtor?                @relation("ReferredGuests", fields: [referredByRealtorId], references: [id])
    openedDisputes           Dispute[]               @relation("DisputeOpener")
+   respondedDisputes        Dispute[]               @relation("DisputeResponder")
    adminDisputes            Dispute[]               @relation("DisputeAdmin")
    sentMessages             Message[]               @relation("SentMessages")
    receivedMessages         Message[]               @relation("ReceivedMessages")
@@ -161,6 +162,7 @@ model Booking {
    totalPrice    Decimal        @db.Decimal(10, 2)
    currency      String         @default("NGN")
    status        BookingStatus  @default(PENDING)
+   stayStatus    StayStatus     @default(NOT_STARTED) // Physical stay state
    paymentStatus PaymentStatus? @default(INITIATED) // Track payment status directly in booking
 
    // Fee breakdown (for transparency)
@@ -174,7 +176,7 @@ model Booking {
    checkinConfirmedAt       DateTime? // Timestamp when check-in was confirmed
    checkinConfirmationType  String? // "GUEST_CONFIRMED" | "REALTOR_CONFIRMED" | "AUTO_FALLBACK"
    roomFeeReleaseEligibleAt DateTime? // 1 hour after check-in confirmation
-   depositRefundEligibleAt  DateTime? // 4 hours after check-out
+   depositRefundEligibleAt  DateTime? // 2 hours after check-out
    cleaningFeeReleasedAt    DateTime? // Immediate release timestamp
    serviceFeeCollectedAt    DateTime? // Immediate collection timestamp
    guestDisputeTier         String? // "TIER_1_SEVERE" | "TIER_2_PARTIAL" | "TIER_3_ABUSE"
@@ -208,6 +210,7 @@ model Booking {
    disputes       Dispute[]
    escrowEvents   EscrowEvent[]
    messages       Message[]
+   escrow         Escrow?
 
    @@map("bookings")
 }
@@ -492,40 +495,50 @@ model PendingRegistration {
 }
 
 model Dispute {
-   id          String        @id @default(cuid())
-   bookingId   String
-   disputeType DisputeType
-   status      DisputeStatus @default(OPEN)
-   openedBy    String // userId
-   openedAt    DateTime      @default(now())
-   closedAt    DateTime?
+   id                  String                 @id @default(cuid())
+   bookingId           String
+   disputeSubject      DisputeSubject // ROOM_FEE or SECURITY_DEPOSIT
+   category            DisputeCategory
+   status              DisputeStatus          @default(OPEN)
+   openedBy            String // userId (guest or realtor)
+   openedAt            DateTime               @default(now())
+   closedAt            DateTime?
+   // Auto-calculated refund/claim amounts
+   maxRefundPercent    Int // 0, 30, or 100 based on category
+   claimedAmount       Decimal                @db.Decimal(10, 2) // Amount being disputed
+   guestRefundAmount   Decimal                @db.Decimal(10, 2) // What guest would get
+   realtorPayoutAmount Decimal                @db.Decimal(10, 2) // What realtor would get
+   platformFeeAmount   Decimal                @db.Decimal(10, 2) // What platform would get
+   // Evidence and details
+   writeup             String                 @db.Text
+   attachments         Json? // Array of photo/video URLs
+   // Realtor/Guest response
+   respondedBy         String? // userId of responder
+   respondedAt         DateTime?
+   responseAction      DisputeResponseAction? // ACCEPT or REJECT_ESCALATE
+   responseNotes       String?                @db.Text
+   // Admin resolution (if escalated)
+   escalatedToAdmin    Boolean                @default(false)
+   adminId             String?
+   adminDecision       AdminDisputeDecision?
+   adminNotes          String?                @db.Text
+   adminResolvedAt     DateTime?
+   // Final outcome
+   finalOutcome        DisputeFinalOutcome?
+   executedAt          DateTime?
+   executionReference  String? // Reference to escrow/wallet transactions
+   createdAt           DateTime               @default(now())
+   updatedAt           DateTime               @updatedAt
 
-   // Outcome
-   outcome      String? // Description of resolution
-   agreedAmount Decimal? @db.Decimal(10, 2) // If negotiated settlement
-
-   // Evidence
-   evidence Json? // Array of photo/video URLs with metadata
-
-   // Conversation
-   messages Json? // Array of dispute messages between parties
-
-   // Admin escalation
-   escalatedToAdmin Boolean   @default(false)
-   adminId          String?
-   adminNotes       String?
-   adminResolvedAt  DateTime?
-
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
-
-   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-   opener  User    @relation("DisputeOpener", fields: [openedBy], references: [id])
-   admin   User?   @relation("DisputeAdmin", fields: [adminId], references: [id])
+   booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+   opener    User    @relation("DisputeOpener", fields: [openedBy], references: [id])
+   responder User?   @relation("DisputeResponder", fields: [respondedBy], references: [id])
+   admin     User?   @relation("DisputeAdmin", fields: [adminId], references: [id])
 
    @@index([bookingId])
    @@index([status])
-   @@index([disputeType])
+   @@index([disputeSubject])
+   @@index([category])
    @@map("disputes")
 }
 
@@ -578,15 +591,25 @@ enum PropertyStatus {
 }
 
 enum BookingStatus {
-   PENDING // Initial state, waiting for payment
-   PAID // Payment confirmed, funds in escrow (deprecated - use CONFIRMED)
-   CONFIRMED // Payment verified, cleaning fee released, awaiting check-in
-   CHECKED_IN // User has checked in (1-hour guest dispute window active)
-   CHECKED_IN_CONFIRMED // Check-in explicitly confirmed (timer started)
-   DISPUTE_OPENED // Either user or realtor opened a dispute
-   CHECKED_OUT // User has checked out (4-hour realtor dispute window active)
-   COMPLETED // All funds released, booking finished
-   CANCELLED // Booking cancelled before check-in
+   PENDING // Created, not paid
+   ACTIVE // Paid, not cancelled
+   DISPUTED // Has active dispute
+   COMPLETED // Fully settled
+   CANCELLED // Cancelled before completion
+}
+
+enum StayStatus {
+   NOT_STARTED // Guest has not checked in yet
+   CHECKED_IN // Guest is currently staying
+   CHECKED_OUT // Guest has checked out
+}
+
+enum DisputeStatus {
+   OPEN // Dispute opened, waiting for response
+   AWAITING_RESPONSE // One party responded, waiting for other
+   ESCALATED // Escalated to admin
+   RESOLVED // Dispute resolved
+   CANCELLED // Dispute cancelled
 }
 
 enum PayoutStatus {
@@ -598,23 +621,18 @@ enum PayoutStatus {
 }
 
 enum RefundTier {
-   EARLY // 24+ hours before check-in (90/7/3 split)
-   MEDIUM // 12-24 hours before check-in (70/20/10 split)
-   LATE // 0-12 hours before check-in (0/80/20 split)
-   NONE // After check-in or no refund
+   EARLY // 24+ hours before check-in (90% customer / 7% realtor / 3% platform)
+   MEDIUM // 12-24 hours before check-in (70% customer / 20% realtor / 10% platform)
+   LATE // 0-12 hours before check-in (0% customer / 80% realtor / 20% platform)
+   NONE // After check-in - no room fee refund (TBD split)
 }
 
 enum PaymentStatus {
    INITIATED // Payment process started
-   PENDING // Waiting for payment provider confirmation (deprecated)
-   PARTIAL_RELEASED // Cleaning fee + service fee released, room fee + deposit in escrow
-   ESCROW_HELD // Room fee + security deposit held in escrow (deprecated - use PARTIAL_RELEASED)
-   ROOM_FEE_SPLIT_RELEASED // 90% to realtor, 10% to platform (after 1-hour dispute window)
-   DEPOSIT_PROCESSING // Processing deposit refund or deduction
-   RELEASED_TO_REALTOR // Full escrow released to realtor
-   REFUNDED_TO_CUSTOMER // Full refund to customer
-   PARTIAL_PAYOUT_REALTOR // Partial payout after dispute settlement
-   COMPLETED // All transactions completed
+   HELD // Escrow holding funds (room fee + deposit)
+   PARTIALLY_RELEASED // Room fee released, deposit still in escrow
+   SETTLED // All money distributed (room fee + deposit)
+   REFUNDED // Cancellation refunds processed
    FAILED // Payment failed
 }
 
@@ -668,19 +686,42 @@ enum RefundRequestStatus {
    CANCELLED
 }
 
-enum DisputeType {
-   USER_DISPUTE // Opened by user within 1 hour of check-in
-   REALTOR_DISPUTE // Opened by realtor within 4 hours of check-out
+enum DisputeSubject {
+   ROOM_FEE // Guest disputes room fee (within 1hr of check-in)
+   SECURITY_DEPOSIT // Realtor disputes deposit (within 4hr of checkout)
 }
 
-enum DisputeStatus {
-   OPEN // Dispute just opened, waiting for other party response
-   AWAITING_RESPONSE // Waiting for counterparty to respond
-   NEGOTIATION // Both parties are negotiating
-   AGREED // Parties reached agreement
-   ADMIN_REVIEW // Escalated to admin for resolution
-   RESOLVED // Dispute resolved (by agreement or admin)
-   REJECTED // Dispute rejected as invalid
+enum DisputeCategory {
+   // Room Fee Categories (Guest opens)
+   SAFETY_UNINHABITABLE // 100% max refund
+   MAJOR_MISREPRESENTATION // 100% max refund
+   MISSING_AMENITIES_CLEANLINESS // 30% max refund
+   MINOR_INCONVENIENCE // 30% max refund
+   // Security Deposit Categories (Realtor opens)
+   PROPERTY_DAMAGE // Up to deposit amount
+   MISSING_ITEMS // Up to deposit amount
+   CLEANING_REQUIRED // Up to deposit amount
+   OTHER_DEPOSIT_CLAIM // Up to deposit amount
+}
+
+enum DisputeResponseAction {
+   ACCEPT // Accept the claim as-is
+   REJECT_ESCALATE // Reject and escalate to admin
+}
+
+enum AdminDisputeDecision {
+   FULL_REFUND // 100% refund (room fee) or full deposit forfeit
+   PARTIAL_REFUND // 30% refund (room fee) or partial deposit deduction
+   NO_REFUND // 0% refund (room fee) or full deposit to guest
+}
+
+enum DisputeFinalOutcome {
+   FULL_REFUND_EXECUTED // 100% room fee + deposit to guest, booking cancelled
+   PARTIAL_REFUND_EXECUTED // 30% room fee to guest, 70% split, booking continues
+   NO_REFUND_EXECUTED // 0% refund, normal flow
+   DEPOSIT_FORFEITED // Full deposit to realtor
+   DEPOSIT_PARTIAL // Partial deposit to realtor, rest to guest
+   DEPOSIT_RETURNED // Full deposit to guest
 }
 
 enum DisputeTier {
@@ -804,6 +845,116 @@ model Favorite {
    @@index([userId])
    @@index([propertyId])
    @@map("favorites")
+}
+
+model Wallet {
+   id               String              @id @default(cuid())
+   ownerType        WalletOwnerType
+   ownerId          String // realtorId or 'platform'
+   balanceAvailable Decimal             @default(0) @db.Decimal(12, 2)
+   balancePending   Decimal             @default(0) @db.Decimal(12, 2)
+   createdAt        DateTime            @default(now())
+   updatedAt        DateTime            @updatedAt
+   transactions     WalletTransaction[]
+
+   @@unique([ownerType, ownerId])
+   @@index([ownerId])
+   @@map("wallets")
+}
+
+model WalletTransaction {
+   id          String                  @id @default(cuid())
+   walletId    String
+   type        WalletTransactionType
+   source      WalletTransactionSource
+   amount      Decimal                 @db.Decimal(12, 2)
+   referenceId String? // bookingId, paymentId, etc.
+   status      WalletTransactionStatus
+   metadata    Json?
+   createdAt   DateTime                @default(now())
+   wallet      Wallet                  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+   @@index([walletId])
+   @@index([referenceId])
+   @@index([createdAt])
+   @@map("wallet_transactions")
+}
+
+model Escrow {
+   id          String       @id @default(cuid())
+   bookingId   String       @unique
+   roomFeeHeld Decimal      @default(0) @db.Decimal(12, 2)
+   depositHeld Decimal      @default(0) @db.Decimal(12, 2)
+   status      EscrowStatus @default(HOLDING)
+   createdAt   DateTime     @default(now())
+   updatedAt   DateTime     @updatedAt
+   booking     Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+   @@index([bookingId])
+   @@index([status])
+   @@map("escrows")
+}
+
+model WithdrawalRequest {
+   id                   String                  @id @default(cuid())
+   walletId             String
+   realtorId            String
+   amount               Decimal                 @db.Decimal(12, 2)
+   status               WithdrawalRequestStatus @default(PENDING)
+   requestedAt          DateTime                @default(now())
+   processedAt          DateTime?
+   completedAt          DateTime?
+   failedAt             DateTime?
+   failureReason        String?
+   paystackTransferId   String?
+   paystackTransferCode String?
+   metadata             Json?
+
+   @@index([realtorId])
+   @@index([walletId])
+   @@index([status])
+   @@map("withdrawal_requests")
+}
+
+enum WalletOwnerType {
+   REALTOR
+   PLATFORM
+}
+
+enum WalletTransactionType {
+   CREDIT
+   DEBIT
+}
+
+enum WalletTransactionSource {
+   CLEANING_FEE
+   ROOM_FEE
+   SERVICE_FEE
+   WITHDRAWAL
+   REFUND
+   ADJUSTMENT
+   CANCELLATION
+}
+
+enum WalletTransactionStatus {
+   COMPLETED
+   PENDING
+   FAILED
+}
+
+enum EscrowStatus {
+   HOLDING
+   RELEASED
+   REFUNDED
+   PARTIAL_RELEASED
+}
+
+enum WithdrawalRequestStatus {
+   PENDING // Withdrawal requested, funds locked
+   PROCESSING // Paystack transfer initiated
+   COMPLETED // Successfully paid to realtor
+   FAILED // Transfer failed, funds restored
+   CANCELLED // Cancelled by admin/realtor
 }
 
 enum MessageType {

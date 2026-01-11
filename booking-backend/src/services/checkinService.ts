@@ -2,6 +2,7 @@ import { prisma } from "@/config/database";
 import { AppError } from "@/middleware/errorHandler";
 import { logger } from "@/utils/logger";
 import escrowService from "./escrowService";
+import { StayStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
 /**
@@ -45,7 +46,7 @@ export const validateCheckInEligibility = async (
   }
 
   // Check booking status
-  if (booking.status !== "CONFIRMED" && booking.status !== "PAID") {
+  if (booking.status !== "ACTIVE") {
     throw new AppError(
       `Cannot confirm check-in for booking with status: ${booking.status}`,
       400
@@ -60,8 +61,9 @@ export const validateCheckInEligibility = async (
   // Check payment status
   if (
     !booking.payment ||
-    (booking.payment.status !== "PARTIAL_RELEASED" &&
-      booking.payment.status !== "ESCROW_HELD")
+    (booking.payment.status !== "PARTIALLY_RELEASED" &&
+      booking.payment.status !== "SETTLED" &&
+      booking.payment.status !== "HELD")
   ) {
     throw new AppError("Payment not completed or funds not in escrow", 400);
   }
@@ -126,7 +128,8 @@ export const confirmCheckIn = async (
   const updatedBooking = await prisma.booking.update({
     where: { id: bookingId },
     data: {
-      status: "CHECKED_IN_CONFIRMED",
+      status: "ACTIVE", // BookingStatus remains ACTIVE
+      stayStatus: "CHECKED_IN", // StayStatus changes to CHECKED_IN
       checkInTime: now, // Record actual check-in timestamp
       checkinConfirmedAt: now,
       checkinConfirmationType: confirmationType,
@@ -321,7 +324,7 @@ export const canRealtorOpenDispute = async (
     return { canOpen: false, reason: "Booking not found" };
   }
 
-  if (booking.status !== "CHECKED_OUT") {
+  if (booking.status !== "COMPLETED") {
     return { canOpen: false, reason: "Guest has not checked out yet" };
   }
 

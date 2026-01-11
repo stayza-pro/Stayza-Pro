@@ -19,26 +19,30 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-type PaymentStatus = "ALL" | "COMPLETED" | "PENDING" | "FAILED" | "REFUNDED";
+type FilterPaymentStatus = "ALL" | "SETTLED" | "HELD" | "FAILED" | "REFUNDED";
 
 const STATUS_COLORS = {
-  COMPLETED: "text-green-600 bg-green-100",
-  PENDING: "text-yellow-600 bg-yellow-100",
+  SETTLED: "text-green-600 bg-green-100",
+  PARTIALLY_RELEASED: "text-indigo-600 bg-indigo-100",
+  HELD: "text-yellow-600 bg-yellow-100",
+  INITIATED: "text-blue-600 bg-blue-100",
   FAILED: "text-red-600 bg-red-100",
   REFUNDED: "text-gray-600 bg-gray-100",
 };
 
 const STATUS_ICONS = {
-  COMPLETED: CheckCircle,
-  PENDING: Clock,
+  SETTLED: CheckCircle,
+  PARTIALLY_RELEASED: CheckCircle,
+  HELD: Clock,
+  INITIATED: Clock,
   FAILED: XCircle,
   REFUNDED: FileText,
 };
 
-const STATUS_FILTERS: { value: PaymentStatus; label: string }[] = [
+const STATUS_FILTERS: { value: FilterPaymentStatus; label: string }[] = [
   { value: "ALL", label: "All Payments" },
-  { value: "COMPLETED", label: "Successful" },
-  { value: "PENDING", label: "Pending" },
+  { value: "SETTLED", label: "Completed" },
+  { value: "HELD", label: "In Escrow" },
   { value: "FAILED", label: "Failed" },
   { value: "REFUNDED", label: "Refunded" },
 ];
@@ -54,7 +58,8 @@ export default function PaymentsPage() {
   const { showError } = useAlert();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedStatus, setSelectedStatus] = useState<PaymentStatus>("ALL");
+  const [selectedStatus, setSelectedStatus] =
+    useState<FilterPaymentStatus>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -98,14 +103,16 @@ export default function PaymentsPage() {
     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
     const totalEarnings = paymentsData
-      .filter((p) => p.status === "COMPLETED")
+      .filter(
+        (p) => p.status === "SETTLED" || p.status === "PARTIALLY_RELEASED"
+      )
       .reduce((sum, p) => sum + p.amount, 0);
 
     const thisMonth = paymentsData
       .filter((p) => {
         const paymentDate = new Date(p.createdAt);
         return (
-          p.status === "COMPLETED" &&
+          (p.status === "SETTLED" || p.status === "PARTIALLY_RELEASED") &&
           paymentDate.getMonth() === currentMonth &&
           paymentDate.getFullYear() === currentYear
         );
@@ -116,7 +123,7 @@ export default function PaymentsPage() {
       .filter((p) => {
         const paymentDate = new Date(p.createdAt);
         return (
-          p.status === "COMPLETED" &&
+          (p.status === "SETTLED" || p.status === "PARTIALLY_RELEASED") &&
           paymentDate.getMonth() === lastMonth &&
           paymentDate.getFullYear() === lastMonthYear
         );
@@ -124,7 +131,7 @@ export default function PaymentsPage() {
       .reduce((sum, p) => sum + p.amount, 0);
 
     const pendingPayouts = paymentsData
-      .filter((p) => p.status === "PENDING")
+      .filter((p) => p.status === "HELD" || p.status === "INITIATED")
       .reduce((sum, p) => sum + p.amount, 0);
 
     setStats({
@@ -408,7 +415,8 @@ export default function PaymentsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {payment.status === "COMPLETED" && (
+                        {(payment.status === "SETTLED" ||
+                          payment.status === "PARTIALLY_RELEASED") && (
                           <button
                             onClick={() => handleDownloadReceipt(payment.id)}
                             className="text-blue-600 hover:text-blue-900 inline-flex items-center gap-1"

@@ -436,7 +436,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
                 <div className="text-sm text-gray-600 mb-1">Payment Status</div>
                 <div
                   className={`font-medium ${
-                    booking.payment.status === "COMPLETED"
+                    booking.payment.status === "SETTLED"
                       ? "text-green-600"
                       : booking.payment.status === "FAILED"
                       ? "text-red-600"

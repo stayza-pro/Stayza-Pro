@@ -1,5 +1,10 @@
 import express from "express";
-import { PaymentMethod, PaymentStatus, Prisma } from "@prisma/client";
+import {
+  PaymentMethod,
+  PaymentStatus,
+  Prisma,
+  BookingStatus,
+} from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
@@ -430,8 +435,9 @@ router.post(
 
     // Check if already verified
     if (
-      payment.status === PaymentStatus.COMPLETED ||
-      payment.status === PaymentStatus.ESCROW_HELD
+      payment.status === PaymentStatus.PARTIALLY_RELEASED ||
+      payment.status === PaymentStatus.SETTLED ||
+      payment.status === PaymentStatus.HELD
     ) {
       return res.status(200).json({
         success: true,
@@ -538,56 +544,31 @@ router.post(
       totalAmount: Number(payment.booking.totalPrice),
     };
 
-    // Hold room fee and deposit in escrow (NEW FLOW)
+    // Hold room fee and deposit in escrow + Release cleaning/service fees to wallets
+    // NEW WALLET FLOW: Cleaning fee → Realtor wallet, Service fee → Platform wallet (immediate)
     await escrowService.holdFundsInEscrow(
       payment.id,
       payment.booking.id,
+      payment.booking.property.realtorId,
       feeBreakdown
     );
 
     const now = new Date();
 
-    // IMMEDIATE RELEASES (NEW COMMISSION FLOW)
-    // 1. Cleaning fee → Realtor (immediate release)
-    // 2. Service fee → Platform (already collected from customer)
-
-    // TODO: Implement actual Paystack transfer to realtor subaccount for cleaning fee
-    // For now, we'll mark it as released in database
-    const cleaningFeeReleaseReference = `CLEANING_FEE_${
-      payment.booking.id
-    }_${Date.now()}`;
-
-    // Log immediate releases in escrow events
-    await escrowService.logEscrowEvent({
-      bookingId: payment.booking.id,
-      eventType: "RELEASE_CLEANING_FEE",
-      amount: payment.booking.cleaningFee,
-      description: `Cleaning fee of ₦${payment.booking.cleaningFee} released immediately to realtor`,
-      metadata: {
-        releaseReference: cleaningFeeReleaseReference,
-      },
-    });
-
-    await escrowService.logEscrowEvent({
-      bookingId: payment.booking.id,
-      eventType: "COLLECT_SERVICE_FEE",
-      amount: payment.booking.serviceFee,
-      description: `Service fee of ₦${payment.booking.serviceFee} collected by platform`,
-      metadata: {
-        serviceFeeRate: "2%",
-      },
-    });
+    // NOTE: Immediate releases now handled inside holdFundsInEscrow:
+    // 1. Cleaning fee → Realtor wallet (immediate, non-refundable)
+    // 2. Service fee → Platform wallet (immediate, non-refundable)
+    // 3. Room fee + deposit → Escrow (held, disputable)
 
     // Update payment status with immediate releases
     const updatedPayment = await prisma.payment.update({
       where: { id: payment.id },
       data: {
-        status: PaymentStatus.PARTIAL_RELEASED, // NEW STATUS
+        status: PaymentStatus.HELD, // Money in escrow
         paidAt: new Date(),
 
         // Immediate release tracking
         cleaningFeeReleasedToRealtor: true,
-        cleaningFeeReleaseReference,
         serviceFeeCollectedByPlatform: true,
 
         // Room fee split amounts (to be released after 1-hour window)
@@ -627,8 +608,8 @@ router.post(
     await prisma.booking.update({
       where: { id: payment.booking.id },
       data: {
-        status: "CONFIRMED",
-        paymentStatus: PaymentStatus.PARTIAL_RELEASED,
+        status: BookingStatus.ACTIVE,
+        paymentStatus: PaymentStatus.HELD,
         cleaningFeeReleasedAt: now,
         serviceFeeCollectedAt: now,
       },
@@ -772,8 +753,9 @@ router.post(
 
     // Check if already paid
     if (
-      payment.status === PaymentStatus.COMPLETED ||
-      payment.status === PaymentStatus.ESCROW_HELD
+      payment.status === PaymentStatus.PARTIALLY_RELEASED ||
+      payment.status === PaymentStatus.SETTLED ||
+      payment.status === PaymentStatus.HELD
     ) {
       return res.status(200).json({
         success: true,
@@ -825,18 +807,23 @@ router.post(
         totalAmount: Number(payment.booking.totalPrice),
       };
 
-      // Hold funds in escrow
+      // Hold funds in escrow + Release cleaning/service fees to wallets
+      // NEW WALLET FLOW: Cleaning fee → Realtor wallet, Service fee → Platform wallet (immediate)
       await escrowService.holdFundsInEscrow(
         payment.id,
         payment.booking.id,
+        payment.booking.property.realtorId,
         feeBreakdown
       );
+
+      // NOTE: Cleaning fee transfer now handled inside holdFundsInEscrow (wallet credit)
+      // No separate Paystack transfer needed - money goes to realtor's internal wallet
 
       // Update payment
       const updatedPayment = await prisma.payment.update({
         where: { id: payment.id },
         data: {
-          status: PaymentStatus.ESCROW_HELD,
+          status: PaymentStatus.HELD,
           paidAt: new Date(),
           metadata: {
             ...((payment.metadata as object) || {}),
@@ -863,12 +850,12 @@ router.post(
         },
       });
 
-      // Update booking to CONFIRMED (Paystack verification in verify-by-booking)
+      // Update booking to ACTIVE (Paystack verification in verify-by-booking)
       await prisma.booking.update({
         where: { id: payment.booking.id },
         data: {
-          status: "CONFIRMED", // BookingStatus.CONFIRMED
-          paymentStatus: PaymentStatus.ESCROW_HELD,
+          status: BookingStatus.ACTIVE, // BookingStatus.ACTIVE
+          paymentStatus: PaymentStatus.HELD,
         },
       });
 
@@ -1117,7 +1104,10 @@ router.get(
     }
 
     // Only generate receipt for completed payments
-    if (payment.status !== "COMPLETED") {
+    if (
+      payment.status !== "PARTIALLY_RELEASED" &&
+      payment.status !== "SETTLED"
+    ) {
       throw new AppError("Receipt only available for completed payments", 400);
     }
 

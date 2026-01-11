@@ -81,7 +81,7 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
         hasAuthUrl: !!response.authorizationUrl,
       });
 
-      if (response.paymentStatus && response.paymentStatus !== "PENDING") {
+      if (response.paymentStatus && response.paymentStatus !== "INITIATED") {
         setPaymentStatus(response.paymentStatus);
         if (onInitialized) {
           onInitialized({
@@ -169,7 +169,7 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
           </div>
         )}
 
-        {paymentStatus && paymentStatus !== "PENDING" && (
+        {paymentStatus && paymentStatus !== "INITIATED" && (
           <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
             <CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5" />
             <p className="text-sm text-green-700">

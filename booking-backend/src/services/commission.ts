@@ -1,6 +1,7 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import { AppError } from "@/middleware/errorHandler";
+import { PaymentStatus } from "@prisma/client";
 
 // NEW COMMISSION STRUCTURE
 export const PLATFORM_FEE_RATE = 0.1; // 10% of room fee only
@@ -217,9 +218,9 @@ export const updatePaymentCommission = async (
 
   // Allow commission calculation for ESCROW_HELD, PARTIAL_RELEASED, or COMPLETED payments
   if (
-    payment.status !== "ESCROW_HELD" &&
-    payment.status !== "COMPLETED" &&
-    payment.status !== "PARTIAL_RELEASED"
+    payment.status !== PaymentStatus.HELD &&
+    payment.status !== PaymentStatus.PARTIALLY_RELEASED &&
+    payment.status !== PaymentStatus.SETTLED
   ) {
     throw new AppError(
       "Cannot calculate commission for incomplete payment",
@@ -340,7 +341,7 @@ export const getRealtorCommissionReport = async (
         realtorId,
       },
     },
-    status: "COMPLETED",
+    status: "RELEASED",
   };
 
   if (startDate || endDate) {
@@ -407,7 +408,7 @@ export const getPlatformCommissionReport = async (
   endDate?: Date
 ): Promise<PlatformCommissionReport> => {
   const whereClause: any = {
-    status: "COMPLETED",
+    status: "RELEASED",
   };
 
   if (startDate || endDate) {

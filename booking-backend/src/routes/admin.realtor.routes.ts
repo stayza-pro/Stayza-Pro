@@ -385,7 +385,7 @@ router.patch(
         const activeBookings = await prisma.booking.findMany({
           where: {
             property: { realtorId: id },
-            status: { in: ["PENDING", "CONFIRMED"] },
+            status: { in: ["PENDING", "ACTIVE"] },
           },
           include: {
             guest: {
@@ -670,7 +670,7 @@ router.put(
             realtorId,
           },
           status: {
-            in: ["PENDING", "CONFIRMED"],
+            in: ["PENDING", "ACTIVE"],
           },
         },
         include: {

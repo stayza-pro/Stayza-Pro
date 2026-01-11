@@ -27,7 +27,7 @@ export const startUnpaidBookingCron = () => {
             lt: oneHourAgo,
           },
           payment: {
-            status: "PENDING",
+            status: "INITIATED",
           },
         },
         include: {

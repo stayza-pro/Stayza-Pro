@@ -147,26 +147,21 @@ export const getBookingStatusColor = (
  * Check if payment status indicates money is in escrow
  */
 export const isPaymentInEscrow = (status: PaymentStatus): boolean => {
-  return ["ESCROW_HELD", "ROOM_FEE_SPLIT_RELEASED"].includes(status);
+  return ["HELD", "PARTIALLY_RELEASED"].includes(status);
 };
 
 /**
  * Check if payment is completed/finalized
  */
 export const isPaymentCompleted = (status: PaymentStatus): boolean => {
-  return [
-    "COMPLETED",
-    "RELEASED_TO_REALTOR",
-    "REFUNDED_TO_CUSTOMER",
-    "PARTIAL_PAYOUT_REALTOR",
-  ].includes(status);
+  return ["SETTLED", "REFUNDED"].includes(status);
 };
 
 /**
  * Check if payment can be refunded
  */
 export const canRefundPayment = (status: PaymentStatus): boolean => {
-  return ["ESCROW_HELD", "ROOM_FEE_SPLIT_RELEASED"].includes(status);
+  return ["HELD"].includes(status); // Only HELD status can be refunded (before check-in)
 };
 
 /**
@@ -175,13 +170,10 @@ export const canRefundPayment = (status: PaymentStatus): boolean => {
 export const formatPaymentStatus = (status: PaymentStatus): string => {
   const statusMap: Record<PaymentStatus, string> = {
     INITIATED: "Payment Initiated",
-    PENDING: "Pending Confirmation",
-    ESCROW_HELD: "In Escrow",
-    ROOM_FEE_SPLIT_RELEASED: "Partially Released",
-    RELEASED_TO_REALTOR: "Released to Host",
-    REFUNDED_TO_CUSTOMER: "Refunded",
-    PARTIAL_PAYOUT_REALTOR: "Partially Released",
-    COMPLETED: "Completed",
+    HELD: "In Escrow",
+    PARTIALLY_RELEASED: "Partially Released",
+    SETTLED: "Completed",
+    REFUNDED: "Refunded",
     FAILED: "Failed",
   };
   return statusMap[status] || status;
@@ -206,40 +198,25 @@ export const getPaymentStatusColor = (
       text: "text-blue-700",
       border: "border-blue-200",
     },
-    PENDING: {
-      bg: "bg-yellow-50",
-      text: "text-yellow-700",
-      border: "border-yellow-200",
-    },
-    ESCROW_HELD: {
+    HELD: {
       bg: "bg-purple-50",
       text: "text-purple-700",
       border: "border-purple-200",
     },
-    ROOM_FEE_SPLIT_RELEASED: {
+    PARTIALLY_RELEASED: {
       bg: "bg-indigo-50",
       text: "text-indigo-700",
       border: "border-indigo-200",
     },
-    RELEASED_TO_REALTOR: {
+    SETTLED: {
       bg: "bg-green-50",
       text: "text-green-700",
       border: "border-green-200",
     },
-    REFUNDED_TO_CUSTOMER: {
+    REFUNDED: {
       bg: "bg-orange-50",
       text: "text-orange-700",
       border: "border-orange-200",
-    },
-    PARTIAL_PAYOUT_REALTOR: {
-      bg: "bg-teal-50",
-      text: "text-teal-700",
-      border: "border-teal-200",
-    },
-    COMPLETED: {
-      bg: "bg-green-50",
-      text: "text-green-700",
-      border: "border-green-200",
     },
     FAILED: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
   };
@@ -320,15 +297,17 @@ export const getPayoutStatusColor = (
 // ========================
 
 /**
- * Refund percentage splits for each tier
- * Format: [Guest%, Realtor%, Platform%]
+ * Refund percentage splits for each tier (Room fee only)
+ * Format: [Customer%, Realtor%, Platform%]
+ * Note: Security deposit always 100% to customer
+ *       Service fee and cleaning fee never refunded
  */
 export const REFUND_TIER_SPLITS: Record<RefundTier, [number, number, number]> =
   {
     EARLY: [90, 7, 3], // 24+ hours before check-in
     MEDIUM: [70, 20, 10], // 12-24 hours before check-in
     LATE: [0, 80, 20], // 0-12 hours before check-in
-    NONE: [0, 100, 0], // After check-in or no refund
+    NONE: [0, 0, 0], // After check-in - no cancellation allowed
   };
 
 /**
@@ -342,23 +321,57 @@ export const calculateRefundTier = (hoursUntilCheckIn: number): RefundTier => {
 };
 
 /**
- * Calculate refund amounts based on tier
+ * Calculate refund amounts with proper fee breakdown
+ * Only room fee is split according to tier
+ * Security deposit always 100% to customer
+ * Service fee and cleaning fee never refunded
  */
 export const calculateRefundAmounts = (
-  totalAmount: number,
+  roomFee: number,
+  securityDeposit: number,
+  serviceFee: number,
+  cleaningFee: number,
   tier: RefundTier
 ): {
-  guestRefund: number;
+  customerRefund: number;
   realtorPayout: number;
   platformFee: number;
+  breakdown: {
+    roomFeeToCustomer: number;
+    roomFeeToRealtor: number;
+    roomFeeToPlatform: number;
+    securityDepositToCustomer: number;
+    cleaningFeeToRealtor: number;
+    serviceFeeToplatform: number;
+  };
 } => {
-  const [guestPercent, realtorPercent, platformPercent] =
+  const [customerPercent, realtorPercent, platformPercent] =
     REFUND_TIER_SPLITS[tier];
 
+  // Room fee split according to tier
+  const roomFeeToCustomer = (roomFee * customerPercent) / 100;
+  const roomFeeToRealtor = (roomFee * realtorPercent) / 100;
+  const roomFeeToPlatform = (roomFee * platformPercent) / 100;
+
+  // Security deposit always 100% to customer
+  const securityDepositToCustomer = securityDeposit;
+
+  // Service fee and cleaning fee never refunded
+  const cleaningFeeToRealtor = cleaningFee;
+  const serviceFeeToplatform = serviceFee;
+
   return {
-    guestRefund: (totalAmount * guestPercent) / 100,
-    realtorPayout: (totalAmount * realtorPercent) / 100,
-    platformFee: (totalAmount * platformPercent) / 100,
+    customerRefund: roomFeeToCustomer + securityDepositToCustomer,
+    realtorPayout: roomFeeToRealtor + cleaningFeeToRealtor,
+    platformFee: roomFeeToPlatform + serviceFeeToplatform,
+    breakdown: {
+      roomFeeToCustomer,
+      roomFeeToRealtor,
+      roomFeeToPlatform,
+      securityDepositToCustomer,
+      cleaningFeeToRealtor,
+      serviceFeeToplatform,
+    },
   };
 };
 
@@ -367,10 +380,10 @@ export const calculateRefundAmounts = (
  */
 export const formatRefundTier = (tier: RefundTier): string => {
   const tierMap: Record<RefundTier, string> = {
-    EARLY: "Full Refund (90%)",
-    MEDIUM: "Partial Refund (70%)",
-    LATE: "No Refund",
-    NONE: "No Refund Available",
+    EARLY: "Early Cancellation (90% room fee refund)",
+    MEDIUM: "Medium Cancellation (70% room fee refund)",
+    LATE: "Late Cancellation (security deposit only)",
+    NONE: "No Cancellation Allowed",
   };
   return tierMap[tier] || tier;
 };
@@ -380,12 +393,27 @@ export const formatRefundTier = (tier: RefundTier): string => {
  */
 export const getRefundTierDescription = (tier: RefundTier): string => {
   const descMap: Record<RefundTier, string> = {
-    EARLY: "Cancelled 24+ hours before check-in. You'll receive 90% refund.",
-    MEDIUM: "Cancelled 12-24 hours before check-in. You'll receive 70% refund.",
-    LATE: "Cancelled 0-12 hours before check-in. No refund available.",
-    NONE: "Booking already started or completed. No refund available.",
+    EARLY:
+      "Cancelled 24+ hours before check-in. You'll receive 90% of room fee + 100% security deposit.",
+    MEDIUM:
+      "Cancelled 12-24 hours before check-in. You'll receive 70% of room fee + 100% security deposit.",
+    LATE: "Cancelled 0-12 hours before check-in. You'll only receive security deposit back (no room fee refund).",
+    NONE: "Booking already started. Cancellation not available.",
   };
   return descMap[tier] || "";
+};
+
+/**
+ * Get what customer receives back for a tier
+ */
+export const getCustomerRefundSummary = (tier: RefundTier): string => {
+  const summaryMap: Record<RefundTier, string> = {
+    EARLY: "90% of room fee + full security deposit",
+    MEDIUM: "70% of room fee + full security deposit",
+    LATE: "Full security deposit only (no room fee refund)",
+    NONE: "No refund available",
+  };
+  return summaryMap[tier] || "";
 };
 
 // ========================
@@ -416,7 +444,7 @@ export const getBookingStatusSummary = (
     return {
       label: "Cancelled",
       description:
-        paymentStatus === "REFUNDED_TO_CUSTOMER"
+        paymentStatus === "REFUNDED"
           ? "Booking cancelled. Refund has been processed."
           : "Booking has been cancelled.",
       color: getBookingStatusColor("CANCELLED"),

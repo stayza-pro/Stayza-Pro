@@ -680,6 +680,17 @@ export default function GuestBookingsPage() {
                         </div>
                       </div>
 
+                      {/* Cancelled booking info */}
+                      {booking.status === "CANCELLED" && (
+                        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-sm text-red-800">
+                            <strong>Cancelled:</strong> Refund processed
+                            automatically based on cancellation policy. View
+                            details for breakdown.
+                          </p>
+                        </div>
+                      )}
+
                       {/* Action Button */}
                       <div className="flex items-center justify-between pt-6 border-t border-gray-200">
                         <div className="text-sm text-gray-500">
@@ -690,10 +701,10 @@ export default function GuestBookingsPage() {
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
-                            // If booking is unpaid (PENDING payment), redirect to checkout
+                            // If booking is unpaid (INITIATED payment), redirect to checkout
                             if (
                               booking.status === "PENDING" &&
-                              booking.payment?.status === "PENDING"
+                              booking.payment?.status === "INITIATED"
                             ) {
                               router.push(
                                 `/guest/bookings/${booking.id}/checkout`
@@ -708,7 +719,7 @@ export default function GuestBookingsPage() {
                         >
                           <span>
                             {booking.status === "PENDING" &&
-                            booking.payment?.status === "PENDING"
+                            booking.payment?.status === "INITIATED"
                               ? "Complete Payment"
                               : "View Details"}
                           </span>

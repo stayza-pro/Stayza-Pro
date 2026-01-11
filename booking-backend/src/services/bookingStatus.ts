@@ -33,26 +33,15 @@ export const BOOKING_STATUS_TRANSITIONS: Record<
   BookingStatus,
   BookingStatus[]
 > = {
-  PENDING: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
-  CONFIRMED: [
-    BookingStatus.CHECKED_IN_CONFIRMED,
+  PENDING: [BookingStatus.ACTIVE, BookingStatus.CANCELLED],
+  ACTIVE: [
     BookingStatus.COMPLETED,
     BookingStatus.CANCELLED,
+    BookingStatus.DISPUTED,
   ],
+  DISPUTED: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
   CANCELLED: [], // Terminal state - no transitions allowed
   COMPLETED: [], // Terminal state - no transitions allowed
-  PAID: [BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
-  CHECKED_IN: [
-    BookingStatus.CHECKED_IN_CONFIRMED,
-    BookingStatus.CHECKED_OUT,
-    BookingStatus.DISPUTE_OPENED,
-  ],
-  CHECKED_IN_CONFIRMED: [
-    BookingStatus.CHECKED_OUT,
-    BookingStatus.DISPUTE_OPENED,
-  ], // NEW STATE
-  DISPUTE_OPENED: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
-  CHECKED_OUT: [BookingStatus.COMPLETED],
 };
 
 // Business rules for status transitions
@@ -68,10 +57,10 @@ export const STATUS_TRANSITION_RULES: Partial<
     }
   >
 > = {
-  [BookingStatus.CONFIRMED]: {
+  [BookingStatus.ACTIVE]: {
     requiresPayment: true,
-    allowedPaymentStatuses: ["COMPLETED"],
-    description: "Booking can only be confirmed when payment is completed",
+    allowedPaymentStatuses: ["HELD", "RELEASED"],
+    description: "Booking can only be activated when payment is held in escrow",
   },
   [BookingStatus.COMPLETED]: {
     requiresCheckIn: true,
@@ -107,15 +96,15 @@ export function isTransitionAllowed(
   // Apply business rules
   const rule = STATUS_TRANSITION_RULES[to];
   if (rule) {
-    // Check payment requirement for CONFIRMED status
-    if (to === BookingStatus.CONFIRMED && rule.requiresPayment) {
+    // Check payment requirement for ACTIVE status
+    if (to === BookingStatus.ACTIVE && rule.requiresPayment) {
       if (
         !context?.paymentStatus ||
         !rule.allowedPaymentStatuses?.includes(context.paymentStatus)
       ) {
         return {
           allowed: false,
-          reason: "Payment must be completed before confirming booking",
+          reason: "Payment must be held in escrow before activating booking",
         };
       }
     }

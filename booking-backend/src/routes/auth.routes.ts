@@ -1433,7 +1433,7 @@ router.delete(
         bookings: {
           where: {
             checkOutDate: { gte: new Date() },
-            status: { in: ["CONFIRMED", "PENDING"] },
+            status: { in: ["ACTIVE", "PENDING"] },
           },
         },
         realtor: {
@@ -1460,7 +1460,7 @@ router.delete(
       where: {
         guestId: userId,
         checkOutDate: { gte: new Date() },
-        status: { in: ["CONFIRMED", "PENDING"] },
+        status: { in: ["ACTIVE", "PENDING"] },
       },
     });
 

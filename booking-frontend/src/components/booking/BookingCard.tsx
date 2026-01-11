@@ -205,7 +205,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
             Payment:
             <span
               className={`ml-1 font-medium ${
-                booking.payment.status === "COMPLETED"
+                booking.payment.status === "SETTLED"
                   ? "text-green-600"
                   : booking.payment.status === "FAILED"
                   ? "text-red-600"

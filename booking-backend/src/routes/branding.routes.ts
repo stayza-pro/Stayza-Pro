@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from "@/types";
 import { prisma } from "@/config/database";
 import { asyncHandler, AppError } from "@/middleware/errorHandler";
 import { authenticate } from "@/middleware/auth";
+import { BookingStatus } from "@prisma/client";
 
 const router = express.Router();
 
@@ -189,7 +190,7 @@ router.get(
       by: ["guestId"],
       where: {
         propertyId: { in: propertyIds },
-        status: { in: ["CONFIRMED", "COMPLETED"] },
+        status: { in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED] },
       },
       _count: {
         guestId: true,

@@ -82,7 +82,7 @@ router.post(
     }
 
     // Check if payment is completed and refundable
-    if (booking.payment.status !== "COMPLETED") {
+    if (booking.payment.status !== "HELD") {
       throw new AppError("Can only refund completed payments", 400);
     }
 

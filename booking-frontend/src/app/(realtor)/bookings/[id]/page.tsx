@@ -64,19 +64,18 @@ export default function RealtorBookingDetailsPage() {
       setShowCancelModal(false);
       setCancelReason("");
 
-      // Show refund request information
-      if (response?.data?.refundRequest) {
-        const refundReq = response.data.refundRequest;
-        const refundInfo = response.data.refund;
+      // Show refund breakdown using new structure
+      if (response?.data?.refund) {
+        const refund = response.data.refund;
+        const totals = refund.totals;
 
         showToast.success(
-          `Booking Cancelled. Refund request ${
-            refundReq.status === "REALTOR_APPROVED"
-              ? "auto-approved"
-              : "created"
-          } per policy. Guest receives: ₦${
-            refundInfo?.customerRefund?.toLocaleString() || 0
-          }, You receive: ₦${refundInfo?.realtorPayout?.toLocaleString() || 0}`
+          `Booking Cancelled. Refund processed automatically (${
+            refund.tier
+          } tier). Guest receives: ₦${
+            totals.customerRefund?.toLocaleString() || 0
+          }, You receive: ₦${totals.realtorPortion?.toLocaleString() || 0}`,
+          { duration: 6000 }
         );
       } else {
         showToast.success("Booking cancelled successfully");
@@ -124,41 +123,7 @@ export default function RealtorBookingDetailsPage() {
     refundMutation.mutate({ amount, reason: refundReason });
   };
 
-  const calculateRefundTier = () => {
-    if (!booking) return null;
-    const checkIn = new Date(booking.checkInDate);
-    const now = new Date();
-    const hoursUntilCheckIn =
-      (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    if (hoursUntilCheckIn >= 24) return "EARLY";
-    if (hoursUntilCheckIn >= 12) return "MEDIUM";
-    if (hoursUntilCheckIn > 0) return "LATE";
-    return "NONE";
-  };
-
-  const getRefundBreakdown = () => {
-    if (!booking) return null;
-    const tier = calculateRefundTier();
-    const total = booking.totalPrice;
-
-    const breakdowns = {
-      EARLY: { guest: 0.9, realtor: 0.07, platform: 0.03 },
-      MEDIUM: { guest: 0.7, realtor: 0.2, platform: 0.1 },
-      LATE: { guest: 0, realtor: 0.8, platform: 0.2 },
-      NONE: { guest: 0, realtor: 0, platform: 0 },
-    };
-
-    const breakdown =
-      breakdowns[tier as keyof typeof breakdowns] || breakdowns.NONE;
-
-    return {
-      tier,
-      guestRefund: total * breakdown.guest,
-      realtorPayout: total * breakdown.realtor,
-      platformFee: total * breakdown.platform,
-    };
-  };
+  // Refund calculation now handled by backend
 
   const calculateNights = () => {
     if (!booking) return 0;
@@ -478,6 +443,39 @@ export default function RealtorBookingDetailsPage() {
                   ₦{(booking.totalPrice || 0).toLocaleString()}
                 </span>
               </div>
+
+              {/* Cancelled Booking Fee Breakdown */}
+              {booking.status === "CANCELLED" && booking.payment && (
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    Cancellation Breakdown
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Your portion (room fee % + cleaning):</span>
+                      <span className="font-medium text-green-700">
+                        View escrow for details
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Guest refund (room fee % + deposit):</span>
+                      <span className="font-medium text-blue-700">
+                        Processed automatically
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Platform fee (room fee % + service):</span>
+                      <span className="font-medium text-gray-700">
+                        Per cancellation policy
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 italic mt-3 pt-3 border-t">
+                      Note: Cancellation fees are split based on timing. Check
+                      escrow tracker for exact amounts released to you.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -604,85 +602,7 @@ export default function RealtorBookingDetailsPage() {
               and process it.
             </p>
 
-            {/* Refund Tier Info for Cancelled Bookings */}
-            {booking?.status === "CANCELLED" && (
-              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <p className="text-sm font-medium text-blue-900 mb-2">
-                  📊 Cancellation Refund Breakdown
-                </p>
-                {(() => {
-                  const breakdown = getRefundBreakdown();
-                  if (!breakdown) return null;
-                  const tierLabels = {
-                    EARLY: "Early Cancellation (24+ hours)",
-                    MEDIUM: "Medium Cancellation (12-24 hours)",
-                    LATE: "Late Cancellation (0-12 hours)",
-                    NONE: "No Refund Available",
-                  };
-                  return (
-                    <>
-                      <p className="text-xs text-blue-800 mb-2">
-                        <strong>
-                          {
-                            tierLabels[
-                              breakdown.tier as keyof typeof tierLabels
-                            ]
-                          }
-                        </strong>
-                      </p>
-                      <div className="space-y-1 text-xs text-blue-700">
-                        <div className="flex justify-between">
-                          <span>Guest refund:</span>
-                          <span className="font-semibold">
-                            ₦
-                            {breakdown.guestRefund.toLocaleString("en-NG", {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            })}{" "}
-                            (
-                            {Math.round(
-                              (breakdown.guestRefund / booking.totalPrice) * 100
-                            )}
-                            %)
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>You keep:</span>
-                          <span className="font-semibold text-green-700">
-                            ₦
-                            {breakdown.realtorPayout.toLocaleString("en-NG", {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            })}{" "}
-                            (
-                            {Math.round(
-                              (breakdown.realtorPayout / booking.totalPrice) *
-                                100
-                            )}
-                            %)
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Platform fee:</span>
-                          <span>
-                            ₦
-                            {breakdown.platformFee.toLocaleString("en-NG", {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            })}{" "}
-                            (
-                            {Math.round(
-                              (breakdown.platformFee / booking.totalPrice) * 100
-                            )}
-                            %)
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
+            {/* Refund info displayed in cancellation toast - removed complex breakdown */}
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">

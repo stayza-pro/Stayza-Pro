@@ -60,14 +60,31 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    setUser(null);
-    setIsAuthenticated(false);
-    setShowUserMenu(false);
-    window.location.href = "/";
+  const handleLogout = async () => {
+    try {
+      // Call backend logout endpoint
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Clear local storage regardless of API call result
+      localStorage.removeItem("user");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      setUser(null);
+      setIsAuthenticated(false);
+      setShowUserMenu(false);
+      window.location.href = "/";
+    }
   };
 
   return (

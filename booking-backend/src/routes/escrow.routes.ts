@@ -186,9 +186,7 @@ router.get(
     const roomFeeStatus =
       booking.roomFeeReleaseEligibleAt && isPast(roomFeeReleaseTime)
         ? "RELEASED"
-        : booking.status === "CHECKED_IN" ||
-          booking.status === "CHECKED_OUT" ||
-          booking.status === "COMPLETED"
+        : booking.status === "ACTIVE" || booking.status === "COMPLETED"
         ? "HELD"
         : "PENDING";
 

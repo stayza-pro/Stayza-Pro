@@ -1,66 +1,136 @@
-import { DisputeType, DisputeStatus, BookingStatus } from "@prisma/client";
 import { prisma } from "@/config/database";
-import { logger } from "@/utils/logger";
 import {
-  isUserDisputeWindowOpen,
-  isRealtorDisputeWindowOpen,
-  payRealtorFromDeposit,
-  refundRoomFeeToCustomer,
-} from "./escrowService";
-
-interface OpenDisputeInput {
-  bookingId: string;
-  userId: string;
-  disputeType: DisputeType;
-  evidence?: string[]; // Array of photo/video URLs
-  initialMessage: string;
-}
-
-interface DisputeMessage {
-  id: string;
-  userId: string;
-  userName: string;
-  message: string;
-  timestamp: string;
-  attachments?: string[];
-}
-
-interface EvidenceItem {
-  url: string;
-  type: "photo" | "video";
-  uploadedAt: string;
-  uploadedBy: string;
-  description?: string;
-}
+  DisputeSubject,
+  DisputeCategory,
+  DisputeStatus,
+  DisputeResponseAction,
+  AdminDisputeDecision,
+  DisputeFinalOutcome,
+  BookingStatus,
+  PaymentStatus,
+  EscrowStatus,
+  Prisma,
+  WalletOwnerType,
+  WalletTransactionSource,
+} from "@prisma/client";
+import { logger } from "@/utils/logger";
+import * as walletService from "./walletService";
+import * as escrowService from "./escrowService";
+import { processRefund } from "./paystack";
 
 /**
- * Open a new dispute
+ * DISPUTE V2 SYSTEM - SYSTEM-LEVEL, NON-VAGUE
+ *
+ * Key Rules:
+ * 1. Dispute type determines MAX refund (100% or 30%)
+ * 2. System auto-calculates ALL amounts (no custom inputs)
+ * 3. Realtor/Guest response is BINARY (accept or reject+escalate)
+ * 4. No negotiation, no counter-offers
+ * 5. Admin decision is FINAL and LIMITED by dispute cap
+ * 6. Deposit disputes capped at deposit amount
+ * 7. No second disputes on same money
  */
-export const openDispute = async (input: OpenDisputeInput) => {
-  const {
-    bookingId,
-    userId,
-    disputeType,
-    evidence = [],
-    initialMessage,
-  } = input;
 
-  // Fetch booking with relations
+/**
+ * Get max refund percentage based on dispute category
+ */
+const getMaxRefundPercent = (category: DisputeCategory): number => {
+  switch (category) {
+    case DisputeCategory.SAFETY_UNINHABITABLE:
+    case DisputeCategory.MAJOR_MISREPRESENTATION:
+      return 100;
+    case DisputeCategory.MISSING_AMENITIES_CLEANLINESS:
+    case DisputeCategory.MINOR_INCONVENIENCE:
+      return 30;
+    // Deposit disputes don't use percentage
+    case DisputeCategory.PROPERTY_DAMAGE:
+    case DisputeCategory.MISSING_ITEMS:
+    case DisputeCategory.CLEANING_REQUIRED:
+    case DisputeCategory.OTHER_DEPOSIT_CLAIM:
+      return 0; // Not applicable for deposit disputes
+    default:
+      throw new Error(`Unknown dispute category: ${category}`);
+  }
+};
+
+/**
+ * Calculate dispute amounts for ROOM_FEE dispute
+ */
+const calculateRoomFeeDisputeAmounts = (
+  roomFeeAmount: number,
+  maxRefundPercent: number
+): {
+  guestRefundAmount: number;
+  realtorPayoutAmount: number;
+  platformFeeAmount: number;
+} => {
+  if (maxRefundPercent === 100) {
+    // FULL REFUND: Guest gets 100%, realtor/platform get 0%
+    return {
+      guestRefundAmount: roomFeeAmount,
+      realtorPayoutAmount: 0,
+      platformFeeAmount: 0,
+    };
+  } else if (maxRefundPercent === 30) {
+    // PARTIAL REFUND: Guest gets 30%, remainder split 90/10
+    const guestRefundAmount = roomFeeAmount * 0.3;
+    const remainingAmount = roomFeeAmount * 0.7;
+    const realtorPayoutAmount = remainingAmount * 0.9;
+    const platformFeeAmount = remainingAmount * 0.1;
+
+    return {
+      guestRefundAmount,
+      realtorPayoutAmount,
+      platformFeeAmount,
+    };
+  } else {
+    // NO REFUND: Normal 90/10 split
+    return {
+      guestRefundAmount: 0,
+      realtorPayoutAmount: roomFeeAmount * 0.9,
+      platformFeeAmount: roomFeeAmount * 0.1,
+    };
+  }
+};
+
+/**
+ * Calculate deposit dispute amounts
+ */
+const calculateDepositDisputeAmounts = (
+  depositAmount: number,
+  claimedAmount: number
+): {
+  guestRefundAmount: number;
+  realtorPayoutAmount: number;
+} => {
+  // Ensure claimed amount doesn't exceed deposit
+  const cappedClaim = Math.min(claimedAmount, depositAmount);
+
+  return {
+    guestRefundAmount: depositAmount - cappedClaim,
+    realtorPayoutAmount: cappedClaim,
+  };
+};
+
+/**
+ * Open a ROOM_FEE dispute (Guest opens within 1hr of check-in)
+ */
+export const openRoomFeeDispute = async (
+  bookingId: string,
+  guestId: string,
+  category: DisputeCategory,
+  writeup: string,
+  attachments?: string[]
+) => {
+  // Validate booking
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: {
-      guest: true,
-      property: {
-        include: {
-          realtor: {
-            include: {
-              user: true,
-            },
-          },
-        },
-      },
       payment: true,
-      disputes: true,
+      property: {
+        include: { realtor: true },
+      },
+      escrow: true,
     },
   });
 
@@ -68,495 +138,253 @@ export const openDispute = async (input: OpenDisputeInput) => {
     throw new Error("Booking not found");
   }
 
-  // Validate dispute type and window
-  if (disputeType === DisputeType.USER_DISPUTE) {
-    // User dispute validation
-    if (userId !== booking.guestId) {
-      throw new Error("Only the guest can open a user dispute");
-    }
-
-    if (booking.status !== BookingStatus.CHECKED_IN) {
-      throw new Error("User disputes can only be opened after check-in");
-    }
-
-    if (!booking.checkInTime) {
-      throw new Error("Check-in time not recorded");
-    }
-
-    if (!isUserDisputeWindowOpen(booking.checkInTime)) {
-      throw new Error(
-        "User dispute window has closed (must be within 1 hour of check-in)"
-      );
-    }
-
-    if (booking.userDisputeOpened) {
-      throw new Error("User dispute already opened for this booking");
-    }
-  } else if (disputeType === DisputeType.REALTOR_DISPUTE) {
-    // Realtor dispute validation
-    if (userId !== booking.property.realtor.userId) {
-      throw new Error("Only the property realtor can open a realtor dispute");
-    }
-
-    if (booking.status !== BookingStatus.CHECKED_OUT) {
-      throw new Error("Realtor disputes can only be opened after check-out");
-    }
-
-    if (!booking.checkOutTime) {
-      throw new Error("Check-out time not recorded");
-    }
-
-    if (!isRealtorDisputeWindowOpen(booking.checkOutTime)) {
-      throw new Error(
-        "Realtor dispute window has closed (must be within 2 hours of check-out)"
-      );
-    }
-
-    if (booking.realtorDisputeOpened) {
-      throw new Error("Realtor dispute already opened for this booking");
-    }
+  if (booking.guestId !== guestId) {
+    throw new Error("Only the guest can open room fee disputes");
   }
 
-  // Check if evidence is provided (required)
-  if (!evidence || evidence.length === 0) {
-    throw new Error("Photo or video evidence is required to open a dispute");
+  if (booking.status !== BookingStatus.ACTIVE) {
+    throw new Error("Can only dispute during ACTIVE booking");
   }
 
-  // Format evidence
-  const evidenceItems: EvidenceItem[] = evidence.map((url) => ({
-    url,
-    type: url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? "photo" : "video",
-    uploadedAt: new Date().toISOString(),
-    uploadedBy: userId,
-    description: "",
-  }));
-
-  // Format initial message
-  const messages: DisputeMessage[] = [
-    {
-      id: `msg_${Date.now()}`,
-      userId,
-      userName:
-        disputeType === DisputeType.USER_DISPUTE
-          ? `${booking.guest.firstName} ${booking.guest.lastName}`
-          : booking.property.realtor.businessName,
-      message: initialMessage,
-      timestamp: new Date().toISOString(),
-      attachments: evidence,
+  // Check if already disputed
+  const existingDispute = await prisma.dispute.findFirst({
+    where: {
+      bookingId,
+      disputeSubject: DisputeSubject.ROOM_FEE,
+      status: {
+        in: [
+          DisputeStatus.OPEN,
+          DisputeStatus.AWAITING_RESPONSE,
+          DisputeStatus.ESCALATED,
+        ],
+      },
     },
+  });
+
+  if (existingDispute) {
+    throw new Error("Room fee dispute already exists for this booking");
+  }
+
+  // Validate category is for room fee
+  const validRoomFeeCategories: DisputeCategory[] = [
+    DisputeCategory.SAFETY_UNINHABITABLE,
+    DisputeCategory.MAJOR_MISREPRESENTATION,
+    DisputeCategory.MISSING_AMENITIES_CLEANLINESS,
+    DisputeCategory.MINOR_INCONVENIENCE,
   ];
+  if (!validRoomFeeCategories.includes(category)) {
+    throw new Error("Invalid category for room fee dispute");
+  }
+
+  const maxRefundPercent = getMaxRefundPercent(category);
+  if (!booking.payment) {
+    throw new Error("Payment not found for booking");
+  }
+
+  const roomFeeAmount = booking.payment.roomFeeAmount.toNumber();
+
+  if (roomFeeAmount === 0) {
+    throw new Error("No room fee to dispute");
+  }
+
+  const amounts = calculateRoomFeeDisputeAmounts(
+    roomFeeAmount,
+    maxRefundPercent
+  );
 
   // Create dispute
-  const dispute = await prisma.dispute.create({
-    data: {
-      bookingId,
-      disputeType,
-      status: DisputeStatus.OPEN,
-      openedBy: userId,
-      evidence: evidenceItems as any,
-      messages: messages as any,
-    },
+  const dispute = await prisma.$transaction(async (tx) => {
+    const dispute = await tx.dispute.create({
+      data: {
+        bookingId,
+        disputeSubject: DisputeSubject.ROOM_FEE,
+        category,
+        status: DisputeStatus.AWAITING_RESPONSE,
+        openedBy: guestId,
+        maxRefundPercent,
+        claimedAmount: new Prisma.Decimal(roomFeeAmount),
+        guestRefundAmount: new Prisma.Decimal(amounts.guestRefundAmount),
+        realtorPayoutAmount: new Prisma.Decimal(amounts.realtorPayoutAmount),
+        platformFeeAmount: new Prisma.Decimal(amounts.platformFeeAmount),
+        writeup,
+        attachments: attachments
+          ? JSON.parse(JSON.stringify(attachments))
+          : null,
+      },
+    });
+
+    // Update booking status
+    await tx.booking.update({
+      where: { id: bookingId },
+      data: { status: BookingStatus.DISPUTED },
+    });
+
+    // Freeze escrow (prevent auto-release)
+    if (booking.escrow) {
+      await tx.escrow.update({
+        where: { bookingId },
+        data: {
+          status: EscrowStatus.HOLDING, // Explicitly freeze
+        },
+      });
+    }
+
+    return dispute;
   });
 
-  // Update booking status and dispute flags
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      status: BookingStatus.DISPUTE_OPENED,
-      userDisputeOpened:
-        disputeType === DisputeType.USER_DISPUTE ? true : undefined,
-      realtorDisputeOpened:
-        disputeType === DisputeType.REALTOR_DISPUTE ? true : undefined,
-    },
+  logger.info("Room fee dispute opened", {
+    disputeId: dispute.id,
+    bookingId,
+    category,
+    maxRefundPercent,
+    guestRefund: amounts.guestRefundAmount,
   });
-
-  // TODO: Send notification to other party
-  // - If user dispute: notify realtor
-  // - If realtor dispute: notify customer
-
-  logger.info(
-    `Dispute opened: ${disputeType} for booking ${bookingId} by user ${userId}`
-  );
 
   return dispute;
 };
 
 /**
- * Add a message to an existing dispute
+ * Open SECURITY_DEPOSIT dispute (Realtor opens within 2hr of checkout)
  */
-export const sendDisputeMessage = async (
-  disputeId: string,
-  userId: string,
-  message: string,
-  attachments: string[] = []
+export const openDepositDispute = async (
+  bookingId: string,
+  realtorId: string,
+  category: DisputeCategory,
+  claimedAmount: number,
+  writeup: string,
+  attachments?: string[]
 ) => {
-  const dispute = await prisma.dispute.findUnique({
-    where: { id: disputeId },
+  // Validate booking
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
     include: {
-      booking: {
-        include: {
-          guest: true,
-          property: {
-            include: {
-              realtor: {
-                include: {
-                  user: true,
-                },
-              },
-            },
-          },
-        },
+      payment: true,
+      property: true,
+      escrow: true,
+    },
+  });
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  if (booking.property.realtorId !== realtorId) {
+    throw new Error("Only the property owner can open deposit disputes");
+  }
+
+  // Check if already disputed
+  const existingDispute = await prisma.dispute.findFirst({
+    where: {
+      bookingId,
+      disputeSubject: DisputeSubject.SECURITY_DEPOSIT,
+      status: {
+        in: [
+          DisputeStatus.OPEN,
+          DisputeStatus.AWAITING_RESPONSE,
+          DisputeStatus.ESCALATED,
+        ],
       },
     },
   });
 
-  if (!dispute) {
-    throw new Error("Dispute not found");
+  if (existingDispute) {
+    throw new Error("Deposit dispute already exists for this booking");
   }
 
-  if (
-    dispute.status === DisputeStatus.RESOLVED ||
-    dispute.status === DisputeStatus.REJECTED
-  ) {
-    throw new Error("Cannot send messages to a closed dispute");
+  // Validate category is for deposit
+  const validDepositCategories: DisputeCategory[] = [
+    DisputeCategory.PROPERTY_DAMAGE,
+    DisputeCategory.MISSING_ITEMS,
+    DisputeCategory.CLEANING_REQUIRED,
+    DisputeCategory.OTHER_DEPOSIT_CLAIM,
+  ];
+  if (!validDepositCategories.includes(category)) {
+    throw new Error("Invalid category for deposit dispute");
   }
 
-  // Verify user is involved in the dispute
-  const isGuest = userId === dispute.booking.guestId;
-  const isRealtor = userId === dispute.booking.property.realtor.userId;
-  const isAdmin = await prisma.user.findFirst({
-    where: { id: userId, role: "ADMIN" },
+  if (!booking.payment) {
+    throw new Error("Payment not found for booking");
+  }
+
+  const depositAmount = booking.payment.securityDepositAmount.toNumber();
+
+  if (depositAmount === 0) {
+    throw new Error("No security deposit to dispute");
+  }
+
+  // Cap claimed amount at deposit
+  const cappedClaimedAmount = Math.min(claimedAmount, depositAmount);
+
+  const amounts = calculateDepositDisputeAmounts(
+    depositAmount,
+    cappedClaimedAmount
+  );
+
+  // Get realtor user ID
+  const realtor = await prisma.realtor.findUnique({
+    where: { id: realtorId },
+    select: { userId: true },
   });
 
-  if (!isGuest && !isRealtor && !isAdmin) {
-    throw new Error("You are not authorized to participate in this dispute");
+  if (!realtor) {
+    throw new Error("Realtor not found");
   }
 
-  // Get user name
-  let userName = "Admin";
-  if (isGuest) {
-    userName = `${dispute.booking.guest.firstName} ${dispute.booking.guest.lastName}`;
-  } else if (isRealtor) {
-    userName = dispute.booking.property.realtor.businessName;
-  }
-
-  // Get existing messages
-  const existingMessages = (dispute.messages as any as DisputeMessage[]) || [];
-
-  // Add new message
-  const newMessage: DisputeMessage = {
-    id: `msg_${Date.now()}`,
-    userId,
-    userName,
-    message,
-    timestamp: new Date().toISOString(),
-    attachments: attachments.length > 0 ? attachments : undefined,
-  };
-
-  existingMessages.push(newMessage);
-
-  // Update dispute
-  const updatedDispute = await prisma.dispute.update({
-    where: { id: disputeId },
-    data: {
-      messages: existingMessages as any,
-      status:
-        dispute.status === DisputeStatus.OPEN
-          ? DisputeStatus.NEGOTIATION
-          : dispute.status,
-    },
-  });
-
-  // TODO: Send notification to other party
-
-  return updatedDispute;
-};
-
-/**
- * Add evidence to an existing dispute
- */
-export const addDisputeEvidence = async (
-  disputeId: string,
-  userId: string,
-  evidenceUrls: string[],
-  description?: string
-) => {
-  const dispute = await prisma.dispute.findUnique({
-    where: { id: disputeId },
-    include: {
-      booking: {
-        include: {
-          property: {
-            include: {
-              realtor: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!dispute) {
-    throw new Error("Dispute not found");
-  }
-
-  // Verify user is involved
-  const isGuest = userId === dispute.booking.guestId;
-  const isRealtor = userId === dispute.booking.property.realtor.userId;
-
-  if (!isGuest && !isRealtor) {
-    throw new Error("You are not authorized to add evidence to this dispute");
-  }
-
-  // Get existing evidence
-  const existingEvidence = (dispute.evidence as any as EvidenceItem[]) || [];
-
-  // Add new evidence
-  const newEvidence: EvidenceItem[] = evidenceUrls.map((url) => ({
-    url,
-    type: url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? "photo" : "video",
-    uploadedAt: new Date().toISOString(),
-    uploadedBy: userId,
-    description: description || "",
-  }));
-
-  existingEvidence.push(...newEvidence);
-
-  // Update dispute
-  const updatedDispute = await prisma.dispute.update({
-    where: { id: disputeId },
-    data: {
-      evidence: existingEvidence as any,
-    },
-  });
-
-  return updatedDispute;
-};
-
-/**
- * Agree to a settlement amount
- */
-export const agreeToSettlement = async (
-  disputeId: string,
-  userId: string,
-  agreedAmount: number,
-  notes: string
-) => {
-  const dispute = await prisma.dispute.findUnique({
-    where: { id: disputeId },
-    include: {
-      booking: {
-        include: {
-          property: {
-            include: {
-              realtor: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!dispute) {
-    throw new Error("Dispute not found");
-  }
-
-  if (
-    dispute.status !== DisputeStatus.NEGOTIATION &&
-    dispute.status !== DisputeStatus.OPEN
-  ) {
-    throw new Error("Dispute is not in negotiation phase");
-  }
-
-  // Verify user is involved
-  const isGuest = userId === dispute.booking.guestId;
-  const isRealtor = userId === dispute.booking.property.realtor.userId;
-
-  if (!isGuest && !isRealtor) {
-    throw new Error(
-      "You are not authorized to agree to settlement for this dispute"
-    );
-  }
-
-  // Execute settlement in transaction
-  const updatedDispute = await prisma.$transaction(async (tx) => {
-    // Update dispute
-    const dispute = await tx.dispute.update({
-      where: { id: disputeId },
+  // Create dispute
+  const dispute = await prisma.$transaction(async (tx) => {
+    const dispute = await tx.dispute.create({
       data: {
-        status: DisputeStatus.AGREED,
-        agreedAmount,
-        outcome: notes,
-        closedAt: new Date(),
-      },
-      include: {
-        booking: {
-          include: {
-            payment: true,
-            property: {
-              include: {
-                realtor: true,
-              },
-            },
-          },
-        },
+        bookingId,
+        disputeSubject: DisputeSubject.SECURITY_DEPOSIT,
+        category,
+        status: DisputeStatus.AWAITING_RESPONSE,
+        openedBy: realtor.userId,
+        maxRefundPercent: 0, // Not applicable for deposit disputes
+        claimedAmount: new Prisma.Decimal(cappedClaimedAmount),
+        guestRefundAmount: new Prisma.Decimal(amounts.guestRefundAmount),
+        realtorPayoutAmount: new Prisma.Decimal(amounts.realtorPayoutAmount),
+        platformFeeAmount: new Prisma.Decimal(0), // No platform fee on deposit
+        writeup,
+        attachments: attachments
+          ? JSON.parse(JSON.stringify(attachments))
+          : null,
       },
     });
 
-    return dispute;
-  });
-
-  // Execute the agreed settlement based on dispute type
-  try {
-    if (updatedDispute.disputeType === DisputeType.USER_DISPUTE) {
-      // User dispute: refund agreed amount to customer, remaining to realtor
-      logger.info("Executing user dispute settlement", {
-        disputeId,
-        bookingId: updatedDispute.bookingId,
-        refundAmount: agreedAmount,
-      });
-
-      await refundRoomFeeToCustomer(
-        updatedDispute.bookingId,
-        updatedDispute.booking.payment!.id,
-        agreedAmount,
-        `User dispute settlement: ${notes}`
-      );
-
-      // Update booking status
-      await prisma.booking.update({
-        where: { id: updatedDispute.bookingId },
+    // Freeze deposit in escrow
+    if (booking.escrow) {
+      await tx.escrow.update({
+        where: { bookingId },
         data: {
-          status: BookingStatus.CANCELLED,
-        },
-      });
-    } else if (updatedDispute.disputeType === DisputeType.REALTOR_DISPUTE) {
-      // Realtor dispute: pay agreed amount to realtor from deposit, rest to customer
-      logger.info("Executing realtor dispute settlement", {
-        disputeId,
-        bookingId: updatedDispute.bookingId,
-        realtorAmount: agreedAmount,
-      });
-
-      await payRealtorFromDeposit(
-        updatedDispute.bookingId,
-        updatedDispute.booking.payment!.id,
-        agreedAmount,
-        `Realtor dispute settlement: ${notes}`
-      );
-
-      // Update booking status
-      await prisma.booking.update({
-        where: { id: updatedDispute.bookingId },
-        data: {
-          status: BookingStatus.COMPLETED,
+          status: EscrowStatus.HOLDING,
         },
       });
     }
 
-    logger.info("Settlement executed successfully", {
-      disputeId,
-      disputeType: updatedDispute.disputeType,
-      agreedAmount,
-    });
-  } catch (settlementError: any) {
-    logger.error("Settlement execution failed", {
-      disputeId,
-      error: settlementError.message,
-      stack: settlementError.stack,
-    });
+    return dispute;
+  });
 
-    // Update dispute with error information - revert to ADMIN_REVIEW for manual intervention
-    await prisma.dispute.update({
-      where: { id: disputeId },
-      data: {
-        status: DisputeStatus.ADMIN_REVIEW,
-        outcome: `Settlement execution failed: ${settlementError.message}. Requires admin intervention.`,
-      },
-    });
+  logger.info("Deposit dispute opened", {
+    disputeId: dispute.id,
+    bookingId,
+    category,
+    claimedAmount: cappedClaimedAmount,
+    guestRefund: amounts.guestRefundAmount,
+    realtorPayout: amounts.realtorPayoutAmount,
+  });
 
-    throw new Error(`Settlement execution failed: ${settlementError.message}`);
-  }
-
-  return updatedDispute;
+  return dispute;
 };
 
 /**
- * Escalate dispute to admin
+ * Counterparty responds to dispute (ACCEPT or REJECT_ESCALATE)
  */
-export const escalateToAdmin = async (
+export const respondToDispute = async (
   disputeId: string,
-  userId: string,
-  reason: string
+  responderId: string,
+  responseAction: DisputeResponseAction,
+  responseNotes?: string
 ) => {
-  const dispute = await prisma.dispute.findUnique({
-    where: { id: disputeId },
-    include: {
-      booking: {
-        include: {
-          property: {
-            include: {
-              realtor: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!dispute) {
-    throw new Error("Dispute not found");
-  }
-
-  // Verify user is involved
-  const isGuest = userId === dispute.booking.guestId;
-  const isRealtor = userId === dispute.booking.property.realtor.userId;
-
-  if (!isGuest && !isRealtor) {
-    throw new Error("You are not authorized to escalate this dispute");
-  }
-
-  // Update dispute
-  const updatedDispute = await prisma.dispute.update({
-    where: { id: disputeId },
-    data: {
-      status: DisputeStatus.ADMIN_REVIEW,
-      escalatedToAdmin: true,
-    },
-  });
-
-  // Add escalation message
-  await sendDisputeMessage(
-    disputeId,
-    userId,
-    `Dispute escalated to admin review. Reason: ${reason}`
-  );
-
-  // TODO: Send notification to admin team
-
-  logger.info(`Dispute ${disputeId} escalated to admin by user ${userId}`);
-
-  return updatedDispute;
-};
-
-/**
- * Admin resolves a dispute
- */
-export const adminResolveDispute = async (
-  disputeId: string,
-  adminId: string,
-  resolutionAmount: number,
-  adminNotes: string
-) => {
-  // Verify user is admin
-  const admin = await prisma.user.findUnique({
-    where: { id: adminId },
-  });
-
-  if (!admin || admin.role !== "ADMIN") {
-    throw new Error("Only admins can resolve disputes");
-  }
-
   const dispute = await prisma.dispute.findUnique({
     where: { id: disputeId },
     include: {
@@ -564,10 +392,10 @@ export const adminResolveDispute = async (
         include: {
           payment: true,
           property: {
-            include: {
-              realtor: true,
-            },
+            include: { realtor: true },
           },
+          guest: true,
+          escrow: true,
         },
       },
     },
@@ -577,146 +405,509 @@ export const adminResolveDispute = async (
     throw new Error("Dispute not found");
   }
 
-  // Execute admin resolution in transaction
-  const updatedDispute = await prisma.$transaction(async (tx) => {
-    // Update dispute
-    const dispute = await tx.dispute.update({
-      where: { id: disputeId },
-      data: {
-        status: DisputeStatus.RESOLVED,
-        adminId,
-        adminNotes,
-        agreedAmount: resolutionAmount,
-        adminResolvedAt: new Date(),
-        closedAt: new Date(),
-        outcome: `Admin resolution: ${adminNotes}`,
-      },
-      include: {
-        booking: {
-          include: {
-            payment: true,
-            property: {
-              include: {
-                realtor: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return dispute;
-  });
-
-  // Execute the admin resolution based on dispute type
-  try {
-    if (updatedDispute.disputeType === DisputeType.USER_DISPUTE) {
-      // Admin decided to refund customer
-      logger.info("Executing admin resolution - user dispute", {
-        disputeId,
-        bookingId: updatedDispute.bookingId,
-        refundAmount: resolutionAmount,
-        adminId,
-      });
-
-      await refundRoomFeeToCustomer(
-        updatedDispute.bookingId,
-        updatedDispute.booking.payment!.id,
-        resolutionAmount,
-        `Admin resolution: ${adminNotes}`
-      );
-
-      // Update booking status
-      await prisma.booking.update({
-        where: { id: updatedDispute.bookingId },
-        data: {
-          status: BookingStatus.CANCELLED,
-        },
-      });
-    } else if (updatedDispute.disputeType === DisputeType.REALTOR_DISPUTE) {
-      // Admin decided realtor gets amount from deposit
-      logger.info("Executing admin resolution - realtor dispute", {
-        disputeId,
-        bookingId: updatedDispute.bookingId,
-        realtorAmount: resolutionAmount,
-        adminId,
-      });
-
-      await payRealtorFromDeposit(
-        updatedDispute.bookingId,
-        updatedDispute.booking.payment!.id,
-        resolutionAmount,
-        `Admin resolution: ${adminNotes}`
-      );
-
-      // Update booking status
-      await prisma.booking.update({
-        where: { id: updatedDispute.bookingId },
-        data: {
-          status: BookingStatus.COMPLETED,
-        },
-      });
-    }
-
-    logger.info("Admin resolution executed successfully", {
-      disputeId,
-      disputeType: updatedDispute.disputeType,
-      resolutionAmount,
-      adminId,
-    });
-  } catch (resolutionError: any) {
-    logger.error("Admin resolution execution failed", {
-      disputeId,
-      error: resolutionError.message,
-      stack: resolutionError.stack,
-    });
-
-    // Update dispute with error information - mark for manual retry
-    await prisma.dispute.update({
-      where: { id: disputeId },
-      data: {
-        status: DisputeStatus.ADMIN_REVIEW,
-        adminNotes: `${adminNotes}\n\nExecution failed: ${resolutionError.message}. Requires manual retry.`,
-        outcome: `Admin resolution execution failed: ${resolutionError.message}`,
-      },
-    });
-
-    throw new Error(
-      `Admin resolution execution failed: ${resolutionError.message}`
-    );
+  if (dispute.status !== DisputeStatus.AWAITING_RESPONSE) {
+    throw new Error("Dispute is not awaiting response");
   }
 
-  return updatedDispute;
+  // Validate responder is the counterparty
+  const isRoomFeeDispute = dispute.disputeSubject === DisputeSubject.ROOM_FEE;
+  const expectedResponderId = isRoomFeeDispute
+    ? dispute.booking.property.realtor.userId // Realtor responds to guest's room fee dispute
+    : dispute.booking.guestId; // Guest responds to realtor's deposit dispute
+
+  if (responderId !== expectedResponderId) {
+    throw new Error("Only the counterparty can respond to this dispute");
+  }
+
+  if (responseAction === DisputeResponseAction.ACCEPT) {
+    // Execute the dispute resolution
+    return await executeDisputeResolution(disputeId, null, responseNotes);
+  } else {
+    // Escalate to admin
+    const updatedDispute = await prisma.dispute.update({
+      where: { id: disputeId },
+      data: {
+        status: DisputeStatus.ESCALATED,
+        respondedBy: responderId,
+        respondedAt: new Date(),
+        responseAction,
+        responseNotes,
+        escalatedToAdmin: true,
+      },
+    });
+
+    logger.info("Dispute escalated to admin", {
+      disputeId,
+      bookingId: dispute.bookingId,
+      responderId,
+    });
+
+    return updatedDispute;
+  }
 };
 
 /**
- * Get all disputes for a booking
+ * Admin resolves escalated dispute
  */
-export const getDisputesByBooking = async (bookingId: string) => {
-  return await prisma.dispute.findMany({
-    where: { bookingId },
+export const adminResolveDispute = async (
+  disputeId: string,
+  adminId: string,
+  decision: AdminDisputeDecision,
+  adminNotes: string
+) => {
+  const dispute = await prisma.dispute.findUnique({
+    where: { id: disputeId },
     include: {
-      opener: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
+      booking: {
+        include: {
+          payment: true,
+          property: { include: { realtor: true } },
+          escrow: true,
         },
       },
-      admin: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
     },
   });
+
+  if (!dispute) {
+    throw new Error("Dispute not found");
+  }
+
+  if (dispute.status !== DisputeStatus.ESCALATED) {
+    throw new Error("Dispute is not escalated to admin");
+  }
+
+  // Validate decision doesn't exceed max refund cap
+  if (dispute.disputeSubject === DisputeSubject.ROOM_FEE) {
+    if (
+      dispute.maxRefundPercent === 30 &&
+      decision === AdminDisputeDecision.FULL_REFUND
+    ) {
+      throw new Error(
+        "Cannot grant full refund - max refund is 30% for this category"
+      );
+    }
+  }
+
+  // Execute resolution with admin override
+  return await executeDisputeResolution(
+    disputeId,
+    decision,
+    adminNotes,
+    adminId
+  );
+};
+
+/**
+ * Execute dispute resolution (called by accept or admin decision)
+ */
+const executeDisputeResolution = async (
+  disputeId: string,
+  adminDecision: AdminDisputeDecision | null,
+  notes: string | undefined,
+  adminId?: string
+) => {
+  const dispute = await prisma.dispute.findUnique({
+    where: { id: disputeId },
+    include: {
+      booking: {
+        include: {
+          payment: true,
+          property: { include: { realtor: true } },
+          guest: true,
+          escrow: true,
+        },
+      },
+    },
+  });
+
+  if (!dispute) {
+    throw new Error("Dispute not found");
+  }
+
+  const isRoomFeeDispute = dispute.disputeSubject === DisputeSubject.ROOM_FEE;
+  const booking = dispute.booking;
+  const payment = booking.payment;
+
+  if (!payment) {
+    throw new Error("Payment not found for booking");
+  }
+
+  // Determine final amounts based on admin decision or original claim
+  let finalOutcome: DisputeFinalOutcome;
+  let guestRefundAmount: number = 0;
+  let realtorPayoutAmount: number = 0;
+  let platformFeeAmount: number = 0;
+
+  if (isRoomFeeDispute) {
+    // Room fee dispute resolution
+    if (adminDecision === AdminDisputeDecision.FULL_REFUND) {
+      // Admin override: 100% refund
+      const roomFee = payment.roomFeeAmount.toNumber();
+      const amounts = calculateRoomFeeDisputeAmounts(roomFee, 100);
+      guestRefundAmount = amounts.guestRefundAmount;
+      realtorPayoutAmount = amounts.realtorPayoutAmount;
+      platformFeeAmount = amounts.platformFeeAmount;
+      finalOutcome = DisputeFinalOutcome.FULL_REFUND_EXECUTED;
+    } else if (adminDecision === AdminDisputeDecision.PARTIAL_REFUND) {
+      // Admin override: 30% refund
+      const roomFee = payment.roomFeeAmount.toNumber();
+      const amounts = calculateRoomFeeDisputeAmounts(roomFee, 30);
+      guestRefundAmount = amounts.guestRefundAmount;
+      realtorPayoutAmount = amounts.realtorPayoutAmount;
+      platformFeeAmount = amounts.platformFeeAmount;
+      finalOutcome = DisputeFinalOutcome.PARTIAL_REFUND_EXECUTED;
+    } else if (adminDecision === AdminDisputeDecision.NO_REFUND) {
+      // Admin override: No refund
+      guestRefundAmount = 0;
+      const roomFee = payment.roomFeeAmount.toNumber();
+      realtorPayoutAmount = roomFee * 0.9;
+      platformFeeAmount = roomFee * 0.1;
+      finalOutcome = DisputeFinalOutcome.NO_REFUND_EXECUTED;
+    } else {
+      // Use original dispute amounts (accepted by counterparty)
+      guestRefundAmount = dispute.guestRefundAmount.toNumber();
+      realtorPayoutAmount = dispute.realtorPayoutAmount.toNumber();
+      platformFeeAmount = dispute.platformFeeAmount.toNumber();
+
+      if (dispute.maxRefundPercent === 100) {
+        finalOutcome = DisputeFinalOutcome.FULL_REFUND_EXECUTED;
+      } else if (dispute.maxRefundPercent === 30) {
+        finalOutcome = DisputeFinalOutcome.PARTIAL_REFUND_EXECUTED;
+      } else {
+        finalOutcome = DisputeFinalOutcome.NO_REFUND_EXECUTED;
+      }
+    }
+  } else {
+    // Deposit dispute resolution
+    if (adminDecision === AdminDisputeDecision.FULL_REFUND) {
+      // Admin: Full deposit to guest
+      guestRefundAmount = payment.securityDepositAmount.toNumber();
+      realtorPayoutAmount = 0;
+      finalOutcome = DisputeFinalOutcome.DEPOSIT_RETURNED;
+    } else if (adminDecision === AdminDisputeDecision.PARTIAL_REFUND) {
+      // Admin: Partial (use 50% as default partial)
+      const deposit = payment.securityDepositAmount.toNumber();
+      realtorPayoutAmount = deposit * 0.5;
+      guestRefundAmount = deposit * 0.5;
+      finalOutcome = DisputeFinalOutcome.DEPOSIT_PARTIAL;
+    } else if (adminDecision === AdminDisputeDecision.NO_REFUND) {
+      // Admin: Full deposit to realtor
+      guestRefundAmount = 0;
+      realtorPayoutAmount = payment.securityDepositAmount.toNumber();
+      finalOutcome = DisputeFinalOutcome.DEPOSIT_FORFEITED;
+    } else {
+      // Use original dispute amounts
+      guestRefundAmount = dispute.guestRefundAmount.toNumber();
+      realtorPayoutAmount = dispute.realtorPayoutAmount.toNumber();
+
+      if (guestRefundAmount === 0) {
+        finalOutcome = DisputeFinalOutcome.DEPOSIT_FORFEITED;
+      } else if (realtorPayoutAmount === 0) {
+        finalOutcome = DisputeFinalOutcome.DEPOSIT_RETURNED;
+      } else {
+        finalOutcome = DisputeFinalOutcome.DEPOSIT_PARTIAL;
+      }
+    }
+    platformFeeAmount = 0; // No platform fee on deposit
+  }
+
+  // Execute money movements atomically
+  return await prisma.$transaction(async (tx) => {
+    if (isRoomFeeDispute) {
+      // ROOM FEE DISPUTE EXECUTION
+      if (finalOutcome === DisputeFinalOutcome.FULL_REFUND_EXECUTED) {
+        // 100% refund: room fee + deposit to guest, booking cancelled
+        const roomFee = payment.roomFeeAmount.toNumber();
+        const deposit = payment.securityDepositAmount.toNumber();
+        const totalRefund = roomFee + deposit;
+
+        // Refund via Paystack
+        const transactionId =
+          payment.providerTransactionId || payment.reference;
+        if (!transactionId) {
+          throw new Error("Payment reference not found");
+        }
+        await processRefund(transactionId, totalRefund);
+
+        // Update escrow
+        await tx.escrow.update({
+          where: { bookingId: booking.id },
+          data: {
+            roomFeeHeld: new Prisma.Decimal(0),
+            depositHeld: new Prisma.Decimal(0),
+            status: EscrowStatus.REFUNDED,
+          },
+        });
+
+        // Cancel booking
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: { status: BookingStatus.CANCELLED },
+        });
+
+        // Update payment
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.REFUNDED,
+            roomFeeInEscrow: false,
+            depositInEscrow: false,
+          },
+        });
+      } else if (finalOutcome === DisputeFinalOutcome.PARTIAL_REFUND_EXECUTED) {
+        // 30% refund: guest gets 30%, 70% split to wallets, booking continues
+        // Refund 30% to guest
+        const transactionId =
+          payment.providerTransactionId || payment.reference;
+        if (!transactionId) {
+          throw new Error("Payment reference not found");
+        }
+        await processRefund(transactionId, guestRefundAmount);
+
+        // Credit realtor wallet (60% of room fee)
+        const realtorWallet = await walletService.getOrCreateWallet(
+          WalletOwnerType.REALTOR,
+          booking.property.realtorId
+        );
+        await walletService.creditWallet(
+          realtorWallet.id,
+          realtorPayoutAmount,
+          WalletTransactionSource.ROOM_FEE,
+          booking.id,
+          { disputeId, partialRefund: true }
+        );
+
+        // Credit platform wallet (10% of room fee)
+        const platformWallet = await walletService.getOrCreateWallet(
+          WalletOwnerType.PLATFORM,
+          "platform"
+        );
+        await walletService.creditWallet(
+          platformWallet.id,
+          platformFeeAmount,
+          WalletTransactionSource.ROOM_FEE,
+          booking.id,
+          { disputeId, partialRefund: true }
+        );
+
+        // Update escrow - room fee released, deposit still held
+        await tx.escrow.update({
+          where: { bookingId: booking.id },
+          data: {
+            roomFeeHeld: new Prisma.Decimal(0),
+            status: EscrowStatus.PARTIAL_RELEASED,
+          },
+        });
+
+        // Update payment
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.PARTIALLY_RELEASED, // Room fee split completed (partial refund case)
+            roomFeeInEscrow: false,
+            roomFeeSplitDone: true,
+          },
+        });
+
+        // Booking continues (still ACTIVE)
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: { status: BookingStatus.ACTIVE },
+        });
+      } else if (finalOutcome === DisputeFinalOutcome.NO_REFUND_EXECUTED) {
+        // No refund: Normal 90/10 split
+        // Credit realtor wallet (90%)
+        const realtorWallet = await walletService.getOrCreateWallet(
+          WalletOwnerType.REALTOR,
+          booking.property.realtorId
+        );
+        await walletService.creditWallet(
+          realtorWallet.id,
+          realtorPayoutAmount,
+          WalletTransactionSource.ROOM_FEE,
+          booking.id,
+          { disputeId, noRefund: true }
+        );
+
+        // Credit platform wallet (10%)
+        const platformWallet = await walletService.getOrCreateWallet(
+          WalletOwnerType.PLATFORM,
+          "platform"
+        );
+        await walletService.creditWallet(
+          platformWallet.id,
+          platformFeeAmount,
+          WalletTransactionSource.ROOM_FEE,
+          booking.id,
+          { disputeId, noRefund: true }
+        );
+
+        // Update escrow
+        await tx.escrow.update({
+          where: { bookingId: booking.id },
+          data: {
+            roomFeeHeld: new Prisma.Decimal(0),
+            status: EscrowStatus.RELEASED,
+          },
+        });
+
+        // Update payment
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.PARTIALLY_RELEASED, // Room fee split completed (no refund case)
+            roomFeeInEscrow: false,
+            roomFeeSplitDone: true,
+          },
+        });
+
+        // Booking continues
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: { status: BookingStatus.ACTIVE },
+        });
+      }
+    } else {
+      // DEPOSIT DISPUTE EXECUTION
+      if (realtorPayoutAmount > 0) {
+        // Credit realtor wallet with claimed deposit amount
+        const realtorWallet = await walletService.getOrCreateWallet(
+          WalletOwnerType.REALTOR,
+          booking.property.realtorId
+        );
+        await walletService.creditWallet(
+          realtorWallet.id,
+          realtorPayoutAmount,
+          WalletTransactionSource.ROOM_FEE, // Use ROOM_FEE source for deposit forfeit
+          booking.id,
+          { disputeId, depositClaim: true }
+        );
+      }
+
+      if (guestRefundAmount > 0) {
+        // Refund remainder to guest via Paystack
+        const transactionId =
+          payment.providerTransactionId || payment.reference;
+        if (!transactionId) {
+          throw new Error("Payment reference not found");
+        }
+        await processRefund(transactionId, guestRefundAmount);
+      }
+
+      // Update escrow
+      await tx.escrow.update({
+        where: { bookingId: booking.id },
+        data: {
+          depositHeld: new Prisma.Decimal(0),
+          status: EscrowStatus.REFUNDED,
+        },
+      });
+
+      // Update payment
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          depositInEscrow: false,
+          depositRefunded: guestRefundAmount > 0,
+        },
+      });
+
+      // Complete booking
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: { status: BookingStatus.COMPLETED },
+      });
+    }
+
+    // Update dispute record
+    const updatedDispute = await tx.dispute.update({
+      where: { id: disputeId },
+      data: {
+        status: DisputeStatus.RESOLVED,
+        closedAt: new Date(),
+        finalOutcome,
+        executedAt: new Date(),
+        executionReference: `dispute_${disputeId}_${Date.now()}`,
+        ...(adminId && {
+          adminId,
+          adminDecision,
+          adminNotes: notes,
+          adminResolvedAt: new Date(),
+        }),
+        ...(!adminId && {
+          respondedBy:
+            dispute.disputeSubject === DisputeSubject.ROOM_FEE
+              ? booking.property.realtor.userId
+              : booking.guestId,
+          respondedAt: new Date(),
+          responseAction: DisputeResponseAction.ACCEPT,
+          responseNotes: notes,
+        }),
+      },
+    });
+
+    logger.info("Dispute resolved and executed", {
+      disputeId,
+      bookingId: booking.id,
+      finalOutcome,
+      guestRefund: guestRefundAmount,
+      realtorPayout: realtorPayoutAmount,
+      platformFee: platformFeeAmount,
+    });
+
+    return updatedDispute;
+  });
+};
+
+/**
+ * Auto-release security deposit if no dispute within 2 hours of checkout
+ */
+export const autoReleaseDepositIfNoDispute = async (bookingId: string) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      payment: true,
+      escrow: true,
+    },
+  });
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  // Check if there's an active deposit dispute
+  const activeDispute = await prisma.dispute.findFirst({
+    where: {
+      bookingId,
+      disputeSubject: DisputeSubject.SECURITY_DEPOSIT,
+      status: {
+        in: [DisputeStatus.AWAITING_RESPONSE, DisputeStatus.ESCALATED],
+      },
+    },
+  });
+
+  if (activeDispute) {
+    logger.info("Deposit has active dispute, skipping auto-release", {
+      bookingId,
+    });
+    return null;
+  }
+
+  // Auto-release deposit to guest
+  if (booking.payment && booking.payment.depositInEscrow) {
+    await escrowService.returnSecurityDeposit(
+      bookingId,
+      booking.payment.id,
+      booking.guestId
+    );
+
+    logger.info("Security deposit auto-released to guest (no dispute)", {
+      bookingId,
+    });
+    return true;
+  }
+
+  return false;
 };
 
 /**
@@ -728,611 +919,73 @@ export const getDisputeById = async (disputeId: string) => {
     include: {
       booking: {
         include: {
-          guest: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
-          },
-          property: {
-            include: {
-              realtor: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      email: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
           payment: true,
+          property: {
+            include: { realtor: { include: { user: true } } },
+          },
+          guest: true,
         },
       },
       opener: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
+        select: { id: true, firstName: true, lastName: true, email: true },
+      },
+      responder: {
+        select: { id: true, firstName: true, lastName: true, email: true },
       },
       admin: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
+        select: { id: true, firstName: true, lastName: true, email: true },
       },
     },
   });
 };
 
 /**
- * Get all open disputes for admin dashboard
+ * Get all disputes for a booking
+ */
+export const getDisputesByBooking = async (bookingId: string) => {
+  return await prisma.dispute.findMany({
+    where: { bookingId },
+    include: {
+      opener: { select: { id: true, firstName: true, lastName: true } },
+      responder: { select: { id: true, firstName: true, lastName: true } },
+      admin: { select: { id: true, firstName: true, lastName: true } },
+    },
+    orderBy: { openedAt: "desc" },
+  });
+};
+
+/**
+ * Get all open/escalated disputes (admin view)
  */
 export const getAllOpenDisputes = async () => {
   return await prisma.dispute.findMany({
     where: {
-      OR: [
-        { status: DisputeStatus.OPEN },
-        { status: DisputeStatus.NEGOTIATION },
-        { status: DisputeStatus.ADMIN_REVIEW },
-      ],
+      status: {
+        in: [DisputeStatus.AWAITING_RESPONSE, DisputeStatus.ESCALATED],
+      },
     },
     include: {
       booking: {
         include: {
-          guest: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
-          },
-          property: {
-            include: {
-              realtor: {
-                select: {
-                  id: true,
-                  businessName: true,
-                  userId: true,
-                },
-              },
-            },
-          },
+          property: { include: { realtor: { include: { user: true } } } },
+          guest: true,
         },
       },
       opener: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
+        select: { id: true, firstName: true, lastName: true, email: true },
       },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { openedAt: "desc" },
   });
-};
-
-/**
- * NEW COMMISSION FLOW: Admin resolves guest dispute with tier assignment
- * TIER_1_SEVERE: 100% room fee refund (realtor clearly at fault)
- * TIER_2_PARTIAL: 30% room fee refund (partial fault or minor issues)
- * TIER_3_ABUSE: 0% refund (guest abuse: no evidence, false claim)
- */
-export const adminResolveGuestDisputeWithTier = async (
-  disputeId: string,
-  adminId: string,
-  tier: "TIER_1_SEVERE" | "TIER_2_PARTIAL" | "TIER_3_ABUSE",
-  adminNotes: string
-) => {
-  // Verify user is admin
-  const admin = await prisma.user.findUnique({
-    where: { id: adminId },
-  });
-
-  if (!admin || admin.role !== "ADMIN") {
-    throw new Error("Only admins can resolve disputes");
-  }
-
-  const dispute = await prisma.dispute.findUnique({
-    where: { id: disputeId },
-    include: {
-      booking: {
-        include: {
-          payment: true,
-          property: {
-            include: {
-              realtor: true,
-            },
-          },
-          guest: true,
-        },
-      },
-    },
-  });
-
-  if (!dispute) {
-    throw new Error("Dispute not found");
-  }
-
-  if (dispute.disputeType !== DisputeType.USER_DISPUTE) {
-    throw new Error(
-      "This function only handles guest disputes. Use adminResolveRealtorDispute for realtor disputes."
-    );
-  }
-
-  const booking = dispute.booking;
-  const payment = booking.payment!;
-  const roomFee = Number(booking.roomFee);
-
-  // Import commission service to calculate refund
-  const { calculateDisputeRefund } = await import("./commission");
-  const refundAmount = calculateDisputeRefund(tier, roomFee);
-
-  logger.info("Resolving guest dispute with tier", {
-    disputeId,
-    bookingId: booking.id,
-    tier,
-    roomFee,
-    refundAmount,
-  });
-
-  // Execute resolution in transaction
-  const result = await prisma.$transaction(async (tx) => {
-    // Update dispute
-    const updatedDispute = await tx.dispute.update({
-      where: { id: disputeId },
-      data: {
-        status: DisputeStatus.RESOLVED,
-        adminId,
-        adminNotes,
-        agreedAmount: refundAmount,
-        adminResolvedAt: new Date(),
-        closedAt: new Date(),
-        outcome: `Admin resolution - ${tier}: ${adminNotes}`,
-      },
-    });
-
-    // Update booking with tier and refund amount
-    const updatedBooking = await tx.booking.update({
-      where: { id: booking.id },
-      data: {
-        guestDisputeTier: tier,
-        disputeRefundAmount: refundAmount,
-        status: BookingStatus.COMPLETED,
-      },
-    });
-
-    // Update payment with dispute refund tracking
-    await tx.payment.update({
-      where: { id: payment.id },
-      data: {
-        disputeRefundProcessed: true,
-        disputeRefundReference: `DISPUTE_REFUND_${booking.id}_${Date.now()}`,
-        status: "COMPLETED",
-      },
-    });
-
-    return { updatedDispute, updatedBooking, refundAmount };
-  });
-
-  // Execute the actual refund (outside transaction)
-  if (Number(refundAmount) > 0) {
-    try {
-      logger.info("Processing dispute refund to customer", {
-        bookingId: booking.id,
-        refundAmount,
-        tier,
-      });
-
-      // TODO: Implement actual Paystack refund API call
-      // For now, just log the escrow event
-      const escrowService = await import("./escrowService");
-      await escrowService.logEscrowEvent({
-        bookingId: booking.id,
-        eventType: "REFUND_PARTIAL_TO_CUSTOMER",
-        amount: refundAmount,
-        description: `Guest dispute resolved - ${tier}: ${adminNotes}. Refund amount: ₦${refundAmount}`,
-        metadata: {
-          disputeId,
-          tier,
-          refundPercentage:
-            tier === "TIER_1_SEVERE" ? 100 : tier === "TIER_2_PARTIAL" ? 30 : 0,
-        },
-      });
-
-      // Send notifications
-      await prisma.notification.create({
-        data: {
-          userId: booking.guestId,
-          type: "PAYMENT_COMPLETED",
-          title: "Dispute Resolved - Refund Processed",
-          message: `Your dispute has been resolved. You will receive a refund of ₦${refundAmount.toLocaleString()} (${
-            tier === "TIER_1_SEVERE"
-              ? "100%"
-              : tier === "TIER_2_PARTIAL"
-              ? "30%"
-              : "0%"
-          } of room fee).`,
-          bookingId: booking.id,
-          priority: "high",
-          isRead: false,
-        },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: booking.property.realtor.userId,
-          type: "DISPUTE_OPENED",
-          title: "Guest Dispute Resolved",
-          message: `Admin resolved the guest dispute for ${
-            booking.property.title
-          }. Tier: ${tier}. Guest refund: ₦${refundAmount.toLocaleString()}.`,
-          bookingId: booking.id,
-          priority: "high",
-          isRead: false,
-        },
-      });
-
-      logger.info("Guest dispute refund processed successfully", {
-        disputeId,
-        bookingId: booking.id,
-        refundAmount,
-        tier,
-      });
-    } catch (error: any) {
-      logger.error("Failed to process dispute refund", {
-        disputeId,
-        bookingId: booking.id,
-        error: error.message,
-      });
-
-      // Mark for manual retry
-      await prisma.dispute.update({
-        where: { id: disputeId },
-        data: {
-          adminNotes: `${adminNotes}\n\nRefund execution failed: ${error.message}. Requires manual processing.`,
-          outcome: `${tier} - Refund execution failed: ${error.message}`,
-        },
-      });
-
-      throw new Error(`Dispute refund execution failed: ${error.message}`);
-    }
-  } else {
-    // TIER_3_ABUSE - no refund, just send notifications
-    await prisma.notification.create({
-      data: {
-        userId: booking.guestId,
-        type: "DISPUTE_OPENED",
-        title: "Dispute Resolved - No Refund",
-        message: `Your dispute has been reviewed and determined to be without merit. No refund will be processed. Reason: ${adminNotes}`,
-        bookingId: booking.id,
-        priority: "high",
-        isRead: false,
-      },
-    });
-
-    await prisma.notification.create({
-      data: {
-        userId: booking.property.realtor.userId,
-        type: "DISPUTE_OPENED",
-        title: "Guest Dispute Resolved in Your Favor",
-        message: `The guest dispute for ${booking.property.title} has been resolved in your favor. No refund will be issued to the guest.`,
-        bookingId: booking.id,
-        priority: "normal",
-        isRead: false,
-      },
-    });
-  }
-
-  return result;
-};
-
-/**
- * NEW COMMISSION FLOW: Admin resolves realtor dispute (damage claim)
- * WIN: Realtor gets full claimed amount from deposit
- * PARTIAL: Realtor gets partial amount based on evidence
- * LOSS: Realtor gets nothing, full deposit refunded to guest
- */
-export const adminResolveRealtorDisputeWithOutcome = async (
-  disputeId: string,
-  adminId: string,
-  outcome: "WIN" | "LOSS" | "PARTIAL",
-  damageAmount: number, // Amount realtor should receive (0 for LOSS, full for WIN, custom for PARTIAL)
-  adminNotes: string
-) => {
-  // Verify user is admin
-  const admin = await prisma.user.findUnique({
-    where: { id: adminId },
-  });
-
-  if (!admin || admin.role !== "ADMIN") {
-    throw new Error("Only admins can resolve disputes");
-  }
-
-  const dispute = await prisma.dispute.findUnique({
-    where: { id: disputeId },
-    include: {
-      booking: {
-        include: {
-          payment: true,
-          property: {
-            include: {
-              realtor: true,
-            },
-          },
-          guest: true,
-        },
-      },
-    },
-  });
-
-  if (!dispute) {
-    throw new Error("Dispute not found");
-  }
-
-  if (dispute.disputeType !== DisputeType.REALTOR_DISPUTE) {
-    throw new Error(
-      "This function only handles realtor disputes. Use adminResolveGuestDisputeWithTier for guest disputes."
-    );
-  }
-
-  const booking = dispute.booking;
-  const payment = booking.payment!;
-  const securityDeposit = Number(booking.securityDeposit);
-
-  // Validate damage amount
-  if (damageAmount < 0) {
-    throw new Error("Damage amount cannot be negative");
-  }
-
-  if (damageAmount > securityDeposit) {
-    logger.warn("Damage amount exceeds deposit - capping at deposit amount", {
-      disputeId,
-      damageAmount,
-      securityDeposit,
-    });
-    damageAmount = securityDeposit; // Cap at deposit (liability limit)
-  }
-
-  // Calculate amounts
-  const { calculateDepositDeduction } = await import("./commission");
-  const { realtorGets, guestRefund, isLiabilityCapped } =
-    calculateDepositDeduction(damageAmount, securityDeposit);
-
-  logger.info("Resolving realtor dispute with outcome", {
-    disputeId,
-    bookingId: booking.id,
-    outcome,
-    damageAmount,
-    realtorGets,
-    guestRefund,
-    isLiabilityCapped,
-  });
-
-  // Execute resolution in transaction
-  const result = await prisma.$transaction(async (tx) => {
-    // Update dispute
-    const updatedDispute = await tx.dispute.update({
-      where: { id: disputeId },
-      data: {
-        status: DisputeStatus.RESOLVED,
-        adminId,
-        adminNotes,
-        agreedAmount: realtorGets,
-        adminResolvedAt: new Date(),
-        closedAt: new Date(),
-        outcome: `Admin resolution - ${outcome}: ${adminNotes}`,
-      },
-    });
-
-    // Update booking with outcome and deduction amount
-    const updatedBooking = await tx.booking.update({
-      where: { id: booking.id },
-      data: {
-        realtorDisputeOutcome: outcome,
-        depositDeductionAmount: realtorGets,
-        status: BookingStatus.COMPLETED,
-      },
-    });
-
-    // Update payment with deposit deduction tracking
-    await tx.payment.update({
-      where: { id: payment.id },
-      data: {
-        depositDeductionProcessed: true,
-        depositPartialRefundAmount: guestRefund,
-        depositPartialRefundReference: `DEPOSIT_REFUND_${
-          booking.id
-        }_${Date.now()}`,
-        status: "COMPLETED",
-      },
-    });
-
-    return { updatedDispute, updatedBooking, realtorGets, guestRefund };
-  });
-
-  // Execute the actual transfers (outside transaction)
-  try {
-    const escrowService = await import("./escrowService");
-
-    // Transfer to realtor if amount > 0
-    if (Number(realtorGets) > 0) {
-      logger.info("Processing damage payment to realtor from deposit", {
-        bookingId: booking.id,
-        amount: realtorGets,
-        outcome,
-      });
-
-      // TODO: Implement actual Paystack transfer to realtor
-      await escrowService.logEscrowEvent({
-        bookingId: booking.id,
-        eventType: "PAY_REALTOR_FROM_DEPOSIT",
-        amount: realtorGets,
-        description: `Realtor dispute resolved - ${outcome}: ${adminNotes}. Damage payment: ₦${realtorGets}`,
-        metadata: {
-          disputeId,
-          outcome,
-          damageAmount,
-          isLiabilityCapped,
-        },
-      });
-    }
-
-    // Refund remaining deposit to guest if amount > 0
-    if (Number(guestRefund) > 0) {
-      logger.info("Processing partial deposit refund to guest", {
-        bookingId: booking.id,
-        amount: guestRefund,
-        outcome,
-      });
-
-      // TODO: Implement actual Paystack refund to guest
-      await escrowService.logEscrowEvent({
-        bookingId: booking.id,
-        eventType: "RELEASE_DEPOSIT_TO_CUSTOMER",
-        amount: guestRefund,
-        description: `Deposit refund after damage deduction - ${outcome}: Refund ₦${guestRefund} (Deduction: ₦${realtorGets})`,
-        metadata: {
-          disputeId,
-          outcome,
-          totalDeposit: securityDeposit,
-          deductionAmount: realtorGets,
-        },
-      });
-    }
-
-    // Send notifications
-    if (outcome === "WIN") {
-      await prisma.notification.create({
-        data: {
-          userId: booking.property.realtor.userId,
-          type: "PAYOUT_COMPLETED",
-          title: "Damage Dispute Resolved in Your Favor",
-          message: `Your damage claim of ₦${realtorGets.toLocaleString()} has been approved and will be transferred from the guest's deposit.`,
-          bookingId: booking.id,
-          priority: "high",
-          isRead: false,
-        },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: booking.guestId,
-          type: "PAYMENT_COMPLETED",
-          title: "Damage Dispute Resolved",
-          message: `The realtor's damage claim was approved. ₦${realtorGets.toLocaleString()} will be deducted from your deposit${
-            Number(guestRefund) > 0
-              ? `. Remaining deposit of ₦${guestRefund.toLocaleString()} will be refunded.`
-              : "."
-          }`,
-          bookingId: booking.id,
-          priority: "high",
-          isRead: false,
-        },
-      });
-    } else if (outcome === "LOSS") {
-      await prisma.notification.create({
-        data: {
-          userId: booking.property.realtor.userId,
-          type: "DISPUTE_OPENED",
-          title: "Damage Dispute Not Approved",
-          message: `Your damage claim was not approved. The full deposit of ₦${securityDeposit.toLocaleString()} will be refunded to the guest. Reason: ${adminNotes}`,
-          bookingId: booking.id,
-          priority: "high",
-          isRead: false,
-        },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: booking.guestId,
-          type: "PAYMENT_COMPLETED",
-          title: "Damage Dispute Resolved in Your Favor",
-          message: `The realtor's damage claim was not approved. Your full security deposit of ₦${securityDeposit.toLocaleString()} will be refunded.`,
-          bookingId: booking.id,
-          priority: "high",
-          isRead: false,
-        },
-      });
-    } else {
-      // PARTIAL
-      await prisma.notification.create({
-        data: {
-          userId: booking.property.realtor.userId,
-          type: "PAYOUT_COMPLETED",
-          title: "Partial Damage Claim Approved",
-          message: `Your damage claim was partially approved. You will receive ₦${realtorGets.toLocaleString()} from the guest's deposit.`,
-          bookingId: booking.id,
-          priority: "high",
-          isRead: false,
-        },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: booking.guestId,
-          type: "PAYMENT_COMPLETED",
-          title: "Partial Damage Claim Approved",
-          message: `A partial damage claim was approved. ₦${realtorGets.toLocaleString()} will be deducted from your deposit. Remaining ₦${guestRefund.toLocaleString()} will be refunded.`,
-          bookingId: booking.id,
-          priority: "high",
-          isRead: false,
-        },
-      });
-    }
-
-    logger.info("Realtor dispute resolution processed successfully", {
-      disputeId,
-      bookingId: booking.id,
-      outcome,
-      realtorGets,
-      guestRefund,
-    });
-  } catch (error: any) {
-    logger.error("Failed to process realtor dispute resolution", {
-      disputeId,
-      bookingId: booking.id,
-      error: error.message,
-    });
-
-    // Mark for manual retry
-    await prisma.dispute.update({
-      where: { id: disputeId },
-      data: {
-        adminNotes: `${adminNotes}\n\nExecution failed: ${error.message}. Requires manual processing.`,
-        outcome: `${outcome} - Execution failed: ${error.message}`,
-      },
-    });
-
-    throw new Error(
-      `Realtor dispute resolution execution failed: ${error.message}`
-    );
-  }
-
-  return result;
 };
 
 export default {
-  openDispute,
-  sendDisputeMessage,
-  addDisputeEvidence,
-  agreeToSettlement,
-  escalateToAdmin,
+  openRoomFeeDispute,
+  openDepositDispute,
+  respondToDispute,
   adminResolveDispute,
-  adminResolveGuestDisputeWithTier,
-  adminResolveRealtorDisputeWithOutcome,
-  getDisputesByBooking,
+  autoReleaseDepositIfNoDispute,
   getDisputeById,
+  getDisputesByBooking,
   getAllOpenDisputes,
 };

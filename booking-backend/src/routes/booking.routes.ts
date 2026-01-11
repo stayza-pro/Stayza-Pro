@@ -11,6 +11,7 @@ import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { createBookingSchema, updateBookingSchema } from "@/utils/validation";
 import { refundPolicyService } from "@/services/refundPolicy";
 import { calculateRefundSplit, processBookingRefund } from "@/services/refund";
+import { processAutomaticCancellationRefund } from "@/services/cancellationRefund";
 import { paystackService } from "@/services/paystack";
 import { config } from "@/config";
 import { sendBookingCancellation } from "@/services/email";
@@ -332,7 +333,7 @@ router.get(
     const conflictingBookings = await prisma.booking.findMany({
       where: {
         propertyId,
-        status: { in: ["CONFIRMED", "PENDING"] },
+        status: { in: ["ACTIVE", "PENDING"] },
         AND: [
           {
             OR: [
@@ -489,7 +490,7 @@ router.post(
       const conflictingBookings = await tx.booking.findMany({
         where: {
           propertyId,
-          status: { in: ["CONFIRMED", "PENDING"] },
+          status: { in: ["ACTIVE", "PENDING"] },
           AND: [
             {
               OR: [
@@ -1091,7 +1092,7 @@ router.put(
       const notificationService = NotificationService.getInstance();
       let notification = null;
 
-      if (status === BookingStatus.CONFIRMED) {
+      if (status === BookingStatus.ACTIVE) {
         notification = notificationHelpers.bookingConfirmed(
           updatedBooking.guestId,
           updatedBooking.id,
@@ -1213,67 +1214,78 @@ router.get(
       });
     }
 
-    const totalAmount = Number(booking.totalPrice);
-    const refundSplit = calculateRefundSplit(booking.checkInDate, totalAmount);
+    // Calculate refund using new policy service
+    const refundCalc = refundPolicyService.calculateCancellationRefund({
+      booking,
+    });
 
-    const now = new Date();
-    const hoursUntilCheckIn =
-      (booking.checkInDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    let tierPercentages = { customer: 0, realtor: 0, platform: 0 };
+    let warning = null;
 
-    let customerPercent: number;
-    let realtorPercent: number;
-    let platformPercent: number;
-
-    switch (refundSplit.tier) {
+    switch (refundCalc.tier) {
       case "EARLY":
-        customerPercent = 90;
-        realtorPercent = 7;
-        platformPercent = 3;
+        tierPercentages = { customer: 90, realtor: 7, platform: 3 };
         break;
       case "MEDIUM":
-        customerPercent = 70;
-        realtorPercent = 20;
-        platformPercent = 10;
+        tierPercentages = { customer: 70, realtor: 20, platform: 10 };
         break;
       case "LATE":
-        customerPercent = 0;
-        realtorPercent = 80;
-        platformPercent = 20;
+        tierPercentages = { customer: 0, realtor: 80, platform: 20 };
+        warning =
+          "⚠️ Late cancellation: You will only receive your security deposit back. Room fee will not be refunded.";
         break;
       case "NONE":
-        customerPercent = 0;
-        realtorPercent = 0;
-        platformPercent = 0;
+        tierPercentages = { customer: 0, realtor: 0, platform: 0 };
+        warning = "❌ Cannot cancel after check-in time.";
         break;
-      default:
-        customerPercent = 0;
-        realtorPercent = 0;
-        platformPercent = 0;
     }
 
     const refundInfo = {
-      tier: refundSplit.tier,
-      customerRefund: refundSplit.customerRefund,
-      realtorPayout: refundSplit.realtorPayout,
-      platformFee: refundSplit.stayzaPayout,
-      breakdown: {
-        customerPercent,
-        realtorPercent,
-        platformPercent,
+      tier: refundCalc.tier,
+      hoursUntilCheckIn: Math.round(refundCalc.hoursUntilCheckIn * 10) / 10,
+
+      // Room fee breakdown
+      roomFee: {
+        total: refundCalc.roomFee,
+        customerRefund: refundCalc.customerRoomRefund,
+        realtorPortion: refundCalc.realtorRoomPortion,
+        platformPortion: refundCalc.platformRoomPortion,
+        percentages: tierPercentages,
       },
-      hoursUntilCheckIn: Math.round(hoursUntilCheckIn * 10) / 10,
-      totalAmount,
+
+      // Other fees (non-refundable)
+      securityDeposit: {
+        total: refundCalc.securityDepositRefund,
+        customerRefund: refundCalc.securityDepositRefund,
+        note: "Always 100% refunded to customer",
+      },
+
+      serviceFee: {
+        total: refundCalc.serviceFee,
+        platformPortion: refundCalc.serviceFee,
+        note: "Never refunded - kept by platform",
+      },
+
+      cleaningFee: {
+        total: refundCalc.cleaningFee,
+        realtorPortion: refundCalc.cleaningFee,
+        note: "Never refunded - kept by realtor",
+      },
+
+      // Totals
+      totals: {
+        customerRefund: refundCalc.totalCustomerRefund,
+        realtorPortion: refundCalc.totalRealtorPortion,
+        platformPortion: refundCalc.totalPlatformPortion,
+      },
+
       currency: booking.currency,
-      warning:
-        refundSplit.tier === "LATE"
-          ? "⚠️ Late cancellation: You will NOT receive any refund if you cancel now."
-          : refundSplit.tier === "NONE"
-          ? "❌ Cannot cancel after check-in time."
-          : null,
+      reason: refundCalc.reason,
+      warning,
     };
 
     return res.json({
-      canCancel: refundSplit.tier !== "NONE", // Prevent cancel for NONE tier
+      canCancel: refundCalc.tier !== "NONE",
       refundInfo,
       bookingDetails: {
         id: booking.id,
@@ -1397,167 +1409,70 @@ router.put(
     }
 
     let refundInfo: any = null;
-    let refundRequest: any = null;
 
     console.log("💳 Payment status:", booking.payment?.status);
 
-    // Only create refund requests for EARLY and MEDIUM tiers (guest gets refund)
-    // LATE tier: No refund request (guest gets 0%), but realtor gets 80%
-    // NONE tier: Cancellation not allowed (handled by canCancelBooking)
-    // Handle both COMPLETED and PARTIAL_RELEASED payments (partial release means escrow was partially distributed but refund still needed)
+    // Process automatic cancellation refund based on tier
     if (
-      booking.payment?.status === "COMPLETED" ||
-      booking.payment?.status === "PARTIAL_RELEASED"
+      booking.payment?.status === PaymentStatus.PARTIALLY_RELEASED ||
+      booking.payment?.status === PaymentStatus.SETTLED
     ) {
       console.log(
-        "✅ Payment is COMPLETED or PARTIAL_RELEASED, proceeding with refund logic"
+        "✅ Payment is PARTIALLY_RELEASED or SETTLED, processing automatic refund"
       );
+
       try {
-        const refundSplit = calculateRefundSplit(
-          booking.checkInDate,
-          Number(booking.totalPrice)
-        );
+        const refundResult = await processAutomaticCancellationRefund(id);
 
-        console.log("💰 Refund calculation:", {
-          tier: refundSplit.tier,
-          customerRefund: refundSplit.customerRefund,
-          realtorPayout: refundSplit.realtorPayout,
-          checkInDate: booking.checkInDate,
-        });
-
-        // Only create refund request for EARLY and MEDIUM tiers
-        // (tiers where guest actually gets money back)
-        if (refundSplit.tier === "EARLY" || refundSplit.tier === "MEDIUM") {
-          console.log(
-            "✅ Creating refund request for",
-            refundSplit.tier,
-            "tier"
-          );
-          const refundRequestData: any = {
-            bookingId: booking.id,
-            paymentId: booking.payment.id,
-            requestedBy: booking.guestId,
-            requestedAmount: refundSplit.customerRefund,
-            currency: booking.currency,
-            reason: "BOOKING_CANCELLED",
-            customerNotes: reason || "Booking cancelled by guest",
-            realtorId: booking.property.realtor.id,
-          };
-          // Auto-approve for EARLY and MEDIUM tiers (guest gets refund)
-          refundRequestData.status = "REALTOR_APPROVED";
-          refundRequestData.realtorApprovedAt = new Date();
-          refundRequestData.realtorReason = "AUTO_APPROVED";
-          refundRequestData.realtorNotes = `Automatically approved based on ${
-            refundSplit.tier
-          } tier cancellation policy (${
-            refundSplit.tier === "EARLY" ? "90%" : "70%"
-          } refund to guest)`;
-          refundRequestData.actualRefundAmount = refundSplit.customerRefund;
-
-          // Create the refund request in database
-          console.log(
-            "🔍 Creating refund request with data:",
-            refundRequestData
-          );
-          refundRequest = await prisma.refundRequest.create({
-            data: refundRequestData,
-          });
-          console.log("✅ Refund request created:", refundRequest.id);
-
-          // Process the refund through existing service
-          console.log("🔍 Processing booking refund...");
-          const refundResult = await processBookingRefund(id);
-          console.log("✅ Refund processed:", refundResult);
+        if (refundResult.success) {
+          const calc = refundResult.refundCalculation;
 
           refundInfo = {
-            eligible: true,
-            tier: refundResult.tier,
-            totalAmount: refundResult.totalAmount,
-            customerRefund: refundSplit.customerRefund,
-            realtorPayout: refundSplit.realtorPayout,
-            stayzaPayout: refundSplit.stayzaPayout,
-            refundRequestId: refundRequest.id,
+            eligible: calc.totalCustomerRefund > 0,
+            tier: calc.tier,
+            hoursUntilCheckIn: calc.hoursUntilCheckIn,
+            totalCustomerRefund: calc.totalCustomerRefund,
+            totalRealtorPortion: calc.totalRealtorPortion,
+            totalPlatformPortion: calc.totalPlatformPortion,
             breakdown: {
-              customer: refundSplit.tier === "EARLY" ? "90%" : "70%",
-              realtor: refundSplit.tier === "EARLY" ? "7%" : "20%",
-              stayza: refundSplit.tier === "EARLY" ? "3%" : "10%",
+              roomFee: {
+                total: calc.roomFee,
+                customerRefund: calc.customerRoomRefund,
+                realtorPortion: calc.realtorRoomPortion,
+                platformPortion: calc.platformRoomPortion,
+              },
+              securityDeposit: calc.securityDepositRefund,
+              serviceFee: calc.serviceFee,
+              cleaningFee: calc.cleaningFee,
             },
-            status: "auto_approved",
-          };
-        } else if (refundSplit.tier === "LATE") {
-          console.log(
-            "⚠️ LATE tier - Creating REJECTED refund request (guest gets 0%)"
-          );
-          // LATE tier: Create a rejected refund request to show in dashboard
-          // Guest gets 0%, realtor gets 80%, platform gets 20%
-          const refundRequestData: any = {
-            bookingId: booking.id,
-            paymentId: booking.payment.id,
-            requestedBy: booking.guestId,
-            requestedAmount: 0, // Guest requested cancellation but gets nothing
-            currency: booking.currency,
-            reason: "BOOKING_CANCELLED",
-            customerNotes: reason || "Booking cancelled by guest",
-            realtorId: booking.property.realtor.id,
-            status: "REALTOR_REJECTED", // Auto-rejected for LATE tier
-            realtorApprovedAt: new Date(),
-            realtorReason: "AUTO_REJECTED",
-            realtorNotes:
-              "Automatically rejected based on LATE tier cancellation policy (cancelled within 12 hours of check-in - 0% refund to guest, 80% to realtor, 20% to platform)",
-            actualRefundAmount: 0,
+            escrowEventsCreated: refundResult.escrowEventsCreated,
+            notificationsSent: refundResult.notificationsSent,
+            message: calc.reason,
           };
 
           console.log(
-            "🔍 Creating rejected refund request with data:",
-            refundRequestData
+            "✅ Automatic refund processed successfully:",
+            refundInfo
           );
-          refundRequest = await prisma.refundRequest.create({
-            data: refundRequestData,
-          });
-          console.log("✅ Rejected refund request created:", refundRequest.id);
-
-          // Update payment split - no actual refund to customer
-          await prisma.payment.update({
-            where: { id: booking.payment.id },
-            data: {
-              status: "REFUNDED_TO_CUSTOMER",
-              refundAmount: 0,
-              refundedAt: new Date(),
-              platformCommission: refundSplit.stayzaPayout,
-              realtorEarnings: refundSplit.realtorPayout,
-            },
-          });
-
+        } else {
+          console.error("❌ Automatic refund failed:", refundResult.error);
           refundInfo = {
             eligible: false,
-            tier: "LATE",
-            totalAmount: Number(booking.totalPrice),
-            customerRefund: 0,
-            realtorPayout: refundSplit.realtorPayout,
-            stayzaPayout: refundSplit.stayzaPayout,
-            refundRequestId: refundRequest.id, // Include the rejected request ID
-            breakdown: {
-              customer: "0%",
-              realtor: "80%",
-              stayza: "20%",
-            },
-            status: "auto_rejected",
-            message:
-              "Late cancellation: No refund to guest. Amount distributed to realtor and platform.",
+            error: refundResult.error || "Refund processing failed",
           };
         }
       } catch (refundError) {
         console.error("❌ Refund processing failed:", refundError);
         logger.error("Refund processing failed:", refundError);
         refundInfo = {
-          eligible: true,
+          eligible: false,
           error: "Refund processing failed - please contact support",
         };
       }
     } else {
       refundInfo = {
         eligible: false,
-        reason: cancellationCheck.reason,
+        reason: "Payment not in valid state for refund",
       };
     }
 
@@ -1586,8 +1501,8 @@ router.put(
       let realtorMessage = `Booking for "${booking.property.title}" has been cancelled`;
       if (reason) realtorMessage += `. Reason: ${reason}`;
 
-      if (refundRequest) {
-        realtorMessage += `. Refund automatically approved - guest receives ${refundInfo.breakdown.customer}, you receive ${refundInfo.breakdown.realtor}.`;
+      if (refundInfo?.eligible && refundInfo?.totalCustomerRefund > 0) {
+        realtorMessage += `. Refund automatically processed - guest receives ${refundInfo.totalCustomerRefund} ${booking.currency}, you receive ${refundInfo.totalRealtorPortion} ${booking.currency}.`;
       } else if (refundInfo?.tier === "LATE") {
         realtorMessage += `. Late cancellation - guest receives no refund, you receive 80% of payment.`;
       }
@@ -1614,16 +1529,6 @@ router.put(
       data: {
         booking: transitionResult.booking,
         refund: refundInfo,
-        refundRequest: refundRequest
-          ? {
-              id: refundRequest.id,
-              status: refundRequest.status,
-              requestedAmount: refundRequest.requestedAmount,
-              actualRefundAmount: refundRequest.actualRefundAmount,
-              reason: refundRequest.reason,
-              createdAt: refundRequest.createdAt,
-            }
-          : null,
         cancellation: {
           reason: reason || "Booking cancelled by user",
           cancelledBy: isAdmin ? "admin" : "guest",
@@ -1689,10 +1594,7 @@ router.post(
       throw new AppError("Unauthorized to check in this booking", 403);
     }
 
-    if (
-      booking.status !== BookingStatus.PAID &&
-      booking.status !== "CONFIRMED"
-    ) {
+    if (booking.status !== BookingStatus.ACTIVE) {
       throw new AppError(
         `Cannot check in. Booking status is ${booking.status}`,
         400
@@ -1716,7 +1618,7 @@ router.post(
     const updatedBooking = await prisma.booking.update({
       where: { id },
       data: {
-        status: BookingStatus.CHECKED_IN,
+        status: BookingStatus.ACTIVE,
         checkInTime,
         disputeWindowClosesAt,
       },
@@ -1824,9 +1726,9 @@ router.post(
       throw new AppError("Unauthorized to check out this booking", 403);
     }
 
-    if (booking.status !== BookingStatus.CHECKED_IN) {
+    if (booking.stayStatus !== "CHECKED_IN") {
       throw new AppError(
-        `Cannot check out. Booking status is ${booking.status}. Must be checked in first.`,
+        `Cannot check out. Must be checked in first. Current stayStatus: ${booking.stayStatus}`,
         400
       );
     }
@@ -1839,7 +1741,8 @@ router.post(
     const updatedBooking = await prisma.booking.update({
       where: { id },
       data: {
-        status: BookingStatus.CHECKED_OUT,
+        status: BookingStatus.ACTIVE, // Keep ACTIVE until deposit released
+        stayStatus: "CHECKED_OUT", // Set to CHECKED_OUT
         checkOutTime,
         realtorDisputeClosesAt,
       },
@@ -2077,7 +1980,7 @@ router.post(
         where: {
           propertyId: booking.propertyId,
           id: { not: id },
-          status: { in: ["CONFIRMED", "CHECKED_IN"] },
+          status: { in: ["ACTIVE"] },
           OR: [
             {
               checkInDate: { lte: checkOut },
@@ -2320,7 +2223,7 @@ router.post(
       throw new AppError("Only the guest can extend their booking", 403);
     }
 
-    if (booking.status !== "CONFIRMED" && booking.status !== "CHECKED_IN") {
+    if (booking.status !== BookingStatus.ACTIVE) {
       throw new AppError(
         "Can only extend confirmed or checked-in bookings",
         400
@@ -2336,7 +2239,7 @@ router.post(
       where: {
         propertyId: booking.propertyId,
         id: { not: id },
-        status: { in: ["CONFIRMED", "CHECKED_IN"] },
+        status: { in: ["ACTIVE"] },
         checkInDate: {
           lt: newCheckOut,
           gte: booking.checkOutDate,
@@ -2477,7 +2380,7 @@ router.get(
     const bookings = await prisma.booking.findMany({
       where: {
         propertyId,
-        status: { in: ["CONFIRMED", "CHECKED_IN"] },
+        status: { in: ["ACTIVE"] },
         checkOutDate: { gte: startDate },
         checkInDate: { lte: endDate },
       },
@@ -2510,9 +2413,7 @@ router.get(
           }Z`,
           `DTEND:${checkOut.toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
           `SUMMARY:Booked`,
-          `STATUS:${
-            booking.status === "CONFIRMED" ? "CONFIRMED" : "TENTATIVE"
-          }`,
+          `STATUS:${booking.status === "ACTIVE" ? "ACTIVE" : "TENTATIVE"}`,
           "END:VEVENT"
         );
       });
@@ -2637,7 +2538,7 @@ router.post(
     const conflicts = await prisma.booking.findMany({
       where: {
         propertyId,
-        status: { in: ["CONFIRMED", "CHECKED_IN"] },
+        status: { in: ["ACTIVE"] },
         OR: [
           {
             checkInDate: { lte: end },
@@ -2806,12 +2707,9 @@ router.post(
     }
 
     // Check if already checked in
-    if (
-      booking.status !== "CHECKED_IN_CONFIRMED" &&
-      booking.status !== "CHECKED_IN"
-    ) {
+    if (booking.stayStatus !== "CHECKED_IN") {
       throw new AppError(
-        `Cannot checkout from booking with status: ${booking.status}`,
+        `Cannot checkout. Must be checked in first. Current stayStatus: ${booking.stayStatus}`,
         400
       );
     }
@@ -2828,7 +2726,8 @@ router.post(
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        status: "CHECKED_OUT",
+        status: "ACTIVE", // BookingStatus stays ACTIVE until deposit released
+        stayStatus: "CHECKED_OUT", // StayStatus changes to CHECKED_OUT
         checkOutTime: now,
         depositRefundEligibleAt: realtorDisputeClosesAt,
         realtorDisputeClosesAt,

@@ -276,12 +276,12 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
             <div className="text-sm text-gray-600">Payment Status</div>
             <div
               className={`font-medium ${
-                booking.payment?.status === "COMPLETED"
+                booking.payment?.status === "SETTLED"
                   ? "text-green-600"
                   : "text-yellow-600"
               }`}
             >
-              {booking.payment?.status === "COMPLETED"
+              {booking.payment?.status === "SETTLED"
                 ? "Payment Successful"
                 : "Payment Processing"}
             </div>

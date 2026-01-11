@@ -56,16 +56,13 @@ export type BookingStatus =
   | "COMPLETED" // All funds released, booking finished
   | "CANCELLED"; // Booking cancelled before check-in
 
-// Payment money flow states (matches backend Prisma schema)
+// Payment money flow states (matches backend Prisma schema EXACTLY)
 export type PaymentStatus =
   | "INITIATED" // Payment process started
-  | "PENDING" // Waiting for payment provider confirmation (deprecated)
-  | "ESCROW_HELD" // Room fee + security deposit held in escrow
-  | "ROOM_FEE_SPLIT_RELEASED" // 90% to realtor, 10% to platform (after 1-hour dispute window)
-  | "RELEASED_TO_REALTOR" // Full escrow released to realtor
-  | "REFUNDED_TO_CUSTOMER" // Full refund to customer
-  | "PARTIAL_PAYOUT_REALTOR" // Partial payout after dispute settlement
-  | "COMPLETED" // All transactions completed (deprecated - use specific states)
+  | "HELD" // Escrow holding funds (room fee + deposit)
+  | "PARTIALLY_RELEASED" // Room fee released (90/10 split), deposit still in escrow
+  | "SETTLED" // All money distributed (booking completed)
+  | "REFUNDED" // Cancellation refunds processed
   | "FAILED"; // Payment failed
 
 // Payment gateway providers
@@ -81,10 +78,70 @@ export type PayoutStatus =
 
 // Refund tier based on cancellation timing (matches backend Prisma schema)
 export type RefundTier =
-  | "EARLY" // 24+ hours before check-in (90/7/3 split: Guest/Realtor/Platform)
-  | "MEDIUM" // 12-24 hours before check-in (70/20/10 split)
-  | "LATE" // 0-12 hours before check-in (0/80/20 split)
-  | "NONE"; // After check-in or no refund
+  | "EARLY" // 24+ hours before check-in (90% customer / 7% realtor / 3% platform)
+  | "MEDIUM" // 12-24 hours before check-in (70% customer / 20% realtor / 10% platform)
+  | "LATE" // 0-12 hours before check-in (0% customer / 80% realtor / 20% platform)
+  | "NONE"; // After check-in - no room fee refund
+
+// Cancellation refund breakdown
+export interface RefundFeeBreakdown {
+  roomFee: {
+    total: number;
+    customerRefund: number;
+    realtorPortion: number;
+    platformPortion: number;
+    percentages: {
+      customer: number;
+      realtor: number;
+      platform: number;
+    };
+  };
+  securityDeposit: {
+    total: number;
+    customerRefund: number;
+    note: string;
+  };
+  serviceFee: {
+    total: number;
+    platformPortion: number;
+    note: string;
+  };
+  cleaningFee: {
+    total: number;
+    realtorPortion: number;
+    note: string;
+  };
+  totals: {
+    customerRefund: number;
+    realtorPortion: number;
+    platformPortion: number;
+  };
+}
+
+export interface CancellationPreview {
+  canCancel: boolean;
+  refundInfo?: {
+    tier: RefundTier;
+    hoursUntilCheckIn: number;
+    roomFee: RefundFeeBreakdown["roomFee"];
+    securityDeposit: RefundFeeBreakdown["securityDeposit"];
+    serviceFee: RefundFeeBreakdown["serviceFee"];
+    cleaningFee: RefundFeeBreakdown["cleaningFee"];
+    totals: RefundFeeBreakdown["totals"];
+    currency: string;
+    reason: string;
+    warning?: string | null;
+  };
+  reason?: string;
+  bookingDetails?: {
+    id: string;
+    propertyTitle: string;
+    checkInDate: string;
+    checkOutDate: string;
+    status: string;
+    paymentStatus?: string;
+  };
+}
 export type ReviewType =
   | "GUEST_TO_PROPERTY"
   | "GUEST_TO_REALTOR"

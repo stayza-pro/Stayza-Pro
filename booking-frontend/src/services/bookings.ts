@@ -173,17 +173,41 @@ export const bookingService = {
       reason?: string;
       refundInfo?: {
         tier: "EARLY" | "MEDIUM" | "LATE" | "NONE";
-        customerRefund: number;
-        realtorPayout: number;
-        platformFee: number;
-        breakdown: {
-          customerPercent: number;
-          realtorPercent: number;
-          platformPercent: number;
-        };
         hoursUntilCheckIn: number;
-        totalAmount: number;
+        roomFee: {
+          total: number;
+          customerRefund: number;
+          realtorPortion: number;
+          platformPortion: number;
+          percentages: {
+            customer: number;
+            realtor: number;
+            platform: number;
+          };
+        };
+        securityDeposit: {
+          total: number;
+          customerRefund: number;
+          note: string;
+        };
+        serviceFee: {
+          total: number;
+          platformPortion: number;
+          note: string;
+        };
+        cleaningFee: {
+          total: number;
+          realtorPortion: number;
+          note: string;
+        };
+        totals: {
+          customerRefund: number;
+          realtorPortion: number;
+          platformPortion: number;
+        };
         currency: string;
+        reason: string;
+        warning?: string | null;
       };
       bookingDetails?: {
         id: string;

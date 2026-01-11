@@ -15,19 +15,16 @@ import { useTransferStatus } from "@/hooks/useEscrow";
 
 const mapPaymentStatus = (status?: Payment["status"]) => {
   switch (status) {
-    case "COMPLETED":
-    case "RELEASED_TO_REALTOR":
+    case "SETTLED":
       return "success" as const;
     case "FAILED":
       return "failed" as const;
-    case "PARTIAL_PAYOUT_REALTOR":
-    case "REFUNDED_TO_CUSTOMER":
+    case "REFUNDED":
       return "refunded" as const;
-    case "PENDING":
     case "INITIATED":
       return "pending" as const;
-    case "ESCROW_HELD":
-    case "ROOM_FEE_SPLIT_RELEASED":
+    case "HELD":
+    case "PARTIALLY_RELEASED":
       return "processing" as const;
     default:
       return "processing" as const;

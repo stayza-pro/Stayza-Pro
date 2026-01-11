@@ -15,7 +15,7 @@
  * - Visible to admin during disputes
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, PaymentStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -316,8 +316,9 @@ Thank you for staying with us! We'd love to hear about your experience - please 
     await this.sendSystemMessage(SystemMessageType.BOOKING_CONFIRMED, data);
 
     if (
-      booking.paymentStatus === "ESCROW_HELD" ||
-      booking.paymentStatus === "COMPLETED"
+      booking.paymentStatus === PaymentStatus.HELD ||
+      booking.paymentStatus === PaymentStatus.PARTIALLY_RELEASED ||
+      booking.paymentStatus === PaymentStatus.SETTLED
     ) {
       await this.sendSystemMessage(SystemMessageType.PAYMENT_CONFIRMED, data);
       await this.sendSystemMessage(SystemMessageType.HOUSE_RULES, data);

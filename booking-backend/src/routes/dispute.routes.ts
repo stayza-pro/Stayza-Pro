@@ -1,5 +1,9 @@
 import { Router, Response } from "express";
-import { DisputeType } from "@prisma/client";
+import {
+  DisputeCategory,
+  DisputeResponseAction,
+  AdminDisputeDecision,
+} from "@prisma/client";
 import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
 import { authenticate } from "@/middleware/auth";
@@ -12,9 +16,9 @@ router.use(authenticate);
 
 /**
  * @swagger
- * /api/disputes/open:
+ * /api/disputes/room-fee:
  *   post:
- *     summary: Open a new dispute
+ *     summary: Open a room fee dispute (Guest only, within 1hr of check-in)
  *     tags: [Disputes]
  *     security:
  *       - BearerAuth: []
@@ -26,265 +30,29 @@ router.use(authenticate);
  *             type: object
  *             required:
  *               - bookingId
- *               - disputeType
- *               - initialMessage
- *               - evidence
+ *               - category
+ *               - writeup
  *             properties:
  *               bookingId:
  *                 type: string
- *               disputeType:
+ *               category:
  *                 type: string
- *                 enum: [USER_DISPUTE, REALTOR_DISPUTE]
- *               initialMessage:
- *                 type: string
- *               evidence:
- *                 type: array
- *                 items:
- *                   type: string
- *     responses:
- *       201:
- *         description: Dispute opened successfully
- *       400:
- *         description: Invalid request
- */
-router.post("/open", async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { bookingId, disputeType, evidence, initialMessage } = req.body;
-    const userId = req.user?.id;
-
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    if (!bookingId || !disputeType || !initialMessage) {
-      res.status(400).json({
-        message:
-          "Missing required fields: bookingId, disputeType, initialMessage",
-      });
-      return;
-    }
-
-    if (
-      disputeType !== DisputeType.USER_DISPUTE &&
-      disputeType !== DisputeType.REALTOR_DISPUTE
-    ) {
-      res.status(400).json({
-        message:
-          "Invalid dispute type. Must be USER_DISPUTE or REALTOR_DISPUTE",
-      });
-      return;
-    }
-
-    if (!evidence || !Array.isArray(evidence) || evidence.length === 0) {
-      res.status(400).json({
-        message: "Photo or video evidence is required to open a dispute",
-      });
-      return;
-    }
-
-    const dispute = await disputeService.openDispute({
-      bookingId,
-      userId,
-      disputeType,
-      evidence,
-      initialMessage,
-    });
-
-    res.status(201).json({
-      message: "Dispute opened successfully",
-      dispute,
-    });
-  } catch (error: any) {
-    logger.error("Error opening dispute:", error);
-    res.status(400).json({
-      message: error.message || "Failed to open dispute",
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/disputes/{id}/messages:
- *   post:
- *     summary: Send a message in a dispute
- *     tags: [Disputes]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - message
- *             properties:
- *               message:
+ *                 enum: [SAFETY_UNINHABITABLE, MAJOR_MISREPRESENTATION, MISSING_AMENITIES_CLEANLINESS, MINOR_INCONVENIENCE]
+ *               writeup:
  *                 type: string
  *               attachments:
  *                 type: array
  *                 items:
  *                   type: string
  *     responses:
- *       200:
- *         description: Message sent successfully
+ *       201:
+ *         description: Room fee dispute opened successfully
+ *       400:
+ *         description: Invalid request
  */
-router.post(
-  "/:id/messages",
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { id: disputeId } = req.params;
-      const { message, attachments = [] } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
-
-      if (!message) {
-        res.status(400).json({ message: "Message is required" });
-        return;
-      }
-
-      const updatedDispute = await disputeService.sendDisputeMessage(
-        disputeId,
-        userId,
-        message,
-        attachments
-      );
-
-      res.status(200).json({
-        message: "Message sent successfully",
-        dispute: updatedDispute,
-      });
-    } catch (error: any) {
-      logger.error("Error sending dispute message:", error);
-      res.status(400).json({
-        message: error.message || "Failed to send message",
-      });
-    }
-  }
-);
-
-/**
- * @swagger
- * /api/disputes/{id}/evidence:
- *   post:
- *     summary: Add evidence to a dispute
- *     tags: [Disputes]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - evidenceUrls
- *             properties:
- *               evidenceUrls:
- *                 type: array
- *                 items:
- *                   type: string
- *               description:
- *                 type: string
- *     responses:
- *       200:
- *         description: Evidence added successfully
- */
-router.post(
-  "/:id/evidence",
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { id: disputeId } = req.params;
-      const { evidenceUrls, description } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
-
-      if (
-        !evidenceUrls ||
-        !Array.isArray(evidenceUrls) ||
-        evidenceUrls.length === 0
-      ) {
-        res.status(400).json({ message: "Evidence URLs are required" });
-        return;
-      }
-
-      const updatedDispute = await disputeService.addDisputeEvidence(
-        disputeId,
-        userId,
-        evidenceUrls,
-        description
-      );
-
-      res.status(200).json({
-        message: "Evidence added successfully",
-        dispute: updatedDispute,
-      });
-    } catch (error: any) {
-      logger.error("Error adding dispute evidence:", error);
-      res.status(400).json({
-        message: error.message || "Failed to add evidence",
-      });
-    }
-  }
-);
-
-/**
- * @swagger
- * /api/disputes/{id}/agree:
- *   post:
- *     summary: Agree to a settlement amount
- *     tags: [Disputes]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - agreedAmount
- *               - notes
- *             properties:
- *               agreedAmount:
- *                 type: number
- *               notes:
- *                 type: string
- *     responses:
- *       200:
- *         description: Settlement agreed successfully
- */
-router.post("/:id/agree", async (req: AuthenticatedRequest, res: Response) => {
+router.post("/room-fee", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id: disputeId } = req.params;
-    const { agreedAmount, notes } = req.body;
+    const { bookingId, category, writeup, attachments } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -292,49 +60,41 @@ router.post("/:id/agree", async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    if (agreedAmount === undefined || agreedAmount === null) {
-      res.status(400).json({ message: "Agreed amount is required" });
+    if (!bookingId || !category || !writeup) {
+      res.status(400).json({
+        message: "Missing required fields: bookingId, category, writeup",
+      });
       return;
     }
 
-    if (!notes) {
-      res.status(400).json({ message: "Settlement notes are required" });
-      return;
-    }
-
-    const updatedDispute = await disputeService.agreeToSettlement(
-      disputeId,
+    const dispute = await disputeService.openRoomFeeDispute(
+      bookingId,
       userId,
-      parseFloat(agreedAmount),
-      notes
+      category as DisputeCategory,
+      writeup,
+      attachments
     );
 
-    res.status(200).json({
-      message: "Settlement agreed successfully",
-      dispute: updatedDispute,
+    res.status(201).json({
+      message: "Room fee dispute opened successfully",
+      dispute,
     });
   } catch (error: any) {
-    logger.error("Error agreeing to settlement:", error);
+    logger.error("Error opening room fee dispute:", error);
     res.status(400).json({
-      message: error.message || "Failed to agree to settlement",
+      message: error.message || "Failed to open room fee dispute",
     });
   }
 });
 
 /**
  * @swagger
- * /api/disputes/{id}/escalate:
+ * /api/disputes/deposit:
  *   post:
- *     summary: Escalate dispute to admin
+ *     summary: Open a security deposit dispute (Realtor only, within 2hr of checkout)
  *     tags: [Disputes]
  *     security:
  *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
  *     requestBody:
  *       required: true
  *       content:
@@ -342,131 +102,89 @@ router.post("/:id/agree", async (req: AuthenticatedRequest, res: Response) => {
  *           schema:
  *             type: object
  *             required:
- *               - reason
+ *               - bookingId
+ *               - category
+ *               - claimedAmount
+ *               - writeup
  *             properties:
- *               reason:
+ *               bookingId:
  *                 type: string
- *     responses:
- *       200:
- *         description: Dispute escalated successfully
- */
-router.post(
-  "/:id/escalate",
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { id: disputeId } = req.params;
-      const { reason } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
-
-      if (!reason) {
-        res.status(400).json({ message: "Escalation reason is required" });
-        return;
-      }
-
-      const updatedDispute = await disputeService.escalateToAdmin(
-        disputeId,
-        userId,
-        reason
-      );
-
-      res.status(200).json({
-        message: "Dispute escalated to admin successfully",
-        dispute: updatedDispute,
-      });
-    } catch (error: any) {
-      logger.error("Error escalating dispute:", error);
-      res.status(400).json({
-        message: error.message || "Failed to escalate dispute",
-      });
-    }
-  }
-);
-
-/**
- * @swagger
- * /api/disputes/{id}/resolve:
- *   post:
- *     summary: Admin resolves a dispute
- *     tags: [Disputes]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - resolutionAmount
- *               - adminNotes
- *             properties:
- *               resolutionAmount:
+ *               category:
+ *                 type: string
+ *                 enum: [PROPERTY_DAMAGE, MISSING_ITEMS, CLEANING_REQUIRED, OTHER_DEPOSIT_CLAIM]
+ *               claimedAmount:
  *                 type: number
- *               adminNotes:
+ *               writeup:
  *                 type: string
+ *               attachments:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *     responses:
- *       200:
- *         description: Dispute resolved successfully
+ *       201:
+ *         description: Deposit dispute opened successfully
+ *       400:
+ *         description: Invalid request
  */
-router.post(
-  "/:id/resolve",
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { id: disputeId } = req.params;
-      const { resolutionAmount, adminNotes } = req.body;
-      const userId = req.user?.id;
+router.post("/deposit", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { bookingId, category, claimedAmount, writeup, attachments } =
+      req.body;
+    const userId = req.user?.id;
 
-      if (!userId) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
-
-      if (resolutionAmount === undefined || resolutionAmount === null) {
-        res.status(400).json({ message: "Resolution amount is required" });
-        return;
-      }
-
-      if (!adminNotes) {
-        res.status(400).json({ message: "Admin notes are required" });
-        return;
-      }
-
-      const updatedDispute = await disputeService.adminResolveDispute(
-        disputeId,
-        userId,
-        parseFloat(resolutionAmount),
-        adminNotes
-      );
-
-      res.status(200).json({
-        message: "Dispute resolved successfully",
-        dispute: updatedDispute,
-      });
-    } catch (error: any) {
-      logger.error("Error resolving dispute:", error);
-      res.status(400).json({
-        message: error.message || "Failed to resolve dispute",
-      });
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
     }
+
+    if (!bookingId || !category || !claimedAmount || !writeup) {
+      res.status(400).json({
+        message:
+          "Missing required fields: bookingId, category, claimedAmount, writeup",
+      });
+      return;
+    }
+
+    // Get realtor ID from user
+    const { prisma } = await import("@/config/database");
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!realtor) {
+      res
+        .status(403)
+        .json({ message: "Only realtors can open deposit disputes" });
+      return;
+    }
+
+    const dispute = await disputeService.openDepositDispute(
+      bookingId,
+      realtor.id,
+      category as DisputeCategory,
+      parseFloat(claimedAmount),
+      writeup,
+      attachments
+    );
+
+    res.status(201).json({
+      message: "Deposit dispute opened successfully",
+      dispute,
+    });
+  } catch (error: any) {
+    logger.error("Error opening deposit dispute:", error);
+    res.status(400).json({
+      message: error.message || "Failed to open deposit dispute",
+    });
   }
-);
+});
 
 /**
  * @swagger
- * /api/disputes/{id}/resolve-guest-tier:
+ * /api/disputes/{id}/respond:
  *   post:
- *     summary: Admin resolves guest dispute with tier assignment (NEW COMMISSION FLOW)
+ *     summary: Respond to a dispute (ACCEPT or REJECT_ESCALATE)
  *     tags: [Disputes]
  *     security:
  *       - BearerAuth: []
@@ -483,33 +201,25 @@ router.post(
  *           schema:
  *             type: object
  *             required:
- *               - tier
- *               - adminNotes
+ *               - responseAction
  *             properties:
- *               tier:
+ *               responseAction:
  *                 type: string
- *                 enum: [TIER_1_SEVERE, TIER_2_PARTIAL, TIER_3_ABUSE]
- *                 description: |
- *                   TIER_1_SEVERE: 100% room fee refund (realtor clearly at fault)
- *                   TIER_2_PARTIAL: 30% room fee refund (partial fault or minor issues)
- *                   TIER_3_ABUSE: 0% refund (guest abuse: no evidence, false claim)
- *               adminNotes:
+ *                 enum: [ACCEPT, REJECT_ESCALATE]
+ *               responseNotes:
  *                 type: string
- *                 description: Admin's explanation of the decision
  *     responses:
  *       200:
- *         description: Guest dispute resolved successfully with tier
+ *         description: Response submitted successfully
  *       400:
- *         description: Invalid request or dispute type
- *       401:
- *         description: Unauthorized - admin only
+ *         description: Invalid request
  */
 router.post(
-  "/:id/resolve-guest-tier",
+  "/:id/respond",
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { id: disputeId } = req.params;
-      const { tier, adminNotes } = req.body;
+      const { id } = req.params;
+      const { responseAction, responseNotes } = req.body;
       const userId = req.user?.id;
 
       if (!userId) {
@@ -517,141 +227,31 @@ router.post(
         return;
       }
 
-      if (
-        !tier ||
-        !["TIER_1_SEVERE", "TIER_2_PARTIAL", "TIER_3_ABUSE"].includes(tier)
-      ) {
+      if (!responseAction) {
         res.status(400).json({
-          message:
-            "Valid tier is required (TIER_1_SEVERE, TIER_2_PARTIAL, or TIER_3_ABUSE)",
+          message: "Missing required field: responseAction",
         });
         return;
       }
 
-      if (!adminNotes) {
-        res.status(400).json({ message: "Admin notes are required" });
-        return;
-      }
-
-      const result = await disputeService.adminResolveGuestDisputeWithTier(
-        disputeId,
+      const dispute = await disputeService.respondToDispute(
+        id,
         userId,
-        tier,
-        adminNotes
+        responseAction as DisputeResponseAction,
+        responseNotes
       );
 
       res.status(200).json({
-        message: "Guest dispute resolved successfully",
-        tier,
-        refundAmount: result.refundAmount,
-        dispute: result.updatedDispute,
-        booking: result.updatedBooking,
+        message:
+          responseAction === "ACCEPT"
+            ? "Dispute accepted and resolved"
+            : "Dispute escalated to admin",
+        dispute,
       });
     } catch (error: any) {
-      logger.error("Error resolving guest dispute with tier:", error);
+      logger.error("Error responding to dispute:", error);
       res.status(400).json({
-        message: error.message || "Failed to resolve guest dispute",
-      });
-    }
-  }
-);
-
-/**
- * @swagger
- * /api/disputes/{id}/resolve-realtor-outcome:
- *   post:
- *     summary: Admin resolves realtor dispute with outcome (NEW COMMISSION FLOW)
- *     tags: [Disputes]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - outcome
- *               - damageAmount
- *               - adminNotes
- *             properties:
- *               outcome:
- *                 type: string
- *                 enum: [WIN, LOSS, PARTIAL]
- *                 description: |
- *                   WIN: Realtor gets full claimed amount from deposit
- *                   PARTIAL: Realtor gets partial amount based on evidence
- *                   LOSS: Realtor gets nothing, full deposit refunded to guest
- *               damageAmount:
- *                 type: number
- *                 description: Amount realtor should receive (0 for LOSS, full claim for WIN, custom for PARTIAL)
- *               adminNotes:
- *                 type: string
- *                 description: Admin's explanation of the decision
- *     responses:
- *       200:
- *         description: Realtor dispute resolved successfully with outcome
- *       400:
- *         description: Invalid request or dispute type
- *       401:
- *         description: Unauthorized - admin only
- */
-router.post(
-  "/:id/resolve-realtor-outcome",
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { id: disputeId } = req.params;
-      const { outcome, damageAmount, adminNotes } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
-
-      if (!outcome || !["WIN", "LOSS", "PARTIAL"].includes(outcome)) {
-        res.status(400).json({
-          message: "Valid outcome is required (WIN, LOSS, or PARTIAL)",
-        });
-        return;
-      }
-
-      if (damageAmount === undefined || damageAmount === null) {
-        res.status(400).json({ message: "Damage amount is required" });
-        return;
-      }
-
-      if (!adminNotes) {
-        res.status(400).json({ message: "Admin notes are required" });
-        return;
-      }
-
-      const result = await disputeService.adminResolveRealtorDisputeWithOutcome(
-        disputeId,
-        userId,
-        outcome,
-        parseFloat(damageAmount),
-        adminNotes
-      );
-
-      res.status(200).json({
-        message: "Realtor dispute resolved successfully",
-        outcome,
-        realtorReceives: result.realtorGets,
-        guestRefund: result.guestRefund,
-        dispute: result.updatedDispute,
-        booking: result.updatedBooking,
-      });
-    } catch (error: any) {
-      logger.error("Error resolving realtor dispute with outcome:", error);
-      res.status(400).json({
-        message: error.message || "Failed to resolve realtor dispute",
+        message: error.message || "Failed to respond to dispute",
       });
     }
   }
@@ -661,7 +261,7 @@ router.post(
  * @swagger
  * /api/disputes/{id}:
  *   get:
- *     summary: Get dispute details by ID
+ *     summary: Get dispute details
  *     tags: [Disputes]
  *     security:
  *       - BearerAuth: []
@@ -673,13 +273,11 @@ router.post(
  *           type: string
  *     responses:
  *       200:
- *         description: Dispute details retrieved successfully
- *       404:
- *         description: Dispute not found
+ *         description: Dispute retrieved successfully
  */
 router.get("/:id", async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id: disputeId } = req.params;
+    const { id } = req.params;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -687,16 +285,14 @@ router.get("/:id", async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    const dispute = await disputeService.getDisputeById(disputeId);
+    const dispute = await disputeService.getDisputeById(id);
 
     if (!dispute) {
       res.status(404).json({ message: "Dispute not found" });
       return;
     }
 
-    res.status(200).json({
-      dispute,
-    });
+    res.status(200).json({ dispute });
   } catch (error: any) {
     logger.error("Error fetching dispute:", error);
     res.status(500).json({
@@ -737,9 +333,7 @@ router.get(
 
       const disputes = await disputeService.getDisputesByBooking(bookingId);
 
-      res.status(200).json({
-        disputes,
-      });
+      res.status(200).json({ disputes });
     } catch (error: any) {
       logger.error("Error fetching disputes:", error);
       res.status(500).json({

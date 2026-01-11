@@ -242,7 +242,7 @@ router.get(
           bookings: {
             none: {
               AND: [
-                { status: { in: ["CONFIRMED", "PENDING"] } },
+                { status: { in: ["ACTIVE", "PENDING"] } },
                 {
                   OR: [
                     {
@@ -1075,7 +1075,7 @@ router.delete(
       include: {
         bookings: {
           where: {
-            status: { in: ["CONFIRMED", "PENDING"] },
+            status: { in: ["ACTIVE", "PENDING"] },
           },
         },
       },

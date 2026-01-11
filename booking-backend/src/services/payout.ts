@@ -1,4 +1,4 @@
-import { PrismaClient, PayoutStatus } from "@prisma/client";
+import { PrismaClient, PayoutStatus, PaymentStatus } from "@prisma/client";
 import { config } from "../config";
 import axios from "axios";
 
@@ -108,7 +108,11 @@ export const processBookingPayout = async (bookingId: string) => {
     throw new Error("Booking not found");
   }
 
-  if (!booking.payment || booking.payment.status !== "COMPLETED") {
+  if (
+    !booking.payment ||
+    (booking.payment.status !== PaymentStatus.PARTIALLY_RELEASED &&
+      booking.payment.status !== PaymentStatus.SETTLED)
+  ) {
     throw new Error("Payment not completed for this booking");
   }
 
@@ -244,12 +248,12 @@ export const findEligiblePayouts = async (): Promise<string[]> => {
   const eligibleBookings = await prisma.booking.findMany({
     where: {
       payoutStatus: PayoutStatus.PENDING,
-      status: "CONFIRMED", // Only confirmed bookings
+      status: "ACTIVE", // Only active bookings
       checkInDate: {
         lte: now, // Check-in time has passed
       },
       payment: {
-        status: "COMPLETED", // Payment was successful
+        status: "HELD", // Payment held in escrow
       },
     },
     select: {
@@ -273,7 +277,9 @@ export const markReadyForPayout = async (): Promise<number> => {
         lte: now,
       },
       payment: {
-        status: "COMPLETED",
+        status: {
+          in: [PaymentStatus.PARTIALLY_RELEASED, PaymentStatus.SETTLED],
+        }, // Payment completed
       },
     },
     data: {

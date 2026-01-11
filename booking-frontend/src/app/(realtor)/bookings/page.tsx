@@ -366,6 +366,17 @@ export default function RealtorBookingsPage() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Cancelled booking notice */}
+                        {booking.status === "CANCELLED" && (
+                          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-xs text-red-800">
+                              <strong>Cancelled:</strong> Refund processed
+                              automatically. Your earnings calculated per
+                              cancellation tier. Check escrow for details.
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Right Side - Status & Actions */}

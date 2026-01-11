@@ -2,6 +2,7 @@ import express, { Response } from "express";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
+import { PaymentStatus } from "@prisma/client";
 import {
   getPlatformCommissionReport as generatePlatformReport,
   getRealtorCommissionReport as generateRealtorReport,
@@ -142,7 +143,10 @@ router.get(
         where: { status: "CANCELLED", createdAt: { gte: startDate } },
       }),
       prisma.payment.aggregate({
-        where: { status: "COMPLETED", createdAt: { gte: startDate } },
+        where: {
+          status: { in: ["PARTIALLY_RELEASED", "SETTLED"] },
+          createdAt: { gte: startDate },
+        },
         _sum: { amount: true },
       }),
       prisma.user.count({
@@ -159,7 +163,7 @@ router.get(
       }),
       prisma.payment.aggregate({
         where: {
-          status: "COMPLETED",
+          status: { in: ["PARTIALLY_RELEASED", "SETTLED"] },
           createdAt: { gte: previousPeriodStart, lt: startDate },
         },
         _sum: { amount: true },
@@ -215,7 +219,9 @@ router.get(
 
     const monthlyRevenue = await prisma.payment.findMany({
       where: {
-        status: "COMPLETED",
+        status: {
+          in: [PaymentStatus.PARTIALLY_RELEASED, PaymentStatus.SETTLED],
+        }, // Only completed payments count as revenue
         createdAt: { gte: monthlyTrendsStart },
       },
       select: { createdAt: true, amount: true },
@@ -525,7 +531,7 @@ router.get(
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = {
-      status: "COMPLETED",
+      status: "RELEASED",
       commissionPaidOut: false,
       realtorEarnings: { not: null },
     };

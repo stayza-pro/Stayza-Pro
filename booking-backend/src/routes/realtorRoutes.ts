@@ -5,6 +5,7 @@ import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
 import { config } from "@/config";
+import { BookingStatus, PaymentStatus } from "@prisma/client";
 import {
   sendCacApprovalEmail,
   sendCacRejectionEmail,
@@ -1588,7 +1589,7 @@ router.get(
           realtorId: realtor.id,
         },
         status: {
-          in: ["CONFIRMED", "COMPLETED"],
+          in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED],
         },
       },
     });
@@ -1599,7 +1600,7 @@ router.get(
         property: {
           realtorId: realtor.id,
         },
-        status: "COMPLETED",
+        status: BookingStatus.COMPLETED,
       },
       _sum: {
         totalPrice: true,
@@ -1637,7 +1638,7 @@ router.get(
 
     // Total revenue = completed bookings + released cleaning fees + released room fees (minus platform cut)
     const totalRevenue =
-      Number(completedRevenue._sum.totalPrice || 0) +
+      Number(completedRevenue._sum?.totalPrice || 0) +
       Number(releasedCleaningFees._sum?.amount || 0) +
       Number(releasedRoomFees._sum?.amount || 0) * 0.9; // Realtor gets 90% of room fee
 
@@ -1646,7 +1647,7 @@ router.get(
         property: {
           realtorId: realtor.id,
         },
-        status: "COMPLETED",
+        status: BookingStatus.COMPLETED,
         createdAt: {
           gte: lastMonth,
         },
@@ -2363,7 +2364,7 @@ router.get(
       prisma.booking.count({
         where: {
           propertyId: { in: propertyIds },
-          status: "COMPLETED",
+          status: BookingStatus.COMPLETED,
           createdAt: { gte: startDate },
         },
       }),
@@ -2384,7 +2385,9 @@ router.get(
       prisma.payment.aggregate({
         where: {
           booking: { propertyId: { in: propertyIds } },
-          status: "COMPLETED",
+          status: {
+            in: [PaymentStatus.PARTIALLY_RELEASED, PaymentStatus.SETTLED],
+          }, // Completed payments
           createdAt: { gte: startDate },
         },
         _sum: { amount: true },
@@ -2402,7 +2405,9 @@ router.get(
       prisma.payment.aggregate({
         where: {
           booking: { propertyId: { in: propertyIds } },
-          status: "COMPLETED",
+          status: {
+            in: [PaymentStatus.PARTIALLY_RELEASED, PaymentStatus.SETTLED],
+          }, // Completed payments
           createdAt: { gte: previousPeriodStart, lt: startDate },
         },
         _sum: { amount: true },
@@ -2435,7 +2440,7 @@ router.get(
             select: {
               bookings: {
                 where: {
-                  status: "COMPLETED",
+                  status: BookingStatus.COMPLETED,
                   createdAt: { gte: startDate },
                 },
               },
@@ -2479,7 +2484,9 @@ router.get(
     const monthlyRevenue = await prisma.payment.findMany({
       where: {
         booking: { propertyId: { in: propertyIds } },
-        status: "COMPLETED",
+        status: {
+          in: [PaymentStatus.PARTIALLY_RELEASED, PaymentStatus.SETTLED],
+        }, // Completed payments
         createdAt: { gte: monthlyTrendsStart },
       },
       select: { createdAt: true, amount: true },
@@ -2506,16 +2513,20 @@ router.get(
         month: monthStart.toLocaleString("default", { month: "short" }),
         bookings: monthBookings.length,
         revenue: monthRev.reduce((sum, r) => sum + Number(r.amount), 0),
-        completed: monthBookings.filter((b) => b.status === "COMPLETED").length,
+        completed: monthBookings.filter(
+          (b) => b.status === BookingStatus.COMPLETED
+        ).length,
       });
     }
 
     // Process top properties with calculated metrics
-    const topPropertiesWithMetrics = topProperties.map((property) => {
+    const topPropertiesWithMetrics = topProperties.map((property: any) => {
       const avgRating =
-        property.reviews.length > 0
-          ? property.reviews.reduce((sum, r) => sum + r.rating, 0) /
-            property.reviews.length
+        property.reviews && property.reviews.length > 0
+          ? property.reviews.reduce(
+              (sum: number, r: any) => sum + r.rating,
+              0
+            ) / property.reviews.length
           : 0;
 
       return {
@@ -2565,14 +2576,14 @@ router.get(
             growth: calculateGrowth(totalBookings, previousBookings),
           },
           revenue: {
-            total: Number(totalRevenue._sum.amount ?? 0),
+            total: Number(totalRevenue._sum?.amount ?? 0),
             growth: calculateGrowth(
-              Number(totalRevenue._sum.amount ?? 0),
-              Number(previousRevenue._sum.amount ?? 0)
+              Number(totalRevenue._sum?.amount ?? 0),
+              Number(previousRevenue._sum?.amount ?? 0)
             ),
             average:
               totalBookings > 0
-                ? Number(totalRevenue._sum.amount ?? 0) / totalBookings
+                ? Number(totalRevenue._sum?.amount ?? 0) / totalBookings
                 : 0,
           },
           guests: {
@@ -2698,7 +2709,7 @@ router.get(
       prisma.booking.count({
         where: {
           propertyId,
-          status: "COMPLETED",
+          status: BookingStatus.COMPLETED,
           createdAt: { gte: startDate },
         },
       }),
@@ -2712,7 +2723,9 @@ router.get(
       prisma.payment.aggregate({
         where: {
           booking: { propertyId },
-          status: "COMPLETED",
+          status: {
+            in: [PaymentStatus.PARTIALLY_RELEASED, PaymentStatus.SETTLED],
+          }, // Completed payments
           createdAt: { gte: startDate },
         },
         _sum: { amount: true },
@@ -2780,10 +2793,10 @@ router.get(
             pending: pendingBookings,
           },
           revenue: {
-            total: Number(totalRevenue._sum.amount ?? 0),
+            total: Number(totalRevenue._sum?.amount ?? 0),
             average:
               totalBookings > 0
-                ? Number(totalRevenue._sum.amount ?? 0) / totalBookings
+                ? Number(totalRevenue._sum?.amount ?? 0) / totalBookings
                 : 0,
           },
           performance: {
@@ -2908,7 +2921,7 @@ router.get(
         property: {
           realtorId: realtor.id,
         },
-        status: "COMPLETED",
+        status: BookingStatus.COMPLETED,
         createdAt: {
           gte: startDate,
           lte: now,
@@ -3011,7 +3024,7 @@ router.get(
         property: {
           realtorId: realtor.id,
         },
-        status: "COMPLETED",
+        status: BookingStatus.COMPLETED,
         createdAt: {
           gte: previousStartDate,
           lt: previousEndDate,
@@ -3789,7 +3802,7 @@ router.get(
 
       let status = "PENDING";
       if (event.booking?.payment?.realtorTransferCompleted) {
-        status = "COMPLETED";
+        status = "RELEASED";
       } else if (event.booking?.payment?.transferFailed) {
         status = "FAILED";
       } else if (event.booking?.payment?.realtorTransferInitiated) {

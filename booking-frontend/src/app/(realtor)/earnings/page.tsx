@@ -250,6 +250,9 @@ export default function EarningsPage() {
             {formatCurrency(analytics.overview.revenue.total)}
           </h3>
           <p className="text-sm text-gray-600">Total Revenue</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Reflects actual earnings including cancellation adjustments
+          </p>
         </motion.div>
 
         {/* Average Booking Value */}
@@ -550,7 +553,9 @@ export default function EarningsPage() {
                     <div className="flex items-center justify-center">
                       <span className="text-yellow-500 mr-1">★</span>
                       <span className="font-medium text-gray-900">
-                        {property.rating.toFixed(1)}
+                        {property.rating != null
+                          ? property.rating.toFixed(1)
+                          : "0.0"}
                       </span>
                     </div>
                   </td>

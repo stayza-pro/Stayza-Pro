@@ -3,11 +3,15 @@ import {
   EscrowEventType,
   PaymentStatus,
   PaymentMethod,
+  WalletOwnerType,
+  WalletTransactionSource,
+  EscrowStatus,
 } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import { paystackService } from "./paystack";
 import { logger } from "@/utils/logger";
+import walletService from "./walletService";
 
 interface FeeBreakdown {
   roomFee: number;
@@ -126,29 +130,86 @@ export const createEscrowEvent = async (
 
 /**
  * Hold funds in escrow after payment
+ *
+ * IMPORTANT: Only room fee and security deposit go into escrow
+ * Cleaning fee and service fee are released IMMEDIATELY to wallets
+ *
  * Updates payment status and creates escrow events
  */
 export const holdFundsInEscrow = async (
   paymentId: string,
   bookingId: string,
+  realtorId: string,
   feeBreakdown: FeeBreakdown
 ) => {
-  // Update payment to mark funds as held in escrow
-  await prisma.payment.update({
-    where: { id: paymentId },
-    data: {
-      status: PaymentStatus.ESCROW_HELD,
-      roomFeeInEscrow: true,
-      depositInEscrow: true,
-      roomFeeAmount: new Prisma.Decimal(feeBreakdown.roomFee),
-      cleaningFeeAmount: new Prisma.Decimal(feeBreakdown.cleaningFee),
-      securityDepositAmount: new Prisma.Decimal(feeBreakdown.securityDeposit),
-      serviceFeeAmount: new Prisma.Decimal(feeBreakdown.serviceFee),
-      platformFeeAmount: new Prisma.Decimal(feeBreakdown.platformFee),
-    },
+  // Get booking details for escrow record
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
   });
 
-  // Create escrow events for room fee and security deposit
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Create Escrow record
+    await tx.escrow.create({
+      data: {
+        bookingId,
+        roomFeeHeld: new Prisma.Decimal(feeBreakdown.roomFee),
+        depositHeld: new Prisma.Decimal(feeBreakdown.securityDeposit),
+        status: EscrowStatus.HOLDING,
+      },
+    });
+
+    // Update payment to mark ONLY room fee and deposit as held in escrow
+    await tx.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.HELD,
+        roomFeeInEscrow: true,
+        depositInEscrow: true,
+        roomFeeAmount: new Prisma.Decimal(feeBreakdown.roomFee),
+        cleaningFeeAmount: new Prisma.Decimal(feeBreakdown.cleaningFee),
+        securityDepositAmount: new Prisma.Decimal(feeBreakdown.securityDeposit),
+        serviceFeeAmount: new Prisma.Decimal(feeBreakdown.serviceFee),
+        platformFeeAmount: new Prisma.Decimal(feeBreakdown.platformFee),
+      },
+    });
+
+    // IMMEDIATELY credit wallets for non-refundable fees
+    // 1. Cleaning fee → Realtor wallet
+    if (feeBreakdown.cleaningFee > 0) {
+      const realtorWallet = await walletService.getOrCreateWallet(
+        WalletOwnerType.REALTOR,
+        realtorId
+      );
+      await walletService.creditWallet(
+        realtorWallet.id,
+        feeBreakdown.cleaningFee,
+        WalletTransactionSource.CLEANING_FEE,
+        bookingId,
+        { bookingId, paymentId }
+      );
+    }
+
+    // 2. Service fee → Platform wallet (use fixed platform ID)
+    if (feeBreakdown.serviceFee > 0) {
+      const platformWallet = await walletService.getOrCreateWallet(
+        WalletOwnerType.PLATFORM,
+        "platform" // Fixed platform ID
+      );
+      await walletService.creditWallet(
+        platformWallet.id,
+        feeBreakdown.serviceFee,
+        WalletTransactionSource.SERVICE_FEE,
+        bookingId,
+        { bookingId, paymentId }
+      );
+    }
+  });
+
+  // Create escrow events for HELD funds (room fee and security deposit)
   await createEscrowEvent(
     bookingId,
     EscrowEventType.HOLD_ROOM_FEE,
@@ -173,25 +234,192 @@ export const holdFundsInEscrow = async (
     );
   }
 
-  logger.info("Funds held in escrow", {
+  // Create escrow events for IMMEDIATELY RELEASED funds (cleaning + service)
+  if (feeBreakdown.cleaningFee > 0) {
+    await createEscrowEvent(
+      bookingId,
+      EscrowEventType.RELEASE_ROOM_FEE_SPLIT,
+      feeBreakdown.cleaningFee,
+      "CUSTOMER",
+      "REALTOR",
+      undefined,
+      `Cleaning fee of ₦${feeBreakdown.cleaningFee.toFixed(
+        2
+      )} released immediately to realtor (non-refundable)`
+    );
+  }
+
+  if (feeBreakdown.serviceFee > 0) {
+    await createEscrowEvent(
+      bookingId,
+      EscrowEventType.COLLECT_SERVICE_FEE,
+      feeBreakdown.serviceFee,
+      "CUSTOMER",
+      "PLATFORM",
+      undefined,
+      `Service fee of ₦${feeBreakdown.serviceFee.toFixed(
+        2
+      )} released immediately to platform (non-refundable)`
+    );
+  }
+
+  logger.info("Escrow funds held and non-refundable fees released", {
     bookingId,
     paymentId,
-    roomFee: feeBreakdown.roomFee,
-    securityDeposit: feeBreakdown.securityDeposit,
-    totalHeld: feeBreakdown.roomFee + feeBreakdown.securityDeposit,
+    heldInEscrow: {
+      roomFee: feeBreakdown.roomFee,
+      securityDeposit: feeBreakdown.securityDeposit,
+      total: feeBreakdown.roomFee + feeBreakdown.securityDeposit,
+    },
+    releasedImmediately: {
+      cleaningFee: feeBreakdown.cleaningFee,
+      serviceFee: feeBreakdown.serviceFee,
+      total: feeBreakdown.cleaningFee + feeBreakdown.serviceFee,
+    },
   });
 };
 
 /**
- * Release room fee split: 90% to realtor, 10% to platform
+ * @deprecated This function is NO LONGER USED in wallet-based system
+ *
+ * Cleaning fee is now handled immediately in holdFundsInEscrow()
+ * which credits the realtor's wallet directly (no Paystack transfer)
+ *
+ * OLD FLOW (Paystack): Payment → Paystack transfer to realtor
+ * NEW FLOW (Wallet): Payment → Credit realtor wallet immediately
+ *
+ * This function is kept for backwards compatibility but should not be called
+ */
+export const transferCleaningFeeToRealtor = async (
+  bookingId: string,
+  paymentId: string,
+  realtorId: string,
+  cleaningFee: number
+): Promise<{ success: boolean; transferId?: string; error?: string }> => {
+  logger.warn(
+    "DEPRECATED: transferCleaningFeeToRealtor called - cleaning fee should be handled in holdFundsInEscrow",
+    {
+      bookingId,
+      paymentId,
+      realtorId,
+      cleaningFee,
+    }
+  );
+
+  // Return success to avoid breaking existing code
+  return { success: true };
+
+  /* OLD IMPLEMENTATION - DEPRECATED
+  ============================================
+  if (cleaningFee <= 0) {
+    return { success: true }; // No cleaning fee to transfer
+  }
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+        payment: true,
+      },
+    });
+
+    if (!booking) {
+      throw new Error(`Booking ${bookingId} not found`);
+    }
+
+    const realtor = booking.property.realtor;
+
+    // Transfer via Paystack if realtor has subaccount
+    if (realtor.paystackSubAccountCode) {
+      try {
+        // Idempotent reference
+        const transferReference = `cleaning_fee_${bookingId}_${paymentId.slice(
+          -8
+        )}`;
+
+        // Check if transfer already exists
+        const existingEvent = await prisma.escrowEvent.findFirst({
+          where: {
+            bookingId,
+            eventType: EscrowEventType.RELEASE_ROOM_FEE_SPLIT,
+            toParty: "REALTOR",
+            transactionReference: transferReference,
+            notes: { contains: "Cleaning fee" },
+          },
+        });
+
+        if (!existingEvent) {
+          // Initiate Paystack transfer
+          const transferResult = await paystackService.initiateTransfer({
+            amount: cleaningFee,
+            recipient: realtor.paystackSubAccountCode,
+            reason: `Cleaning fee for booking ${bookingId}`,
+            reference: transferReference,
+          });
+
+          logger.info("Cleaning fee transferred successfully", {
+            bookingId,
+            realtorId: realtor.id,
+            amount: cleaningFee,
+            reference: transferReference,
+            transferId: transferResult.id,
+          });
+
+          return { success: true, transferId: transferResult.id };
+        } else {
+          logger.info("Cleaning fee transfer already processed", {
+            bookingId,
+            reference: transferReference,
+          });
+          return { success: true };
+        }
+      } catch (paystackError: any) {
+        logger.error("Cleaning fee transfer failed", {
+          bookingId,
+          realtorId: realtor.id,
+          amount: cleaningFee,
+          error: paystackError.message,
+        });
+        return { success: false, error: paystackError.message };
+      }
+    } else {
+      logger.warn("Realtor missing Paystack subaccount for cleaning fee", {
+        realtorId: realtor.id,
+        bookingId,
+      });
+      return {
+        success: false,
+        error: "Realtor missing Paystack subaccount",
+      };
+    }
+  } catch (error: any) {
+    logger.error("Failed to transfer cleaning fee", {
+      bookingId,
+      error: error.message,
+    });
+    return { success: false, error: error.message };
+  }
+  ============================================ */
+};
+
+/**
+ * Release room fee split: 90% to realtor wallet, 10% to platform wallet
  * Called 1 hour after check-in if no user dispute
+ *
+ * IMPORTANT: Money moves from escrow to WALLETS (not Paystack)
+ * Realtors withdraw from wallet later
  */
 export const releaseRoomFeeSplit = async (
   bookingId: string,
   paymentId: string,
   realtorId: string
 ) => {
-  // First check payment status outside transaction
+  // Check payment status
   const paymentCheck = await prisma.payment.findUnique({
     where: { id: paymentId },
     select: { roomFeeAmount: true, roomFeeInEscrow: true },
@@ -205,139 +433,81 @@ export const releaseRoomFeeSplit = async (
   const realtorAmount = roomFee * 0.9; // 90%
   const platformAmount = roomFee * 0.1; // 10%
 
-  // Integrate with actual payout provider (Paystack)
-  try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        property: {
-          include: {
-            realtor: {
-              include: {
-                user: true,
-              },
-            },
-          },
+  // Get booking details
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      property: {
+        include: {
+          realtor: true,
         },
-        payment: true,
       },
-    });
+    },
+  });
 
-    if (!booking) {
-      throw new Error(`Booking ${bookingId} not found`);
-    }
-
-    const paymentMethod = booking.payment?.method || PaymentMethod.PAYSTACK;
-    const realtor = booking.property.realtor;
-
-    // Transfer to realtor based on payment method
-    if (paymentMethod === PaymentMethod.PAYSTACK) {
-      // Use Paystack subaccount for transfers
-      if (realtor.paystackSubAccountCode) {
-        try {
-          // Idempotent reference using bookingId (not timestamp)
-          const transferReference = `room_fee_${bookingId}_${paymentId.slice(
-            -8
-          )}`;
-
-          // Check if transfer already exists
-          const existingEvent = await prisma.escrowEvent.findFirst({
-            where: {
-              bookingId,
-              eventType: EscrowEventType.RELEASE_ROOM_FEE_SPLIT,
-              toParty: "REALTOR",
-              transactionReference: transferReference,
-            },
-          });
-
-          if (!existingEvent) {
-            // Initiate actual Paystack transfer
-            const transferResult = await paystackService.initiateTransfer({
-              amount: realtorAmount,
-              recipient: realtor.paystackSubAccountCode,
-              reason: `Room fee payout for booking ${bookingId}`,
-              reference: transferReference,
-            });
-
-            logger.info("Paystack transfer initiated successfully", {
-              bookingId,
-              realtorId: realtor.id,
-              amount: realtorAmount,
-              reference: transferReference,
-              transferId: transferResult.id,
-            });
-          } else {
-            logger.info("Transfer already processed (idempotency)", {
-              bookingId,
-              reference: transferReference,
-            });
-          }
-        } catch (paystackError: any) {
-          logger.error("Paystack transfer failed", {
-            bookingId,
-            realtorId: realtor.id,
-            amount: realtorAmount,
-            error: paystackError.message,
-            stack: paystackError.stack,
-          });
-          // Mark for manual intervention
-          await prisma.payment.update({
-            where: { id: paymentId },
-            data: {
-              metadata: {
-                ...((booking.payment?.metadata as any) || {}),
-                transferFailed: true,
-                transferError: paystackError.message,
-                transferAttemptedAt: new Date().toISOString(),
-              } as any,
-            },
-          });
-          throw paystackError; // Re-throw to be caught by outer catch
-        }
-      } else {
-        logger.warn("Realtor missing Paystack subaccount", {
-          realtorId: realtor.id,
-          bookingId,
-        });
-        throw new Error(
-          `Realtor ${realtor.id} missing Paystack subaccount code`
-        );
-      }
-    } else {
-      throw new Error(`Unsupported payment method: ${paymentMethod}`);
-    }
-  } catch (transferError: any) {
-    logger.error("Transfer failed for booking", {
-      bookingId,
-      error: transferError.message,
-      stack: transferError.stack,
-    });
-    // Re-throw to prevent marking as released in database
-    throw new Error(`Transfer failed: ${transferError.message}`);
+  if (!booking) {
+    throw new Error(`Booking ${bookingId} not found`);
   }
 
-  // Wrap database updates in transaction after successful transfer
+  // Release funds from escrow to wallets (all in one transaction)
   await prisma.$transaction(async (tx) => {
-    // Update payment status
+    // 1. Credit realtor wallet (90%)
+    const realtorWallet = await walletService.getOrCreateWallet(
+      WalletOwnerType.REALTOR,
+      realtorId
+    );
+    await walletService.creditWallet(
+      realtorWallet.id,
+      realtorAmount,
+      WalletTransactionSource.ROOM_FEE,
+      bookingId,
+      { bookingId, paymentId, percentage: 90 }
+    );
+
+    // 2. Credit platform wallet (10%)
+    const platformWallet = await walletService.getOrCreateWallet(
+      WalletOwnerType.PLATFORM,
+      "platform"
+    );
+    await walletService.creditWallet(
+      platformWallet.id,
+      platformAmount,
+      WalletTransactionSource.ROOM_FEE, // 10% of room fee
+      bookingId,
+      { bookingId, paymentId, percentage: 10 }
+    );
+
+    // 3. Update payment status
     await tx.payment.update({
       where: { id: paymentId },
       data: {
-        status: PaymentStatus.ROOM_FEE_SPLIT_RELEASED,
+        status: PaymentStatus.PARTIALLY_RELEASED, // Room fee released, deposit still held
         roomFeeInEscrow: false,
         roomFeeSplitDone: true,
         roomFeeReleasedAt: new Date(),
       },
     });
 
-    // Create escrow events for the split
+    // 4. Update escrow record
+    await tx.escrow.update({
+      where: { bookingId },
+      data: {
+        roomFeeHeld: new Prisma.Decimal(0), // Room fee released
+        // Deposit still held
+      },
+    });
+
+    // 5. Create escrow events for the split
     await createEscrowEvent(
       bookingId,
       EscrowEventType.RELEASE_ROOM_FEE_SPLIT,
       realtorAmount,
       "ESCROW",
-      "REALTOR",
+      "REALTOR_WALLET",
       `room_fee_${bookingId}_${paymentId.slice(-8)}`,
-      `Released ₦${realtorAmount.toFixed(2)} (90%) to realtor from room fee`
+      `Released ₦${realtorAmount.toFixed(
+        2
+      )} (90%) to realtor wallet from room fee`
     );
 
     await createEscrowEvent(
@@ -345,7 +515,7 @@ export const releaseRoomFeeSplit = async (
       EscrowEventType.RELEASE_ROOM_FEE_SPLIT,
       platformAmount,
       "ESCROW",
-      "PLATFORM",
+      "PLATFORM_WALLET",
       undefined,
       `Released ₦${platformAmount.toFixed(2)} (10%) to platform from room fee`
     );
@@ -483,6 +653,16 @@ export const returnSecurityDeposit = async (
         depositInEscrow: false,
         depositRefunded: true,
         depositReleasedAt: new Date(),
+        status: PaymentStatus.SETTLED, // All money distributed (room fee + deposit)
+      },
+    });
+
+    // Update escrow record - deposit refunded
+    await tx.escrow.update({
+      where: { bookingId },
+      data: {
+        depositHeld: new Prisma.Decimal(0), // Deposit refunded to guest
+        status: EscrowStatus.REFUNDED, // Escrow fully resolved
       },
     });
 
@@ -494,7 +674,9 @@ export const returnSecurityDeposit = async (
       "ESCROW",
       "CUSTOMER",
       refundReference,
-      `Returned security deposit of ₦${depositAmount.toFixed(2)} to customer`
+      `Returned security deposit of ₦${depositAmount.toFixed(
+        2
+      )} to customer via Paystack refund`
     );
 
     logger.info("Security deposit returned successfully", {
@@ -960,7 +1142,7 @@ export const refundRoomFeeToCustomer = async (
       data: {
         roomFeeInEscrow: false,
         roomFeeReleasedAt: new Date(),
-        status: PaymentStatus.PARTIAL_PAYOUT_REALTOR,
+        status: PaymentStatus.PARTIALLY_RELEASED, // Room fee split completed
       },
     });
 
@@ -1015,7 +1197,7 @@ export const getBookingsEligibleForRoomFeeRelease = async () => {
         lte: oneHourAgo, // Check-in was at least 1 hour ago (UTC)
       },
       userDisputeOpened: false,
-      status: "CHECKED_IN",
+      status: "ACTIVE",
       payment: {
         roomFeeInEscrow: true,
         roomFeeSplitDone: false,
@@ -1045,7 +1227,7 @@ export const getBookingsEligibleForDepositReturn = async () => {
         lte: twoHoursAgo, // Check-out was at least 2 hours ago (UTC)
       },
       realtorDisputeOpened: false,
-      status: "CHECKED_OUT",
+      status: "COMPLETED",
       payment: {
         depositInEscrow: true,
         depositRefunded: false,
@@ -1063,6 +1245,7 @@ export default {
   createEscrowEvent,
   logEscrowEvent, // New commission flow format
   holdFundsInEscrow,
+  transferCleaningFeeToRealtor,
   releaseRoomFeeSplit,
   returnSecurityDeposit,
   payRealtorFromDeposit,

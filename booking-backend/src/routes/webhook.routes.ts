@@ -213,7 +213,7 @@ router.post(
     const now = new Date();
     if (
       booking.checkOutDate <= now &&
-      booking.status === BookingStatus.CONFIRMED
+      booking.status === BookingStatus.ACTIVE
     ) {
       await prisma.booking.update({
         where: { id: bookingId },
@@ -260,16 +260,20 @@ async function handleChargeCompleted(paymentRef: string, data: any) {
   }
 
   // Skip if already completed
-  if (payment.status === PaymentStatus.COMPLETED) {
-    logger.info(`Payment ${payment.id} already completed, skipping`);
+  if (
+    payment.status === PaymentStatus.HELD ||
+    payment.status === PaymentStatus.PARTIALLY_RELEASED ||
+    payment.status === PaymentStatus.SETTLED
+  ) {
+    logger.info(`Payment ${payment.id} already processed, skipping`);
     return;
   }
 
-  // Update payment status
+  // Update payment status to HELD (money in escrow)
   await prisma.payment.update({
     where: { id: payment.id },
     data: {
-      status: PaymentStatus.COMPLETED,
+      status: PaymentStatus.HELD, // Money now in escrow
       updatedAt: new Date(),
       metadata: {
         ...((payment.metadata as object) || {}),
@@ -279,10 +283,10 @@ async function handleChargeCompleted(paymentRef: string, data: any) {
     },
   });
 
-  // Update booking to CONFIRMED (legacy support)
+  // Update booking to ACTIVE
   await prisma.booking.update({
     where: { id: payment.bookingId },
-    data: { status: BookingStatus.CONFIRMED },
+    data: { status: BookingStatus.ACTIVE },
   });
 
   logger.info(`Charge completed successfully`, {

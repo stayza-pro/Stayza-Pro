@@ -16,15 +16,15 @@ export const processRoomFeeRelease = async (): Promise<void> => {
     // Find bookings eligible for room fee release
     const eligibleBookings = await prisma.booking.findMany({
       where: {
-        status: "CHECKED_IN_CONFIRMED",
+        status: "ACTIVE",
+        stayStatus: { in: ["CHECKED_IN", "CHECKED_OUT"] }, // Guest is staying or has left
         roomFeeReleaseEligibleAt: {
           lte: now, // Release time has passed
         },
-        userDisputeOpened: false, // No active guest dispute
         payment: {
           roomFeeSplitDone: false, // Not already released
           status: {
-            in: ["PARTIAL_RELEASED", "ESCROW_HELD"],
+            in: ["HELD"], // Only process if payment is in escrow
           },
         },
       },
@@ -51,6 +51,24 @@ export const processRoomFeeRelease = async (): Promise<void> => {
 
     for (const booking of eligibleBookings) {
       try {
+        // ✅ CHECK FOR ACTIVE ROOM FEE DISPUTES (Dispute V2 system)
+        const activeDispute = await prisma.dispute.findFirst({
+          where: {
+            bookingId: booking.id,
+            disputeSubject: "ROOM_FEE",
+            status: {
+              in: ["OPEN", "AWAITING_RESPONSE", "ESCALATED"],
+            },
+          },
+        });
+
+        if (activeDispute) {
+          logger.info(
+            `Skipping booking ${booking.id}: Active room fee dispute exists (${activeDispute.status})`
+          );
+          continue; // Skip this booking
+        }
+
         await processBookingRoomFeeRelease(booking);
       } catch (error) {
         logger.error(
@@ -108,7 +126,7 @@ const processBookingRoomFeeRelease = async (booking: any): Promise<void> => {
         roomFeeSplitPlatformAmount: platformAmount,
         roomFeeSplitReleaseReference: releaseReference,
         roomFeeReleasedAt: now,
-        status: "ROOM_FEE_SPLIT_RELEASED",
+        status: "PARTIALLY_RELEASED", // Room fee out, deposit still in escrow
       },
     });
 

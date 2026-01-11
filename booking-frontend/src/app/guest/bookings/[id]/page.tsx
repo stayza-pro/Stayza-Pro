@@ -82,7 +82,7 @@ export default function BookingDetailsPage() {
     if (
       booking &&
       booking.status === "PENDING" &&
-      booking.payment?.status === "PENDING"
+      booking.payment?.status === "INITIATED"
     ) {
       router.push(`/guest/bookings/${bookingId}/checkout`);
     }
@@ -162,22 +162,15 @@ export default function BookingDetailsPage() {
       setCancelReason("");
 
       // Show success message with refund details
-      const { refundRequest, refund } = response.data;
+      const { refund } = response.data;
       let message = "Booking cancelled successfully.";
 
-      if (refundRequest) {
-        if (
-          refundRequest.status === "REALTOR_APPROVED" &&
-          refund?.customerRefund > 0
-        ) {
-          message += ` Your refund of ₦${refund.customerRefund.toLocaleString()} has been automatically approved.`;
-        } else if (
-          refundRequest.status === "REALTOR_APPROVED" &&
-          refund?.customerRefund === 0
-        ) {
-          message += " Late cancellation - no refund applicable.";
+      if (refund) {
+        if (refund.totals.customerRefund > 0) {
+          message += ` Your refund of ₦${refund.totals.customerRefund.toLocaleString()} has been automatically processed.`;
         } else {
-          message += " Your refund request has been created.";
+          message +=
+            " Late cancellation - no refund applicable (security deposit policy).";
         }
       }
 
@@ -233,42 +226,7 @@ export default function BookingDetailsPage() {
     });
   };
 
-  const calculateRefundTier = () => {
-    if (!booking) return null;
-    const checkIn = new Date(booking.checkInDate);
-    const now = new Date();
-    const hoursUntilCheckIn =
-      (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    // Match backend refund tier logic
-    if (hoursUntilCheckIn >= 24) return "EARLY"; // 24+ hours: 90% refund
-    if (hoursUntilCheckIn >= 12) return "MEDIUM"; // 12-24 hours: 70% refund
-    if (hoursUntilCheckIn > 0) return "LATE"; // 0-12 hours: 0% refund
-    return "NONE"; // After check-in: no cancellation
-  };
-
-  const getRefundBreakdown = () => {
-    if (!booking) return null;
-    const tier = calculateRefundTier();
-    const total = booking.totalPrice;
-
-    const breakdowns = {
-      EARLY: { guest: 0.9, realtor: 0.07, platform: 0.03 },
-      MEDIUM: { guest: 0.7, realtor: 0.2, platform: 0.1 },
-      LATE: { guest: 0, realtor: 0.8, platform: 0.2 },
-      NONE: { guest: 0, realtor: 0, platform: 0 },
-    };
-
-    const breakdown =
-      breakdowns[tier as keyof typeof breakdowns] || breakdowns.NONE;
-
-    return {
-      tier,
-      guestRefund: total * breakdown.guest,
-      realtorPayout: total * breakdown.realtor,
-      platformFee: total * breakdown.platform,
-    };
-  };
+  // Refund calculation now handled by backend
 
   const handleDownloadReceipt = () => {
     // TODO: Implement receipt download
@@ -350,7 +308,7 @@ export default function BookingDetailsPage() {
         booking.status === "PAID" ||
         booking.status === "CONFIRMED") &&
       hoursDiff > 0 && // Before check-in time
-      booking.paymentStatus !== "REFUNDED_TO_CUSTOMER"
+      booking.paymentStatus !== "REFUNDED"
     );
   };
 
@@ -358,7 +316,7 @@ export default function BookingDetailsPage() {
     if (!booking) return false;
     return (
       (booking.status === "CANCELLED" || booking.status === "COMPLETED") &&
-      booking.paymentStatus !== "REFUNDED_TO_CUSTOMER"
+      booking.paymentStatus !== "REFUNDED"
     );
   };
 
@@ -803,19 +761,20 @@ export default function BookingDetailsPage() {
             ) : cancellationPreview?.canCancel &&
               cancellationPreview.refundInfo ? (
               <>
-                {/* Warning for LATE tier (no refund) */}
+                {/* Warning for LATE tier */}
                 {cancellationPreview.refundInfo.tier === "LATE" && (
                   <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 mb-4">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-red-900 font-bold text-lg mb-1">
-                          ⚠️ No Refund Available
+                          ⚠️ Late Cancellation
                         </p>
                         <p className="text-red-800 text-sm">
-                          You are cancelling within 12 hours of check-in. You
-                          will <strong>NOT receive any refund</strong> if you
-                          proceed with this cancellation.
+                          You are cancelling within 12 hours of check-in. Your
+                          security deposit will be returned, but there is{" "}
+                          <strong>no room fee refund</strong>. Service and
+                          cleaning fees are never refundable.
                         </p>
                       </div>
                     </div>
@@ -897,46 +856,56 @@ export default function BookingDetailsPage() {
                         }`}
                       >
                         {cancellationPreview.refundInfo.tier === "EARLY" &&
-                          "Early (24+ hours)"}
+                          "Early (24+ hours) - 90% room fee"}
                         {cancellationPreview.refundInfo.tier === "MEDIUM" &&
-                          "Medium (12-24 hours)"}
+                          "Medium (12-24 hours) - 70% room fee"}
                         {cancellationPreview.refundInfo.tier === "LATE" &&
-                          "Late (0-12 hours)"}
+                          "Late (0-12 hours) - 0% room fee"}
                         {cancellationPreview.refundInfo.tier === "NONE" &&
                           "No Refund"}
                       </span>
                     </div>
 
-                    {/* Original Amount */}
-                    <div
-                      className={`flex justify-between items-center py-2 border-b ${
-                        cancellationPreview.refundInfo.tier === "LATE"
-                          ? "border-red-200"
-                          : "border-green-200"
-                      }`}
-                    >
-                      <span
-                        className={`text-sm ${
-                          cancellationPreview.refundInfo.tier === "LATE"
-                            ? "text-red-800"
-                            : "text-green-800"
-                        }`}
-                      >
-                        Total Paid:
-                      </span>
-                      <span
-                        className={`font-medium ${
-                          cancellationPreview.refundInfo.tier === "LATE"
-                            ? "text-red-900"
-                            : "text-green-900"
-                        }`}
-                      >
-                        ₦
-                        {cancellationPreview.refundInfo.totalAmount.toLocaleString()}
-                      </span>
+                    {/* Fee Breakdown */}
+                    <div className="space-y-2 pt-2">
+                      {/* Total Refund */}
+                      <div className="flex justify-between items-center text-sm">
+                        <span
+                          className={
+                            cancellationPreview.refundInfo.tier === "LATE"
+                              ? "text-red-700"
+                              : "text-green-700"
+                          }
+                        >
+                          Your Refund (
+                          {Math.round(
+                            cancellationPreview.refundInfo.breakdown
+                              .customerPercent * 100
+                          )}
+                          % of booking):
+                        </span>
+                        <span
+                          className={`font-medium text-lg ${
+                            cancellationPreview.refundInfo.tier === "LATE"
+                              ? "text-red-800"
+                              : "text-green-800"
+                          }`}
+                        >
+                          ₦
+                          {cancellationPreview.refundInfo.customerRefund.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Breakdown note */}
+                      <div className="text-xs text-gray-600 mt-2">
+                        <p>
+                          Note: Cleaning and service fees are non-refundable.
+                        </p>
+                        <p>Security deposit is always 100% refunded.</p>
+                      </div>
                     </div>
 
-                    {/* Your Refund */}
+                    {/* Total Refund */}
                     <div
                       className={`flex justify-between items-center py-3 -mx-4 px-4 rounded ${
                         cancellationPreview.refundInfo.tier === "LATE"
@@ -951,7 +920,7 @@ export default function BookingDetailsPage() {
                             : "text-green-900"
                         }`}
                       >
-                        You will receive:
+                        Total You Will Receive:
                       </span>
                       <span
                         className={`text-lg font-bold ${
@@ -962,14 +931,6 @@ export default function BookingDetailsPage() {
                       >
                         ₦
                         {cancellationPreview.refundInfo.customerRefund.toLocaleString()}
-                        <span className="text-sm font-normal ml-2">
-                          (
-                          {
-                            cancellationPreview.refundInfo.breakdown
-                              .customerPercent
-                          }
-                          %)
-                        </span>
                       </span>
                     </div>
                   </div>
@@ -1029,82 +990,7 @@ export default function BookingDetailsPage() {
               refund request. An admin will review your request.
             </p>
 
-            {/* Refund Tier Info for Cancelled Bookings */}
-            {booking?.status === "CANCELLED" && (
-              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm font-medium text-blue-900 mb-2">
-                  📊 Cancellation Refund Breakdown
-                </p>
-                {(() => {
-                  const breakdown = getRefundBreakdown();
-                  if (!breakdown) return null;
-                  const tierLabels = {
-                    EARLY: "Early Cancellation (24+ hours)",
-                    MEDIUM: "Medium Cancellation (12-24 hours)",
-                    LATE: "Late Cancellation (0-12 hours)",
-                    NONE: "No Refund Available",
-                  };
-                  return (
-                    <>
-                      <p className="text-xs text-blue-800 mb-2">
-                        <strong>
-                          {
-                            tierLabels[
-                              breakdown.tier as keyof typeof tierLabels
-                            ]
-                          }
-                        </strong>
-                      </p>
-                      <div className="space-y-1 text-xs text-blue-700">
-                        <div className="flex justify-between">
-                          <span>Your refund:</span>
-                          <span className="font-semibold">
-                            {formatPrice(
-                              breakdown.guestRefund,
-                              booking.currency
-                            )}{" "}
-                            (
-                            {Math.round(
-                              (breakdown.guestRefund / booking.totalPrice) * 100
-                            )}
-                            %)
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Realtor keeps:</span>
-                          <span>
-                            {formatPrice(
-                              breakdown.realtorPayout,
-                              booking.currency
-                            )}{" "}
-                            (
-                            {Math.round(
-                              (breakdown.realtorPayout / booking.totalPrice) *
-                                100
-                            )}
-                            %)
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Platform fee:</span>
-                          <span>
-                            {formatPrice(
-                              breakdown.platformFee,
-                              booking.currency
-                            )}{" "}
-                            (
-                            {Math.round(
-                              (breakdown.platformFee / booking.totalPrice) * 100
-                            )}
-                            %)
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
+            {/* Refund calculation is now handled by backend */}
 
             <div className="mb-4">
               <label

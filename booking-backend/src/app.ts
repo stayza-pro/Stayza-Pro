@@ -27,10 +27,12 @@ import refundRoutes from "@/routes/refund.routes";
 import settingsRoutes from "@/routes/settings.routes";
 import brandingRoutes from "@/routes/branding.routes";
 import disputeRoutes from "@/routes/dispute.routes";
+import adminDisputeRoutes from "@/routes/admin.dispute.routes";
 import systemRoutes from "@/routes/system.routes";
 import messageRoutes from "@/routes/message.routes";
 import favoritesRoutes from "@/routes/favorites.routes";
 import escrowRoutes from "@/routes/escrow.routes";
+import walletRoutes from "@/routes/wallet.routes";
 
 const app = express();
 
@@ -277,10 +279,12 @@ app.use("/api/refunds", refundRoutes);
 app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/branding", brandingRoutes);
 app.use("/api/disputes", disputeRoutes);
+app.use("/api/admin/disputes", adminDisputeRoutes);
 app.use("/api/admin/system", systemRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/favorites", favoritesRoutes);
 app.use("/api/escrow", escrowRoutes);
+app.use("/api/wallets", walletRoutes);
 
 // 404 handler
 app.use(notFound);

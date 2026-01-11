@@ -39,11 +39,15 @@ export default function RealtorEscrowTracker() {
       setLoading(true);
       const bookings = await bookingService.getRealtorBookings();
 
-      // Filter only bookings with payments
+      // Filter bookings with payments (including cancelled to show refund events)
       const paidBookings = bookings.filter((b: Booking) =>
-        ["CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "COMPLETED"].includes(
-          b.status
-        )
+        [
+          "CONFIRMED",
+          "CHECKED_IN",
+          "CHECKED_OUT",
+          "COMPLETED",
+          "CANCELLED",
+        ].includes(b.status)
       );
 
       // Initialize bookings with escrow data
@@ -502,7 +506,18 @@ export default function RealtorEscrowTracker() {
                               key={event.id}
                               className="flex items-start gap-3 pb-3 border-b border-gray-200 last:border-0"
                             >
-                              <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+                              <div
+                                className={`w-2 h-2 rounded-full mt-2 ${
+                                  event.type?.includes("REFUND") ||
+                                  event.description
+                                    ?.toLowerCase()
+                                    .includes("refund")
+                                    ? "bg-red-600"
+                                    : event.type?.includes("RELEASE")
+                                    ? "bg-green-600"
+                                    : "bg-blue-600"
+                                }`}
+                              ></div>
                               <div className="flex-1">
                                 <p className="text-sm font-medium text-gray-900">
                                   {event.description}
@@ -510,6 +525,12 @@ export default function RealtorEscrowTracker() {
                                 {event.amount && (
                                   <p className="text-sm text-gray-600">
                                     Amount: {formatCurrency(event.amount)}
+                                  </p>
+                                )}
+                                {event.type?.includes("REFUND") && (
+                                  <p className="text-xs text-red-600 mt-1">
+                                    Cancellation refund processed per policy
+                                    tier
                                   </p>
                                 )}
                                 <p className="text-xs text-gray-500">
