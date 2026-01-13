@@ -1,6 +1,7 @@
 import { logger } from "@/utils/logger";
 import cron from "node-cron";
 import { runEscrowJobs } from "./escrowJobs";
+import { startWithdrawalRetryJob } from "./withdrawalRetryCron";
 
 /**
  * Initialize all scheduled jobs
@@ -18,8 +19,12 @@ export const initializeScheduledJobs = () => {
     }
   });
 
+  // Start withdrawal retry job
+  startWithdrawalRetryJob();
+
   logger.info("[Job Scheduler] Scheduled jobs initialized successfully");
   logger.info("[Job Scheduler] - Escrow release jobs: Every 5 minutes");
+  logger.info("[Job Scheduler] - Withdrawal retry jobs: Every hour at :15");
 };
 
 export default {

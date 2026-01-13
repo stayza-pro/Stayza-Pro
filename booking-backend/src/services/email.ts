@@ -40,9 +40,9 @@ const brandColors = {
 
 // Email template base with Stayza branding
 const getEmailHeader = () => `
-  <div style="background: linear-gradient(135deg, ${brandColors.primary} 0%, ${brandColors.secondary} 100%); padding: 40px 20px; text-align: center;">
+  <div style="background-color: ${brandColors.primary}; padding: 40px 20px; text-align: center;">
     <img src="https://stayza.com/images/stayza.png" alt="Stayza Pro" style="height: 60px; width: auto; margin-bottom: 20px;">
-    <h1 style="color: ${brandColors.white}; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 28px; font-weight: 700; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <h1 style="color: ${brandColors.white}; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 28px; font-weight: 700; margin: 0;">
       Stayza Pro
     </h1>
     <p style="color: rgba(255,255,255,0.9); font-size: 16px; margin: 8px 0 0 0; font-weight: 400;">
@@ -62,7 +62,7 @@ const getEmailFooter = () => `
           <td style="text-align: center; padding: 10px;">
             <h4 style="color: ${brandColors.white}; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">Stay Connected</h4>
             <p style="color: rgba(255,255,255,0.8); margin: 0 0 20px 0; font-size: 14px;">
-              📧 support@stayza.com | 💬 Live Chat | 📖 Help Center
+              support@stayza.com | Live Chat | Help Center
             </p>
             <div style="margin: 20px 0;">
               <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background-color: ${brandColors.primary}; color: ${brandColors.white}; text-decoration: none; border-radius: 6px; font-size: 14px;">Dashboard</a>
@@ -111,13 +111,7 @@ const getButton = (
 
   return `
     <div style="text-align: center; margin: 30px 0;">
-      <a href="${url}" style="display: inline-block; background: linear-gradient(135deg, ${
-    colors[type].bg
-  } 0%, ${
-    type === "primary" ? brandColors.secondary : brandColors.primary
-  } 100%); color: ${
-    colors[type].text
-  }; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform 0.2s;">
+      <a href="${url}" style="display: inline-block; background-color: ${colors[type].bg}; color: ${colors[type].text}; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         ${text}
       </a>
     </div>
@@ -133,29 +127,25 @@ const getInfoBox = (
     info: {
       bg: `${brandColors.primary}15`,
       border: brandColors.primary,
-      icon: "ℹ️",
     },
     success: {
       bg: `${brandColors.success}15`,
       border: brandColors.success,
-      icon: "✅",
     },
     warning: {
       bg: `${brandColors.warning}15`,
       border: brandColors.warning,
-      icon: "⚠️",
     },
     error: {
       bg: `${brandColors.error}15`,
       border: brandColors.error,
-      icon: "❌",
     },
   };
 
   return `
     <div style="background-color: ${colors[type].bg}; border-left: 4px solid ${colors[type].border}; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
       <h3 style="color: ${colors[type].border}; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">
-        ${colors[type].icon} ${title}
+        ${title}
       </h3>
       <p style="margin: 0; color: ${brandColors.neutralDark}; font-size: 14px; line-height: 1.5;">
         ${content}
@@ -167,11 +157,11 @@ const getInfoBox = (
 // Email templates
 export const emailTemplates = {
   welcome: (name: string) => ({
-    subject: "🎉 Welcome to Stayza Pro - Your Journey Begins!",
+    subject: "Welcome to Stayza Pro",
     html: getEmailContainer(`
       <h2 style="color: ${
         brandColors.primary
-      }; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">Welcome to Stayza Pro, ${name}! 🎉</h2>
+      }; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">Welcome to Stayza Pro, ${name}</h2>
       
       <p style="font-size: 16px; margin: 0 0 20px 0; color: ${
         brandColors.neutralDark
@@ -182,14 +172,12 @@ export const emailTemplates = {
         "Your account is ready! Start exploring all the features Stayza Pro has to offer."
       )}
       
-      <div style="background: linear-gradient(135deg, ${
+      <div style="background-color: ${
         brandColors.neutralLight
-      } 0%, ${
-      brandColors.white
-    } 100%); padding: 25px; border-radius: 12px; margin: 25px 0;">
+      }; padding: 25px; border-radius: 12px; margin: 25px 0;">
         <h3 style="color: ${
           brandColors.primary
-        }; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">🚀 Get Started Today</h3>
+        }; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">Get started today</h3>
         <ul style="margin: 0; padding-left: 20px; color: ${
           brandColors.neutralDark
         };">
@@ -214,11 +202,10 @@ export const emailTemplates = {
     dashboardUrl: string,
     verificationUrl?: string
   ) => ({
-    subject: "� Welcome to Stayza Pro - Verify Your Email to Get Started",
+    subject: "Welcome to Stayza Pro - verify your email",
     html: getEmailContainer(`
       <!-- Hero Section with Illustration -->
       <div style="text-align: center; margin: 0 0 35px 0;">
-        <div style="font-size: 64px; margin: 0 0 20px 0;">🏡</div>
         <h2 style="color: ${
           brandColors.primary
         }; font-size: 28px; font-weight: 700; margin: 0 0 10px 0; line-height: 1.3;">
@@ -227,7 +214,7 @@ export const emailTemplates = {
         <p style="font-size: 16px; color: ${
           brandColors.neutralDark
         }; opacity: 0.8; margin: 0;">
-          Hi ${name}, let's get <strong>${businessName}</strong> up and running
+          Hi ${name}, let's get <strong>${businessName}</strong> up and running.
         </p>
       </div>
         
@@ -235,16 +222,15 @@ export const emailTemplates = {
         verificationUrl
           ? `
       <!-- Email Verification Card (Primary CTA) -->
-      <div style="background: linear-gradient(135deg, ${brandColors.accent} 0%, #fb923c 100%); 
-                  padding: 35px 30px; border-radius: 16px; margin: 0 0 35px 0; 
-                  box-shadow: 0 10px 25px rgba(249, 115, 22, 0.2);">
+      <div style="background-color: ${brandColors.accent}; 
+          padding: 35px 30px; border-radius: 16px; margin: 0 0 35px 0; 
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);">
         <div style="text-align: center;">
-          <div style="font-size: 48px; margin: 0 0 15px 0;">📧</div>
           <h3 style="color: ${brandColors.white}; font-size: 22px; font-weight: 700; margin: 0 0 12px 0;">
-            Verify Your Email Address
+            Verify your email address
           </h3>
           <p style="color: ${brandColors.white}; opacity: 0.95; font-size: 15px; margin: 0 0 25px 0; line-height: 1.5;">
-            Click the button below to verify your email and unlock your dashboard
+            Use the button below to confirm your email and access your dashboard
           </p>
           <a href="${verificationUrl}" 
              style="display: inline-block; background-color: ${brandColors.white}; 
@@ -252,10 +238,10 @@ export const emailTemplates = {
                     text-decoration: none; border-radius: 12px; font-weight: 700;
                     font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                     transition: transform 0.2s;">
-            ✓ Verify Email Now
+            Verify email
           </a>
           <p style="color: ${brandColors.white}; opacity: 0.8; font-size: 13px; margin: 25px 0 0 0;">
-            ⏰ Link expires in 24 hours
+            Link expires in 24 hours
           </p>
         </div>
       </div>
@@ -275,11 +261,13 @@ export const emailTemplates = {
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
             <td style="width: 50px; vertical-align: top; padding: 0 15px 20px 0;">
-              <div style="width: 40px; height: 40px; background: linear-gradient(135deg, ${
+              <div style="width: 40px; height: 40px; background-color: ${
                 brandColors.accent
-              } 0%, #fb923c 100%); 
+              }; 
                           border-radius: 50%; display: flex; align-items: center; justify-content: center;
-                          font-size: 18px;">1️⃣</div>
+                          font-size: 16px; color: ${
+                            brandColors.white
+                          }; font-weight: 700;">1</div>
             </td>
             <td style="vertical-align: top; padding: 0 0 20px 0;">
               <h4 style="color: ${
@@ -296,11 +284,13 @@ export const emailTemplates = {
           </tr>
           <tr>
             <td style="width: 50px; vertical-align: top; padding: 0 15px 20px 0;">
-              <div style="width: 40px; height: 40px; background: linear-gradient(135deg, ${
+              <div style="width: 40px; height: 40px; background-color: ${
                 brandColors.primary
-              } 0%, #2563eb 100%); 
+              }; 
                           border-radius: 50%; display: flex; align-items: center; justify-content: center;
-                          font-size: 18px;">2️⃣</div>
+                          font-size: 16px; color: ${
+                            brandColors.white
+                          }; font-weight: 700;">2</div>
             </td>
             <td style="vertical-align: top; padding: 0 0 20px 0;">
               <h4 style="color: ${
@@ -317,11 +307,13 @@ export const emailTemplates = {
           </tr>
           <tr>
             <td style="width: 50px; vertical-align: top; padding: 0 15px 0;">
-              <div style="width: 40px; height: 40px; background: linear-gradient(135deg, ${
+              <div style="width: 40px; height: 40px; background-color: ${
                 brandColors.secondary
-              } 0%, #059669 100%); 
+              }; 
                           border-radius: 50%; display: flex; align-items: center; justify-content: center;
-                          font-size: 18px;">3️⃣</div>
+                          font-size: 16px; color: ${
+                            brandColors.white
+                          }; font-weight: 700;">3</div>
             </td>
             <td style="vertical-align: top; padding: 0;">
               <h4 style="color: ${
@@ -340,11 +332,13 @@ export const emailTemplates = {
       </div>
 
       <!-- Quick Stats Card -->
-      <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); 
+      <div style="background-color: ${brandColors.neutralLight}; 
                   padding: 25px; border-radius: 12px; margin: 30px 0; border-left: 4px solid ${
                     brandColors.primary
                   };">
-        <div style="font-size: 36px; margin: 0 0 15px 0; text-align: center;">📊</div>
+        <div style="font-size: 18px; margin: 0 0 10px 0; text-align: center; color: ${
+          brandColors.primary
+        }; font-weight: 700;">Insights</div>
         <h4 style="color: ${
           brandColors.primary
         }; font-size: 16px; font-weight: 700; margin: 0 0 15px 0; text-align: center;">
@@ -371,10 +365,10 @@ export const emailTemplates = {
             <td style="padding: 10px;">
               <div style="font-size: 24px; font-weight: 700; color: ${
                 brandColors.accent
-              };">4.8★</div>
+              };">4.8</div>
               <div style="font-size: 12px; color: ${
                 brandColors.neutralDark
-              }; opacity: 0.7;">Platform Rating</div>
+              }; opacity: 0.7;">Platform rating</div>
             </td>
           </tr>
         </table>
@@ -384,7 +378,6 @@ export const emailTemplates = {
       <div style="background: ${
         brandColors.neutralLight
       }; padding: 25px; border-radius: 12px; margin: 30px 0 0 0; text-align: center;">
-        <div style="font-size: 36px; margin: 0 0 12px 0;">💬</div>
         <h4 style="color: ${
           brandColors.neutralDark
         }; font-size: 16px; font-weight: 600; margin: 0 0 10px 0;">
@@ -393,18 +386,18 @@ export const emailTemplates = {
         <p style="color: ${
           brandColors.neutralDark
         }; opacity: 0.7; font-size: 14px; margin: 0;">
-          📧 support@stayza.com  •  💬 Live Chat  •  📖 Help Center
+          support@stayza.com  •  Live Chat  •  Help Center
         </p>
       </div>
     `),
   }),
 
   emailVerification: (name: string, verificationUrl: string) => ({
-    subject: "🔐 Verify Your Stayza Pro Email Address",
+    subject: "Verify your Stayza Pro email address",
     html: getEmailContainer(`
       <h2 style="color: ${
         brandColors.primary
-      }; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">Email Verification Required 🔐</h2>
+      }; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">Email verification required</h2>
       
       <p style="font-size: 16px; margin: 0 0 25px 0; color: ${
         brandColors.neutralDark
@@ -420,7 +413,7 @@ export const emailTemplates = {
         "info"
       )}
       
-      ${getButton(verificationUrl, "🔐 Verify Email Address", "primary")}
+      ${getButton(verificationUrl, "Verify email address", "primary")}
       
       <div style="background: ${
         brandColors.neutralLight
@@ -439,7 +432,7 @@ export const emailTemplates = {
       </div>
       
       ${getInfoBox(
-        "⏰ Important",
+        "Important",
         "This verification link will expire in 24 hours for security reasons. If it expires, you can request a new one from your account settings.",
         "warning"
       )}
@@ -453,11 +446,11 @@ export const emailTemplates = {
   }),
 
   passwordReset: (name: string, resetUrl: string) => ({
-    subject: "🔑 Reset Your Stayza Pro Password",
+    subject: "Reset your Stayza Pro password",
     html: getEmailContainer(`
       <h2 style="color: ${
         brandColors.primary
-      }; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">Password Reset Request 🔑</h2>
+      }; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">Password reset request</h2>
       
       <p style="font-size: 16px; margin: 0 0 25px 0; color: ${
         brandColors.neutralDark
@@ -467,7 +460,7 @@ export const emailTemplates = {
         brandColors.neutralDark
       };">We received a request to reset your Stayza Pro account password. Click the button below to create a new secure password:</p>
       
-      ${getButton(resetUrl, "🔑 Reset My Password", "primary")}
+      ${getButton(resetUrl, "Reset my password", "primary")}
       
       <div style="background: ${
         brandColors.neutralLight
@@ -486,13 +479,13 @@ export const emailTemplates = {
       </div>
       
       ${getInfoBox(
-        "⏰ Time Sensitive",
+        "Time sensitive",
         "This password reset link will expire in 1 hour for security reasons. If you need more time, you can request a new reset link.",
         "warning"
       )}
       
       ${getInfoBox(
-        "🔒 Security Tip",
+        "Security tip",
         "Choose a strong password with at least 8 characters, including uppercase letters, lowercase letters, numbers, and special characters.",
         "info"
       )}
@@ -506,20 +499,17 @@ export const emailTemplates = {
   }),
 
   realtorApproved: (businessName: string, dashboardUrl: string) => ({
-    subject: "🎉 Congratulations! Your Stayza Pro Account is Approved!",
+    subject: "Stayza Pro account approved",
     html: getEmailContainer(`
-      <div style="text-align: center; padding: 30px; background: linear-gradient(135deg, ${
+      <div style="text-align: center; padding: 30px; background-color: ${
         brandColors.success
-      } 0%, ${
-      brandColors.secondary
-    } 100%); border-radius: 16px; margin: 0 0 30px 0; color: ${
+      }; border-radius: 16px; margin: 0 0 30px 0; color: ${
       brandColors.white
-    };">
-        <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
+    }; box-shadow: 0 6px 16px rgba(0,0,0,0.12);">
         <h2 style="color: ${
           brandColors.white
-        }; font-size: 28px; font-weight: 700; margin: 0 0 10px 0;">Congratulations!</h2>
-        <p style="font-size: 18px; margin: 0; opacity: 0.95;">Your Realtor Account is Now Approved</p>
+        }; font-size: 26px; font-weight: 700; margin: 0 0 10px 0;">Account approved</h2>
+        <p style="font-size: 16px; margin: 0; opacity: 0.95;">Your realtor profile is active. You can sign in and start managing listings.</p>
       </div>
       
       <p style="font-size: 18px; margin: 0 0 25px 0; color: ${
@@ -528,25 +518,24 @@ export const emailTemplates = {
       
       <p style="font-size: 16px; margin: 0 0 30px 0; color: ${
         brandColors.neutralDark
-      };">Great news! Your realtor account has been approved and you're now ready to start listing your properties and earning with Stayza Pro!</p>
+      }">Your realtor account has been approved. You can add properties, manage availability, and accept bookings.</p>
       
-      ${getButton(dashboardUrl, "🚀 Access Your Dashboard", "success")}
+      ${getButton(dashboardUrl, "Access your dashboard", "success")}
       
-      <div style="background: linear-gradient(135deg, ${
-        brandColors.success
-      }15 0%, ${brandColors.secondary}10 100%); border: 2px solid ${
+      <div style="background-color: ${
+        brandColors.neutralLight
+      }; border: 2px solid ${
       brandColors.success
     }30; padding: 25px; border-radius: 16px; margin: 30px 0;">
         <h3 style="color: ${
           brandColors.success
-        }; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">🎯 You Can Now:</h3>
+        }; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">You can now:</h3>
         <div style="display: grid; gap: 15px;">
           <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: ${
             brandColors.white
           }; border-radius: 8px; border-left: 3px solid ${
       brandColors.success
     };">
-            <span style="font-size: 20px;">🏠</span>
             <div><strong>List Unlimited Properties</strong><br><span style="color: ${
               brandColors.neutralDark
             }; font-size: 14px;">Upload photos, set descriptions, and showcase your entire portfolio</span></div>
@@ -556,7 +545,6 @@ export const emailTemplates = {
           }; border-radius: 8px; border-left: 3px solid ${
       brandColors.success
     };">
-            <span style="font-size: 20px;">💰</span>
             <div><strong>Set Custom Pricing & Policies</strong><br><span style="color: ${
               brandColors.neutralDark
             }; font-size: 14px;">Dynamic pricing, cancellation policies, and special offers</span></div>
@@ -566,7 +554,6 @@ export const emailTemplates = {
           }; border-radius: 8px; border-left: 3px solid ${
       brandColors.success
     };">
-            <span style="font-size: 20px;">📊</span>
             <div><strong>Track Bookings & Earnings</strong><br><span style="color: ${
               brandColors.neutralDark
             }; font-size: 14px;">Real-time analytics, revenue reports, and performance insights</span></div>
@@ -576,7 +563,6 @@ export const emailTemplates = {
           }; border-radius: 8px; border-left: 3px solid ${
       brandColors.success
     };">
-            <span style="font-size: 20px;">🎨</span>
             <div><strong>Customize Your Brand Profile</strong><br><span style="color: ${
               brandColors.neutralDark
             }; font-size: 14px;">Logo, colors, and branding throughout the booking experience</span></div>
@@ -585,8 +571,8 @@ export const emailTemplates = {
       </div>
       
       ${getInfoBox(
-        "🚀 Ready to Launch?",
-        "Start by adding your first property listing. High-quality photos and detailed descriptions get 3x more bookings!",
+        "Next steps",
+        "Start by adding your first property listing. High-quality photos and detailed descriptions help guests choose faster.",
         "info"
       )}
       
@@ -595,7 +581,7 @@ export const emailTemplates = {
       }; border-radius: 12px; margin: 30px 0;">
         <h3 style="color: ${
           brandColors.primary
-        }; margin: 0 0 15px 0;">Welcome to Stayza Pro! 🏡</h3>
+        }; margin: 0 0 15px 0;">Welcome to Stayza Pro</h3>
         <p style="margin: 0; color: ${
           brandColors.neutralDark
         }; font-size: 16px;">You're now part of a community of successful property managers. Let's make your first booking happen!</p>
@@ -835,22 +821,22 @@ export const emailTemplates = {
 
   // CAC verification templates
   cacApproved: (businessName: string, dashboardUrl: string) => ({
-    subject: "✅ CAC Verification Approved - Start Uploading Properties!",
+    subject: "CAC verification approved - start uploading properties",
     html: getEmailContainer(
-      `<h2 style="color: ${brandColors.success}; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">🎉 CAC Verification Approved!</h2>` +
-        `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Great news! Your Corporate Affairs Commission (CAC) number has been successfully verified for <strong>${businessName}</strong>.</p>` +
+      `<h2 style="color: ${brandColors.success}; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">CAC verification approved</h2>` +
+        `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Your Corporate Affairs Commission (CAC) number has been verified for <strong>${businessName}</strong>.</p>` +
         getInfoBox(
           "What This Means",
           "You can now upload and manage properties on Stayza Pro. Your business credentials have been verified and you're ready to start earning!",
           "success"
         ) +
-        getButton(dashboardUrl, "Access Your Dashboard", "success") +
+        getButton(dashboardUrl, "Access your dashboard", "success") +
         `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;"><p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Help?</strong> Contact us at <a href="mailto:support@stayza.com" style="color: ${brandColors.primary};">support@stayza.com</a></p></div>`
     ),
   }),
 
   cacRejected: (businessName: string, reason: string) => ({
-    subject: "❌ CAC Verification Requires Attention",
+    subject: "CAC verification requires attention",
     html: getEmailContainer(
       `<h2 style="color: ${brandColors.error}; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">CAC Verification Update Required</h2>` +
         `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">We've reviewed the CAC information for <strong>${businessName}</strong> and need additional documentation to complete verification.</p>` +
@@ -875,7 +861,7 @@ export const sendEmail = async (
     // Use Resend in production/staging
     if (config.RESEND_API_KEY && config.NODE_ENV !== "development") {
       console.log(
-        "📧 Sending email via Resend to:",
+        "Sending email via Resend to:",
         Array.isArray(to) ? to.join(", ") : to
       );
 
@@ -886,14 +872,14 @@ export const sendEmail = async (
         html: template.html,
       });
 
-      console.log("✅ Email sent successfully via Resend:", result.data?.id);
+      console.log("Email sent successfully via Resend:", result.data?.id);
       return { success: true, messageId: result.data?.id };
     }
 
     // Fallback to Nodemailer for development
     if (nodemailerTransporter) {
       console.log(
-        "📧 Sending email via Nodemailer (dev mode) to:",
+        "Sending email via Nodemailer (dev mode) to:",
         Array.isArray(to) ? to.join(", ") : to
       );
 
@@ -909,14 +895,12 @@ export const sendEmail = async (
       };
 
       const info = await nodemailerTransporter.sendMail(mailOptions);
-      console.log("✅ Email sent successfully via Nodemailer:", info.messageId);
+      console.log("Email sent successfully via Nodemailer:", info.messageId);
       return { success: true, messageId: info.messageId };
     }
 
     // No email service configured - log to console (development only)
-    console.warn(
-      "⚠️  No email service configured. Email would have been sent:"
-    );
+    console.warn("No email service configured. Email would have been sent:");
     console.log({
       to: Array.isArray(to) ? to : [to],
       subject: template.subject,
@@ -924,7 +908,7 @@ export const sendEmail = async (
     });
     return { success: true, messageId: "dev-mode-no-send" };
   } catch (error: any) {
-    console.error("❌ Error sending email:", error);
+    console.error("Error sending email:", error);
 
     // Resend-specific errors
     if (error.name === "ResendError") {
@@ -961,7 +945,7 @@ export const sendEmail = async (
         console.error("- Or disable email verification in development\n");
 
         // In development, don't throw error - just warn and continue
-        console.warn("⚠️  Continuing without sending email (dev mode)");
+        console.warn("Continuing without sending email (dev mode)");
         return { success: true, messageId: "dev-mode-smtp-failed" };
       }
 
@@ -993,9 +977,7 @@ export const sendRealtorWelcomeEmail = async (
   // Log verification URL in development for easy access
   if (process.env.NODE_ENV === "development" && verificationUrl) {
     console.log("\n" + "=".repeat(80));
-    console.log(
-      "📧 REALTOR WELCOME EMAIL - VERIFICATION LINK (Development Mode)"
-    );
+    console.log("REALTOR WELCOME EMAIL - VERIFICATION LINK (Development Mode)");
     console.log("=".repeat(80));
     console.log(`To: ${to}`);
     console.log(`Business: ${businessName}`);
@@ -1021,7 +1003,7 @@ export const sendEmailVerification = async (
   // Log verification URL in development for easy access
   if (process.env.NODE_ENV === "development" && !tokenOrUrl.match(/^\d{6}$/)) {
     console.log("\n" + "=".repeat(80));
-    console.log("📧 EMAIL VERIFICATION LINK (Development Mode)");
+    console.log("EMAIL VERIFICATION LINK (Development Mode)");
     console.log("=".repeat(80));
     console.log(`To: ${to}`);
     console.log(`Link: ${tokenOrUrl}`);
@@ -1039,7 +1021,7 @@ export const sendEmailVerification = async (
         <h2 style="color: ${
           brandColors.primary
         }; font-size: 24px; font-weight: 600; margin: 0 0 20px 0;">
-          ${name ? `Hi ${name}` : "Hello"}! 👋
+          ${name ? `Hi ${name}` : "Hello"}
         </h2>
         <p style="margin: 0 0 30px 0; font-size: 16px; color: ${
           brandColors.neutralDark
@@ -1064,7 +1046,7 @@ export const sendEmailVerification = async (
         <p style="margin: 30px 0 20px 0; font-size: 14px; color: ${
           brandColors.neutralDark
         };">
-          ⏰ This code will expire in <strong>10 minutes</strong>.
+          This code will expire in <strong>10 minutes</strong>.
         </p>
         <div style="background: ${
           brandColors.neutralLight
@@ -1074,7 +1056,7 @@ export const sendEmailVerification = async (
           <p style="margin: 0; font-size: 14px; color: ${
             brandColors.neutralDark
           };">
-            <strong>🔒 Security Tip:</strong> Never share this code with anyone. Stayza will never ask for your verification code via email, phone, or chat.
+            <strong>Security tip:</strong> Never share this code with anyone. Stayza will never ask for your verification code via email, phone, or chat.
           </p>
         </div>
         <p style="margin: 30px 0 0 0; font-size: 14px; color: #6B7280;">
@@ -1233,7 +1215,7 @@ export const sendCacRejectionEmail = async (
   appealUrl: string
 ) => {
   const template = {
-    subject: "❌ CAC Verification Requires Attention - Appeal Available",
+    subject: "CAC verification requires attention - appeal available",
     html: getEmailContainer(
       `<h2 style="color: ${brandColors.warning}; font-size: 24px; font-weight: 700; margin: 0 0 20px 0;">CAC Verification Update Required</h2>` +
         `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Hello ${name},</p>` +
@@ -1258,7 +1240,7 @@ export const sendCacRejectionEmail = async (
       </div>` +
         `<div style="margin-top: 20px; padding: 15px; background-color: ${brandColors.primary}15; border-radius: 8px; border-left: 4px solid ${brandColors.primary};">
         <p style="margin: 0; font-size: 13px; color: ${brandColors.neutralDark};">
-          <strong>⏰ Appeal Link Expiry:</strong> This appeal link is valid for 7 days. After that, you'll need to contact support to request a new one.
+          <strong>Appeal link expiry:</strong> This appeal link is valid for 7 days. After that, you'll need to contact support to request a new one.
         </p>
       </div>`
     ),
@@ -1279,7 +1261,7 @@ export const sendBookingSuspensionNotification = async (
 ) => {
   const guestName = `${guest.firstName} ${guest.lastName}`.trim();
   const template = {
-    subject: "🚨 Important: Your Booking Has Been Suspended",
+    subject: "Important: your booking has been suspended",
     html: `
       <h2>Booking Suspension Notice</h2>
       <p>Dear ${guestName},</p>
@@ -1314,7 +1296,7 @@ export const sendRefundRequestToRealtor = async (
 ) => {
   // Create a simple template since we're not adding to the main templates object
   const template = {
-    subject: `💰 New Refund Request - ${refundDetails.propertyTitle}`,
+    subject: `New refund request - ${refundDetails.propertyTitle}`,
     html: `
       <h2>New Refund Request</h2>
       <p>Hello ${realtorName},</p>
@@ -1356,8 +1338,8 @@ export const sendRefundDecisionToGuest = async (
   }
 ) => {
   const template = {
-    subject: `${refundDetails.approved ? "✅" : "❌"} Refund Request ${
-      refundDetails.approved ? "Approved" : "Update"
+    subject: `Refund request ${
+      refundDetails.approved ? "approved" : "update"
     } - ${refundDetails.propertyTitle}`,
     html: `
       <h2>Refund Request ${refundDetails.approved ? "Approved" : "Update"}</h2>
@@ -1461,7 +1443,9 @@ export const sendCommissionRateChangeEmail = async (
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .header { background: ${
+            brandColors.primary
+          }; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
           .rate-box { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea; }
           .rate-change { font-size: 24px; font-weight: bold; color: #667eea; }
@@ -1527,6 +1511,296 @@ export const sendCommissionRateChangeEmail = async (
       </body>
       </html>
     `,
+  };
+
+  return sendEmail(to, template);
+};
+
+/**
+ * Send withdrawal requested notification email
+ */
+export const sendWithdrawalRequestedEmail = async (
+  to: string,
+  name: string,
+  amount: number,
+  reference: string
+) => {
+  const template = {
+    subject: "Withdrawal request received - Stayza Pro",
+    html: getEmailContainer(`
+      <h2 style="color: ${
+        brandColors.primary
+      }; margin: 0 0 20px 0; font-size: 24px;">
+        Withdrawal request received
+      </h2>
+      
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        Hi <strong>${name}</strong>,
+      </p>
+      
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        We've received your withdrawal request. Your funds are being processed and will be transferred to your bank account shortly.
+      </p>
+      
+      <div style="background-color: ${
+        brandColors.neutralLight
+      }; padding: 20px; border-radius: 8px; margin: 30px 0;">
+        <table style="width: 100%;">
+          <tr>
+            <td style="padding: 8px 0; font-weight: 600;">Amount:</td>
+            <td style="padding: 8px 0; text-align: right; font-size: 20px; color: ${
+              brandColors.primary
+            }; font-weight: 700;">
+              ₦${amount.toLocaleString("en-NG", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: 600;">Reference:</td>
+            <td style="padding: 8px 0; text-align: right; font-family: monospace; color: ${
+              brandColors.neutralDark
+            };">
+              ${reference}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: 600;">Status:</td>
+            <td style="padding: 8px 0; text-align: right;">
+              <span style="display: inline-block; padding: 4px 12px; background-color: ${
+                brandColors.warning
+              }; color: ${
+      brandColors.white
+    }; border-radius: 4px; font-size: 14px; font-weight: 600;">
+                Processing
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="background-color: #FEF3C7; border-left: 4px solid ${
+        brandColors.warning
+      }; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px;">
+          <strong>⏱️ Processing Time:</strong> Withdrawals typically take 1-3 business days to reflect in your bank account.
+        </p>
+      </div>
+      
+      <p style="font-size: 16px; margin-top: 30px;">
+        We'll email you when the transfer completes.
+      </p>
+      
+      <p style="font-size: 16px; margin-top: 20px;">
+        Best regards,<br>
+        <strong>The Stayza Team</strong>
+      </p>
+    `),
+  };
+
+  return sendEmail(to, template);
+};
+
+/**
+ * Send withdrawal completed notification email
+ */
+export const sendWithdrawalCompletedEmail = async (
+  to: string,
+  name: string,
+  amount: number,
+  reference: string
+) => {
+  const template = {
+    subject: "Withdrawal completed - Stayza Pro",
+    html: getEmailContainer(`
+      <h2 style="color: ${
+        brandColors.success
+      }; margin: 0 0 20px 0; font-size: 24px;">
+        Withdrawal completed
+      </h2>
+      
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        Hi <strong>${name}</strong>,
+      </p>
+      
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        Your withdrawal has been processed. The transfer has been sent to your bank account.
+      </p>
+      
+      <div style="background-color: ${
+        brandColors.neutralLight
+      }; padding: 20px; border-radius: 8px; margin: 30px 0;">
+        <table style="width: 100%;">
+          <tr>
+            <td style="padding: 8px 0; font-weight: 600;">Amount Transferred:</td>
+            <td style="padding: 8px 0; text-align: right; font-size: 20px; color: ${
+              brandColors.success
+            }; font-weight: 700;">
+              ₦${amount.toLocaleString("en-NG", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: 600;">Transfer Reference:</td>
+            <td style="padding: 8px 0; text-align: right; font-family: monospace; color: ${
+              brandColors.neutralDark
+            };">
+              ${reference}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: 600;">Status:</td>
+            <td style="padding: 8px 0; text-align: right;">
+              <span style="display: inline-block; padding: 4px 12px; background-color: ${
+                brandColors.success
+              }; color: ${
+      brandColors.white
+    }; border-radius: 4px; font-size: 14px; font-weight: 600;">
+                Completed
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="background-color: #D1FAE5; border-left: 4px solid ${
+        brandColors.success
+      }; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <p style="margin: 0; font-size: 14px;">
+          <strong>Bank transfer:</strong> The funds should appear in your account within 1-3 business days, depending on your bank.
+        </p>
+      </div>
+      
+      ${getButton(`${config.FRONTEND_URL}/wallet`, "View wallet", "primary")}
+      
+      <p style="font-size: 14px; color: ${
+        brandColors.neutralDark
+      }; margin-top: 30px;">
+        If you don't see the funds in your account after 3 business days, please contact our support team with the reference number above.
+      </p>
+      
+      <p style="font-size: 16px; margin-top: 20px;">
+        Thank you for working with Stayza.<br>
+        <strong>The Stayza Team</strong>
+      </p>
+    `),
+  };
+
+  return sendEmail(to, template);
+};
+
+/**
+ * Send withdrawal failed notification email
+ */
+export const sendWithdrawalFailedEmail = async (
+  to: string,
+  name: string,
+  amount: number,
+  reason: string
+) => {
+  const template = {
+    subject: "Withdrawal not processed - action needed",
+    html: getEmailContainer(`
+      <h2 style="color: ${
+        brandColors.error
+      }; margin: 0 0 20px 0; font-size: 24px;">
+        Withdrawal not processed
+      </h2>
+      
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        Hi <strong>${name}</strong>,
+      </p>
+      
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        We could not complete your withdrawal. Your funds remain in your wallet.
+      </p>
+      
+      <div style="background-color: ${
+        brandColors.neutralLight
+      }; padding: 20px; border-radius: 8px; margin: 30px 0;">
+        <table style="width: 100%;">
+          <tr>
+            <td style="padding: 8px 0; font-weight: 600;">Requested Amount:</td>
+            <td style="padding: 8px 0; text-align: right; font-size: 20px; color: ${
+              brandColors.neutralDark
+            }; font-weight: 700;">
+              ₦${amount.toLocaleString("en-NG", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: 600;">Status:</td>
+            <td style="padding: 8px 0; text-align: right;">
+              <span style="display: inline-block; padding: 4px 12px; background-color: ${
+                brandColors.error
+              }; color: ${
+      brandColors.white
+    }; border-radius: 4px; font-size: 14px; font-weight: 600;">
+                Failed
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="background-color: #FEE2E2; border-left: 4px solid ${
+        brandColors.error
+      }; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <p style="margin: 0 0 10px 0; font-weight: 600; color: ${
+          brandColors.error
+        };">
+          Reason for Failure:
+        </p>
+        <p style="margin: 0; font-size: 14px;">
+          ${reason}
+        </p>
+      </div>
+      
+      <h3 style="color: ${brandColors.primary}; margin: 30px 0 15px 0;">
+        What Should You Do?
+      </h3>
+      
+      <ol style="padding-left: 20px; margin: 15px 0;">
+        <li style="margin-bottom: 10px;">
+          <strong>Check your bank account details</strong> in Settings → Payout Settings
+        </li>
+        <li style="margin-bottom: 10px;">
+          <strong>Verify your account information</strong> is correct and up to date
+        </li>
+        <li style="margin-bottom: 10px;">
+          <strong>Try submitting a new withdrawal request</strong> or contact support if the issue persists
+        </li>
+      </ol>
+      
+      ${getButton(
+        `${config.FRONTEND_URL}/settings?tab=payout`,
+        "Check Payout Settings",
+        "warning"
+      )}
+      
+      <div style="margin-top: 30px; padding: 20px; background-color: ${
+        brandColors.neutralLight
+      }; border-radius: 8px;">
+        <h4 style="margin: 0 0 10px 0; color: ${brandColors.primary};">
+          Need Help?
+        </h4>
+        <p style="margin: 0; font-size: 14px;">
+          Our support team is here to help! Contact us at <a href="mailto:support@stayza.com" style="color: ${
+            brandColors.primary
+          }; text-decoration: none; font-weight: 600;">support@stayza.com</a> or through live chat.
+        </p>
+      </div>
+      
+      <p style="font-size: 16px; margin-top: 20px;">
+        Best regards,<br>
+        <strong>The Stayza Team</strong>
+      </p>
+    `),
   };
 
   return sendEmail(to, template);

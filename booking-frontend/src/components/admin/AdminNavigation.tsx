@@ -34,6 +34,7 @@ import { format } from "date-fns";
 const navigationItems = [
   { name: "Dashboard", href: "/admin", icon: Home },
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
+  { name: "Withdrawals", href: "/admin/withdrawals", icon: DollarSign },
   { name: "Commission", href: "/admin/commission", icon: DollarSign },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },

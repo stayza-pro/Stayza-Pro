@@ -68,6 +68,7 @@ export default function PayoutsPage() {
     null
   );
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -87,7 +88,17 @@ export default function PayoutsPage() {
 
   useEffect(() => {
     loadTransactions();
+    loadWithdrawals();
   }, [txPage, txFilter]);
+
+  const loadWithdrawals = async () => {
+    try {
+      const data = await walletService.getWithdrawalHistory(1, 10);
+      setWithdrawals(data.data);
+    } catch (error: any) {
+      console.error("Failed to load withdrawal history:", error);
+    }
+  };
 
   const fetchWalletData = async () => {
     try {
@@ -255,6 +266,7 @@ export default function PayoutsPage() {
       setWithdrawAmount("");
       await fetchWalletData();
       await loadTransactions();
+      await loadWithdrawals();
     } catch (error: any) {
       console.error("Withdrawal failed:", error);
       showError(
@@ -409,7 +421,7 @@ export default function PayoutsPage() {
         )}
 
         {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Available Balance */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -479,7 +491,7 @@ export default function PayoutsPage() {
           </motion.div>
 
           {/* Escrow Pending */}
-          <motion.div
+          {/* <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
@@ -497,7 +509,7 @@ export default function PayoutsPage() {
             <p className="text-sm text-gray-500">
               {pendingPayouts.length} payout(s)
             </p>
-          </motion.div>
+          </motion.div> */}
         </div>
 
         {/* Withdrawal Button */}
@@ -619,6 +631,68 @@ export default function PayoutsPage() {
             )}
           </div>
         </div>
+
+        {/* Withdrawal History */}
+        {withdrawals.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Withdrawal History
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Track your withdrawal requests and their status
+              </p>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {withdrawals.map((withdrawal) => (
+                <div
+                  key={withdrawal.id}
+                  className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                            withdrawal.status
+                          )}`}
+                        >
+                          {withdrawal.status}
+                        </span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          {formatCurrency(withdrawal.amount)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Requested{" "}
+                        {formatDistanceToNow(new Date(withdrawal.requestedAt), {
+                          addSuffix: true,
+                        })}
+                        {withdrawal.processedAt &&
+                          ` • Processed ${formatDistanceToNow(
+                            new Date(withdrawal.processedAt),
+                            { addSuffix: true }
+                          )}`}
+                      </p>
+                      {withdrawal.metadata?.reference && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Reference: {withdrawal.metadata.reference}
+                        </p>
+                      )}
+                    </div>
+                    {getStatusIcon(withdrawal.status)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
+              <p className="text-xs text-gray-600 text-center">
+                💡 Withdrawals are typically processed within minutes. Failed
+                withdrawals are automatically retried.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Payout History from Old System */}
         {payoutHistory.length > 0 && (

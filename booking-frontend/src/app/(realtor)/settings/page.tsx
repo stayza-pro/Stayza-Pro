@@ -141,9 +141,9 @@ export default function SettingsPage() {
     }
   }, [showSuccess]);
 
-  // Fetch CAC status
+  // Fetch CAC status for business and payout tabs
   useEffect(() => {
-    if (activeTab === "business") {
+    if (activeTab === "business" || activeTab === "payout") {
       fetchCacStatus();
     }
   }, [activeTab]);

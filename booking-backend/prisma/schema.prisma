@@ -69,22 +69,23 @@ model Realtor {
 
    cacDocumentUrl            String?
    description               String?
-   status                    RealtorStatus   @default(PENDING)
+   status                    RealtorStatus       @default(PENDING)
    cacRejectedAt             DateTime?
    cacRejectionReason        String?
-   cacStatus                 CacStatus       @default(PENDING)
+   cacStatus                 CacStatus           @default(PENDING)
    cacVerifiedAt             DateTime?
-   canAppeal                 Boolean         @default(true)
+   canAppeal                 Boolean             @default(true)
    suspendedAt               DateTime?
    suspensionExpiresAt       DateTime?
    paystackSubAccountCode    String?
    flutterwaveSubAccountCode String?
-   averageRating             Decimal?        @default(0) @db.Decimal(3, 2)
-   reviewCount               Int             @default(0)
+   averageRating             Decimal?            @default(0) @db.Decimal(3, 2)
+   reviewCount               Int                 @default(0)
    properties                Property[]
-   user                      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+   user                      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
    refundRequests            RefundRequest[]
-   referredGuests            User[]          @relation("ReferredGuests")
+   referredGuests            User[]              @relation("ReferredGuests")
+   withdrawalRequests        WithdrawalRequest[]
 
    @@map("realtors")
 }
@@ -862,14 +863,15 @@ model Favorite {
 }
 
 model Wallet {
-   id               String              @id @default(cuid())
-   ownerType        WalletOwnerType
-   ownerId          String // realtorId or 'platform'
-   balanceAvailable Decimal             @default(0) @db.Decimal(12, 2)
-   balancePending   Decimal             @default(0) @db.Decimal(12, 2)
-   createdAt        DateTime            @default(now())
-   updatedAt        DateTime            @updatedAt
-   transactions     WalletTransaction[]
+   id                 String              @id @default(cuid())
+   ownerType          WalletOwnerType
+   ownerId            String // realtorId or 'platform'
+   balanceAvailable   Decimal             @default(0) @db.Decimal(12, 2)
+   balancePending     Decimal             @default(0) @db.Decimal(12, 2)
+   createdAt          DateTime            @default(now())
+   updatedAt          DateTime            @updatedAt
+   transactions       WalletTransaction[]
+   withdrawalRequests WithdrawalRequest[]
 
    @@unique([ownerType, ownerId])
    @@index([ownerId])
@@ -922,7 +924,11 @@ model WithdrawalRequest {
    failureReason        String?
    paystackTransferId   String?
    paystackTransferCode String?
+   retryCount           Int                     @default(0)
    metadata             Json?
+
+   wallet  Wallet  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+   realtor Realtor @relation(fields: [realtorId], references: [id], onDelete: Cascade)
 
    @@index([realtorId])
    @@index([walletId])

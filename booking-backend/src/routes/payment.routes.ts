@@ -335,8 +335,10 @@ router.post(
     });
 
     // Initialize Paystack payment
-    // NOTE: NO subaccount - all funds go to main Stayza account
-    // Escrow system handles payouts after check-in
+    // All funds are received by Stayza main account.
+    // Escrow logic controls timing and amounts (90% realtor, 10% platform).
+    // Subaccounts are used ONLY for realtor withdrawals, not for payment splits.
+    // No subaccount or split_code is passed to Paystack.
 
     // Build proper callback URL based on environment
     const isDev = config.NODE_ENV === "development";

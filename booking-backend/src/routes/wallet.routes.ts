@@ -1,6 +1,8 @@
 import { Router, Response, NextFunction } from "express";
 import { authenticate, authorize } from "@/middleware/auth";
 import * as walletService from "@/services/walletService";
+import * as withdrawalService from "@/services/withdrawalService";
+import { sendWithdrawalRequestedEmail } from "@/services/email";
 import { WalletOwnerType, UserRole } from "@prisma/client";
 import { prisma } from "@/config/database";
 import { logger } from "@/utils/logger";
@@ -52,13 +54,36 @@ router.get(
 
       const balance = await walletService.getWalletBalance(wallet.id);
 
+      // Calculate pending escrow funds (money held in escrow for realtor)
+      const escrowFunds = await prisma.payment.aggregate({
+        where: {
+          booking: {
+            property: {
+              realtorId: realtorId,
+            },
+            status: "ACTIVE", // Only ACTIVE bookings have money in escrow
+          },
+          status: {
+            in: ["HELD", "PARTIALLY_RELEASED"],
+          },
+          roomFeeInEscrow: true, // Room fee still in escrow
+        },
+        _sum: {
+          roomFeeAmount: true,
+        },
+      });
+
+      // Calculate realtor's share (90% of room fees in escrow)
+      const roomFeesInEscrow = Number(escrowFunds._sum.roomFeeAmount || 0);
+      const realtorShareInEscrow = roomFeesInEscrow * 0.9;
+
       res.status(200).json({
         success: true,
         data: {
           walletId: wallet.id,
           availableBalance: balance.available,
-          pendingBalance: balance.pending,
-          totalBalance: balance.available + balance.pending,
+          pendingBalance: realtorShareInEscrow, // Show escrow funds as pending
+          totalBalance: balance.available + realtorShareInEscrow,
           currency: "NGN",
         },
       });
@@ -143,6 +168,12 @@ router.post(
           id: true,
           businessName: true,
           paystackSubAccountCode: true,
+          user: {
+            select: {
+              email: true,
+              firstName: true,
+            },
+          },
         },
       });
 
@@ -153,6 +184,17 @@ router.post(
       if (!realtor.paystackSubAccountCode) {
         throw new AppError(
           "Paystack subaccount not configured. Please contact support.",
+          400
+        );
+      }
+
+      // Check available balance before withdrawal
+      const currentBalance = await walletService.getWalletBalance(wallet.id);
+      if (currentBalance.available < amount) {
+        throw new AppError(
+          `Insufficient balance. Available: ₦${currentBalance.available.toFixed(
+            2
+          )}, Requested: ₦${amount.toFixed(2)}`,
           400
         );
       }
@@ -185,19 +227,58 @@ router.post(
         withdrawalRequestId: withdrawalRequest.id,
       });
 
-      // TODO: Implement actual Paystack transfer processing
-      // For now, we just lock the funds and return success
-      // A background job or admin action should process this
+      // Send withdrawal requested email notification
+      await sendWithdrawalRequestedEmail(
+        realtor.user.email,
+        realtor.user.firstName || realtor.businessName,
+        amount,
+        withdrawalReference
+      ).catch((error) =>
+        logger.error("Failed to send withdrawal requested email", error)
+      );
+
+      // Attempt automatic processing
+      // If it fails, it will be marked as FAILED and admin can manually process
+      logger.info("Attempting automatic withdrawal processing", {
+        withdrawalRequestId: withdrawalRequest.id,
+      });
+
+      // Process asynchronously to not block the response
+      withdrawalService
+        .processWithdrawal(withdrawalRequest.id, false)
+        .then((result) => {
+          if (result.success) {
+            logger.info("Withdrawal processed automatically", {
+              withdrawalRequestId: withdrawalRequest.id,
+              transferReference: result.transferReference,
+            });
+          } else {
+            logger.warn(
+              "Automatic withdrawal processing failed, will require manual processing",
+              {
+                withdrawalRequestId: withdrawalRequest.id,
+                error: result.message,
+              }
+            );
+          }
+        })
+        .catch((error) => {
+          logger.error("Error in automatic withdrawal processing", {
+            withdrawalRequestId: withdrawalRequest.id,
+            error: error.message,
+          });
+        });
 
       res.status(201).json({
         success: true,
-        message: "Withdrawal request submitted successfully",
+        message:
+          "Withdrawal request submitted successfully. Processing automatically...",
         data: {
           withdrawalRequestId: withdrawalRequest.id,
           amount,
           status: "PENDING",
           requestedAt: withdrawalRequest.requestedAt,
-          note: "Your withdrawal is being processed. You will be notified when it's completed.",
+          note: "Your withdrawal is being processed automatically. You'll receive an email notification once completed (usually within minutes). If automatic processing fails, our team will process it manually within 24 hours.",
         },
       });
     } catch (error) {

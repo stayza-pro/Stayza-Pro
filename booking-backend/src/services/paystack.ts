@@ -17,6 +17,11 @@ const paystackClient = axios.create({
 
 /**
  * Create subaccount for realtor
+ *
+ * NOTE: Subaccounts are used ONLY for withdrawals, not for payment splits.
+ * All guest payments go directly to Stayza main account.
+ * Escrow system controls timing and amounts (90/10 split).
+ * Subaccount is the destination when realtor withdraws their funds.
  */
 export const createSubAccount = async (realtor: {
   id: string;
@@ -24,15 +29,14 @@ export const createSubAccount = async (realtor: {
   businessEmail: string;
   bankCode: string;
   accountNumber: string;
-  percentageCharge?: number;
 }) => {
   try {
     const response = await paystackClient.post("/subaccount", {
       business_name: realtor.businessName,
       settlement_bank: realtor.bankCode,
       account_number: realtor.accountNumber,
-      percentage_charge: realtor.percentageCharge || 10, // Platform keeps 10% commission, rest held in escrow
-      description: `Subaccount for ${realtor.businessName}`,
+      percentage_charge: 0, // No automatic split - all funds go to Stayza main account
+      description: `Payout subaccount for ${realtor.businessName}`,
       primary_contact_email: realtor.businessEmail,
       metadata: {
         realtor_id: realtor.id,

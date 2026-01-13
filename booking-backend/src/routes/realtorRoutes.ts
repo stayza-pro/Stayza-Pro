@@ -3538,16 +3538,16 @@ router.post(
     // Only property listing requires CAC approval (handled by requireApprovedRealtor middleware)
 
     try {
-      // Create Paystack subaccount
-      // Platform keeps 10% commission automatically via subaccount split
-      // Remaining 90% held by platform for escrow control (timed releases + manual payouts)
+      // Create Paystack subaccount for realtor withdrawals
+      // All funds are received by Stayza main account.
+      // Escrow logic controls timing and amounts (90% realtor, 10% platform).
+      // Subaccounts are used ONLY for realtor withdrawals, not for payment splits.
       const subAccountData = await createSubAccount({
         id: realtor.id,
         businessName: realtor.businessName,
         businessEmail: realtor.user.email,
         bankCode: bankCode,
         accountNumber: accountNumber,
-        percentageCharge: 10, // Platform takes 10% commission, rest held in escrow
       });
 
       // Save bank details and subaccount code to database
