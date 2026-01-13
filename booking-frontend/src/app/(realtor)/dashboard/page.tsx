@@ -30,7 +30,6 @@ import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 import { format } from "date-fns";
 import { ApprovalStatusPage } from "@/components/realtor/ApprovalStatusPage";
-import { DashboardHeader } from "@/components/realtor/DashboardHeader";
 
 export default function RealtorDashboardPage() {
   const { user } = useAuth();
@@ -138,11 +137,6 @@ export default function RealtorDashboardPage() {
 
   return (
     <div className="min-h-screen space-y-6 pb-8">
-      {/* Dashboard Header */}
-      <DashboardHeader
-        onCopySuccess={() => showSuccess("Website link copied to clipboard!")}
-      />
-
       {/* Key Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[

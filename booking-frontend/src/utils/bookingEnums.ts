@@ -20,15 +20,16 @@ import {
  * Valid state transitions for BookingStatus
  * Based on backend state machine in bookingStatus.ts
  */
-export const BOOKING_STATUS_TRANSITIONS: Record<
-  BookingStatus,
-  BookingStatus[]
+export const BOOKING_STATUS_TRANSITIONS: Partial<
+  Record<BookingStatus, BookingStatus[]>
 > = {
-  PENDING: ["PAID", "CANCELLED"],
-  PAID: ["CONFIRMED", "CHECKED_IN", "CANCELLED"],
-  CONFIRMED: ["CHECKED_IN", "CANCELLED"], // Deprecated status
-  CHECKED_IN: ["CHECKED_OUT", "DISPUTE_OPENED"],
-  DISPUTE_OPENED: ["COMPLETED", "CANCELLED"],
+  PENDING: ["ACTIVE", "CANCELLED"],
+  ACTIVE: ["DISPUTED", "COMPLETED", "CANCELLED"],
+  PAID: ["CONFIRMED", "CHECKED_IN", "CANCELLED"], // Deprecated
+  CONFIRMED: ["CHECKED_IN", "CANCELLED"], // Deprecated
+  CHECKED_IN: ["CHECKED_OUT", "DISPUTED"],
+  DISPUTED: ["COMPLETED", "CANCELLED"],
+  DISPUTE_OPENED: ["COMPLETED", "CANCELLED"], // Deprecated
   CHECKED_OUT: ["COMPLETED"],
   COMPLETED: [], // Terminal state
   CANCELLED: [], // Terminal state
@@ -55,19 +56,21 @@ export const isTerminalBookingStatus = (status: BookingStatus): boolean => {
  * Check if booking can be cancelled
  */
 export const canCancelBooking = (status: BookingStatus): boolean => {
-  return ["PENDING", "PAID", "CONFIRMED"].includes(status);
+  return ["PENDING", "ACTIVE", "PAID", "CONFIRMED"].includes(status);
 };
 
 /**
  * Format booking status for display
  */
 export const formatBookingStatus = (status: BookingStatus): string => {
-  const statusMap: Record<BookingStatus, string> = {
+  const statusMap: Partial<Record<BookingStatus, string>> = {
     PENDING: "Pending Payment",
-    PAID: "Paid",
+    ACTIVE: "Confirmed",
+    PAID: "Confirmed",
     CONFIRMED: "Confirmed",
     CHECKED_IN: "Checked In",
-    DISPUTE_OPENED: "Dispute Opened",
+    DISPUTED: "Disputed",
+    DISPUTE_OPENED: "Disputed",
     CHECKED_OUT: "Checked Out",
     COMPLETED: "Completed",
     CANCELLED: "Cancelled",
@@ -85,14 +88,18 @@ export const getBookingStatusColor = (
   text: string;
   border: string;
 } => {
-  const colorMap: Record<
-    BookingStatus,
-    { bg: string; text: string; border: string }
+  const colorMap: Partial<
+    Record<BookingStatus, { bg: string; text: string; border: string }>
   > = {
     PENDING: {
       bg: "bg-yellow-50",
       text: "text-yellow-700",
       border: "border-yellow-200",
+    },
+    ACTIVE: {
+      bg: "bg-green-50",
+      text: "text-green-700",
+      border: "border-green-200",
     },
     PAID: {
       bg: "bg-blue-50",
@@ -108,6 +115,11 @@ export const getBookingStatusColor = (
       bg: "bg-indigo-50",
       text: "text-indigo-700",
       border: "border-indigo-200",
+    },
+    DISPUTED: {
+      bg: "bg-red-50",
+      text: "text-red-700",
+      border: "border-red-200",
     },
     DISPUTE_OPENED: {
       bg: "bg-red-50",
@@ -451,12 +463,12 @@ export const getBookingStatusSummary = (
     };
   }
 
-  if (bookingStatus === "DISPUTE_OPENED") {
+  if (bookingStatus === "DISPUTED" || bookingStatus === "DISPUTE_OPENED") {
     return {
       label: "Dispute Active",
       description:
         "A dispute has been opened for this booking. Admin review in progress.",
-      color: getBookingStatusColor("DISPUTE_OPENED"),
+      color: getBookingStatusColor("DISPUTED"),
     };
   }
 
@@ -476,11 +488,15 @@ export const getBookingStatusSummary = (
     };
   }
 
-  if (bookingStatus === "PAID" || bookingStatus === "CONFIRMED") {
+  if (
+    bookingStatus === "ACTIVE" ||
+    bookingStatus === "PAID" ||
+    bookingStatus === "CONFIRMED"
+  ) {
     return {
       label: "Confirmed",
       description: "Payment received. Your booking is confirmed.",
-      color: getBookingStatusColor("PAID"),
+      color: getBookingStatusColor("ACTIVE"),
     };
   }
 

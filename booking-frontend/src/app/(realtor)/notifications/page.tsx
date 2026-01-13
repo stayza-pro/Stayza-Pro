@@ -21,7 +21,6 @@ import {
   AlertCircle,
   Wallet,
 } from "lucide-react";
-import { DashboardHeader } from "@/components/realtor/DashboardHeader";
 import { formatDistanceToNow } from "date-fns";
 
 type FilterType = "all" | "unread" | "BOOKING" | "REVIEW" | "PAYMENT";
@@ -127,13 +126,6 @@ export default function NotificationsPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-      {/* Header */}
-      <div className="px-8 py-6 flex-shrink-0">
-        <DashboardHeader
-          onCopySuccess={() => showSuccess("Website link copied to clipboard!")}
-        />
-      </div>
-
       {/* Page Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-8">

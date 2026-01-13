@@ -7,6 +7,8 @@ import ProtectedRouteWrapper from "../../components/auth/ProtectedRouteWrapper";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { BrandProvider } from "@/components/realtor/context/BrandContext";
+import { DashboardHeader } from "@/components/realtor/DashboardHeader";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import Image from "next/image";
 import {
   Building2,
@@ -21,6 +23,8 @@ import {
   RefreshCw,
   Wallet,
   LogOut,
+  AlertCircle,
+  MessageCircle,
 } from "lucide-react";
 
 export default function RealtorLayout({
@@ -81,15 +85,21 @@ export default function RealtorLayout({
       setActiveNav("properties");
     } else if (currentPath.includes("/bookings")) {
       setActiveNav("bookings");
+    } else if (currentPath.includes("/messages")) {
+      setActiveNav("messages");
     } else if (currentPath.includes("/escrow")) {
       setActiveNav("escrow-tracker");
     } else if (currentPath.includes("/refund-requests")) {
       setActiveNav("refund-requests");
+    } else if (currentPath.includes("/disputes")) {
+      setActiveNav("disputes");
     } else if (
       currentPath.includes("/earnings") ||
       currentPath.includes("/revenue")
     ) {
       setActiveNav("earnings");
+    } else if (currentPath.includes("/wallet")) {
+      setActiveNav("wallet");
     } else if (currentPath.includes("/payouts")) {
       setActiveNav("payouts");
     } else if (currentPath.includes("/notifications")) {
@@ -177,6 +187,12 @@ export default function RealtorLayout({
       href: "/bookings",
     },
     {
+      id: "messages",
+      label: "Messages",
+      icon: MessageCircle,
+      href: "/messages",
+    },
+    {
       id: "escrow-tracker",
       label: "Escrow Tracker",
       icon: Shield,
@@ -189,12 +205,18 @@ export default function RealtorLayout({
       href: "/refund-requests",
     },
     {
+      id: "disputes",
+      label: "Disputes",
+      icon: AlertCircle,
+      href: "/disputes",
+    },
+    {
       id: "earnings",
       label: "Earnings & Analytics",
       icon: BarChart3,
       href: "/earnings",
     },
-    { id: "payouts", label: "Payouts", icon: Wallet, href: "/payouts" },
+    { id: "payouts", label: "Payouts", icon: DollarSign, href: "/payouts" },
     {
       id: "notifications",
       label: "Notifications",
@@ -307,7 +329,20 @@ export default function RealtorLayout({
 
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-            <main className="flex-1 overflow-y-auto p-8">{children}</main>
+            {/* Top Bar with Notification Bell */}
+            <div className="flex items-center justify-end px-8 py-4 bg-white border-b border-gray-200">
+              <NotificationBell iconColor={brandColors.primary} />
+            </div>
+
+            <main className="flex-1 overflow-y-auto p-8">
+              {/* Show DashboardHeader on all pages except settings */}
+              {!pathname.includes("/settings") && (
+                <div className="mb-6">
+                  <DashboardHeader />
+                </div>
+              )}
+              {children}
+            </main>
           </div>
         </div>
       </BrandProvider>

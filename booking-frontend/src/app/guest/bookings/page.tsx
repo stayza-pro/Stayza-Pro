@@ -130,6 +130,7 @@ export default function GuestBookingsPage() {
 
   const getStatusConfig = (status: BookingStatus) => {
     switch (status) {
+      case "ACTIVE":
       case "CONFIRMED":
         return {
           icon: CheckCircle,
@@ -182,7 +183,11 @@ export default function GuestBookingsPage() {
     const now = new Date();
     const checkIn = new Date(booking.checkInDate);
     const checkOut = new Date(booking.checkOutDate);
-    return checkIn <= now && checkOut >= now && booking.status === "CONFIRMED";
+    return (
+      checkIn <= now &&
+      checkOut >= now &&
+      (booking.status === "ACTIVE" || booking.status === "CONFIRMED")
+    );
   };
 
   const formatDate = (date: Date | string) => {

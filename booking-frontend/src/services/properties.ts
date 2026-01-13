@@ -112,6 +112,16 @@ export const propertyService = {
     await apiClient.delete(`/properties/${propertyId}/images/${imageId}`);
   },
 
+  // Reorder property images
+  reorderImages: async (
+    propertyId: string,
+    imageOrder: Array<{ id: string; order: number }>
+  ): Promise<void> => {
+    await apiClient.put(`/properties/${propertyId}/images/reorder`, {
+      images: imageOrder,
+    });
+  },
+
   // Get host's properties
   getHostProperties: async (
     hostId?: string,

@@ -93,7 +93,7 @@ router.post(
     }
 
     const hash = crypto
-      .createHmac("sha512", config.PAYSTACK_SECRET_KEY)
+      .createHmac("sha512", config.PAYSTACK_WEBHOOK_SECRET)
       .update(JSON.stringify(req.body))
       .digest("hex");
 

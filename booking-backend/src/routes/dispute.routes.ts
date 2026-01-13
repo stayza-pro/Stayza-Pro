@@ -7,12 +7,238 @@ import {
 import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
 import { authenticate } from "@/middleware/auth";
-import disputeService from "@/services/disputeService";
+import * as disputeService from "@/services/disputeService";
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+/**
+ * @swagger
+ * /api/disputes:
+ *   post:
+ *     summary: Create a new dispute (Guest)
+ *     tags: [Disputes]
+ *     security:
+ *       - BearerAuth: []
+ */
+router.post("/", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { bookingId, issueType, subject, description } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    if (!bookingId || !issueType || !subject || !description) {
+      res.status(400).json({
+        message:
+          "Missing required fields: bookingId, issueType, subject, description",
+      });
+      return;
+    }
+
+    // Create dispute with conversation-style system
+    const dispute = await disputeService.createNewDispute(
+      bookingId,
+      userId,
+      issueType,
+      subject,
+      description
+    );
+
+    res.status(201).json(dispute);
+  } catch (error: any) {
+    logger.error("Error creating dispute:", error);
+    res.status(400).json({
+      message: error.message || "Failed to create dispute",
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/disputes/booking/{bookingId}:
+ *   get:
+ *     summary: Get dispute for a specific booking
+ *     tags: [Disputes]
+ */
+router.get(
+  "/booking/:bookingId",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { bookingId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      const dispute = await disputeService.getDisputeByBookingId(bookingId);
+
+      if (!dispute) {
+        res.status(404).json({ message: "No dispute found for this booking" });
+        return;
+      }
+
+      res.status(200).json(dispute);
+    } catch (error: any) {
+      logger.error("Error fetching dispute:", error);
+      res.status(500).json({
+        message: error.message || "Failed to fetch dispute",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/disputes/{id}/respond:
+ *   post:
+ *     summary: Respond to a dispute (Guest or Realtor)
+ *     tags: [Disputes]
+ */
+router.post(
+  "/:id/respond",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { message } = req.body;
+      const userId = req.user?.id;
+      const userRole = req.user?.role;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      if (!message || message.length < 10) {
+        res.status(400).json({
+          message: "Message must be at least 10 characters",
+        });
+        return;
+      }
+
+      const dispute = await disputeService.respondToNewDispute(
+        id,
+        userId,
+        userRole || "GUEST",
+        message
+      );
+
+      res.status(200).json(dispute);
+    } catch (error: any) {
+      logger.error("Error responding to dispute:", error);
+      res.status(400).json({
+        message: error.message || "Failed to respond to dispute",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/disputes/realtor/disputes:
+ *   get:
+ *     summary: Get all disputes for a realtor
+ *     tags: [Disputes]
+ */
+router.get(
+  "/realtor/disputes",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { status } = req.query;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      const disputes = await disputeService.getRealtorDisputes(
+        userId,
+        status as string
+      );
+
+      res.status(200).json(disputes);
+    } catch (error: any) {
+      logger.error("Error fetching realtor disputes:", error);
+      res.status(500).json({
+        message: error.message || "Failed to fetch disputes",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/disputes/realtor/stats:
+ *   get:
+ *     summary: Get dispute statistics for a realtor
+ *     tags: [Disputes]
+ */
+router.get(
+  "/realtor/stats",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      const stats = await disputeService.getRealtorDisputeStats(userId);
+
+      res.status(200).json(stats);
+    } catch (error: any) {
+      logger.error("Error fetching dispute stats:", error);
+      res.status(500).json({
+        message: error.message || "Failed to fetch stats",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/disputes/{id}/accept:
+ *   post:
+ *     summary: Accept and resolve a dispute (Realtor only)
+ *     tags: [Disputes]
+ */
+router.post("/:id/accept", async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { resolution } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    if (!resolution) {
+      res.status(400).json({
+        message: "Resolution plan is required",
+      });
+      return;
+    }
+
+    const dispute = await disputeService.acceptDispute(id, userId, resolution);
+
+    res.status(200).json(dispute);
+  } catch (error: any) {
+    logger.error("Error accepting dispute:", error);
+    res.status(400).json({
+      message: error.message || "Failed to accept dispute",
+    });
+  }
+});
 
 /**
  * @swagger

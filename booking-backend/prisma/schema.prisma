@@ -46,6 +46,7 @@ model User {
    sentMessages             Message[]               @relation("SentMessages")
    receivedMessages         Message[]               @relation("ReceivedMessages")
    favorites                Favorite[]
+   helpfulReviews           ReviewHelpful[]
 
    @@map("users")
 }
@@ -311,6 +312,7 @@ model Review {
    notifications       Notification[]
    photos              ReviewPhoto[]
    hostResponse        ReviewResponse?
+   helpfulMarks        ReviewHelpful[]
    author              User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
    booking             Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
    property            Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -340,6 +342,18 @@ model ReviewResponse {
    review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
    @@map("review_responses")
+}
+
+model ReviewHelpful {
+   id        String   @id @default(cuid())
+   reviewId  String
+   userId    String
+   createdAt DateTime @default(now())
+   review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+   @@unique([reviewId, userId])
+   @@map("review_helpful")
 }
 
 model Notification {
@@ -822,7 +836,7 @@ model MessageAttachment {
    id        String   @id @default(cuid())
    messageId String
    url       String
-   type      String // IMAGE, DOCUMENT
+   type      String // IMAGE, DOCUMENT, VOICE
    filename  String
    size      Int
    createdAt DateTime @default(now())

@@ -33,7 +33,6 @@ import {
   ChevronDown,
   X,
 } from "lucide-react";
-import { DashboardHeader } from "@/components/realtor/DashboardHeader";
 
 export default function PropertiesPage() {
   const router = useRouter();
@@ -216,11 +215,6 @@ export default function PropertiesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Header */}
-      <DashboardHeader
-        onCopySuccess={() => showSuccess("Website link copied to clipboard!")}
-      />
-
       {/* Page Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-6">

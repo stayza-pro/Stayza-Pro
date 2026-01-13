@@ -59,6 +59,7 @@ export const BookingStatusBadge: React.FC<BookingStatusBadgeProps> = ({
             />
           </svg>
         );
+      case "ACTIVE":
       case "PAID":
       case "CONFIRMED":
         return (
@@ -108,6 +109,7 @@ export const BookingStatusBadge: React.FC<BookingStatusBadgeProps> = ({
             />
           </svg>
         );
+      case "DISPUTED":
       case "DISPUTE_OPENED":
         return (
           <svg

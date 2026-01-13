@@ -724,7 +724,25 @@ router.get(
       guestId: req.user!.id,
     };
 
-    if (status) where.status = status as BookingStatus;
+    // Map frontend status values to database BookingStatus enum
+    if (status) {
+      const statusMap: Record<string, BookingStatus> = {
+        CONFIRMED: "ACTIVE",
+        PAID: "ACTIVE",
+        CHECKED_IN: "ACTIVE",
+        CHECKED_OUT: "COMPLETED",
+        PENDING: "PENDING",
+        CANCELLED: "CANCELLED",
+        COMPLETED: "COMPLETED",
+        DISPUTED: "DISPUTED",
+        ACTIVE: "ACTIVE",
+      };
+
+      const mappedStatus = statusMap[status as string];
+      if (mappedStatus) {
+        where.status = mappedStatus;
+      }
+    }
 
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
@@ -856,7 +874,25 @@ router.get(
       },
     };
 
-    if (status) where.status = status as BookingStatus;
+    // Map frontend status values to database BookingStatus enum
+    if (status) {
+      const statusMap: Record<string, BookingStatus> = {
+        CONFIRMED: "ACTIVE",
+        PAID: "ACTIVE",
+        CHECKED_IN: "ACTIVE",
+        CHECKED_OUT: "COMPLETED",
+        PENDING: "PENDING",
+        CANCELLED: "CANCELLED",
+        COMPLETED: "COMPLETED",
+        DISPUTED: "DISPUTED",
+        ACTIVE: "ACTIVE",
+      };
+
+      const mappedStatus = statusMap[status as string];
+      if (mappedStatus) {
+        where.status = mappedStatus;
+      }
+    }
     if (propertyId) where.propertyId = propertyId;
 
     const [bookings, total] = await Promise.all([

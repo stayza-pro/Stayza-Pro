@@ -1577,4 +1577,435 @@ router.get(
   })
 );
 
+/**
+ * @swagger
+ * /api/reviews/{id}/response:
+ *   post:
+ *     summary: Add host response to review
+ *     description: Allows realtor to respond to a review on their property
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - comment
+ *             properties:
+ *               comment:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 1000
+ *     responses:
+ *       201:
+ *         description: Response added successfully
+ *       400:
+ *         description: Validation error or response already exists
+ *       403:
+ *         description: Not authorized to respond to this review
+ *       404:
+ *         description: Review not found
+ */
+router.post(
+  "/:id/response",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id: reviewId } = req.params;
+    const { comment } = req.body;
+    const userId = req.user!.id;
+
+    if (!comment || comment.trim().length === 0) {
+      throw new AppError("Response comment is required", 400);
+    }
+
+    if (comment.length > 1000) {
+      throw new AppError("Response comment cannot exceed 1000 characters", 400);
+    }
+
+    // Get review with property and existing response
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: {
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+        hostResponse: true,
+        author: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!review) {
+      throw new AppError("Review not found", 404);
+    }
+
+    // Check if response already exists
+    if (review.hostResponse) {
+      throw new AppError(
+        "A response already exists for this review. Use PUT to update it.",
+        400
+      );
+    }
+
+    // Verify user is the property owner
+    if (review.property.realtor.userId !== userId) {
+      throw new AppError(
+        "You can only respond to reviews on your properties",
+        403
+      );
+    }
+
+    // Create response
+    const response = await prisma.reviewResponse.create({
+      data: {
+        reviewId,
+        authorId: userId,
+        comment: comment.trim(),
+      },
+      include: {
+        author: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // Send notification to review author
+    try {
+      await NotificationService.send(review.authorId, {
+        type: "REVIEW_RESPONSE",
+        title: "Host Responded to Your Review",
+        message: `${review.property.realtor.businessName} has responded to your review of ${review.property.title}`,
+        data: {
+          reviewId: review.id,
+          propertyId: review.propertyId,
+          responseId: response.id,
+        },
+        priority: "normal",
+      });
+    } catch (error) {
+      logger.error("Failed to send review response notification:", error);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Response added successfully",
+      data: response,
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/reviews/{id}/response:
+ *   put:
+ *     summary: Update host response to review
+ *     description: Allows realtor to update their response to a review
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - comment
+ *             properties:
+ *               comment:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 1000
+ *     responses:
+ *       200:
+ *         description: Response updated successfully
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Not authorized to update this response
+ *       404:
+ *         description: Review or response not found
+ */
+router.put(
+  "/:id/response",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id: reviewId } = req.params;
+    const { comment } = req.body;
+    const userId = req.user!.id;
+
+    if (!comment || comment.trim().length === 0) {
+      throw new AppError("Response comment is required", 400);
+    }
+
+    if (comment.length > 1000) {
+      throw new AppError("Response comment cannot exceed 1000 characters", 400);
+    }
+
+    // Get review with property and existing response
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: {
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+        hostResponse: true,
+      },
+    });
+
+    if (!review) {
+      throw new AppError("Review not found", 404);
+    }
+
+    if (!review.hostResponse) {
+      throw new AppError(
+        "No response exists for this review. Use POST to create one.",
+        404
+      );
+    }
+
+    // Verify user is the property owner or the response author
+    if (
+      review.property.realtor.userId !== userId &&
+      review.hostResponse.authorId !== userId
+    ) {
+      throw new AppError("You can only update your own responses", 403);
+    }
+
+    // Update response
+    const updatedResponse = await prisma.reviewResponse.update({
+      where: { id: review.hostResponse.id },
+      data: {
+        comment: comment.trim(),
+      },
+      include: {
+        author: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Response updated successfully",
+      data: updatedResponse,
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/reviews/{id}/response:
+ *   delete:
+ *     summary: Delete host response to review
+ *     description: Allows realtor to delete their response to a review
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Response deleted successfully
+ *       403:
+ *         description: Not authorized to delete this response
+ *       404:
+ *         description: Review or response not found
+ */
+router.delete(
+  "/:id/response",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id: reviewId } = req.params;
+    const userId = req.user!.id;
+
+    // Get review with property and existing response
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: {
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+        hostResponse: true,
+      },
+    });
+
+    if (!review) {
+      throw new AppError("Review not found", 404);
+    }
+
+    if (!review.hostResponse) {
+      throw new AppError("No response exists for this review", 404);
+    }
+
+    // Verify user is the property owner or the response author
+    if (
+      review.property.realtor.userId !== userId &&
+      review.hostResponse.authorId !== userId
+    ) {
+      throw new AppError("You can only delete your own responses", 403);
+    }
+
+    // Delete response
+    await prisma.reviewResponse.delete({
+      where: { id: review.hostResponse.id },
+    });
+
+    res.json({
+      success: true,
+      message: "Response deleted successfully",
+    });
+  })
+);
+
+/**
+ * @swagger
+ * /api/reviews/{id}/helpful:
+ *   post:
+ *     summary: Mark review as helpful
+ *     description: Allows users to mark a review as helpful (upvote)
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Review marked as helpful
+ *       404:
+ *         description: Review not found
+ *       409:
+ *         description: Already marked as helpful
+ */
+router.post(
+  "/:id/helpful",
+  authenticate,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id: reviewId } = req.params;
+    const userId = req.user!.id;
+
+    // Check if review exists
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      throw new AppError("Review not found", 404);
+    }
+
+    // Check if user already marked this as helpful
+    const existingHelpful = await prisma.reviewHelpful.findUnique({
+      where: {
+        reviewId_userId: {
+          reviewId,
+          userId,
+        },
+      },
+    });
+
+    if (existingHelpful) {
+      // If already marked, remove the mark (toggle behavior)
+      await prisma.reviewHelpful.delete({
+        where: {
+          reviewId_userId: {
+            reviewId,
+            userId,
+          },
+        },
+      });
+
+      // Decrement helpfulCount
+      const updatedReview = await prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          helpfulCount: {
+            decrement: 1,
+          },
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: "Helpful mark removed",
+        data: {
+          reviewId,
+          helpfulCount: updatedReview.helpfulCount,
+          isHelpful: false,
+        },
+      });
+    }
+
+    // Create helpful mark
+    await prisma.reviewHelpful.create({
+      data: {
+        reviewId,
+        userId,
+      },
+    });
+
+    // Increment helpfulCount
+    const updatedReview = await prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        helpfulCount: {
+          increment: 1,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Review marked as helpful",
+      data: {
+        reviewId,
+        helpfulCount: updatedReview.helpfulCount,
+        isHelpful: true,
+      },
+    });
+  })
+);
+
 export default router;

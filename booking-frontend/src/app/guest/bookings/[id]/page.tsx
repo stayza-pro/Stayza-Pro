@@ -19,6 +19,8 @@ import {
   XCircle,
   AlertCircle,
   RefreshCw,
+  FileWarning,
+  Send,
 } from "lucide-react";
 import Image from "next/image";
 import { Footer } from "@/components/guest/sections";
@@ -28,7 +30,9 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import { bookingService } from "@/services/bookings";
+import { disputeService } from "@/services/disputes";
 import { BookingStatus } from "@/types";
+import { DisputeIssueType } from "@/types/dispute";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
 import { toast } from "react-hot-toast";
 
@@ -56,6 +60,15 @@ export default function BookingDetailsPage() {
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
 
+  // Dispute states
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [showViewDisputeModal, setShowViewDisputeModal] = useState(false);
+  const [disputeSubject, setDisputeSubject] = useState("");
+  const [disputeDescription, setDisputeDescription] = useState("");
+  const [disputeIssueType, setDisputeIssueType] =
+    useState<DisputeIssueType>("OTHER");
+  const [disputeResponse, setDisputeResponse] = useState("");
+
   // Mark auth as checked once we've gotten a result
   React.useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
@@ -75,6 +88,14 @@ export default function BookingDetailsPage() {
     queryKey: ["booking", bookingId],
     queryFn: () => bookingService.getBooking(bookingId),
     enabled: !!user && !!bookingId,
+  });
+
+  // Fetch dispute for this booking
+  const { data: existingDispute, isLoading: disputeLoading } = useQuery({
+    queryKey: ["booking-dispute", bookingId],
+    queryFn: () => disputeService.getDisputeByBooking(bookingId),
+    enabled: !!user && !!bookingId,
+    retry: false,
   });
 
   // Redirect unpaid bookings to checkout page
@@ -199,6 +220,58 @@ export default function BookingDetailsPage() {
     },
   });
 
+  // Create dispute mutation
+  const createDisputeMutation = useMutation({
+    mutationFn: () =>
+      disputeService.createDispute({
+        bookingId,
+        subject: disputeSubject,
+        description: disputeDescription,
+        issueType: disputeIssueType,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["booking-dispute", bookingId],
+      });
+      setShowDisputeModal(false);
+      setDisputeSubject("");
+      setDisputeDescription("");
+      setDisputeIssueType("OTHER");
+      toast.success(
+        "Dispute created successfully. The host will be notified.",
+        {
+          duration: 4000,
+        }
+      );
+    },
+    onError: (error: any) => {
+      toast.error(
+        error?.response?.data?.message || "Failed to create dispute",
+        { duration: 4000 }
+      );
+    },
+  });
+
+  // Respond to dispute mutation
+  const respondDisputeMutation = useMutation({
+    mutationFn: () =>
+      disputeService.respondToDispute(existingDispute!.id, {
+        message: disputeResponse,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["booking-dispute", bookingId],
+      });
+      setDisputeResponse("");
+      toast.success("Response sent successfully", { duration: 3000 });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to send response", {
+        duration: 4000,
+      });
+    },
+  });
+
   const handleCancelBooking = () => {
     if (!cancelReason.trim()) {
       alert("Please provide a cancellation reason");
@@ -239,6 +312,54 @@ export default function BookingDetailsPage() {
 
   const handleContactHost = () => {
     router.push(`/guest/messages?hostId=${booking?.property?.realtorId}`);
+  };
+
+  const handleCreateDispute = () => {
+    if (!disputeSubject.trim() || disputeSubject.length < 5) {
+      toast.error("Please provide a subject (at least 5 characters)", {
+        duration: 3000,
+      });
+      return;
+    }
+    if (!disputeDescription.trim() || disputeDescription.length < 20) {
+      toast.error(
+        "Please provide a detailed description (at least 20 characters)",
+        { duration: 3000 }
+      );
+      return;
+    }
+    createDisputeMutation.mutate();
+  };
+
+  const handleRespondToDispute = () => {
+    if (!disputeResponse.trim() || disputeResponse.length < 10) {
+      toast.error("Please provide a response (at least 10 characters)", {
+        duration: 3000,
+      });
+      return;
+    }
+    if (existingDispute && existingDispute.guestArgumentCount >= 2) {
+      toast.error("You have reached the maximum number of responses (2)", {
+        duration: 4000,
+      });
+      return;
+    }
+    respondDisputeMutation.mutate();
+  };
+
+  const canOpenDispute = () => {
+    if (!booking || !existingDispute) return true;
+    // Can't open new dispute if one already exists
+    return false;
+  };
+
+  const canRespondToDispute = () => {
+    if (!existingDispute) return false;
+    // Check if guest has reached argument limit
+    if (existingDispute.guestArgumentCount >= 2) return false;
+    // Check if waiting for realtor response
+    if (existingDispute.status === "PENDING_REALTOR_RESPONSE") return false;
+    return true;
   };
 
   const getStatusConfig = (status: BookingStatus) => {
@@ -300,11 +421,12 @@ export default function BookingDetailsPage() {
     const now = new Date();
     const hoursDiff = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    // Allow cancellation for PENDING, PAID, or CONFIRMED bookings
+    // Allow cancellation for PENDING, ACTIVE/PAID, or CONFIRMED bookings
     // Can cancel anytime BEFORE check-in (even with 0% refund in LATE tier)
     // Cannot cancel after check-in time has passed
     return (
       (booking.status === "PENDING" ||
+        booking.status === "ACTIVE" ||
         booking.status === "PAID" ||
         booking.status === "CONFIRMED") &&
       hoursDiff > 0 && // Before check-in time
@@ -627,7 +749,8 @@ export default function BookingDetailsPage() {
             </Card>
 
             {/* Escrow Status Section */}
-            {(booking.status === "PAID" ||
+            {(booking.status === "ACTIVE" ||
+              booking.status === "PAID" ||
               booking.status === "CHECKED_IN" ||
               booking.status === "CHECKED_OUT" ||
               booking.status === "COMPLETED") && (
@@ -678,6 +801,32 @@ export default function BookingDetailsPage() {
                     >
                       <X className="h-4 w-4 mr-2" />
                       Cancel Booking
+                    </Button>
+                  )}
+
+                  {/* Dispute button */}
+                  {!existingDispute && canOpenDispute() && (
+                    <Button
+                      onClick={() => setShowDisputeModal(true)}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <FileWarning className="h-4 w-4 mr-2" />
+                      Report Issue
+                    </Button>
+                  )}
+
+                  {existingDispute && (
+                    <Button
+                      onClick={() => setShowViewDisputeModal(true)}
+                      className="w-full relative"
+                      variant="outline"
+                    >
+                      <FileWarning className="h-4 w-4 mr-2" />
+                      View Dispute
+                      {existingDispute.status === "PENDING_GUEST_RESPONSE" && (
+                        <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse" />
+                      )}
                     </Button>
                   )}
 
@@ -1039,6 +1188,337 @@ export default function BookingDetailsPage() {
                 Close
               </Button>
             </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Create Dispute Modal */}
+      {showDisputeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <FileWarning className="h-5 w-5 mr-2 text-orange-500" />
+                  Report an Issue
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Describe the issue you're experiencing with this booking
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDisputeModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Issue Type Selection */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Issue Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={disputeIssueType}
+                onChange={(e) =>
+                  setDisputeIssueType(e.target.value as DisputeIssueType)
+                }
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="PROPERTY_CONDITION">
+                  Property Condition Issues
+                </option>
+                <option value="CLEANLINESS">Cleanliness Concerns</option>
+                <option value="AMENITIES_MISSING">Missing Amenities</option>
+                <option value="SAFETY_CONCERNS">Safety Concerns</option>
+                <option value="BOOKING_ISSUES">Booking/Check-in Issues</option>
+                <option value="PAYMENT_DISPUTE">Payment Dispute</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+
+            {/* Subject */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Subject <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={disputeSubject}
+                onChange={(e) => setDisputeSubject(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Brief summary of the issue..."
+                maxLength={100}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {disputeSubject.length}/100 characters (minimum 5)
+              </p>
+            </div>
+
+            {/* Description */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Detailed Description <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={disputeDescription}
+                onChange={(e) => setDisputeDescription(e.target.value)}
+                rows={6}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Provide a detailed explanation of the issue, including any relevant dates, times, and circumstances..."
+                maxLength={2000}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {disputeDescription.length}/2000 characters (minimum 20)
+              </p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="text-sm text-blue-900">
+                  <p className="font-medium mb-1">Dispute Process:</p>
+                  <ul className="list-disc list-inside space-y-1 text-blue-800">
+                    <li>
+                      The host will be notified and given 48 hours to respond
+                    </li>
+                    <li>
+                      You can exchange up to 2 messages each to resolve the
+                      issue
+                    </li>
+                    <li>Our team will review if resolution isn't reached</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <Button
+                onClick={handleCreateDispute}
+                variant="primary"
+                className="flex-1"
+                disabled={createDisputeMutation.isLoading}
+              >
+                {createDisputeMutation.isLoading
+                  ? "Submitting..."
+                  : "Submit Dispute"}
+              </Button>
+              <Button
+                onClick={() => setShowDisputeModal(false)}
+                variant="outline"
+                className="flex-1"
+                disabled={createDisputeMutation.isLoading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* View/Respond to Dispute Modal */}
+      {showViewDisputeModal && existingDispute && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <FileWarning className="h-5 w-5 mr-2 text-orange-500" />
+                  Dispute Details
+                </h3>
+                <div className="flex items-center gap-3 mt-2">
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                      existingDispute.status === "OPEN"
+                        ? "bg-blue-100 text-blue-800"
+                        : existingDispute.status === "PENDING_REALTOR_RESPONSE"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : existingDispute.status === "PENDING_GUEST_RESPONSE"
+                        ? "bg-purple-100 text-purple-800"
+                        : existingDispute.status === "RESOLVED"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {existingDispute.status.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-sm text-gray-600">
+                    Your responses: {existingDispute.guestArgumentCount}/2
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowViewDisputeModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Dispute Info */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Issue Type
+                  </p>
+                  <p className="text-sm text-gray-900 capitalize mt-1">
+                    {existingDispute.issueType.replace(/_/g, " ").toLowerCase()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Created</p>
+                  <p className="text-sm text-gray-900 mt-1">
+                    {new Date(existingDispute.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <p className="text-sm font-medium text-gray-600">Subject</p>
+                <p className="text-sm text-gray-900 mt-1">
+                  {existingDispute.subject}
+                </p>
+              </div>
+              <div className="mt-3">
+                <p className="text-sm font-medium text-gray-600">Description</p>
+                <p className="text-sm text-gray-900 mt-1">
+                  {existingDispute.description}
+                </p>
+              </div>
+            </div>
+
+            {/* Conversation Thread */}
+            {existingDispute.messages &&
+              existingDispute.messages.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                    Conversation
+                  </h4>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {existingDispute.messages.map(
+                      (message: any, index: number) => (
+                        <div
+                          key={index}
+                          className={`p-4 rounded-lg ${
+                            message.senderType === "GUEST"
+                              ? "bg-blue-50 border border-blue-200"
+                              : "bg-gray-100 border border-gray-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <span
+                              className={`text-xs font-medium ${
+                                message.senderType === "GUEST"
+                                  ? "text-blue-700"
+                                  : "text-gray-700"
+                              }`}
+                            >
+                              {message.senderType === "GUEST" ? "You" : "Host"}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(message.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-900">
+                            {message.message}
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {/* Response Form */}
+            {canRespondToDispute() ? (
+              <div className="border-t border-gray-200 pt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Response
+                </label>
+                <textarea
+                  value={disputeResponse}
+                  onChange={(e) => setDisputeResponse(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                  placeholder="Type your response here..."
+                  maxLength={1000}
+                />
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-xs text-gray-500">
+                    {disputeResponse.length}/1000 characters (minimum 10)
+                  </p>
+                  {existingDispute.guestArgumentCount >= 1 && (
+                    <p className="text-xs text-orange-600 font-medium">
+                      {2 - existingDispute.guestArgumentCount} response(s)
+                      remaining
+                    </p>
+                  )}
+                </div>
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={handleRespondToDispute}
+                    variant="primary"
+                    className="flex-1"
+                    disabled={respondDisputeMutation.isLoading}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {respondDisputeMutation.isLoading
+                      ? "Sending..."
+                      : "Send Response"}
+                  </Button>
+                  <Button
+                    onClick={() => setShowViewDisputeModal(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="border-t border-gray-200 pt-6">
+                {existingDispute.guestArgumentCount >= 2 ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-900 mb-1">
+                          Maximum responses reached
+                        </p>
+                        <p className="text-sm text-amber-800">
+                          You've sent the maximum number of responses (2). Our
+                          support team will review this dispute and contact you
+                          if additional information is needed.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <Clock className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900 mb-1">
+                          Waiting for host response
+                        </p>
+                        <p className="text-sm text-blue-800">
+                          The host has been notified and will respond soon.
+                          You'll receive a notification when they reply.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <Button
+                  onClick={() => setShowViewDisputeModal(false)}
+                  variant="outline"
+                  className="w-full mt-4"
+                >
+                  Close
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
       )}

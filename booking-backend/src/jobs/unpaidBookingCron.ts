@@ -58,6 +58,10 @@ export const startUnpaidBookingCron = () => {
       // Cancel each expired booking
       for (const booking of expiredBookings) {
         try {
+          // Check if payment was actually completed (funds held in escrow)
+          // If payment status is still INITIATED, no money was received, so no escrow to handle
+          const paymentWasCompleted = booking.payment?.status !== "INITIATED";
+
           // Update booking status to CANCELLED
           await prisma.booking.update({
             where: { id: booking.id },
@@ -78,6 +82,30 @@ export const startUnpaidBookingCron = () => {
             });
           }
 
+          // Only delete escrow if it exists (it shouldn't for INITIATED payments)
+          // This is a safety check to clean up any orphaned escrow records
+          if (!paymentWasCompleted) {
+            const escrowRecord = await prisma.escrow.findUnique({
+              where: { bookingId: booking.id },
+            });
+
+            if (escrowRecord) {
+              logger.warn(
+                `Found escrow record for unpaid booking ${booking.id} - cleaning up`,
+                { escrowId: escrowRecord.id }
+              );
+
+              // Delete escrow record and any related events
+              await prisma.escrowEvent.deleteMany({
+                where: { bookingId: booking.id },
+              });
+
+              await prisma.escrow.delete({
+                where: { bookingId: booking.id },
+              });
+            }
+          }
+
           // Create audit log
           await prisma.auditLog.create({
             data: {
@@ -90,6 +118,8 @@ export const startUnpaidBookingCron = () => {
                 propertyTitle: booking.property.title,
                 bookingCreatedAt: booking.createdAt,
                 autoCancelledAt: new Date(),
+                paymentStatus: booking.payment?.status,
+                escrowCreated: paymentWasCompleted,
               },
               timestamp: new Date(),
             },

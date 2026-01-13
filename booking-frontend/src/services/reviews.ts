@@ -321,6 +321,51 @@ export const reviewService = {
     return response.data;
   },
 
+  // Add host response to review (realtor only)
+  addHostResponse: async (
+    reviewId: string,
+    comment: string
+  ): Promise<ReviewResponse> => {
+    const response = await apiClient.post<ReviewResponse>(
+      `/reviews/${reviewId}/response`,
+      { comment }
+    );
+    return response.data;
+  },
+
+  // Update host response (realtor only)
+  updateHostResponse: async (
+    reviewId: string,
+    comment: string
+  ): Promise<ReviewResponse> => {
+    const response = await apiClient.put<ReviewResponse>(
+      `/reviews/${reviewId}/response`,
+      { comment }
+    );
+    return response.data;
+  },
+
+  // Delete host response (realtor only)
+  deleteHostResponse: async (reviewId: string): Promise<void> => {
+    await apiClient.delete(`/reviews/${reviewId}/response`);
+  },
+
+  // Mark review as helpful (toggle)
+  markAsHelpful: async (
+    reviewId: string
+  ): Promise<{
+    reviewId: string;
+    helpfulCount: number;
+    isHelpful: boolean;
+  }> => {
+    const response = await apiClient.post<{
+      reviewId: string;
+      helpfulCount: number;
+      isHelpful: boolean;
+    }>(`/reviews/${reviewId}/helpful`);
+    return response.data;
+  },
+
   // Upload photos for review
   uploadReviewPhotos: async (
     photos: File[]

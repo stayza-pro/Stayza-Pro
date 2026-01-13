@@ -50,6 +50,45 @@ export async function processAutomaticCancellationRefund(
       throw new AppError("No payment found for this booking", 400);
     }
 
+    // IMPORTANT: Only process refunds if payment was actually completed (HELD or later)
+    // If payment is still INITIATED or FAILED, no money was ever received
+    if (
+      booking.payment.status === "INITIATED" ||
+      booking.payment.status === "FAILED"
+    ) {
+      logger.warn(
+        `Skipping refund processing for booking ${bookingId} - payment was never completed`,
+        {
+          bookingId,
+          paymentStatus: booking.payment.status,
+        }
+      );
+
+      return {
+        success: false,
+        refundCalculation: {
+          tier: "NONE" as RefundTier,
+          hoursUntilCheckIn: 0,
+          roomFee: 0,
+          securityDeposit: 0,
+          serviceFee: 0,
+          cleaningFee: 0,
+          customerRoomRefund: 0,
+          realtorRoomPortion: 0,
+          platformRoomPortion: 0,
+          securityDepositRefund: 0,
+          totalCustomerRefund: 0,
+          totalRealtorPortion: 0,
+          totalPlatformPortion: 0,
+          currency: booking.currency,
+          reason: "Payment was never completed - no funds to refund",
+        },
+        escrowEventsCreated: 0,
+        notificationsSent: 0,
+        error: "Payment was never completed - no refund needed",
+      };
+    }
+
     // Calculate refund amounts
     const refundCalc = refundPolicyService.calculateCancellationRefund({
       booking,
@@ -187,9 +226,9 @@ export async function processAutomaticCancellationRefund(
         title: "Booking Cancelled",
         message: `Booking cancelled (${refundCalc.tier} tier). ${
           refundCalc.totalRealtorPortion > 0
-            ? `You receive ${booking.currency} ${refundCalc.totalRealtorPortion.toFixed(
-                2
-              )} (${
+            ? `You receive ${
+                booking.currency
+              } ${refundCalc.totalRealtorPortion.toFixed(2)} (${
                 refundCalc.tier === RefundTier.EARLY
                   ? "7%"
                   : refundCalc.tier === RefundTier.MEDIUM

@@ -48,10 +48,12 @@ export type PropertyAmenity =
 // Booking lifecycle states (matches backend Prisma schema)
 export type BookingStatus =
   | "PENDING" // Initial state, waiting for payment
-  | "PAID" // Payment confirmed, funds in escrow
-  | "CONFIRMED" // Deprecated - use PAID instead
+  | "ACTIVE" // Payment confirmed, funds in escrow (backend uses this)
+  | "PAID" // Deprecated - use ACTIVE instead
+  | "CONFIRMED" // Deprecated - use ACTIVE instead
+  | "DISPUTED" // Either user or realtor opened a dispute (backend name)
+  | "DISPUTE_OPENED" // Deprecated - use DISPUTED
   | "CHECKED_IN" // User has checked in
-  | "DISPUTE_OPENED" // Either user or realtor opened a dispute
   | "CHECKED_OUT" // User has checked out
   | "COMPLETED" // All funds released, booking finished
   | "CANCELLED"; // Booking cancelled before check-in

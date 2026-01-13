@@ -125,28 +125,27 @@ router.get(
       throw new AppError("No payment found for this booking", 404);
     }
 
-    // Calculate fees if they're not set (fallback calculation)
-    const totalPrice = Number(booking.totalPrice);
+    // Calculate fees - use actual values from payment, no fallback percentages
     const roomFee =
-      Number(booking.roomFee) > 0
-        ? Number(booking.roomFee)
-        : Number(booking.payment.roomFeeAmount) > 0
+      Number(booking.payment.roomFeeAmount) > 0
         ? Number(booking.payment.roomFeeAmount)
-        : totalPrice * 0.85; // Fallback: 85% of total
+        : Number(booking.roomFee) > 0
+        ? Number(booking.roomFee)
+        : 0;
 
     const cleaningFee =
-      Number(booking.cleaningFee) > 0
-        ? Number(booking.cleaningFee)
-        : Number(booking.payment.cleaningFeeAmount) > 0
+      Number(booking.payment.cleaningFeeAmount) > 0
         ? Number(booking.payment.cleaningFeeAmount)
-        : totalPrice * 0.05; // Fallback: 5% of total
+        : Number(booking.cleaningFee) > 0
+        ? Number(booking.cleaningFee)
+        : 0;
 
     const securityDeposit =
-      Number(booking.securityDeposit) > 0
-        ? Number(booking.securityDeposit)
-        : Number(booking.payment.securityDepositAmount) > 0
+      Number(booking.payment.securityDepositAmount) > 0
         ? Number(booking.payment.securityDepositAmount)
-        : totalPrice * 0.05; // Fallback: 5% of total
+        : Number(booking.securityDeposit) > 0
+        ? Number(booking.securityDeposit)
+        : 0;
 
     const serviceFee =
       Number(booking.serviceFee) > 0

@@ -203,9 +203,99 @@ export const deleteMultipleImages = async (urls: string[]): Promise<void> => {
   }
 };
 
+// =====================================================
+// MESSAGE ATTACHMENTS (Images, Documents, Voice Notes)
+// =====================================================
+
+const messageAttachmentsStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: ((req: Request, file: Express.Multer.File) => {
+    // Determine resource type and folder based on file type
+    let folder = "stayza/messages";
+    let resourceType: "image" | "raw" | "video" | "auto" = "auto";
+    let allowedFormats: string[] = [];
+
+    if (file.mimetype.startsWith("image/")) {
+      folder = "stayza/messages/images";
+      resourceType = "image";
+      allowedFormats = ["jpg", "jpeg", "png", "webp", "gif"];
+    } else if (
+      file.mimetype.startsWith("audio/") ||
+      file.fieldname === "voiceNote"
+    ) {
+      folder = "stayza/messages/voice-notes";
+      resourceType = "video"; // Cloudinary uses 'video' for audio files
+      allowedFormats = ["mp3", "wav", "webm", "m4a", "ogg"];
+    } else {
+      folder = "stayza/messages/documents";
+      resourceType = "raw";
+      allowedFormats = ["pdf", "doc", "docx", "txt"];
+    }
+
+    return {
+      folder,
+      resource_type: resourceType,
+      allowed_formats: allowedFormats,
+      // Only apply transformations to images
+      ...(resourceType === "image" && {
+        transformation: [
+          { width: 1200, height: 900, crop: "limit", quality: "auto" },
+        ],
+      }),
+    };
+  }) as any,
+});
+
+export const uploadMessageAttachments = multer({
+  storage: messageAttachmentsStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB per file
+    files: 5, // Maximum 5 files per message
+  },
+  fileFilter: (req: Request, file: Express.Multer.File, cb: any) => {
+    const allowedMimes = [
+      // Images
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+      // Documents
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+      // Audio (voice notes)
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/wav",
+      "audio/webm",
+      "audio/m4a",
+      "audio/ogg",
+      "audio/mp4",
+    ];
+
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(
+        new AppError(
+          `Invalid file type: ${file.mimetype}. Allowed: images, PDFs, Word documents, and audio files.`,
+          400
+        ),
+        false
+      );
+    }
+  },
+}).fields([
+  { name: "files", maxCount: 5 },
+  { name: "voiceNote", maxCount: 1 },
+]);
+
 export default {
   uploadReviewPhotos,
   uploadSinglePhoto,
+  uploadMessageAttachments,
   deleteCloudinaryImage,
   uploadBase64Image,
   processReviewPhotos,

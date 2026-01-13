@@ -133,4 +133,105 @@ export const brandingService = {
         };
     }
   },
+
+  // Get branding by subdomain
+  getBrandingBySubdomain: async (
+    subdomain: string
+  ): Promise<RealtorBranding> => {
+    try {
+      const response = await apiClient.get<RealtorProfile>(
+        `/branding/subdomain/${subdomain}`
+      );
+
+      const realtor = response.data;
+
+      return {
+        businessName: realtor.businessName || "My Business",
+        tagline: realtor.tagline,
+        primaryColor: realtor.primaryColor || "#0066CC",
+        secondaryColor: realtor.secondaryColor || "#10B981",
+        accentColor: realtor.accentColor || "#F59E0B",
+        logoUrl: realtor.logoUrl,
+        websiteUrl: realtor.websiteUrl,
+        logo: realtor.logoUrl,
+        colors: {
+          primary: realtor.primaryColor || "#0066CC",
+          secondary: realtor.secondaryColor || "#10B981",
+          accent: realtor.accentColor || "#F59E0B",
+        },
+      };
+    } catch (error) {
+      console.error("Error fetching branding by subdomain:", error);
+      throw error;
+    }
+  },
+
+  // Get current realtor's branding
+  getMyBranding: async (): Promise<RealtorBranding> => {
+    try {
+      const response = await apiClient.get<RealtorProfile>("/branding/me");
+      const realtor = response.data;
+
+      return {
+        businessName: realtor.businessName || "My Business",
+        tagline: realtor.tagline,
+        primaryColor: realtor.primaryColor || "#0066CC",
+        secondaryColor: realtor.secondaryColor || "#10B981",
+        accentColor: realtor.accentColor || "#F59E0B",
+        logoUrl: realtor.logoUrl,
+        websiteUrl: realtor.websiteUrl,
+        logo: realtor.logoUrl,
+        colors: {
+          primary: realtor.primaryColor || "#0066CC",
+          secondary: realtor.secondaryColor || "#10B981",
+          accent: realtor.accentColor || "#F59E0B",
+        },
+      };
+    } catch (error) {
+      console.error("Error fetching my branding:", error);
+      throw error;
+    }
+  },
+
+  // Update realtor branding
+  updateBranding: async (
+    branding: Partial<RealtorBranding>
+  ): Promise<RealtorBranding> => {
+    try {
+      const payload = {
+        businessName: branding.businessName,
+        tagline: branding.tagline,
+        primaryColor: branding.primaryColor || branding.colors?.primary,
+        secondaryColor: branding.secondaryColor || branding.colors?.secondary,
+        accentColor: branding.accentColor || branding.colors?.accent,
+        logoUrl: branding.logoUrl || branding.logo,
+        websiteUrl: branding.websiteUrl,
+      };
+
+      const response = await apiClient.put<RealtorProfile>(
+        "/branding/me",
+        payload
+      );
+      const realtor = response.data;
+
+      return {
+        businessName: realtor.businessName || "My Business",
+        tagline: realtor.tagline,
+        primaryColor: realtor.primaryColor || "#0066CC",
+        secondaryColor: realtor.secondaryColor || "#10B981",
+        accentColor: realtor.accentColor || "#F59E0B",
+        logoUrl: realtor.logoUrl,
+        websiteUrl: realtor.websiteUrl,
+        logo: realtor.logoUrl,
+        colors: {
+          primary: realtor.primaryColor || "#0066CC",
+          secondary: realtor.secondaryColor || "#10B981",
+          accent: realtor.accentColor || "#F59E0B",
+        },
+      };
+    } catch (error) {
+      console.error("Error updating branding:", error);
+      throw error;
+    }
+  },
 };

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "../ui";
 import { useAuthStore } from "../../store/authStore";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export const Header: React.FC = () => {
   const router = useRouter();
@@ -129,6 +130,9 @@ export const Header: React.FC = () => {
                     Become a Host
                   </Link>
                 )}
+
+                {/* Notification Bell */}
+                <NotificationBell iconColor={brandColor} />
 
                 {/* User Menu */}
                 <div className="relative group">

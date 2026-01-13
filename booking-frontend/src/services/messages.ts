@@ -1,5 +1,13 @@
 import { apiClient, ApiResponse, PaginatedResponse } from "./api";
 
+export interface MessageAttachment {
+  id: string;
+  url: string;
+  type: string;
+  filename: string;
+  size: number;
+}
+
 export interface Message {
   id: string;
   propertyId?: string;
@@ -7,13 +15,14 @@ export interface Message {
   senderId: string;
   recipientId: string;
   content: string;
-  type: "INQUIRY" | "BOOKING" | "SYSTEM";
+  type: "INQUIRY" | "BOOKING_MESSAGE" | "SYSTEM";
   wasFiltered: boolean;
   violations?: string[];
   isRead: boolean;
   readAt?: string;
   createdAt: string;
   updatedAt: string;
+  attachments?: MessageAttachment[];
   sender?: {
     id: string;
     firstName: string;
@@ -141,6 +150,66 @@ class MessageService {
     return apiClient.post<{ success: boolean; count: number }>(
       `/messages/mark-read?${params.toString()}`
     );
+  }
+
+  /**
+   * Delete a message
+   */
+  async deleteMessage(messageId: string): Promise<ApiResponse<void>> {
+    return apiClient.delete<void>(`/messages/${messageId}`);
+  }
+
+  /**
+   * Get all message threads
+   */
+  async getThreads(): Promise<ApiResponse<Conversation[]>> {
+    return apiClient.get<Conversation[]>("/messages/threads");
+  }
+
+  /**
+   * Close a message thread
+   */
+  async closeThread(threadId: string): Promise<ApiResponse<void>> {
+    return apiClient.post<void>(`/messages/threads/${threadId}/close`);
+  }
+
+  /**
+   * Send property inquiry with attachments
+   */
+  async sendPropertyInquiryWithAttachments(
+    propertyId: string,
+    formData: FormData
+  ): Promise<ApiResponse<Message>> {
+    return apiClient.post<Message>(
+      `/messages/property/${propertyId}/inquiry`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+  }
+
+  /**
+   * Send booking message with attachments
+   */
+  async sendBookingMessageWithAttachments(
+    bookingId: string,
+    formData: FormData
+  ): Promise<ApiResponse<Message>> {
+    return apiClient.post<Message>(`/messages/booking/${bookingId}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  }
+
+  /**
+   * Get unread message count
+   */
+  async getUnreadCount(): Promise<ApiResponse<{ count: number }>> {
+    return apiClient.get<{ count: number }>("/messages/unread-count");
   }
 }
 

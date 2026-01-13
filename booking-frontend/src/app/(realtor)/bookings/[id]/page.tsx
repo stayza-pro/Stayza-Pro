@@ -198,6 +198,7 @@ export default function RealtorBookingDetailsPage() {
     return (
       booking &&
       (booking.status === "PENDING" ||
+        booking.status === "ACTIVE" ||
         booking.status === "PAID" ||
         booking.status === "CONFIRMED")
     );
@@ -207,6 +208,7 @@ export default function RealtorBookingDetailsPage() {
     return (
       booking &&
       (booking.status === "CANCELLED" ||
+        booking.status === "DISPUTED" ||
         booking.status === "DISPUTE_OPENED" ||
         booking.status === "COMPLETED")
     );
@@ -480,7 +482,8 @@ export default function RealtorBookingDetailsPage() {
           </div>
 
           {/* Escrow Status */}
-          {(booking.status === "PAID" ||
+          {(booking.status === "ACTIVE" ||
+            booking.status === "PAID" ||
             booking.status === "CONFIRMED" ||
             booking.status === "CHECKED_IN" ||
             booking.status === "CHECKED_OUT" ||

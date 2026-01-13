@@ -379,4 +379,60 @@ export const bookingService = {
 
     return result;
   },
+
+  // Check-in to booking
+  checkIn: async (
+    id: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      booking: Booking;
+      disputeWindow: {
+        closesAt: string;
+        remainingMinutes: number;
+      };
+    };
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      data: {
+        booking: Booking;
+        disputeWindow: {
+          closesAt: string;
+          remainingMinutes: number;
+        };
+      };
+    }>(`/bookings/${id}/check-in`);
+    return response.data;
+  },
+
+  // Check-out from booking
+  checkOut: async (
+    id: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      booking: Booking;
+      realtorDisputeWindow: {
+        closesAt: string;
+        remainingHours: number;
+      };
+    };
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      data: {
+        booking: Booking;
+        realtorDisputeWindow: {
+          closesAt: string;
+          remainingHours: number;
+        };
+      };
+    }>(`/bookings/${id}/check-out`);
+    return response.data;
+  },
 };

@@ -1,9 +1,19 @@
 "use client";
 
-import React, { useState, Suspense, useEffect } from "react";
+import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessageCircle, Send, Search } from "lucide-react";
+import {
+  MessageCircle,
+  Send,
+  Search,
+  Paperclip,
+  Mic,
+  X,
+  File,
+  Download,
+} from "lucide-react";
 import { Card, Input, Button } from "@/components/ui";
+import Image from "next/image";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { Footer } from "@/components/guest/sections/Footer";
@@ -38,6 +48,16 @@ function MessagesContent() {
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Mark auth as checked once we've gotten a result
   React.useEffect(() => {
@@ -71,12 +91,26 @@ function MessagesContent() {
     try {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
-      if (response.success && response.data) {
-        setConversations(response.data);
+
+      // Handle different response structures
+      let conversationsData: Conversation[] = [];
+
+      if (response?.data) {
+        if (Array.isArray(response.data)) {
+          conversationsData = response.data;
+        } else if (typeof response.data === "object") {
+          const dataObj = response.data as any;
+          if (Array.isArray(dataObj.conversations)) {
+            conversationsData = dataObj.conversations;
+          }
+        }
       }
+
+      setConversations(conversationsData);
     } catch (error) {
       console.error("Failed to fetch conversations:", error);
       toast.error("Failed to load conversations");
+      setConversations([]);
     } finally {
       setIsLoadingConversations(false);
     }
@@ -128,7 +162,11 @@ function MessagesContent() {
   };
 
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !selectedConversation) return;
+    if (
+      (!messageText.trim() && selectedFiles.length === 0 && !audioBlob) ||
+      !selectedConversation
+    )
+      return;
 
     const selectedConv = conversations.find(
       (c) =>
@@ -140,30 +178,45 @@ function MessagesContent() {
 
     try {
       setIsSending(true);
+
+      const formData = new FormData();
+      if (messageText.trim()) {
+        formData.append("content", messageText.trim());
+      }
+
+      // Add files
+      selectedFiles.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      // Add voice note
+      if (audioBlob) {
+        formData.append("voiceNote", audioBlob, `voice_${Date.now()}.webm`);
+      }
+
       let response;
 
       if (selectedConv.propertyId) {
-        response = await messageService.sendPropertyInquiry(
+        response = await messageService.sendPropertyInquiryWithAttachments(
           selectedConv.propertyId,
-          {
-            content: messageText.trim(),
-          }
+          formData
         );
       } else if (selectedConv.bookingId) {
-        response = await messageService.sendBookingMessage(
+        response = await messageService.sendBookingMessageWithAttachments(
           selectedConv.bookingId,
-          {
-            content: messageText.trim(),
-          }
+          formData
         );
       }
 
       if (response?.success) {
         setMessageText("");
+        setSelectedFiles([]);
+        setAudioBlob(null);
         // Refresh messages
         await fetchMessages();
         // Refresh conversations to update last message
         await fetchConversations();
+        toast.success("Message sent!");
       }
     } catch (error: any) {
       console.error("Failed to send message:", error);
@@ -171,6 +224,73 @@ function MessagesContent() {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + selectedFiles.length > 5) {
+      toast.error("Maximum 5 files allowed");
+      return;
+    }
+    setSelectedFiles([...selectedFiles, ...files]);
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+        setAudioBlob(audioBlob);
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (error) {
+      toast.error("Microphone access denied");
+      console.error("Error starting recording:", error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+    }
+  };
+
+  const cancelRecording = () => {
+    stopRecording();
+    setAudioBlob(null);
+    setRecordingTime(0);
+  };
+
+  const formatRecordingTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const formatTime = (date: Date) => {
@@ -308,7 +428,9 @@ function MessagesContent() {
                             {conversation.lastMessage.content}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
-                            {formatDate(new Date(conversation.lastMessage.createdAt))}
+                            {formatDate(
+                              new Date(conversation.lastMessage.createdAt)
+                            )}
                           </p>
                         </div>
                       </button>
@@ -397,7 +519,56 @@ function MessagesContent() {
                               : { backgroundColor: "#f3f4f6", color: "#111827" }
                           }
                         >
-                          <p>{message.content}</p>
+                          {message.content && <p>{message.content}</p>}
+
+                          {/* Attachments */}
+                          {message.attachments &&
+                            message.attachments.length > 0 && (
+                              <div className="mt-2 space-y-2">
+                                {message.attachments.map(
+                                  (attachment: any, index: number) => (
+                                    <div
+                                      key={index}
+                                      className={`p-2 rounded ${
+                                        message.senderId === user?.id
+                                          ? "bg-black bg-opacity-10"
+                                          : "bg-gray-200"
+                                      }`}
+                                    >
+                                      {attachment.type?.includes("image") ? (
+                                        <Image
+                                          src={attachment.url}
+                                          alt={attachment.filename}
+                                          width={200}
+                                          height={150}
+                                          className="rounded"
+                                        />
+                                      ) : attachment.type?.includes("audio") ? (
+                                        <audio controls className="w-full">
+                                          <source
+                                            src={attachment.url}
+                                            type={attachment.type}
+                                          />
+                                        </audio>
+                                      ) : (
+                                        <a
+                                          href={attachment.url}
+                                          download
+                                          className="flex items-center space-x-2 hover:underline"
+                                        >
+                                          <File className="h-4 w-4" />
+                                          <span className="text-sm">
+                                            {attachment.filename}
+                                          </span>
+                                          <Download className="h-4 w-4" />
+                                        </a>
+                                      )}
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            )}
+
                           <p
                             className="text-xs mt-1"
                             style={{
@@ -417,10 +588,84 @@ function MessagesContent() {
 
                 {/* Message Input */}
                 <div className="p-4 border-t border-gray-200">
+                  {/* Selected Files Preview */}
+                  {selectedFiles.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {selectedFiles.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-lg"
+                        >
+                          <File className="h-4 w-4 text-gray-600" />
+                          <span className="text-sm text-gray-700">
+                            {file.name}
+                          </span>
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="text-gray-500 hover:text-red-500"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Voice Note Preview */}
+                  {audioBlob && (
+                    <div className="mb-3 flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-lg">
+                      <Mic className="h-4 w-4 text-gray-600" />
+                      <span className="text-sm text-gray-700">
+                        Voice note ({formatRecordingTime(recordingTime)})
+                      </span>
+                      <button
+                        onClick={cancelRecording}
+                        className="text-gray-500 hover:text-red-500"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+
                   <div className="flex space-x-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,application/pdf,.doc,.docx"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isSending || isRecording}
+                      className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                      title="Attach files"
+                    >
+                      <Paperclip className="h-5 w-5" />
+                    </button>
+
+                    <button
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={isSending}
+                      className={`p-2 ${
+                        isRecording
+                          ? "text-red-500 animate-pulse"
+                          : "text-gray-600 hover:text-gray-900"
+                      } disabled:opacity-50`}
+                      title={
+                        isRecording ? "Stop recording" : "Record voice note"
+                      }
+                    >
+                      <Mic className="h-5 w-5" />
+                    </button>
+
                     <Input
                       type="text"
-                      placeholder="Type a message..."
+                      placeholder={
+                        isRecording ? "Recording..." : "Type a message..."
+                      }
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
                       onKeyPress={(e) => {
@@ -430,11 +675,17 @@ function MessagesContent() {
                         }
                       }}
                       className="flex-1"
-                      disabled={isSending}
+                      disabled={isSending || isRecording}
                     />
                     <Button
                       onClick={handleSendMessage}
-                      disabled={!messageText.trim() || isSending}
+                      disabled={
+                        (!messageText.trim() &&
+                          selectedFiles.length === 0 &&
+                          !audioBlob) ||
+                        isSending
+                      }
+                      style={{ backgroundColor: primaryColor }}
                     >
                       {isSending ? (
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>

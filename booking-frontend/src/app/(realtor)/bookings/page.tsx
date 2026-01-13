@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
-import { DashboardHeader } from "@/components/realtor/DashboardHeader";
 
 export default function RealtorBookingsPage() {
   const router = useRouter();
@@ -96,6 +95,11 @@ export default function RealtorBookingsPage() {
       color: "bg-amber-50 text-amber-700 border-amber-200",
       icon: Clock,
     },
+    ACTIVE: {
+      label: "Active",
+      color: "bg-green-50 text-green-700 border-green-200",
+      icon: CheckCircle,
+    },
     PAID: {
       label: "Paid",
       color: "bg-green-50 text-green-700 border-green-200",
@@ -110,6 +114,11 @@ export default function RealtorBookingsPage() {
       label: "Checked In",
       color: "bg-purple-50 text-purple-700 border-purple-200",
       icon: CheckCircle,
+    },
+    DISPUTED: {
+      label: "Disputed",
+      color: "bg-orange-50 text-orange-700 border-orange-200",
+      icon: AlertCircle,
     },
     DISPUTE_OPENED: {
       label: "Dispute",
@@ -166,13 +175,6 @@ export default function RealtorBookingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Dashboard Header */}
-      <DashboardHeader
-        onCopySuccess={() =>
-          showAlert("Website link copied to clipboard!", "success")
-        }
-      />
-
       {/* Section Title */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Bookings</h2>
@@ -254,10 +256,12 @@ export default function RealtorBookingsPage() {
           >
             <option value="all">All Status</option>
             <option value="PENDING">Pending</option>
-            <option value="PAID">Paid</option>
-            <option value="CONFIRMED">Confirmed</option>
+            <option value="ACTIVE">Active</option>
+            <option value="PAID">Paid (Legacy)</option>
+            <option value="CONFIRMED">Confirmed (Legacy)</option>
             <option value="CHECKED_IN">Checked In</option>
-            <option value="DISPUTE_OPENED">Dispute</option>
+            <option value="DISPUTED">Disputed</option>
+            <option value="DISPUTE_OPENED">Dispute (Legacy)</option>
             <option value="CHECKED_OUT">Checked Out</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>

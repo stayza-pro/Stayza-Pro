@@ -42,6 +42,7 @@ export default function RealtorEscrowTracker() {
       // Filter bookings with payments (including cancelled to show refund events)
       const paidBookings = bookings.filter((b: Booking) =>
         [
+          "ACTIVE",
           "CONFIRMED",
           "CHECKED_IN",
           "CHECKED_OUT",
@@ -491,60 +492,6 @@ export default function RealtorEscrowTracker() {
                             )}
                           </p>
                         )}
-                      </div>
-                    )}
-
-                    {/* Event Timeline */}
-                    {escrowData.events && escrowData.events.length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                          Event Timeline
-                        </h3>
-                        <div className="space-y-3">
-                          {escrowData.events.slice(0, 5).map((event) => (
-                            <div
-                              key={event.id}
-                              className="flex items-start gap-3 pb-3 border-b border-gray-200 last:border-0"
-                            >
-                              <div
-                                className={`w-2 h-2 rounded-full mt-2 ${
-                                  event.type?.includes("REFUND") ||
-                                  event.description
-                                    ?.toLowerCase()
-                                    .includes("refund")
-                                    ? "bg-red-600"
-                                    : event.type?.includes("RELEASE")
-                                    ? "bg-green-600"
-                                    : "bg-blue-600"
-                                }`}
-                              ></div>
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-900">
-                                  {event.description}
-                                </p>
-                                {event.amount && (
-                                  <p className="text-sm text-gray-600">
-                                    Amount: {formatCurrency(event.amount)}
-                                  </p>
-                                )}
-                                {event.type?.includes("REFUND") && (
-                                  <p className="text-xs text-red-600 mt-1">
-                                    Cancellation refund processed per policy
-                                    tier
-                                  </p>
-                                )}
-                                <p className="text-xs text-gray-500">
-                                  {formatDistanceToNow(
-                                    new Date(event.createdAt),
-                                    {
-                                      addSuffix: true,
-                                    }
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
                       </div>
                     )}
                   </div>

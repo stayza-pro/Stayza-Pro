@@ -21,6 +21,7 @@ import {
 } from "@/middleware/auth";
 import { MessageFilterService } from "@/services/messageFilter";
 import { SystemMessageService } from "@/services/systemMessage";
+import { uploadMessageAttachments } from "@/services/photoUpload";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -32,21 +33,37 @@ const prisma = new PrismaClient();
 /**
  * Send message about a property (before booking)
  * Limited Q&A style - no personal contact info exchange
+ * Supports file and voice note attachments
  */
 router.post(
   "/property/:propertyId/inquiry",
   authenticate,
   requireRole("GUEST"),
+  (req: AuthenticatedRequest, res: Response, next: any) => {
+    uploadMessageAttachments(req, res, (err: any) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          error: err.message || "File upload failed",
+        });
+      }
+      next();
+    });
+  },
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { propertyId } = req.params;
       const { content } = req.body;
       const userId = req.user!.id;
+      const files = req.files as {
+        files?: Express.Multer.File[];
+        voiceNote?: Express.Multer.File[];
+      };
 
-      if (!content || content.trim().length === 0) {
+      if (!content?.trim() && !files?.files && !files?.voiceNote) {
         return res.status(400).json({
           success: false,
-          error: "Message content is required",
+          error: "Message content or attachments are required",
         });
       }
 
@@ -70,16 +87,25 @@ router.post(
         });
       }
 
-      // Filter message content
-      const filterResult = MessageFilterService.filterMessage(content);
+      // Filter message content if provided
+      let filteredContent = content || "";
+      let filterResult = {
+        violations: [],
+        isBlocked: false,
+        filteredContent: "",
+      };
 
-      if (filterResult.isBlocked) {
-        return res.status(400).json({
-          success: false,
-          error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
-            ", "
-          )})`,
-        });
+      if (content?.trim()) {
+        filterResult = MessageFilterService.filterMessage(content);
+        if (filterResult.isBlocked) {
+          return res.status(400).json({
+            success: false,
+            error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
+              ", "
+            )})`,
+          });
+        }
+        filteredContent = filterResult.filteredContent;
       }
 
       // Create inquiry message
@@ -88,7 +114,7 @@ router.post(
           propertyId,
           senderId: userId,
           recipientId: property.realtor.userId,
-          content: filterResult.filteredContent,
+          content: filteredContent,
           type: "INQUIRY",
           wasFiltered: filterResult.violations.length > 0,
           violations: filterResult.violations,
@@ -106,10 +132,58 @@ router.post(
         },
       });
 
+      // Create attachments if files were uploaded
+      const attachments = [];
+
+      if (files?.files) {
+        for (const file of files.files) {
+          const attachment = await prisma.messageAttachment.create({
+            data: {
+              messageId: message.id,
+              url: file.path,
+              type: file.mimetype.startsWith("image/") ? "IMAGE" : "DOCUMENT",
+              filename: file.originalname,
+              size: file.size,
+            },
+          });
+          attachments.push(attachment);
+        }
+      }
+
+      if (files?.voiceNote && files.voiceNote.length > 0) {
+        const voiceFile = files.voiceNote[0];
+        const attachment = await prisma.messageAttachment.create({
+          data: {
+            messageId: message.id,
+            url: voiceFile.path,
+            type: "VOICE",
+            filename: voiceFile.originalname,
+            size: voiceFile.size,
+          },
+        });
+        attachments.push(attachment);
+      }
+
+      // Fetch message with attachments
+      const messageWithAttachments = await prisma.message.findUnique({
+        where: { id: message.id },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+            },
+          },
+          attachments: true,
+        },
+      });
+
       return res.status(201).json({
         success: true,
         message: "Inquiry sent successfully",
-        data: message,
+        data: messageWithAttachments,
       });
     } catch (error: any) {
       console.error("Error sending property inquiry:", error);
@@ -173,6 +247,7 @@ router.get(
               avatar: true,
             },
           },
+          attachments: true,
         },
         orderBy: { createdAt: "asc" },
       });
@@ -218,20 +293,36 @@ router.get(
 /**
  * Send message within a booking context
  * Full messaging allowed between guest and realtor
+ * Supports file and voice note attachments
  */
 router.post(
-  "/booking/:bookingId/send",
+  "/booking/:bookingId",
   authenticate,
+  (req: AuthenticatedRequest, res: Response, next: any) => {
+    uploadMessageAttachments(req, res, (err: any) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          error: err.message || "File upload failed",
+        });
+      }
+      next();
+    });
+  },
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { bookingId } = req.params;
       const { content } = req.body;
       const userId = req.user!.id;
+      const files = req.files as {
+        files?: Express.Multer.File[];
+        voiceNote?: Express.Multer.File[];
+      };
 
-      if (!content || content.trim().length === 0) {
+      if (!content?.trim() && !files?.files && !files?.voiceNote) {
         return res.status(400).json({
           success: false,
-          error: "Message content is required",
+          error: "Message content or attachments are required",
         });
       }
 
@@ -278,16 +369,25 @@ router.post(
         });
       }
 
-      // Filter message content
-      const filterResult = MessageFilterService.filterMessage(content);
+      // Filter message content if provided
+      let filteredContent = content || "";
+      let filterResult = {
+        violations: [],
+        isBlocked: false,
+        filteredContent: "",
+      };
 
-      if (filterResult.isBlocked) {
-        return res.status(400).json({
-          success: false,
-          error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
-            ", "
-          )})`,
-        });
+      if (content?.trim()) {
+        filterResult = MessageFilterService.filterMessage(content);
+        if (filterResult.isBlocked) {
+          return res.status(400).json({
+            success: false,
+            error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
+              ", "
+            )})`,
+          });
+        }
+        filteredContent = filterResult.filteredContent;
       }
 
       // Determine recipient
@@ -301,7 +401,7 @@ router.post(
           bookingId,
           senderId: userId,
           recipientId,
-          content: filterResult.filteredContent,
+          content: filteredContent,
           type: "BOOKING_MESSAGE",
           wasFiltered: filterResult.violations.length > 0,
           violations: filterResult.violations,
@@ -319,10 +419,58 @@ router.post(
         },
       });
 
+      // Create attachments if files were uploaded
+      const attachments = [];
+
+      if (files?.files) {
+        for (const file of files.files) {
+          const attachment = await prisma.messageAttachment.create({
+            data: {
+              messageId: message.id,
+              url: file.path,
+              type: file.mimetype.startsWith("image/") ? "IMAGE" : "DOCUMENT",
+              filename: file.originalname,
+              size: file.size,
+            },
+          });
+          attachments.push(attachment);
+        }
+      }
+
+      if (files?.voiceNote && files.voiceNote.length > 0) {
+        const voiceFile = files.voiceNote[0];
+        const attachment = await prisma.messageAttachment.create({
+          data: {
+            messageId: message.id,
+            url: voiceFile.path,
+            type: "VOICE",
+            filename: voiceFile.originalname,
+            size: voiceFile.size,
+          },
+        });
+        attachments.push(attachment);
+      }
+
+      // Fetch message with attachments
+      const messageWithAttachments = await prisma.message.findUnique({
+        where: { id: message.id },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+            },
+          },
+          attachments: true,
+        },
+      });
+
       return res.status(201).json({
         success: true,
         message: "Message sent successfully",
-        data: message,
+        data: messageWithAttachments,
       });
     } catch (error: any) {
       console.error("Error sending booking message:", error);
@@ -391,6 +539,7 @@ router.get(
               role: true,
             },
           },
+          attachments: true,
         },
         orderBy: { createdAt: "asc" },
       });
@@ -490,6 +639,7 @@ router.get(
               checkOutDate: true,
             },
           },
+          attachments: true,
         },
         orderBy: { createdAt: "desc" },
       });

@@ -138,54 +138,6 @@ export default function RefundRequestsContent() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6 flex-shrink-0">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
-              Welcome back, {user?.firstName || "User"} 👋
-            </h1>
-            <p className="text-gray-600 flex items-center space-x-2">
-              <span>Your website:</span>
-              <span
-                className="font-semibold px-3 py-1 rounded-md text-sm"
-                style={{
-                  color: brandColors.primary,
-                  backgroundColor: brandColors.primary + "15",
-                }}
-              >
-                {realtorSubdomain || "Loading..."}.stayza.pro
-              </span>
-            </p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() =>
-                copyToClipboard(
-                  `https://${realtorSubdomain || "Loading..."}.stayza.pro`
-                )
-              }
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center space-x-2"
-            >
-              <Copy className="w-4 h-4" />
-              <span>Copy Link</span>
-            </button>
-            <button
-              onClick={() =>
-                window.open(
-                  `https://${realtorSubdomain || "Loading..."}.stayza.pro`,
-                  "_blank"
-                )
-              }
-              className="px-4 py-2 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all flex items-center space-x-2"
-              style={{ backgroundColor: brandColors.primary }}
-            >
-              <Eye className="w-4 h-4" />
-              <span>Preview Site</span>
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Page Content */}
       <div className="flex-1 overflow-y-auto">
