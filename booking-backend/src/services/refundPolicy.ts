@@ -24,6 +24,7 @@ export interface RefundCalculation {
   totalRealtorPortion: number; // realtorRoomPortion + cleaningFee
   totalPlatformPortion: number; // platformRoomPortion + serviceFee
 
+  currency?: string; // Optional currency field for escrow events
   reason: string;
 }
 

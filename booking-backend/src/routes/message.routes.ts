@@ -42,10 +42,11 @@ router.post(
   (req: AuthenticatedRequest, res: Response, next: any) => {
     uploadMessageAttachments(req, res, (err: any) => {
       if (err) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: err.message || "File upload failed",
         });
+        return;
       }
       next();
     });
@@ -61,10 +62,11 @@ router.post(
       };
 
       if (!content?.trim() && !files?.files && !files?.voiceNote) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "Message content or attachments are required",
         });
+        return;
       }
 
       // Verify property exists
@@ -74,22 +76,28 @@ router.post(
       });
 
       if (!property) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "Property not found",
         });
+        return;
       }
 
       if (!property.isActive) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "This property is not available for inquiries",
         });
+        return;
       }
 
       // Filter message content if provided
       let filteredContent = content || "";
-      let filterResult = {
+      let filterResult: {
+        violations: string[];
+        isBlocked: boolean;
+        filteredContent: string;
+      } = {
         violations: [],
         isBlocked: false,
         filteredContent: "",
@@ -98,12 +106,13 @@ router.post(
       if (content?.trim()) {
         filterResult = MessageFilterService.filterMessage(content);
         if (filterResult.isBlocked) {
-          return res.status(400).json({
+          res.status(400).json({
             success: false,
             error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
               ", "
             )})`,
           });
+          return;
         }
         filteredContent = filterResult.filteredContent;
       }
@@ -180,14 +189,14 @@ router.post(
         },
       });
 
-      return res.status(201).json({
+      res.status(201).json({
         success: true,
         message: "Inquiry sent successfully",
         data: messageWithAttachments,
       });
     } catch (error: any) {
       console.error("Error sending property inquiry:", error);
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: error.message || "Failed to send inquiry",
       });
@@ -301,10 +310,11 @@ router.post(
   (req: AuthenticatedRequest, res: Response, next: any) => {
     uploadMessageAttachments(req, res, (err: any) => {
       if (err) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: err.message || "File upload failed",
         });
+        return;
       }
       next();
     });
@@ -320,10 +330,11 @@ router.post(
       };
 
       if (!content?.trim() && !files?.files && !files?.voiceNote) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: "Message content or attachments are required",
         });
+        return;
       }
 
       // Verify booking and user access
@@ -338,10 +349,11 @@ router.post(
       });
 
       if (!booking) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "Booking not found",
         });
+        return;
       }
 
       // Verify user is part of this booking
@@ -349,10 +361,11 @@ router.post(
       const isRealtor = booking.property.realtor.userId === userId;
 
       if (!isGuest && !isRealtor) {
-        return res.status(403).json({
+        res.status(403).json({
           success: false,
           error: "Access denied",
         });
+        return;
       }
 
       // Check if messaging is still allowed (time-based)
@@ -363,15 +376,20 @@ router.post(
       });
 
       if (!canMessage.allowed) {
-        return res.status(403).json({
+        res.status(403).json({
           success: false,
           error: canMessage.reason,
         });
+        return;
       }
 
       // Filter message content if provided
       let filteredContent = content || "";
-      let filterResult = {
+      let filterResult: {
+        violations: string[];
+        isBlocked: boolean;
+        filteredContent: string;
+      } = {
         violations: [],
         isBlocked: false,
         filteredContent: "",
@@ -380,12 +398,13 @@ router.post(
       if (content?.trim()) {
         filterResult = MessageFilterService.filterMessage(content);
         if (filterResult.isBlocked) {
-          return res.status(400).json({
+          res.status(400).json({
             success: false,
             error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
               ", "
             )})`,
           });
+          return;
         }
         filteredContent = filterResult.filteredContent;
       }
@@ -467,14 +486,14 @@ router.post(
         },
       });
 
-      return res.status(201).json({
+      res.status(201).json({
         success: true,
         message: "Message sent successfully",
         data: messageWithAttachments,
       });
     } catch (error: any) {
       console.error("Error sending booking message:", error);
-      return res.status(500).json({
+      res.status(500).json({
         success: false,
         error: error.message || "Failed to send message",
       });

@@ -141,6 +141,13 @@ export default function RealtorBookingDetailsPage() {
         borderColor: "#FCD34D",
         icon: Clock,
       },
+      ACTIVE: {
+        text: "Active",
+        color: "#10B981",
+        backgroundColor: "#D1FAE5",
+        borderColor: "#6EE7B7",
+        icon: CheckCircle,
+      },
       PAID: {
         text: "Paid",
         color: "#10B981",
@@ -154,6 +161,13 @@ export default function RealtorBookingDetailsPage() {
         backgroundColor: "#DBEAFE",
         borderColor: "#93C5FD",
         icon: CheckCircle,
+      },
+      DISPUTED: {
+        text: "Disputed",
+        color: "#F97316",
+        backgroundColor: "#FFEDD5",
+        borderColor: "#FED7AA",
+        icon: AlertCircle,
       },
       CHECKED_IN: {
         text: "Checked In",

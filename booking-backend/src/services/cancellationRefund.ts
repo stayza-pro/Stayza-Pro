@@ -70,7 +70,6 @@ export async function processAutomaticCancellationRefund(
           tier: "NONE" as RefundTier,
           hoursUntilCheckIn: 0,
           roomFee: 0,
-          securityDeposit: 0,
           serviceFee: 0,
           cleaningFee: 0,
           customerRoomRefund: 0,

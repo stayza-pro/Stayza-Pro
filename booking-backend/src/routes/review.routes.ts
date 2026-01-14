@@ -1691,7 +1691,9 @@ router.post(
 
     // Send notification to review author
     try {
-      await NotificationService.send(review.authorId, {
+      const notificationService = NotificationService.getInstance();
+      await notificationService.createAndSendNotification({
+        userId: review.authorId,
         type: "REVIEW_RESPONSE",
         title: "Host Responded to Your Review",
         message: `${review.property.realtor.businessName} has responded to your review of ${review.property.title}`,
@@ -1923,32 +1925,22 @@ router.delete(
 router.post(
   "/:id/helpful",
   authenticate,
-  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { id: reviewId } = req.params;
-    const userId = req.user!.id;
+  asyncHandler(
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+      const { id: reviewId } = req.params;
+      const userId = req.user!.id;
 
-    // Check if review exists
-    const review = await prisma.review.findUnique({
-      where: { id: reviewId },
-    });
+      // Check if review exists
+      const review = await prisma.review.findUnique({
+        where: { id: reviewId },
+      });
 
-    if (!review) {
-      throw new AppError("Review not found", 404);
-    }
+      if (!review) {
+        throw new AppError("Review not found", 404);
+      }
 
-    // Check if user already marked this as helpful
-    const existingHelpful = await prisma.reviewHelpful.findUnique({
-      where: {
-        reviewId_userId: {
-          reviewId,
-          userId,
-        },
-      },
-    });
-
-    if (existingHelpful) {
-      // If already marked, remove the mark (toggle behavior)
-      await prisma.reviewHelpful.delete({
+      // Check if user already marked this as helpful
+      const existingHelpful = await prisma.reviewHelpful.findUnique({
         where: {
           reviewId_userId: {
             reviewId,
@@ -1957,55 +1949,68 @@ router.post(
         },
       });
 
-      // Decrement helpfulCount
+      if (existingHelpful) {
+        // If already marked, remove the mark (toggle behavior)
+        await prisma.reviewHelpful.delete({
+          where: {
+            reviewId_userId: {
+              reviewId,
+              userId,
+            },
+          },
+        });
+
+        // Decrement helpfulCount
+        const updatedReview = await prisma.review.update({
+          where: { id: reviewId },
+          data: {
+            helpfulCount: {
+              decrement: 1,
+            },
+          },
+        });
+
+        res.json({
+          success: true,
+          message: "Helpful mark removed",
+          data: {
+            reviewId,
+            helpfulCount: updatedReview.helpfulCount,
+            isHelpful: false,
+          },
+        });
+        return;
+      }
+
+      // Create helpful mark
+      await prisma.reviewHelpful.create({
+        data: {
+          reviewId,
+          userId,
+        },
+      });
+
+      // Increment helpfulCount
       const updatedReview = await prisma.review.update({
         where: { id: reviewId },
         data: {
           helpfulCount: {
-            decrement: 1,
+            increment: 1,
           },
         },
       });
 
-      return res.json({
+      res.json({
         success: true,
-        message: "Helpful mark removed",
+        message: "Review marked as helpful",
         data: {
           reviewId,
           helpfulCount: updatedReview.helpfulCount,
-          isHelpful: false,
+          isHelpful: true,
         },
       });
     }
-
-    // Create helpful mark
-    await prisma.reviewHelpful.create({
-      data: {
-        reviewId,
-        userId,
-      },
-    });
-
-    // Increment helpfulCount
-    const updatedReview = await prisma.review.update({
-      where: { id: reviewId },
-      data: {
-        helpfulCount: {
-          increment: 1,
-        },
-      },
-    });
-
-    res.json({
-      success: true,
-      message: "Review marked as helpful",
-      data: {
-        reviewId,
-        helpfulCount: updatedReview.helpfulCount,
-        isHelpful: true,
-      },
-    });
-  })
+  )
 );
 
 export default router;
