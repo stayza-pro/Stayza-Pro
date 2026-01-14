@@ -18,13 +18,8 @@ export default function RootPage() {
       return;
     }
 
-    // Realtor subdomain -> guest landing with realtor branding
-    if (subdomain) {
-      router.push("/guest-landing");
-      return;
-    }
-
-    // Main domain -> marketing site
+    // All domains -> marketing site
+    // Users can navigate to guest features from there
     router.push("/en");
   }, [router]);
 
