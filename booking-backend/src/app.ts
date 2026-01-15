@@ -35,6 +35,7 @@ import favoritesRoutes from "@/routes/favorites.routes";
 import escrowRoutes from "@/routes/escrow.routes";
 import walletRoutes from "@/routes/wallet.routes";
 import waitlistRoutes from "@/routes/waitlist.routes";
+import testRoutes from "@/routes/test.routes";
 
 const app = express();
 
@@ -47,6 +48,9 @@ app.use("/api/webhooks", webhookRoutes);
 // Middleware
 app.use(helmet()); // Security headers
 app.use(compression()); // Gzip compression
+
+// Serve static files from public directory
+app.use("/public", express.static("public"));
 
 // Simplified CORS configuration
 const corsOptions = {
@@ -289,6 +293,11 @@ app.use("/api/favorites", favoritesRoutes);
 app.use("/api/escrow", escrowRoutes);
 app.use("/api/wallets", walletRoutes);
 app.use("/api/waitlist", waitlistRoutes);
+
+// Development-only test routes
+if (config.NODE_ENV === "development") {
+  app.use("/api/test", testRoutes);
+}
 
 // 404 handler
 app.use(notFound);

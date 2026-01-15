@@ -20,7 +20,7 @@ const brandColors = {
 // Email template base with Stayza branding
 const getEmailHeader = () => `
   <div style="background-color: ${brandColors.primary}; padding: 40px 20px; text-align: center;">
-    <img src="https://stayza.com/images/stayza.png" alt="Stayza Pro" style="height: 60px; width: auto; margin-bottom: 20px;">
+    <img src="https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png" alt="Stayza Pro" style="height: 60px; width: auto; margin-bottom: 20px;">
     <h1 style="color: ${brandColors.white}; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 28px; font-weight: 700; margin: 0;">
       Stayza Pro
     </h1>
@@ -33,7 +33,7 @@ const getEmailHeader = () => `
 const getEmailFooter = () => `
   <div style="background-color: ${brandColors.neutralDark}; padding: 40px 20px; margin-top: 40px;">
     <div style="text-align: center; margin-bottom: 30px;">
-      <img src="https://stayza.com/images/stayza.png" alt="Stayza Pro" style="height: 40px; width: auto; opacity: 0.8;">
+      <img src="https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png" alt="Stayza Pro" style="height: 40px; width: auto; opacity: 0.8;">
     </div>
     <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 30px;">
       <table style="width: 100%; max-width: 600px; margin: 0 auto;">
@@ -135,6 +135,138 @@ const getInfoBox = (
 
 // Email templates
 export const emailTemplates = {
+  waitlist: (fullName?: string) => {
+    const greeting = fullName ? `Hi ${fullName}` : "Welcome";
+
+    return {
+      subject: "You're on the Waitlist! 🎉 | Stayza Pro",
+      html: `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="X-UA-Compatible" content="IE=edge">
+          <title>Welcome to Stayza Pro Waitlist</title>
+          <style>
+            @media only screen and (max-width: 600px) {
+              .email-container { width: 100% !important; }
+              .header { padding: 32px 20px !important; }
+              .header-logo { height: 120px !important; }
+              .header-title { font-size: 24px !important; }
+              .header-subtitle { font-size: 16px !important; }
+              .content { padding: 32px 20px !important; }
+              .content-title { font-size: 22px !important; }
+              .content-text { font-size: 15px !important; }
+              .feature-box { padding: 24px !important; }
+              .feature-title { font-size: 18px !important; }
+              .feature-item { margin-bottom: 12px !important; padding-left: 6px !important; }
+              .feature-item-title { font-size: 15px !important; }
+              .feature-item-desc { font-size: 13px !important; }
+              .stats-grid { display: block !important; }
+              .stat-card { margin-bottom: 12px !important; padding: 16px !important; }
+              .stat-number { font-size: 28px !important; }
+              .stat-label { font-size: 11px !important; }
+              .info-box { padding: 16px !important; }
+              .footer { padding: 32px 20px !important; }
+              .footer-logo { height: 40px !important; }
+            }
+          </style>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #F3F4F6;">
+          <div class="email-container" style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF;">
+            
+            <!-- Header with Brand -->
+            <div class="header" style="background: linear-gradient(135deg, #FFFFFF 0%, #F3F4F6 100%); padding: 48px 24px; text-align: center; border-bottom: 4px solid #1E3A8A;">
+              <img class="header-logo" src="https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png" alt="Stayza Pro" style="height: 150px; width: auto; margin-bottom: 24px; max-width: 100%;" />
+              <h1 class="header-title" style="color: #1E3A8A; font-size: 32px; font-weight: 700; margin: 0 0 12px 0; letter-spacing: -0.5px;">You're on the Waitlist!</h1>
+              <p class="header-subtitle" style="color: #111827; font-size: 18px; margin: 0; font-weight: 400;">Your branded booking site is coming soon</p>
+            </div>
+
+            <!-- Main Content -->
+            <div class="content" style="padding: 48px 32px;">
+              <div style="background: linear-gradient(135deg, #F97316 0%, #fb923c 100%); color: #FFFFFF; padding: 4px 16px; border-radius: 24px; display: inline-block; font-size: 14px; font-weight: 600; margin-bottom: 24px;">
+                🚀 Priority Access
+              </div>
+
+              <h2 class="content-title" style="color: #1E3A8A; font-size: 28px; font-weight: 700; margin: 0 0 16px 0;">${greeting}!</h2>
+              
+              <p class="content-text" style="color: #111827; font-size: 16px; line-height: 1.7; margin: 0 0 24px 0;">
+                Thank you for joining the exclusive Stayza Pro waitlist! You're now among the select group of property professionals who will be first to experience the future of booking management.
+              </p>
+
+              <div class="feature-box" style="background: linear-gradient(135deg, #1E3A8A 0%, #1e40af 100%); border-radius: 16px; padding: 32px; margin: 32px 0;">
+                <h3 class="feature-title" style="color: #FFFFFF; font-size: 20px; font-weight: 600; margin: 0 0 20px 0;">
+                  ✨ What You'll Get:
+                </h3>
+                <div style="color: #FFFFFF;">
+                  <div class="feature-item" style="margin-bottom: 16px; padding-left: 8px; border-left: 3px solid #F97316;">
+                    <strong class="feature-item-title" style="font-size: 16px; display: block; margin-bottom: 4px;">Your Own Booking Site</strong>
+                    <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">Get yourbusiness.stayza.pro with your logo and brand colors</span>
+                  </div>
+                  <div class="feature-item" style="margin-bottom: 16px; padding-left: 8px; border-left: 3px solid #047857;">
+                    <strong class="feature-item-title" style="font-size: 16px; display: block; margin-bottom: 4px;">Escrow-Protected Payments</strong>
+                    <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">Secure Paystack escrow. You get 90% after checkout—automatic</span>
+                  </div>
+                  <div class="feature-item" style="margin-bottom: 16px; padding-left: 8px; border-left: 3px solid #F97316;">
+                    <strong class="feature-item-title" style="font-size: 16px; display: block; margin-bottom: 4px;">CAC Verification</strong>
+                    <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">Build trust with verified Corporate Affairs Commission badge</span>
+                  </div>
+                  <div class="feature-item" style="padding-left: 8px; border-left: 3px solid #047857;">
+                    <strong class="feature-item-title" style="font-size: 16px; display: block; margin-bottom: 4px;">10% Commission Only</strong>
+                    <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">No monthly fees. Just 10% on room fees. Keep 90% + 100% of cleaning fees</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stats Grid -->
+              <div class="stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 32px 0;">
+                <div class="stat-card" style="background: #FEF3C7; border-radius: 12px; padding: 20px; text-align: center;">
+                  <div class="stat-number" style="color: #92400E; font-size: 32px; font-weight: 700; margin-bottom: 4px;">10%</div>
+                  <div class="stat-label" style="color: #78350F; font-size: 12px; font-weight: 500;">Commission</div>
+                </div>
+                <div class="stat-card" style="background: #D1FAE5; border-radius: 12px; padding: 20px; text-align: center;">
+                  <div class="stat-number" style="color: #065F46; font-size: 32px; font-weight: 700; margin-bottom: 4px;">90%</div>
+                  <div class="stat-label" style="color: #047857; font-size: 12px; font-weight: 500;">You Keep</div>
+                </div>
+                <div class="stat-card" style="background: #DBEAFE; border-radius: 12px; padding: 20px; text-align: center;">
+                  <div class="stat-number" style="color: #1E40AF; font-size: 32px; font-weight: 700; margin-bottom: 4px;">∞</div>
+                  <div class="stat-label" style="color: #1E3A8A; font-size: 12px; font-weight: 500;">Properties</div>
+                </div>
+              </div>
+
+              <div class="info-box" style="background: #FEF3C7; border-left: 4px solid #F97316; padding: 20px; border-radius: 8px; margin: 32px 0;">
+                <p style="margin: 0; color: #78350F; font-size: 14px; line-height: 1.6;">
+                  <strong style="color: #92400E;">📅 Launch Timeline:</strong> We're finalizing the platform and will notify you the moment we're ready. You'll get priority access before the general public!
+                </p>
+              </div>
+
+              <p style="color: #4B5563; font-size: 15px; line-height: 1.7; margin: 24px 0 0 0;">
+                Stay tuned for exclusive updates, early access invitations, and behind-the-scenes insights as we prepare for launch.
+              </p>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer" style="background: #111827; padding: 40px 32px; text-align: center;">
+              <img class="footer-logo" src="https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png" alt="Stayza Pro" style="height: 150px; width: auto; margin-bottom: 24px; max-width: 100%;" />
+              
+              <div class="footer-border" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px; margin-top: 24px;">
+                <p class="footer-brand" style="color: rgba(255,255,255,0.8); font-size: 14px; margin: 0 0 12px 0;">
+                  <strong style="color: #FFFFFF;">Stayza Pro</strong> – Your booking site. Branded. Live in minutes.
+                </p>
+                <p class="footer-fine-print" style="color: rgba(255,255,255,0.6); font-size: 12px; margin: 0;">
+                  © ${new Date().getFullYear()} Stayza Pro. All rights reserved.<br class="desktop-break" />
+                  You're receiving this because you joined our waitlist.
+                </p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    };
+  },
+
   welcome: (name: string) => ({
     subject: "Welcome to Stayza Pro",
     html: getEmailContainer(`
@@ -868,6 +1000,12 @@ export const sendEmail = async (
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }
+};
+
+// Send waitlist confirmation
+export const sendWaitlistEmail = async (to: string, fullName?: string) => {
+  const template = emailTemplates.waitlist(fullName);
+  return sendEmail(to, template);
 };
 
 // Send welcome email
