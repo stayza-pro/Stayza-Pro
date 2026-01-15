@@ -1,4 +1,5 @@
 import express, { Response } from "express";
+import "multer";
 import { PropertyType } from "@prisma/client";
 import { prisma } from "@/config/database";
 import {

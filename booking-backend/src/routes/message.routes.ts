@@ -13,6 +13,7 @@
  */
 
 import { Router, Response } from "express";
+import "multer";
 import { PrismaClient } from "@prisma/client";
 import {
   authenticate,

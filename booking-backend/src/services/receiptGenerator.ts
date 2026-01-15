@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { Prisma } from "@prisma/client";
+import type PDFKit from "pdfkit";
 
 type PaymentWithDetails = Prisma.PaymentGetPayload<{
   include: {

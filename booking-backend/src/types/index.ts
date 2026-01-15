@@ -1,5 +1,6 @@
 import { Request } from "express";
 import { User, UserRole } from "@prisma/client";
+import "multer";
 
 // Extend Express Request with user authentication
 export interface AuthenticatedRequest extends Request {
@@ -15,9 +16,7 @@ export interface AuthenticatedRequest extends Request {
   query: any;
   headers: any;
   file?: Express.Multer.File;
-  files?:
-    | Express.Multer.File[]
-    | { [fieldname: string]: Express.Multer.File[] };
+  files?: Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] };
 }
 
 export interface JWTPayload {
