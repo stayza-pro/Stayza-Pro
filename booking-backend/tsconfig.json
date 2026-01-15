@@ -25,6 +25,7 @@
     "noUncheckedIndexedAccess": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "typeRoots": ["./node_modules/@types"],
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"],

@@ -13,8 +13,11 @@ export interface AuthenticatedRequest extends Request {
   body: any;
   params: any;
   query: any;
+  headers: any;
   file?: Express.Multer.File;
-  files?: Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] };
+  files?:
+    | Express.Multer.File[]
+    | { [fieldname: string]: Express.Multer.File[] };
 }
 
 export interface JWTPayload {
