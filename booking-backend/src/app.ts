@@ -34,6 +34,7 @@ import messageRoutes from "@/routes/message.routes";
 import favoritesRoutes from "@/routes/favorites.routes";
 import escrowRoutes from "@/routes/escrow.routes";
 import walletRoutes from "@/routes/wallet.routes";
+import waitlistRoutes from "@/routes/waitlist.routes";
 
 const app = express();
 
@@ -287,6 +288,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/favorites", favoritesRoutes);
 app.use("/api/escrow", escrowRoutes);
 app.use("/api/wallets", walletRoutes);
+app.use("/api/waitlist", waitlistRoutes);
 
 // 404 handler
 app.use(notFound);

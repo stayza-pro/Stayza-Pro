@@ -982,3 +982,23 @@ enum MessageType {
    BOOKING_MESSAGE // Regular message within active booking (full messaging)
    SYSTEM // System-generated messages (check-in info, access codes, etc.)
 }
+
+model Waitlist {
+   id          String    @id @default(cuid())
+   email       String    @unique
+   fullName    String?
+   companyName String?
+   phone       String?
+   message     String?
+   status      String    @default("pending") // pending, approved, rejected
+   source      String? // Where they heard about us
+   ipAddress   String?
+   userAgent   String?
+   createdAt   DateTime  @default(now())
+   updatedAt   DateTime  @updatedAt
+   notifiedAt  DateTime? // When they were notified about launch
+
+   @@index([status])
+   @@index([createdAt])
+   @@map("waitlist")
+}
