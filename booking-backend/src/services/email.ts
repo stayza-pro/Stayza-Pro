@@ -4,27 +4,6 @@ import { config } from "@/config";
 // Initialize Resend client
 const resend = new Resend(config.RESEND_API_KEY);
 
-// Fallback to Nodemailer for development if Resend not configured
-import nodemailer from "nodemailer";
-const nodemailerTransporter =
-  config.NODE_ENV === "development"
-    ? nodemailer.createTransport({
-        host: config.SMTP_HOST,
-        port: config.SMTP_PORT,
-        secure: config.SMTP_SECURE,
-        auth: {
-          user: config.SMTP_USER,
-          pass: config.SMTP_PASS,
-        },
-        tls: {
-          rejectUnauthorized: false,
-        },
-        connectionTimeout: 5000,
-        greetingTimeout: 3000,
-        socketTimeout: 5000,
-      })
-    : null;
-
 // Stayza Brand Colors
 const brandColors = {
   primary: "#1E3A8A", // Deep blue
@@ -858,97 +837,28 @@ export const sendEmail = async (
   attachments?: any[]
 ) => {
   try {
-    // Use Resend in production/staging
-    if (config.RESEND_API_KEY && config.NODE_ENV !== "development") {
-      console.log(
-        "Sending email via Resend to:",
-        Array.isArray(to) ? to.join(", ") : to
+    if (!config.RESEND_API_KEY) {
+      throw new Error(
+        "RESEND_API_KEY is not configured. Please add it to your environment variables."
       );
-
-      const result = await resend.emails.send({
-        from: "Stayza Pro <noreply@stayza.pro>", // Update with your verified Resend domain
-        to: Array.isArray(to) ? to : [to],
-        subject: template.subject,
-        html: template.html,
-      });
-
-      console.log("Email sent successfully via Resend:", result.data?.id);
-      return { success: true, messageId: result.data?.id };
     }
 
-    // Fallback to Nodemailer for development
-    if (nodemailerTransporter) {
-      console.log(
-        "Sending email via Nodemailer (dev mode) to:",
-        Array.isArray(to) ? to.join(", ") : to
-      );
-
-      await nodemailerTransporter.verify();
-      console.log("SMTP connection verified successfully");
-
-      const mailOptions = {
-        from: `"Stayza Pro" <${config.SMTP_USER}>`,
-        to: Array.isArray(to) ? to.join(", ") : to,
-        subject: template.subject,
-        html: template.html,
-        attachments: attachments || [],
-      };
-
-      const info = await nodemailerTransporter.sendMail(mailOptions);
-      console.log("Email sent successfully via Nodemailer:", info.messageId);
-      return { success: true, messageId: info.messageId };
-    }
-
-    // No email service configured - log to console (development only)
-    console.warn("No email service configured. Email would have been sent:");
-    console.log({
+    const result = await resend.emails.send({
+      from: "Stayza Pro <noreply@stayza.pro>",
       to: Array.isArray(to) ? to : [to],
       subject: template.subject,
-      html: template.html.substring(0, 100) + "...",
+      html: template.html,
     });
-    return { success: true, messageId: "dev-mode-no-send" };
+
+    console.log("Email sent successfully via Resend:", result.data?.id);
+    return { success: true, messageId: result.data?.id };
   } catch (error: any) {
     console.error("Error sending email:", error);
 
-    // Resend-specific errors
     if (error.name === "ResendError") {
       console.error("Resend API error:", error.message);
       throw new Error(`Email service error: ${error.message}`);
-    }
-
-    // Nodemailer-specific errors
-    if (error.code === "EAUTH") {
-      console.error(
-        "SMTP Authentication failed. Please check your email credentials."
-      );
-      console.error(
-        "For Gmail, make sure you're using an App Password, not your regular password."
-      );
-      console.error(
-        "Visit https://myaccount.google.com/apppasswords to generate one."
-      );
-      throw new Error(
-        "Email authentication failed. Please check your email configuration."
-      );
-    } else if (error.code === "ETIMEDOUT" || error.code === "ECONNECTION") {
-      console.error(
-        "SMTP connection timeout. Please check your network and SMTP settings."
-      );
-
-      if (process.env.NODE_ENV === "development") {
-        console.error("\n💡 DEVELOPMENT TIP:");
-        console.error("- Check if Gmail is blocking the connection");
-        console.error("- Verify your App Password is correct");
-        console.error(
-          "- Try using Ethereal Email for testing: https://ethereal.email"
-        );
-        console.error("- Or disable email verification in development\n");
-
-        // In development, don't throw error - just warn and continue
-        console.warn("Continuing without sending email (dev mode)");
-        return { success: true, messageId: "dev-mode-smtp-failed" };
-      }
-
+    } else if (error.code === "ETIMEDOUT") {
       throw new Error("Email connection timeout. Please try again later.");
     } else if (error.code === "EENVELOPE") {
       console.error("Invalid email address format.");

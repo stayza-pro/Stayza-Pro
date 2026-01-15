@@ -977,30 +977,14 @@ router.post(
       },
     });
 
-    try {
-      await sendEmailVerification(email, otp, `${firstName} ${lastName}`);
-    } catch (emailError) {
-      if (config.NODE_ENV === "development") {
-        logger.info("\n========================================");
-        logger.info("📧 EMAIL SENDING FAILED - DEVELOPMENT MODE");
-        logger.info("========================================");
-        logger.info(`Email: ${email}`);
-        logger.info(`OTP Code: ${otp}`);
-        logger.info(`Expires: ${otpExpires.toLocaleString()}`);
-        logger.info("========================================\n");
-      }
-    }
+    await sendEmailVerification(email, otp, `${firstName} ${lastName}`);
 
     res.status(201).json({
       success: true,
-      message:
-        config.NODE_ENV === "development"
-          ? `Verification code: ${otp} (Check console - email service unavailable)`
-          : "Verification code sent to your email",
+      message: "Verification code sent to your email",
       data: {
         email,
         expiresIn: "10 minutes",
-        ...(config.NODE_ENV === "development" && { otp }),
       },
     });
   })
@@ -1065,34 +1049,18 @@ router.post(
       },
     });
 
-    try {
-      await sendEmailVerification(
-        email,
-        otp,
-        user.fullName || `${user.firstName} ${user.lastName}`
-      );
-    } catch (emailError) {
-      if (config.NODE_ENV === "development") {
-        logger.info("\n========================================");
-        logger.info("📧 EMAIL SENDING FAILED - DEVELOPMENT MODE");
-        logger.info("========================================");
-        logger.info(`Email: ${email}`);
-        logger.info(`OTP Code: ${otp}`);
-        logger.info(`Expires: ${otpExpires.toLocaleString()}`);
-        logger.info("========================================\n");
-      }
-    }
+    await sendEmailVerification(
+      email,
+      otp,
+      user.fullName || `${user.firstName} ${user.lastName}`
+    );
 
     res.json({
       success: true,
-      message:
-        config.NODE_ENV === "development"
-          ? `Verification code: ${otp} (Check console - email service unavailable)`
-          : "Verification code sent to your email",
+      message: "Verification code sent to your email",
       data: {
         email,
         expiresIn: "10 minutes",
-        ...(config.NODE_ENV === "development" && { otp }),
       },
     });
   })
@@ -1234,8 +1202,6 @@ router.post(
   "/verify-login",
   asyncHandler(async (req: Request, res: Response) => {
     const { email, otp } = req.body;
-
-    logger.info("🔍 Verify Login Request:", { email, otp });
 
     if (!email || !otp) {
       throw new AppError("Email and OTP are required", 400);
