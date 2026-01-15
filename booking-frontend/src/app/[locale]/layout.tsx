@@ -8,6 +8,14 @@ export const metadata: Metadata = {
   title: "Stayza Pro – Smart Booking for Realtors and Guests",
   description:
     "Stayza Pro lets realtors create branded mini booking sites with Paystack payouts, property management, guest reviews, maps, and more — all in one seamless platform.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png" }],
+    shortcut: ["/favicon.ico"],
+  },
 };
 
 export default async function LocaleLayout({
