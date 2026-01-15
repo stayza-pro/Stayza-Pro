@@ -8,17 +8,14 @@ export function WhySection() {
         <div className="space-y-6">
           <SectionTitle
             eyebrow="why realtors switch"
-            title="Generic marketplaces weren’t built for modern agencies"
-            description="Stayza Pro gives every realtor a branded booking hub, automated split payouts, and an audit trail that keeps admins in control."
+            title="Generic marketplaces bury your brand and slow your revenue."
+            description="Stayza Pro puts your brand front and center, provides escrow-protected payouts, and tracks everything so you stay in control."
             align="left"
           />
           <div className="flex flex-wrap gap-4 pt-4">
-            <MetricPill value="100%" label="Your brand front and center" />
-            <MetricPill value="0 hrs" label="Wasted on manual payouts" />
-            <MetricPill
-              value="1 link"
-              label="For bookings, payments, receipts"
-            />
+            <MetricPill value="100%" label="Brand front and center" />
+            <MetricPill value="Auto-split" label="90/10 escrow payouts" />
+            <MetricPill value="1 link" label="Bookings, payments, receipts" />
           </div>
         </div>
         <div className="grid gap-6 sm:grid-cols-2">

@@ -4,9 +4,24 @@ import { motion, useReducedMotion } from "framer-motion";
 import { heroHighlights, palette } from "@/app/(marketing)/content";
 import { CTAButton } from "@/app/(marketing)/components/CTAButton";
 import { Navigation } from "@/app/(marketing)/sections/Navigation";
+import { useState, useEffect } from "react";
 
 export function HeroSection() {
   const shouldReduceMotion = useReducedMotion();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const propertyImages = [
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600",
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % propertyImages.length);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [propertyImages.length]);
 
   return (
     <motion.section
@@ -134,10 +149,7 @@ export function HeroSection() {
                       }
                 }
               >
-                <CTAButton
-                  label="Join Waitlist"
-                  href="/#waitlist"
-                />
+                <CTAButton label="Join Waitlist" href="/join-waitlist" />
               </motion.div>
               <motion.div
                 className="grid gap-4 pt-6 sm:grid-cols-3"
@@ -208,16 +220,38 @@ export function HeroSection() {
                     aria-label="Booking summary header"
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className="h-12 w-12 rounded-full"
-                        style={{ backgroundColor: palette.secondary }}
-                      />
+                      <div className="h-12 w-12 rounded-full overflow-hidden bg-white flex items-center justify-center p-1.5">
+                        <svg
+                          viewBox="0 0 100 100"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-full h-full"
+                        >
+                          <rect
+                            width="100"
+                            height="100"
+                            rx="100"
+                            fill={palette.primary}
+                          />
+                          <text
+                            x="50"
+                            y="65"
+                            fontSize="48"
+                            fontWeight="bold"
+                            fill="white"
+                            textAnchor="middle"
+                            fontFamily="Arial, sans-serif"
+                          >
+                            I^E
+                          </text>
+                        </svg>
+                      </div>
                       <div>
                         <p className="text-sm font-semibold text-marketing-foreground">
                           Indigo Estates
                         </p>
                         <p className="text-xs text-marketing-muted">
-                          yourbrand.stayza.pro
+                          indigo-estate.stayza.pro
                         </p>
                       </div>
                     </div>
@@ -232,20 +266,34 @@ export function HeroSection() {
                     </span>
                   </div>
                   <div className="space-y-4 rounded-2xl border border-marketing-subtle bg-marketing-surface p-5">
-                    <div className="h-44 rounded-xl bg-gradient-to-br from-slate-200 via-white to-slate-100" />
+                    <div className="h-44 rounded-xl overflow-hidden relative">
+                      {propertyImages.map((image, index) => (
+                        <motion.img
+                          key={image}
+                          src={image}
+                          alt={`Property ${index + 1}`}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          initial={{ opacity: 0 }}
+                          animate={{
+                            opacity: currentImageIndex === index ? 1 : 0,
+                            transition: { duration: 1.8 },
+                          }}
+                        />
+                      ))}
+                    </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-marketing-muted">
                           Upcoming check-in
                         </p>
                         <p className="font-semibold text-marketing-foreground">
-                          28 Sept • 4 nights
+                          30 Jan • 4 nights
                         </p>
                       </div>
                       <div>
                         <p className="text-marketing-muted">Next payout</p>
                         <p className="font-semibold text-green-600">
-                          ₦280,000 total • ₦32,500 commission
+                          ₦280,000 total • ₦28,000 commission
                         </p>
                       </div>
                     </div>
@@ -257,7 +305,7 @@ export function HeroSection() {
                     >
                       <div>
                         <p className="text-xs uppercase tracking-[0.12em] text-marketing-muted">
-                          Paystack / Stripe
+                          Paystack
                         </p>
                         <p className="text-sm font-semibold text-marketing-foreground">
                           Funds cleared • Just now

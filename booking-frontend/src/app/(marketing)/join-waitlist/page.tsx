@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { WaitlistForm } from "@/app/(marketing)/components/WaitlistForm";
 import { Navigation } from "@/app/(marketing)/sections/Navigation";
@@ -8,7 +9,6 @@ import { palette } from "@/app/(marketing)/content";
 import {
   Rocket,
   Bell,
-  Users,
   CheckCircle,
   TrendingUp,
   DollarSign,
@@ -20,6 +20,27 @@ import {
 
 export default function JoinWaitlistPage() {
   const shouldReduceMotion = useReducedMotion();
+  const [waitlistCount, setWaitlistCount] = useState(100);
+
+  useEffect(() => {
+    const fetchWaitlistCount = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/waitlist/count`
+        );
+        const data = await response.json();
+        if (data.success) {
+          // Add 100 baseline to actual count
+          setWaitlistCount(data.data.count + 100);
+        }
+      } catch (error) {
+        console.error("Failed to fetch waitlist count:", error);
+        // Keep default 100 if fetch fails
+      }
+    };
+
+    fetchWaitlistCount();
+  }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -44,92 +65,92 @@ export default function JoinWaitlistPage() {
   const benefits = [
     {
       icon: Bell,
-      title: "Early Access",
+      title: "Priority Access",
       description:
-        "Be among the first to use Stayza Pro before public launch. Get immediate access to all premium features.",
+        "Be among the first realtors to launch your branded booking site when we go live.",
     },
     {
-      icon: Users,
-      title: "Founding Member Perks",
+      icon: Shield,
+      title: "CAC Verification Ready",
       description:
-        "Special lifetime discounts, priority support, and exclusive features reserved only for early adopters.",
+        "Get your Corporate Affairs Commission certificate verified immediately to build trust with guests.",
     },
     {
       icon: Rocket,
-      title: "Shape the Future",
+      title: "Shape the Platform",
       description:
-        "Your feedback will directly influence product development. Help us build the perfect platform.",
+        "Your feedback will directly influence product development during the early launch phase.",
     },
     {
       icon: DollarSign,
-      title: "Special Pricing",
+      title: "10% Commission Only",
       description:
-        "Lock in founding member pricing for life. Save up to 40% on monthly subscription costs.",
+        "Free platform access with unlimited property listings. Earn 90% of every booking after checkout.",
     },
     {
       icon: TrendingUp,
-      title: "Growth Support",
+      title: "Launch Support",
       description:
-        "Get personalized onboarding and dedicated support to help you succeed from day one.",
+        "Get personalized onboarding and support to help you set up your branded subdomain.",
     },
     {
       icon: Zap,
-      title: "Premium Features",
+      title: "Full Feature Access",
       description:
-        "Full access to analytics, unlimited listings, custom branding, and advanced automation.",
+        "Unlimited properties, escrow payments, branded subdomain (yourbusiness.stayza.pro), and audit trail.",
     },
   ];
 
   const features = [
     {
       icon: Shield,
-      title: "Verified Realtors",
+      title: "CAC Verification System",
       description:
-        "Full CAC verification system with trust badges to build credibility with clients.",
+        "Submit your Corporate Affairs Commission certificate for admin review and get verified trust badges.",
     },
     {
       icon: Clock,
-      title: "24/7 Automation",
+      title: "Escrow-Protected Payouts",
       description:
-        "Bookings, payments, and receipts happen automatically—even while you sleep.",
+        "Paystack escrow holds funds securely. You get 90% after checkout, platform takes 10%—all automatic.",
     },
     {
       icon: BarChart3,
-      title: "Analytics Dashboard",
+      title: "Branded Subdomains",
       description:
-        "Track revenue, bookings, and performance with real-time insights.",
+        "Get your own booking site at yourbusiness.stayza.pro with your logo and brand colors.",
     },
     {
       icon: DollarSign,
-      title: "Automated Payouts",
+      title: "Unlimited Properties",
       description:
-        "Secure escrow system with automatic commission splits and instant payouts.",
+        "List unlimited properties with up to 10 photos each. No subscription fees, just 10% commission.",
     },
   ];
 
   const testimonials = [
     {
-      name: "Sarah Johnson",
-      role: "Property Manager, Lagos",
+      name: "500+ Realtors",
+      role: "Already Waiting",
       content:
-        "Can't wait to automate my booking process. The demo looks incredible!",
+        "Join hundreds of Nigerian property professionals preparing to launch their branded booking sites.",
     },
     {
-      name: "Michael Chen",
-      role: "Real Estate Agent",
+      name: "10% Commission",
+      role: "No Hidden Fees",
       content:
-        "Finally, a platform that understands what realtors actually need.",
+        "Keep 90% of your room fees plus 100% of cleaning fees. Only pay when you earn.",
     },
     {
-      name: "Aisha Bello",
-      role: "Realtor, Abuja",
+      name: "Escrow Protection",
+      role: "Secure Payments",
       content:
-        "The automated payment system alone is worth the wait. Excited to join!",
+        "Paystack escrow holds funds until checkout, then automatically splits: 90% to you, 10% platform fee.",
     },
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="marketing-theme min-h-screen antialiased">
       {/* Hero Section */}
       <motion.section
         className="relative overflow-hidden"
@@ -141,36 +162,6 @@ export default function JoinWaitlistPage() {
             : { opacity: 1, transition: { duration: 0.6, ease: "easeOut" } }
         }
       >
-        {/* Background Elements */}
-        <div className="absolute inset-0">
-          <motion.div
-            className="absolute right-[-18%] top-[-35%] h-[460px] w-[460px] rounded-full"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)",
-            }}
-            animate={
-              shouldReduceMotion
-                ? undefined
-                : { x: [0, 45, 0], y: [0, -35, 0], rotate: [0, 8, 0] }
-            }
-            transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute bottom-[-30%] left-[-8%] h-[380px] w-[380px] rounded-full"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(4,120,87,0.25) 0%, transparent 70%)",
-            }}
-            animate={
-              shouldReduceMotion
-                ? undefined
-                : { x: [0, -35, 0], y: [0, 28, 0], rotate: [0, -6, 0] }
-            }
-            transition={{ duration: 32, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </div>
-
         <div className="relative">
           <Navigation />
 
@@ -205,9 +196,9 @@ export default function JoinWaitlistPage() {
                 className="text-xl md:text-2xl text-white/80 max-w-3xl mx-auto"
                 variants={itemVariants}
               >
-                Join the exclusive waitlist for Stayza Pro. Get early access,
-                founding member benefits, and special lifetime pricing when we
-                launch.
+                Join {waitlistCount}+ realtors on the exclusive waitlist for
+                Stayza Pro. Get priority access to your branded booking site
+                with escrow-protected payments and CAC verification.
               </motion.p>
 
               <motion.div
@@ -215,16 +206,18 @@ export default function JoinWaitlistPage() {
                 variants={itemVariants}
               >
                 <div className="text-center">
-                  <div className="text-4xl md:text-5xl font-bold">500+</div>
+                  <div className="text-4xl md:text-5xl font-bold">
+                    {waitlistCount}+
+                  </div>
                   <div className="text-white/70 text-sm">On Waitlist</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl md:text-5xl font-bold">40%</div>
-                  <div className="text-white/70 text-sm">Founding Discount</div>
+                  <div className="text-4xl md:text-5xl font-bold">10%</div>
+                  <div className="text-white/70 text-sm">Commission Only</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl md:text-5xl font-bold">24/7</div>
-                  <div className="text-white/70 text-sm">Automation</div>
+                  <div className="text-4xl md:text-5xl font-bold">90%</div>
+                  <div className="text-white/70 text-sm">You Keep</div>
                 </div>
               </motion.div>
             </motion.div>
@@ -233,17 +226,17 @@ export default function JoinWaitlistPage() {
       </motion.section>
 
       {/* Benefits Section */}
-      <section className="py-24 bg-gray-50">
+      <section
+        className="py-24"
+        style={{ backgroundColor: palette.neutralLight }}
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2
-              className="text-3xl md:text-4xl font-bold mb-4"
-              style={{ color: palette.primary }}
-            >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-marketing-foreground">
               Why Join the Waitlist?
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Early members get exclusive perks and lifetime benefits
+            <p className="text-xl text-marketing-muted max-w-2xl mx-auto">
+              Get priority access when we launch
             </p>
           </div>
 
@@ -253,7 +246,7 @@ export default function JoinWaitlistPage() {
               return (
                 <motion.div
                   key={index}
-                  className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                  className="marketing-card p-8 transition-transform motion-safe:hover:-translate-y-1"
                   initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
                   whileInView={
                     shouldReduceMotion
@@ -263,18 +256,20 @@ export default function JoinWaitlistPage() {
                   viewport={{ once: true }}
                 >
                   <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center mb-4"
-                    style={{ backgroundColor: `${palette.secondary}30` }}
+                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+                    style={{
+                      backgroundColor: "var(--marketing-secondary-soft)",
+                    }}
                   >
-                    <Icon className="w-6 h-6" style={{ color: palette.accent }} />
+                    <Icon
+                      className="w-6 h-6"
+                      style={{ color: palette.secondary }}
+                    />
                   </div>
-                  <h3
-                    className="text-xl font-semibold mb-3"
-                    style={{ color: palette.primary }}
-                  >
+                  <h3 className="text-xl font-semibold mb-3 text-marketing-foreground">
                     {benefit.title}
                   </h3>
-                  <p className="text-gray-600">{benefit.description}</p>
+                  <p className="text-marketing-muted">{benefit.description}</p>
                 </motion.div>
               );
             })}
@@ -288,16 +283,14 @@ export default function JoinWaitlistPage() {
         className="py-24 relative overflow-hidden"
         style={{ backgroundColor: palette.primary }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-black/5 to-black/10" />
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
-
         <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
               Reserve Your Spot Now
             </h2>
             <p className="text-xl text-white/80">
-              Join 500+ property professionals already on the waitlist
+              Join {waitlistCount}+ property professionals already on the
+              waitlist
             </p>
           </div>
 
@@ -308,16 +301,13 @@ export default function JoinWaitlistPage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-marketing-surface">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2
-              className="text-3xl md:text-4xl font-bold mb-4"
-              style={{ color: palette.primary }}
-            >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-marketing-foreground">
               What You'll Get Access To
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-marketing-muted max-w-2xl mx-auto">
               A complete platform built for modern property professionals
             </p>
           </div>
@@ -328,22 +318,24 @@ export default function JoinWaitlistPage() {
               return (
                 <div
                   key={index}
-                  className="flex gap-4 p-6 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors"
+                  className="flex gap-4 marketing-card p-6 transition-transform motion-safe:hover:-translate-y-1"
                 >
                   <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${palette.primary}15` }}
+                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: "var(--marketing-primary-soft)" }}
                   >
-                    <Icon className="w-6 h-6" style={{ color: palette.primary }} />
+                    <Icon
+                      className="w-6 h-6"
+                      style={{ color: palette.primary }}
+                    />
                   </div>
                   <div>
-                    <h3
-                      className="text-lg font-semibold mb-2"
-                      style={{ color: palette.primary }}
-                    >
+                    <h3 className="text-lg font-semibold mb-2 text-marketing-foreground">
                       {feature.title}
                     </h3>
-                    <p className="text-gray-600">{feature.description}</p>
+                    <p className="text-marketing-muted">
+                      {feature.description}
+                    </p>
                   </div>
                 </div>
               );
@@ -353,37 +345,31 @@ export default function JoinWaitlistPage() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-24 bg-gray-50">
+      <section
+        className="py-24"
+        style={{ backgroundColor: palette.neutralLight }}
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2
-              className="text-3xl md:text-4xl font-bold mb-4"
-              style={{ color: palette.primary }}
-            >
-              What People Are Saying
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-marketing-foreground">
+              Why Stayza Pro?
             </h2>
-            <p className="text-xl text-gray-600">
-              Early interest from property professionals
+            <p className="text-xl text-marketing-muted">
+              Built for Nigerian property professionals
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <div
-                key={index}
-                className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-              >
-                <p className="text-gray-700 mb-4 italic">
+              <div key={index} className="marketing-card p-6">
+                <p className="text-marketing-muted mb-4 italic">
                   "{testimonial.content}"
                 </p>
                 <div>
-                  <div
-                    className="font-semibold"
-                    style={{ color: palette.primary }}
-                  >
+                  <div className="font-semibold text-marketing-foreground">
                     {testimonial.name}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-marketing-muted">
                     {testimonial.role}
                   </div>
                 </div>
@@ -394,16 +380,13 @@ export default function JoinWaitlistPage() {
       </section>
 
       {/* Final CTA */}
-      <section
-        className="py-16"
-        style={{ backgroundColor: palette.secondary }}
-      >
+      <section className="py-16" style={{ backgroundColor: palette.secondary }}>
         <div className="mx-auto max-w-4xl px-4 text-center text-white sm:px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Don't Miss Out on Founding Member Benefits
+            Get Priority Access to Your Branded Booking Site
           </h2>
           <p className="text-xl text-white/90 mb-8">
-            Limited spots available. Join now to secure your exclusive perks.
+            Join 500+ realtors waiting to launch. Be notified when we go live.
           </p>
           <a
             href="#form"

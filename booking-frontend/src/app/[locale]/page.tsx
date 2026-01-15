@@ -3,7 +3,6 @@ import { HeroSection } from "@/app/(marketing)/sections/HeroSection";
 import { TrustBar } from "@/app/(marketing)/sections/TrustBar";
 import { WhySection } from "@/app/(marketing)/sections/WhySection";
 import { CapabilitiesSection } from "@/app/(marketing)/sections/CapabilitiesSection";
-import { IntegrationsSection } from "@/app/(marketing)/sections/IntegrationsSection";
 import { WorkflowSection } from "@/app/(marketing)/sections/WorkflowSection";
 import { ControlCenterSection } from "@/app/(marketing)/sections/ControlCenterSection";
 import { ExperienceSection } from "@/app/(marketing)/sections/ExperienceSection";
@@ -35,7 +34,6 @@ export default function HomePage() {
         <main className="bg-marketing-surface text-marketing-foreground">
           <WhySection />
           <CapabilitiesSection />
-          <IntegrationsSection />
           <WorkflowSection />
           <ControlCenterSection />
           <ExperienceSection />

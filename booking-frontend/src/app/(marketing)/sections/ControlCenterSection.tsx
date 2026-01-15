@@ -11,7 +11,7 @@ export function ControlCenterSection() {
         <SectionTitle
           eyebrow="control centre"
           title="Total control without the chaos"
-          description="One dashboard for portfolios, payments, and guest trust — switch on what you need and grow without breaking your flow."
+          description="One dashboard for your properties, payouts, and guests—control everything, effortlessly."
         />
         <div className="grid gap-6 md:grid-cols-3">
           {capabilityColumns.map((column) => (

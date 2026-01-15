@@ -56,48 +56,48 @@ export default function TermsPage() {
       icon: FileText,
       title: "Service Scope",
       description:
-        "Comprehensive booking platform with payment processing, property management, and client communication tools",
+        "Branded booking platform (yourbusiness.stayza.pro) with escrow payments, CAC verification, and unlimited property listings",
     },
     {
       icon: Users,
       title: "Account Responsibility",
       description:
-        "Agencies maintain accurate property information and user access while ensuring compliance with local regulations",
+        "Realtors maintain accurate property information and comply with Nigerian laws while managing their booking site",
     },
     {
       icon: Shield,
       title: "Data Protection",
       description:
-        "Your property and client data remains secure with enterprise-grade encryption and compliance standards",
+        "Your property and guest data remains secure with encryption and full audit trail for all transactions",
     },
     {
       icon: HeartHandshake,
-      title: "Payment Terms",
+      title: "Commission Structure",
       description:
-        "Transparent fee structure with automated processing through Paystack integration",
+        "Platform takes 10% of room fees only. You keep 90% + 100% of cleaning fees. Guests pay 2% service fee separately.",
     },
   ];
 
-  const enterpriseFeatures = [
+  const platformFeatures = [
     {
-      title: "Custom Service Level Agreements",
+      title: "Paystack Escrow Integration",
       description:
-        "Guaranteed uptime, response times, and dedicated support channels for enterprise clients",
+        "All payments held in escrow until 1 hour after check in. Automatic 90/10 split ensures transparent commission collection.",
     },
     {
-      title: "Data Processing Addendums",
+      title: "CAC Verification System",
       description:
-        "GDPR-compliant data processing agreements with global transfer mechanisms",
+        "Submit Corporate Affairs Commission certificate for admin review. Get verified trust badges on your booking site.",
     },
     {
-      title: "White-label Licensing",
+      title: "Branded Subdomains",
       description:
-        "Custom branding and co-marketing agreements for franchise and brokerage partners",
+        "Your booking site at yourbusiness.stayza.pro with your logo, brand colors, and full control. No marketplace interference.",
     },
     {
-      title: "Integration Support",
+      title: "Complete Audit Trail",
       description:
-        "Custom API terms and technical support for third-party system integrations",
+        "Every booking, payment, dispute, and admin action logged permanently for compliance and financial reconciliation.",
     },
   ];
 
@@ -105,32 +105,6 @@ export default function TermsPage() {
     <div className="min-h-screen marketing-theme">
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col bg-marketing-primary">
-        {/* Animated Background Orbs */}
-        <motion.div
-          className="absolute inset-0 overflow-hidden pointer-events-none"
-          initial="hidden"
-          animate="visible"
-          variants={containerVariants}
-        >
-          <motion.div
-            className="absolute top-20 right-20 w-64 h-64 bg-marketing-secondary/20 rounded-full blur-3xl"
-            variants={orbVariants}
-            animate="animate"
-          />
-          <motion.div
-            className="absolute bottom-40 left-20 w-96 h-96 bg-marketing-accent/20 rounded-full blur-3xl"
-            variants={orbVariants}
-            animate="animate"
-            transition={{ delay: 1 }}
-          />
-          <motion.div
-            className="absolute top-1/2 right-1/3 w-48 h-48 bg-marketing-primary-soft/30 rounded-full blur-2xl"
-            variants={orbVariants}
-            animate="animate"
-            transition={{ delay: 2 }}
-          />
-        </motion.div>
-
         <Navigation />
 
         <div className="flex-1 flex items-center justify-center px-6 relative z-10">
@@ -160,26 +134,9 @@ export default function TermsPage() {
               className="text-xl md:text-2xl text-white/80 leading-relaxed mb-12 max-w-3xl mx-auto"
               variants={itemVariants}
             >
-              Clear, fair terms that protect your business while enabling
-              growth. Built for agencies who need flexibility and
-              enterprise-grade reliability.
+              Clear, fair terms for realtors using Stayza Pro. Commission-based
+              platform with escrow payments and transparent pricing.
             </motion.p>
-
-            <motion.div
-              className="flex flex-col sm:flex-row gap-6 justify-center"
-              variants={itemVariants}
-            >
-              <CTAButton
-                variant="solid"
-                href="mailto:legal@stayza.com"
-                label="Request Enterprise Terms"
-              />
-              <CTAButton
-                variant="ghost"
-                href="/legal/privacy"
-                label="Privacy Policy"
-              />
-            </motion.div>
           </motion.div>
         </div>
       </section>
@@ -244,14 +201,14 @@ export default function TermsPage() {
             >
               <motion.div variants={itemVariants}>
                 <SectionTitle
-                  title="Enterprise-Grade Agreements"
-                  description="Custom terms and addendums for large-scale operations"
+                  title="Platform Features & Services"
+                  description="Core capabilities included in Stayza Pro"
                 />
               </motion.div>
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {enterpriseFeatures.map((feature, index) => (
+              {platformFeatures.map((feature, index) => (
                 <motion.div
                   key={feature.title}
                   className="marketing-card p-8"
@@ -300,7 +257,7 @@ export default function TermsPage() {
                   </h3>
                   <p className="text-marketing-text-muted">
                     Our terms are regularly updated to reflect new features and
-                    regulatory changes. We'll notify you of material changes 30
+                    regulatory changes. We'll notify you of material changes 10
                     days in advance.
                   </p>
                 </div>
@@ -309,7 +266,7 @@ export default function TermsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="text-center p-6 bg-marketing-primary/5 rounded-2xl">
                   <div className="text-2xl font-bold text-marketing-primary mb-2">
-                    30
+                    10
                   </div>
                   <div className="text-sm text-marketing-text-muted">
                     Days advance notice
@@ -330,21 +287,6 @@ export default function TermsPage() {
                   <div className="text-sm text-marketing-text-muted">
                     Compliance guarantee
                   </div>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                  <CTAButton
-                    variant="solid"
-                    href="mailto:legal@stayza.com"
-                    label="Contact Legal Team"
-                  />
-                  <CTAButton
-                    variant="outline"
-                    href="/legal/security"
-                    label="Security Overview"
-                  />
                 </div>
               </div>
             </motion.div>

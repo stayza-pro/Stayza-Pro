@@ -1,8 +1,8 @@
 const trustStatements = [
-  "Independent realtor teams",
+  "Independent realtors",
   "Serviced apartment brands",
-  "Vacation rental agencies",
-  "Corporate housing partners",
+  "Short-let agencies",
+  "Corporate housing providers",
 ];
 
 export function TrustBar() {

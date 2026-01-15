@@ -35,11 +35,11 @@ export const brand = {
 } as const;
 
 export const navLinks = [
-  { label: "Why Stayza", href: "/why-stayza" },
-  { label: "Capabilities", href: "/capabilities" },
-  { label: "Workflow", href: "/workflow" },
-  { label: "Signals", href: "/signals" },
-  { label: "FAQ", href: "/faq" },
+  { label: "Why Stayza", href: "/#why" },
+  { label: "Capabilities", href: "/#capabilities" },
+  { label: "Workflow", href: "/#workflow" },
+  { label: "Signals", href: "/#signals" },
+  { label: "FAQ", href: "/#faq" },
 ] as const;
 
 export const heroHighlights: Array<{
@@ -48,21 +48,21 @@ export const heroHighlights: Array<{
   Icon: LucideIcon;
 }> = [
   {
-    title: "Your brand, your site",
+    title: "Your brand. Fully owned.",
     description:
-      "Logo, colours, and style—make your booking link feel like your business, not ours.",
+      "Get your own branded subdomain (yourbusiness.stayza.pro) with your logo and colours—no marketplace interference.",
     Icon: MonitorSmartphone,
   },
   {
-    title: "Money flows instantly",
+    title: "Secure payouts with escrow",
     description:
-      "Split payouts handled automatically. Guests pay online, funds clear straight to your account.",
+      "All payments held in escrow. You get 90% after checkout, platform takes 10%—fully automated, fully transparent.",
     Icon: CreditCard,
   },
   {
-    title: "See what matters",
+    title: "CAC-verified trust badges",
     description:
-      "Bookings, revenue, and refunds—everything in one dashboard. No chasing, no spreadsheets.",
+      "Submit your Corporate Affairs Commission registration to get verified and build instant credibility with guests.",
     Icon: BarChart3,
   },
 ];
@@ -73,27 +73,23 @@ export const painPoints: Array<{
   Icon: LucideIcon;
 }> = [
   {
-    title: "Your brand gets buried",
-    description:
-      "Marketplaces push THEIR logo, not yours. Guests barely remember who you are.",
+    title: "Brand buried",
+    description: "Marketplaces push their logo, not yours. Guests forget you.",
     Icon: Megaphone,
   },
   {
-    title: "Payout chaos every month",
-    description:
-      "Spreadsheet math, late transfers, and missing commissions drain your time and trust.",
+    title: "Payout chaos",
+    description: "Late transfers, missing commissions, endless spreadsheets.",
     Icon: RotateCcw,
   },
   {
-    title: "Guests hate friction",
-    description:
-      "No favorites, clunky checkout, endless back-and-forth. Frustrated guests don’t return.",
+    title: "Guest friction",
+    description: "Clunky checkout, no favorites, constant back-and-forth.",
     Icon: MessageSquare,
   },
   {
-    title: "No proof when things go wrong",
-    description:
-      "Disputes, cancellations, and approvals vanish without a clear audit trail. You lose leverage.",
+    title: "No proof",
+    description: "Disputes and cancellations vanish without an audit trail.",
     Icon: ShieldCheck,
   },
 ];
@@ -104,23 +100,23 @@ export const featurePillars: Array<{
   Icon: LucideIcon;
 }> = [
   {
-    title: "Branded microsites in minutes",
-    copy: "Launch polished booking pages that carry your logo, colours, and URL—no more being lost in generic portals.",
+    title: "Branded subdomain websites",
+    copy: "Get yourbusiness.stayza.pro with your logo and brand colors—no marketplace interference, just your brand.",
     Icon: Globe,
   },
   {
-    title: "Hands-free payouts & refunds",
-    copy: "Flutterwave and Paystack integration move money instantly, track fees, and issue refunds without you touching a calculator.",
+    title: "Escrow-protected payments",
+    copy: "Paystack escrow holds funds securely. You get 90% after checkout, platform takes 10%—all automatic with full transparency.",
     Icon: Wallet,
   },
   {
-    title: "A guest journey that sells itself",
-    copy: "Interactive maps, wishlists, reviews, and auto-generated agreements keep guests confident and converting.",
+    title: "CAC verification for trust",
+    copy: "Submit your Corporate Affairs Commission certificate, get verified by admins, and display trust badges to increase bookings.",
     Icon: Users,
   },
   {
-    title: "Compliance built in",
-    copy: "Every approval, edit, and dispute is logged—giving you an audit trail banks, partners, and regulators trust.",
+    title: "Complete audit trail",
+    copy: "Every booking, payment, dispute, and admin action logged permanently for compliance, disputes, and financial reconciliation.",
     Icon: ShieldCheck,
   },
 ];
@@ -131,21 +127,21 @@ export const workflowSteps: Array<{
   Icon: LucideIcon;
 }> = [
   {
-    title: "Claim your branded hub",
+    title: "Claim your branded subdomain",
     description:
-      "Pick your colours, drop in your logo, and instantly launch a custom ourapp.com/agency page that feels 100% yours.",
+      "Choose your subdomain (yourbusiness.stayza.pro), upload logo, and go live with your booking site instantly.",
     Icon: UploadCloud,
   },
   {
-    title: "Showcase listings that sell",
+    title: "Get CAC verified",
     description:
-      "Upload photos in bulk, set smart pricing rules, and sync calendars so every enquiry is accurate and ready to book.",
+      "Submit your Corporate Affairs Commission certificate for verification and unlock your trust badge.",
     Icon: CalendarCheck,
   },
   {
-    title: "Switch on payments & go live",
+    title: "Connect Paystack for payouts",
     description:
-      "Connect Flutterwave or Paystack once. From that moment, payouts, receipts, and refunds just run automatically.",
+      "Link your bank account once. Escrow system handles 90/10 splits automatically after every booking.",
     Icon: ShieldCheck,
   },
 ];
@@ -154,25 +150,25 @@ export const capabilityColumns = [
   {
     heading: "Portfolio & pricing",
     bullets: [
-      "Upload once — photos, videos, amenities all in one place",
-      "Smart calendar that prevents double-bookings automatically",
-      "Flexible pricing rules for weekends, seasons, or channels",
+      "Unlimited property listings with photos, amenities, and pricing",
+      "Smart calendar with drag-and-drop date blocking prevents double bookings",
+      "Flexible pricing with optional cleaning and service fees",
     ],
   },
   {
     heading: "Payments & compliance",
     bullets: [
-      "Split payouts hit every wallet instantly, no chasing transfers",
-      "Refunds and disputes tracked with full audit history",
-      "Auto-generated PDF receipts and contracts on every booking",
+      "Escrow protection: 90% to realtor, 10% platform fee on room fees only",
+      "CAC verification system with trust badges for verified businesses",
+      "Full audit trail tracks every action, dispute, and payout for compliance",
     ],
   },
   {
     heading: "Guest experience",
     bullets: [
-      "Search and filter with map view for instant clarity",
-      "Wishlists and booking history keep loyal guests coming back",
-      "Photo reviews and verified badges build trust at a glance",
+      "Branded booking sites at yourbusiness.stayza.pro with custom colors",
+      "Wishlists, reviews with photos, and rating system for social proof",
+      "Real-time notifications via email (Resend) for booking updates",
     ],
   },
 ] as const;
@@ -197,87 +193,88 @@ export const operationsSnapshots = [
 
 export const operationsMetrics = [
   {
-    label: "Average payout time",
-    value: "Same day",
-    hint: "Funds land in your account as soon as bookings clear — no chasing transfers.",
+    label: "Payout timing",
+    value: "1hr After checkin",
+    hint: "90% of room fees released automatically when guests checks in — secure escrow protection.",
   },
   {
-    label: "Listings live in week one",
-    value: "12",
-    hint: "Bulk uploads and templates help new realtors launch fast without friction.",
+    label: "Property photos",
+    value: "Up to 10",
+    hint: "Upload up to 10 high-quality photos per property with drag-and-drop interface.",
   },
   {
-    label: "Guest satisfaction",
-    value: "4.9 / 5",
-    hint: "Smooth search, wishlists, and trusted reviews keep guests coming back.",
+    label: "Subdomain setup",
+    value: "Instant",
+    hint: "Your branded booking site at yourbusiness.stayza.pro goes live immediately after signup.",
   },
 ] as const;
 
 export const integrationBadges = [
-  { name: "Paystack Split", colour: palette.secondary },
-  { name: "Google Maps", colour: palette.primary },
-  { name: "Zapier", colour: palette.accent },
+  { name: "Paystack", colour: palette.secondary },
+  { name: "Cloudinary", colour: palette.primary },
+  { name: "Resend", colour: palette.accent },
 ] as const;
 
 export const caseStudies = [
   {
-    company: "Harbor & Keys Realty",
-    industry: "Independent brokerage",
-    result: "2× direct bookings in 6 weeks",
+    company: "Pre-Launch Platform",
+    industry: "Coming Soon",
+    result: "500+ Realtors on Waitlist",
     delta:
-      "by replacing portal listings with their own branded microsite and automated payouts",
+      "Join early and be among the first to launch your branded booking site with escrow-protected payments",
   },
   {
-    company: "PalmStay Apartments",
-    industry: "Serviced apartment collective",
-    result: "+34% weekend revenue",
+    company: "Built for Nigerian Realtors",
+    industry: "Local-First Features",
+    result: "CAC Verification System",
     delta:
-      "after rolling out dynamic seasonal pricing and instant PDF lease agreements",
+      "Submit your Corporate Affairs Commission certificate for admin review and get verified trust badges",
   },
   {
-    company: "MetroHost Partners",
-    industry: "Urban vacation rentals",
-    result: "72% fewer chargebacks",
-    delta: "thanks to verified realtor badges and built-in dispute workflows",
+    company: "Unlimited Properties",
+    industry: "No Subscription Fees",
+    result: "10% Commission Only",
+    delta:
+      "Free platform access with unlimited property listings—earn 90% of every booking after checkout",
   },
 ] as const;
 
 export const waitlistDetails = {
-  headline: "Secure your onboarding slot",
+  headline: "Join the waitlist",
   subcopy:
-    "We open a limited number of white-glove engagements each month to keep migrations fast, personal, and hands-on.",
+    "Be among the first to launch when we go live. Get priority access to all platform features.",
   bulletPoints: [
-    "Your logo, colours, and listings live in week one",
-    "Flutterwave or Paystack integration configured with compliance built in",
-    "Custom reporting and automation playbooks tailored to your team",
+    "Custom subdomain (yourbusiness.stayza.pro) with your logo and brand colors",
+    "Paystack escrow system: earn 90% of bookings, platform takes 10% commission",
+    "CAC verification for trust badges and unlimited property listings",
   ],
-  buttonLabel: "Book a discovery call",
+  buttonLabel: "Join the waitlist",
 } as const;
 
 export const faqItems = [
   {
-    question: "Do I need a developer to launch my microsite?",
+    question: "Do I need a developer to launch my booking site?",
     answer:
-      "No. The setup is guided — upload your logo, choose your colours, and your branded hub is live in minutes.",
+      "No. Choose your subdomain, upload your logo, pick your brand colors, and your yourbusiness.stayza.pro site goes live instantly.",
   },
   {
-    question: "Can I use my own domain?",
+    question: "Can I use my own custom domain?",
     answer:
-      "Yes. Point a subdomain like bookings.youragency.com, or use your ourapp.com/agency link — both keep your brand front and centre.",
+      "Currently, all realtors get a stayza.pro subdomain (e.g., yourbusiness.stayza.pro). Custom domain pointing will be available in future updates.",
   },
   {
-    question: "How are payouts and fees handled?",
+    question: "How do commissions and payouts work?",
     answer:
-      "Flutterwave or Paystack handle everything: commissions, refunds, receipts. Money flows automatically — no spreadsheets.",
+      "Guests pay via Paystack. Platform takes 10% of room fees only. You get 90% + 100% of cleaning fees automatically after 1 hour of check in. Guests also pay a 2% service fee.",
   },
   {
-    question: "What if I’m already using Airbnb or a marketplace?",
+    question: "What is CAC verification?",
     answer:
-      "You can keep them. Stayza Pro runs in parallel, giving you direct bookings you own while marketplaces stay as overflow.",
+      "Submit your Corporate Affairs Commission (CAC) registration certificate for admin review. Once approved, you get a verified trust badge displayed on your booking site.",
   },
   {
-    question: "What about pricing and limits?",
+    question: "Are there property limits or subscription fees?",
     answer:
-      "Start free with two listings and 5% commission. Upgrade to Pro for unlimited properties, analytics, and lower fees.",
+      "Currently free for all realtors with unlimited property listings. Platform earns only through the 10% commission on completed bookings. Paid plans with lower commission rates coming soon.",
   },
 ] as const;

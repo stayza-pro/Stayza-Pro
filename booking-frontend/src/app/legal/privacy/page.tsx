@@ -96,18 +96,18 @@ export default function PrivacyPage() {
       category: "Account Information",
       items: [
         "Name and contact details",
-        "Professional credentials",
-        "Agency information",
-        "Profile preferences",
+        "Business name and CAC certificate",
+        "Realtor/Guest profile information",
+        "Profile preferences and settings",
       ],
     },
     {
       category: "Booking Data",
       items: [
-        "Property viewing schedules",
-        "Client interaction logs",
-        "Booking preferences",
-        "Communication history",
+        "Property booking details",
+        "Check-in/out dates and times",
+        "Guest requests and communications",
+        "Booking status and history",
       ],
     },
     {
@@ -115,17 +115,17 @@ export default function PrivacyPage() {
       items: [
         "Platform navigation patterns",
         "Feature usage statistics",
-        "Performance metrics",
-        "Error reports",
+        "Error logs and reports",
+        "Session information",
       ],
     },
     {
       category: "Payment Information",
       items: [
-        "Billing address",
-        "Payment method details",
-        "Transaction history",
-        "Commission records",
+        "Paystack subaccount details",
+        "Transaction and escrow records",
+        "Commission splits (90/10)",
+        "Refund and payout history",
       ],
     },
   ];
@@ -134,32 +134,6 @@ export default function PrivacyPage() {
     <div className="min-h-screen marketing-theme">
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col bg-marketing-primary">
-        {/* Animated Background Orbs */}
-        <motion.div
-          className="absolute inset-0 overflow-hidden pointer-events-none"
-          initial="hidden"
-          animate="visible"
-          variants={containerVariants}
-        >
-          <motion.div
-            className="absolute top-20 right-20 w-64 h-64 bg-marketing-secondary/20 rounded-full blur-3xl"
-            variants={orbVariants}
-            animate="animate"
-          />
-          <motion.div
-            className="absolute bottom-40 left-20 w-96 h-96 bg-marketing-accent/20 rounded-full blur-3xl"
-            variants={orbVariants}
-            animate="animate"
-            transition={{ delay: 1 }}
-          />
-          <motion.div
-            className="absolute top-1/2 right-1/3 w-48 h-48 bg-marketing-primary-soft/30 rounded-full blur-2xl"
-            variants={orbVariants}
-            animate="animate"
-            transition={{ delay: 2 }}
-          />
-        </motion.div>
-
         <Navigation />
 
         <div className="flex-1 flex items-center justify-center px-6 relative z-10">
@@ -192,22 +166,6 @@ export default function PrivacyPage() {
               Transparency matters. Here's how Stayza handles and protects your
               personal information with industry-leading security standards.
             </motion.p>
-
-            <motion.div
-              className="flex flex-col sm:flex-row gap-6 justify-center"
-              variants={itemVariants}
-            >
-              <CTAButton
-                variant="solid"
-                href="mailto:privacy@stayza.com"
-                label="Contact Privacy Team"
-              />
-              <CTAButton
-                variant="ghost"
-                href="/legal/security"
-                label="Security Overview"
-              />
-            </motion.div>
           </motion.div>
         </div>
       </section>
@@ -354,19 +312,6 @@ export default function PrivacyPage() {
                     <li>• Opt out of non-essential communications</li>
                   </ul>
                 </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                <CTAButton
-                  variant="solid"
-                  href="mailto:privacy@stayza.com"
-                  label="Exercise Your Rights"
-                />
-                <CTAButton
-                  variant="outline"
-                  href="/legal/terms"
-                  label="View Terms of Service"
-                />
               </div>
             </motion.div>
           </div>

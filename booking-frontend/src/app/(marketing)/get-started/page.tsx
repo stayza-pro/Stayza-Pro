@@ -371,15 +371,15 @@ export default function GetStartedPage() {
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
                 <CTAButton
                   variant="ghost"
-                  href="/register"
+                  href="/join-waitlist"
                   className="bg-white text-marketing-primary hover:bg-white/90"
-                  label="Start Free Today"
+                  label="Join Waitlist"
                 />
                 <CTAButton
                   variant="outline"
-                  href="/contact"
+                  href="/#faq"
                   className="border-white text-white hover:bg-white hover:text-marketing-primary"
-                  label="Talk to Sales"
+                  label="View FAQ"
                 />
               </div>
             </motion.div>

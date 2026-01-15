@@ -16,9 +16,9 @@ export function SignalsSection() {
     >
       <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
         <SectionTitle
-          eyebrow="real-world signals"
-          title="Realtors turning portals into profit with Stayza Pro"
-          description="Independent brokers, serviced apartments, and vacation rental teams are ditching generic marketplaces for branded hubs that actually convert."
+          eyebrow="platform features"
+          title="Built for Nigerian property professionals launching soon"
+          description="Join 500+ realtors on the waitlist. Get your branded booking site, escrow-protected payments, and CAC verification when we launch."
         />
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="grid gap-6 sm:grid-cols-2">
@@ -65,7 +65,7 @@ export function SignalsSection() {
                 <CTAButton
                   label={waitlistDetails.buttonLabel}
                   variant="outline"
-                  href="https://cal.com/stayza-pro/discovery"
+                  href="/join-waitlist"
                 />
               </div>
             </div>

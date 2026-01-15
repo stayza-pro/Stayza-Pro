@@ -23,6 +23,22 @@ const navToggleStyles: CSSProperties & Record<string, string> = {
 export function Navigation() {
   const [open, setOpen] = useState(false);
 
+  const handleSmoothScroll = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    // Only handle anchor links (starting with /#)
+    if (href.startsWith("/#")) {
+      e.preventDefault();
+      const targetId = href.substring(2); // Remove /#
+      const element = document.getElementById(targetId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+        setOpen(false);
+      }
+    }
+  };
+
   return (
     <header className="relative z-20 border-b border-white/10 px-4 py-6 sm:px-6 lg:px-8">
       <nav
@@ -46,6 +62,7 @@ export function Navigation() {
             <Link
               key={link.href}
               href={link.href}
+              onClick={(e) => handleSmoothScroll(e, link.href)}
               className="transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             >
               {link.label}
@@ -54,7 +71,7 @@ export function Navigation() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <CTAButton label="Join Waitlist" href="/#waitlist" />
+          <CTAButton label="Join Waitlist" href="/join-waitlist" />
         </div>
       </nav>
 
@@ -64,7 +81,7 @@ export function Navigation() {
             <Link
               key={link.href}
               href={link.href}
-              onClick={() => setOpen(false)}
+              onClick={(e) => handleSmoothScroll(e, link.href)}
               className="rounded-xl px-3 py-2 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             >
               {link.label}
@@ -73,7 +90,7 @@ export function Navigation() {
           <CTAButton
             label="Join Waitlist"
             variant="solid"
-            href="/#waitlist"
+            href="/join-waitlist"
             className="w-full justify-center"
           />
         </div>

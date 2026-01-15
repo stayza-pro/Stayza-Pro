@@ -6,8 +6,6 @@ import { LogoLockup } from "@/app/(marketing)/components/LogoLockup";
 const footerLinks = [
   { label: "Privacy", href: "/legal/privacy" },
   { label: "Terms", href: "/legal/terms" },
-  { label: "Security", href: "/legal/security" },
-  { label: "Status", href: "https://status.stayza.pro" },
 ];
 
 export function FooterSection() {
@@ -46,12 +44,6 @@ export function FooterSection() {
                 {link.label}
               </Link>
             ))}
-            <Link
-              href="/contact"
-              className="transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--marketing-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--marketing-footer-bg)]"
-            >
-              Contact
-            </Link>
           </nav>
           <div
             className="flex flex-wrap items-center gap-4 text-xs"

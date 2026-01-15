@@ -8,7 +8,7 @@ export function WorkflowSection() {
         <SectionTitle
           eyebrow="workflow"
           title="Your booking hub, live in minutes"
-          description="No tech headaches. Just three guided steps from sign-up to first payout."
+          description="Simple guided setup process. Create account, customize branding, and go live with your subdomain."
         />
         <div className="relative">
           <div

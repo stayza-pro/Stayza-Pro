@@ -60,8 +60,14 @@ export function WaitlistForm() {
     <div className="w-full max-w-2xl mx-auto">
       {status === "success" ? (
         <div className="text-center py-12">
-          <CheckCircle2 className="w-16 h-16 mx-auto mb-4" style={{ color: palette.secondary }} />
-          <h3 className="text-2xl font-bold mb-2" style={{ color: palette.primary }}>
+          <CheckCircle2
+            className="w-16 h-16 mx-auto mb-4"
+            style={{ color: palette.secondary }}
+          />
+          <h3
+            className="text-2xl font-bold mb-2"
+            style={{ color: palette.primary }}
+          >
             You're on the list!
           </h3>
           <p className="text-gray-600">{message}</p>
@@ -84,10 +90,12 @@ export function WaitlistForm() {
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:border-transparent transition-all"
-              style={{
-                '--tw-ring-color': palette.primary,
-              } as React.CSSProperties}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:border-transparent transition-all"
+              style={
+                {
+                  "--tw-ring-color": palette.primary,
+                } as React.CSSProperties
+              }
               placeholder="your@email.com"
             />
           </div>
@@ -108,10 +116,12 @@ export function WaitlistForm() {
                 onChange={(e) =>
                   setFormData({ ...formData, fullName: e.target.value })
                 }
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:border-transparent transition-all"
-                style={{
-                  '--tw-ring-color': palette.primary,
-                } as React.CSSProperties}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:border-transparent transition-all"
+                style={
+                  {
+                    "--tw-ring-color": palette.primary,
+                  } as React.CSSProperties
+                }
                 placeholder="John Doe"
               />
             </div>
@@ -131,10 +141,12 @@ export function WaitlistForm() {
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 }
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:border-transparent transition-all"
-                style={{
-                  '--tw-ring-color': palette.primary,
-                } as React.CSSProperties}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:border-transparent transition-all"
+                style={
+                  {
+                    "--tw-ring-color": palette.primary,
+                  } as React.CSSProperties
+                }
                 placeholder="+234 XXX XXX XXXX"
               />
             </div>
@@ -155,10 +167,12 @@ export function WaitlistForm() {
               onChange={(e) =>
                 setFormData({ ...formData, companyName: e.target.value })
               }
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:border-transparent transition-all"
-              style={{
-                '--tw-ring-color': palette.primary,
-              } as React.CSSProperties}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:border-transparent transition-all"
+              style={
+                {
+                  "--tw-ring-color": palette.primary,
+                } as React.CSSProperties
+              }
               placeholder="Your Company"
             />
           </div>
@@ -177,10 +191,12 @@ export function WaitlistForm() {
               onChange={(e) =>
                 setFormData({ ...formData, source: e.target.value })
               }
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:border-transparent transition-all"
-              style={{
-                '--tw-ring-color': palette.primary,
-              } as React.CSSProperties}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:border-transparent transition-all"
+              style={
+                {
+                  "--tw-ring-color": palette.primary,
+                } as React.CSSProperties
+              }
             >
               <option value="">Select an option</option>
               <option value="search">Search Engine</option>

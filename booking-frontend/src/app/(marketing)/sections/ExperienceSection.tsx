@@ -12,7 +12,7 @@ export function ExperienceSection() {
         <SectionTitle
           eyebrow="experience"
           title="Guest experiences that win repeat bookings"
-          description="From wishlists to instant payouts, every interaction is designed to feel clear, fast, and reliable — no surprises, no friction."
+          description="From wishlists to secure escrow payments, every interaction is designed to feel clear, fast, and reliable — no surprises, no friction."
         />
         <div className="grid gap-6 md:grid-cols-3">
           {operationsSnapshots.map((card) => (
