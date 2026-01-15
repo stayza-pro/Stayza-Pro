@@ -28,7 +28,7 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
-      
+
       <div className="marketing-theme min-h-screen antialiased">
         <HeroSection />
         <TrustBar />

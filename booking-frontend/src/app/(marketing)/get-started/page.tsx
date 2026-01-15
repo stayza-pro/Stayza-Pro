@@ -189,7 +189,7 @@ export default function GetStartedPage() {
               className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white mb-6"
               variants={itemVariants}
             >
-              Get Started with{" "}
+              Join the Waitlist for{" "}
               <span className="text-marketing-accent">Stayza</span>
             </motion.h1>
 

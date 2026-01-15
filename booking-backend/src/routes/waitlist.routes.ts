@@ -72,13 +72,17 @@ router.post(
     if (existing) {
       return res.status(200).json({
         success: true,
-        message: "You're already on our waitlist! We'll notify you when we launch.",
+        message:
+          "You're already on our waitlist! We'll notify you when we launch.",
         data: { alreadyExists: true },
       });
     }
 
     // Get IP and User Agent
-    const ipAddress = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.ip || "unknown";
+    const ipAddress =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
+      req.ip ||
+      "unknown";
     const userAgent = req.headers["user-agent"] || "unknown";
 
     // Create waitlist entry
@@ -151,7 +155,8 @@ router.post(
 
     res.status(201).json({
       success: true,
-      message: "Successfully joined the waitlist! Check your email for confirmation.",
+      message:
+        "Successfully joined the waitlist! Check your email for confirmation.",
       data: {
         id: waitlistEntry.id,
         email: waitlistEntry.email,

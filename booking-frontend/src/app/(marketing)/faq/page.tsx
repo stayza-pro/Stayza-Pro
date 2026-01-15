@@ -162,9 +162,9 @@ export default function FAQPage() {
               >
                 <CTAButton label="Contact Support" href="/contact" />
                 <CTAButton
-                  label="Start Free Trial"
-                  variant="ghost"
-                  href="/get-started"
+                  label="Join Waitlist"
+                  variant="accent"
+                  href="/#waitlist"
                 />
               </motion.div>
             </motion.div>

@@ -81,7 +81,9 @@ export function IntegrationsSection() {
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <feature.icon className="w-6 h-6 text-blue-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">
+                {feature.title}
+              </h3>
               <p className="text-sm text-gray-600">{feature.description}</p>
             </div>
           ))}
@@ -106,12 +108,16 @@ export function IntegrationsSection() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-gray-900">{integration.name}</h3>
+                    <h3 className="font-semibold text-gray-900">
+                      {integration.name}
+                    </h3>
                     <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
                       {integration.category}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600">{integration.description}</p>
+                  <p className="text-sm text-gray-600">
+                    {integration.description}
+                  </p>
                 </div>
               </div>
             </div>
@@ -120,7 +126,9 @@ export function IntegrationsSection() {
 
         {/* Trust Badge */}
         <div className="mt-16 text-center">
-          <p className="text-sm text-gray-500 mb-4">Trusted by industry standards</p>
+          <p className="text-sm text-gray-500 mb-4">
+            Trusted by industry standards
+          </p>
           <div className="flex items-center justify-center gap-8 flex-wrap">
             <div className="flex items-center gap-2 text-gray-400">
               <Shield className="w-5 h-5" />

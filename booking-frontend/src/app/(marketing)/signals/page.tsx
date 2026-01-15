@@ -226,7 +226,7 @@ export default function SignalsPage() {
                       }
                 }
               >
-                <CTAButton label="Access Analytics" href="/get-started" />
+                <CTAButton label="Join Waitlist" href="/#waitlist" />
                 <CTAButton
                   label="View Sample Report"
                   variant="ghost"

@@ -188,7 +188,7 @@ export default function CapabilitiesPage() {
                       }
                 }
               >
-                <CTAButton label="Explore Features" href="/get-started" />
+                <CTAButton label="Join Waitlist" href="/#waitlist" />
                 <CTAButton
                   label="Schedule Demo"
                   variant="ghost"

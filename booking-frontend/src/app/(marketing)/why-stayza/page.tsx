@@ -176,7 +176,7 @@ export default function WhyStayzaPage() {
                       }
                 }
               >
-                <CTAButton label="Start Your Free Trial" href="/get-started" />
+                <CTAButton label="Join Waitlist" href="/#waitlist" />
                 <CTAButton
                   label="Watch Demo"
                   variant="ghost"

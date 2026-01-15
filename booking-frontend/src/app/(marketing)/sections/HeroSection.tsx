@@ -117,9 +117,9 @@ export function HeroSection() {
                       }
                 }
               >
-                Every realtor gets a personal booking hub—your logo, your
-                colours, your listings, your payments. Guests book, pay, and get
-                receipts. You get paid instantly. No middlemen. No mess.
+                Every realtor gets a branded booking website where clients book,
+                pay, and receive receipts instantly. You own your listings, your
+                payments, and your customers—no middlemen, no manual work.
               </motion.p>
               <motion.div
                 className="flex flex-wrap items-center gap-4"
@@ -135,13 +135,8 @@ export function HeroSection() {
                 }
               >
                 <CTAButton
-                  label="Launch Your Booking Site"
-                  href="/get-started"
-                />
-                <CTAButton
-                  label="Preview a Realtor Site"
-                  variant="ghost"
-                  href="/demo/realtor"
+                  label="Join Waitlist"
+                  href="/#waitlist"
                 />
               </motion.div>
               <motion.div

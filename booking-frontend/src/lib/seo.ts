@@ -1,7 +1,9 @@
 import { Metadata } from "next";
 
 export const baseMetadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://stayza.pro"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://stayza.pro"
+  ),
   title: {
     default: "Stayza Pro - Property Booking Platform for Modern Realtors",
     template: "%s | Stayza Pro",
@@ -53,7 +55,8 @@ export const baseMetadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Stayza Pro - Property Booking Platform",
-    description: "Launch your branded property booking website in minutes. Zero commission, direct payments.",
+    description:
+      "Launch your branded property booking website in minutes. Zero commission, direct payments.",
     images: ["/images/twitter-image.png"],
     creator: "@stayzapro",
   },

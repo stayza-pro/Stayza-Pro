@@ -89,7 +89,7 @@ export default function WorkflowPage() {
             while you focus on growth.
           </p>
           <div className="flex flex-wrap items-center gap-4 mt-10">
-            <CTAButton label="Automate Your Workflow" href="/get-started" />
+            <CTAButton label="Join Waitlist" href="/#waitlist" />
             <CTAButton
               label="See It In Action"
               variant="ghost"
