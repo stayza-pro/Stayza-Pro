@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getSubdomainInfo, getRealtorSubdomain } from "../../utils/subdomain";
+import { buildMainDomainUrl } from "../../utils/domains";
 import ProtectedRouteWrapper from "../../components/auth/ProtectedRouteWrapper";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
@@ -57,11 +58,11 @@ export default function RealtorLayout({
       await useAuthStore.getState().logout();
 
       // Redirect to realtor login on main domain
-      window.location.href = "http://localhost:3000/realtor/login";
+      window.location.href = buildMainDomainUrl("/realtor/login");
     } catch (error) {
       console.error("Logout error:", error);
       // Still redirect even if logout fails
-      window.location.href = "http://localhost:3000/realtor/login";
+      window.location.href = buildMainDomainUrl("/realtor/login");
     }
   };
 
@@ -74,7 +75,7 @@ export default function RealtorLayout({
   // On subdomains, if someone tries to access /login, redirect to main domain
   useEffect(() => {
     if (mounted && tenantInfo.type === "realtor" && pathname === "/login") {
-      window.location.href = "http://localhost:3000/realtor/login";
+      window.location.href = buildMainDomainUrl("/realtor/login");
     }
   }, [mounted, tenantInfo.type, pathname]);
 

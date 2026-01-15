@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { getSubdomainInfo } from "@/utils/subdomain";
+import { buildMainDomainUrl } from "@/utils/domains";
 
 export default function RealtorNotFound() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function RealtorNotFound() {
       }
 
       // Redirect to main domain realtor login
-      window.location.href = "http://localhost:3000/realtor/login";
+      window.location.href = buildMainDomainUrl("/realtor/login");
     };
 
     handleNotFound();
