@@ -102,14 +102,19 @@ function RealtorLoginContent() {
       if (loginResponse?.redirectUrl) {
         redirectUrl = loginResponse.redirectUrl;
         console.log("🔄 Using backend redirect URL:", redirectUrl);
-        
+
         // Fix: If backend returns localhost URL in production, replace with actual domain
-        if (typeof window !== "undefined" && 
-            redirectUrl.includes("localhost") && 
-            !window.location.hostname.includes("localhost")) {
+        if (
+          typeof window !== "undefined" &&
+          redirectUrl.includes("localhost") &&
+          !window.location.hostname.includes("localhost")
+        ) {
           const currentHost = window.location.host;
           redirectUrl = redirectUrl
-            .replace(/http:\/\/([^.]+)\.localhost:3000/, `https://$1.${currentHost}`)
+            .replace(
+              /http:\/\/([^.]+)\.localhost:3000/,
+              `https://$1.${currentHost}`
+            )
             .replace(/http:\/\/localhost:3000/, `https://${currentHost}`);
           console.log("🔧 Fixed localhost URL to:", redirectUrl);
         }

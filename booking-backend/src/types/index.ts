@@ -1,6 +1,7 @@
 import { Request } from "express";
 import { User, UserRole } from "@prisma/client";
 
+// Extend Express Request with user authentication
 export interface AuthenticatedRequest extends Request {
   user?: User;
   realtor?: {
@@ -8,6 +9,12 @@ export interface AuthenticatedRequest extends Request {
     status: string;
     businessName: string;
   };
+  // Explicitly include Express properties to avoid TypeScript errors
+  body: any;
+  params: any;
+  query: any;
+  file?: Express.Multer.File;
+  files?: Express.Multer.File[] | { [fieldname: string]: Express.Multer.File[] };
 }
 
 export interface JWTPayload {
