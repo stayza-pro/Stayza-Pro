@@ -453,7 +453,6 @@ router.post(
       reference
     );
 
-    
     // Check Paystack API response structure
     // Paystack returns: { status: true/false, message: "...", data: { status: "success", amount: 123, ... } }
     const txData = verificationResult.data || {};
@@ -465,7 +464,6 @@ router.post(
     const actualAmount = txData.amount || 0;
 
     if (actualAmount !== expectedAmount) {
-      
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
@@ -490,7 +488,7 @@ router.post(
     // Note: gateway_response can be "Successful", "test-3ds", etc. - we only check transaction status
     if (!isApiSuccess || !isTransactionSuccess) {
       // Log detailed failure info
-      
+
       // Update payment to FAILED
       await prisma.payment.update({
         where: { id: payment.id },
@@ -510,7 +508,7 @@ router.post(
         subject: "Payment Failed",
         html: `<p>Your payment for ${payment.booking.property.title} has failed. Please try again.</p>`,
       }).catch((err) => {});
-        
+
       throw new AppError(
         `Payment verification failed: ${
           verificationResult.message || txData.status || "Unknown error"
@@ -616,7 +614,7 @@ router.post(
       },
       payment.booking.property
     ).catch((err) => {});
-      
+
     // Send booking confirmation to guest (non-blocking)
     sendBookingConfirmation(
       payment.booking.guest.email,
@@ -634,7 +632,7 @@ router.post(
       },
       payment.booking.property.realtor
     ).catch((err) => {});
-      
+
     // Send real-time notifications
     await prisma.notification.create({
       data: {
@@ -853,7 +851,7 @@ router.post(
         },
         payment.booking.property
       ).catch((err) => {});
-        
+
       sendBookingConfirmation(
         payment.booking.guest.email,
         payment.booking.guest.firstName,
@@ -870,7 +868,7 @@ router.post(
         },
         payment.booking.property.realtor
       ).catch((err) => {});
-        
+
       await prisma.notification.create({
         data: {
           userId: payment.booking.guestId,
