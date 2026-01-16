@@ -5,31 +5,36 @@ export const baseMetadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://stayza.pro"
   ),
   title: {
-    default: "Stayza Pro - Property Booking Platform for Modern Realtors",
+    default: "Stayza Pro - Property Booking & Guest Management for Realtors",
     template: "%s | Stayza Pro",
   },
   description:
-    "Launch your branded property booking website in minutes. Direct payments with Paystack & Stripe, automated guest management, and zero commission. Perfect for realtors, property managers, and vacation rental businesses.",
+    "Complete booking management system for short-let and serviced apartment businesses. Branded guest portals, automated payments with escrow protection, real-time availability calendars, and integrated communication. Accept payments via Paystack with transparent commission tracking.",
   keywords: [
-    "property booking platform",
-    "realtor booking system",
-    "vacation rental software",
-    "property management software",
-    "short-term rental platform",
-    "booking website builder",
+    "property booking management system",
+    "short-let management software",
+    "serviced apartment booking platform",
+    "vacation rental management system",
+    "realtor booking software",
     "direct booking platform",
-    "property rental software",
-    "airbnb alternative",
-    "commission-free booking",
-    "paystack integration",
-    "stripe payments",
-    "automated booking system",
-    "property management platform",
-    "real estate booking",
+    "property management with escrow",
+    "automated guest management",
+    "booking calendar system",
+    "paystack booking integration",
+    "commission-based booking platform",
+    "multi-property management",
+    "guest communication platform",
+    "booking dispute resolution",
+    "property rental automation",
   ],
   authors: [{ name: "Stayza Pro" }],
   creator: "Stayza Pro",
   publisher: "Stayza Pro",
+  icons: {
+    icon: [{ url: "/favicon.ico" }, { url: "/icon.png", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png" }],
+    shortcut: ["/favicon.ico"],
+  },
   formatDetection: {
     email: false,
     address: false,
@@ -40,25 +45,26 @@ export const baseMetadata: Metadata = {
     locale: "en_US",
     url: "/",
     siteName: "Stayza Pro",
-    title: "Stayza Pro - Property Booking Platform for Modern Realtors",
+    title: "Property Booking & Guest Management for Realtors | Stayza Pro",
     description:
-      "Launch your branded property booking website in minutes. Direct payments, automated management, zero commission.",
+      "Branded booking system with automated payments, escrow protection, and real-time guest communication. Manage unlimited properties with transparent commission tracking.",
     images: [
       {
-        url: "/images/og-image.png",
+        url: "https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png",
         width: 1200,
         height: 630,
-        alt: "Stayza Pro - Property Booking Platform",
+        alt: "Stayza Pro - Property Booking Management System",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Stayza Pro - Property Booking Platform",
+    title: "Property Booking & Guest Management System | Stayza Pro",
     description:
-      "Launch your branded property booking website in minutes. Zero commission, direct payments.",
-    images: ["/images/twitter-image.png"],
-    creator: "@stayzapro",
+      "Branded guest portals, automated payments with escrow, real-time calendars. Transparent commission tracking.",
+    images: [
+      "https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png",
+    ],
   },
   robots: {
     index: true,
@@ -89,24 +95,23 @@ export const jsonLd = {
   operatingSystem: "Web",
   offers: {
     "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-    description: "Zero commission property booking platform",
-  },
-  aggregateRating: {
-    "@type": "AggregateRating",
-    ratingValue: "4.8",
-    ratingCount: "150",
+    description:
+      "Commission-based property booking management platform with Paystack payment integration",
+    availability: "https://schema.org/InStock",
   },
   description:
-    "Property booking platform for realtors and property managers. Launch branded booking websites with direct payments and automated management.",
+    "Multi-tenant booking management platform for short-let properties and serviced apartments. Features branded guest portals, automated payment processing with escrow protection, real-time availability calendars, integrated guest communication, dispute resolution, and review management.",
   featureList: [
-    "Branded booking websites",
-    "Direct payment processing",
-    "Automated guest management",
-    "Zero commission platform",
+    "Branded guest booking portals",
+    "Automated payment processing via Paystack",
+    "Escrow payment protection",
+    "Real-time booking calendars",
     "Multi-property management",
-    "Paystack & Stripe integration",
+    "Integrated guest messaging",
+    "Review and rating system",
+    "Dispute resolution workflow",
+    "Automated email notifications",
+    "Commission tracking and payouts",
   ],
 };
 
@@ -115,16 +120,13 @@ export const organizationSchema = {
   "@type": "Organization",
   name: "Stayza Pro",
   url: "https://stayza.pro",
-  logo: "https://stayza.pro/images/stayza.png",
-  description: "Property booking platform for modern realtors",
-  sameAs: [
-    "https://twitter.com/stayzapro",
-    "https://linkedin.com/company/stayzapro",
-    // Add other social profiles
-  ],
+  logo: "https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png",
+  description:
+    "Multi-tenant property booking management platform for realtors and property managers",
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "Customer Support",
     email: "support@stayza.pro",
+    availableLanguage: ["English"],
   },
 };
