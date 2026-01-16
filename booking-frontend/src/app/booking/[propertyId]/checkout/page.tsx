@@ -43,14 +43,7 @@ export default function BookingCheckoutPage() {
   const checkOut = searchParams.get("checkOut") || "";
   const guestsParam = searchParams.get("guests") || "1";
 
-  console.log("🔍 Checkout Page Render - URL Params:", {
-    propertyId,
-    checkIn,
-    checkOut,
-    guestsParam,
-    userLoading,
-    hasUser: !!user,
-  });
+  
 
   const { data: property, isLoading: propertyLoading } =
     useProperty(propertyId);
@@ -102,21 +95,12 @@ export default function BookingCheckoutPage() {
   useEffect(() => {
     const fetchBookingCalculation = async () => {
       if (!checkIn || !checkOut || !propertyId) {
-        console.log("⚠️ Missing required params for booking calculation:", {
-          checkIn,
-          checkOut,
-          propertyId,
-        });
+        
         return;
       }
 
       try {
-        console.log("💰 Fetching booking calculation...", {
-          propertyId,
-          checkIn,
-          checkOut,
-          guests: guestsParam,
-        });
+        
 
         const calculation = await bookingService.calculateBookingTotal(
           propertyId,
@@ -125,16 +109,16 @@ export default function BookingCheckoutPage() {
           parseInt(guestsParam)
         );
 
-        console.log("✅ Booking calculation received:", calculation);
-        console.log("✅ Calculation type:", typeof calculation);
-        console.log("✅ Calculation keys:", Object.keys(calculation || {}));
+        
+        
+        
 
         // Backend returns all fields we need
         setBookingCalculation(calculation);
       } catch (error: any) {
-        console.error("❌ Error calculating booking:", error);
-        console.error("❌ Error message:", error?.message);
-        console.error("❌ Error response:", error?.response?.data);
+        
+        
+        
       }
     };
 
@@ -143,7 +127,7 @@ export default function BookingCheckoutPage() {
 
   // Debug: Log when bookingCalculation state changes
   useEffect(() => {
-    console.log("📊 bookingCalculation state updated:", bookingCalculation);
+    
   }, [bookingCalculation]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -199,7 +183,7 @@ export default function BookingCheckoutPage() {
         `/booking/${propertyId}/payment?bookingId=${booking.id}&paymentMethod=paystack`
       );
     } catch (error: any) {
-      console.error("Booking error:", error);
+      
       setErrors({
         submit: error.message || "Failed to create booking. Please try again.",
       });
@@ -657,10 +641,7 @@ export default function BookingCheckoutPage() {
                 </h2>
 
                 {(() => {
-                  console.log(
-                    "📊 Rendering price details, bookingCalculation:",
-                    bookingCalculation
-                  );
+                  
                   return bookingCalculation ? (
                     <div className="space-y-3">
                       <div className="flex justify-between text-gray-700">

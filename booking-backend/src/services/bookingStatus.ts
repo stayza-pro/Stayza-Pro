@@ -223,7 +223,7 @@ export async function transitionBookingStatus(
       },
     });
   } catch (auditError) {
-    console.error("Failed to audit log booking status transition:", auditError);
+    
   }
 
   return updatedBooking;

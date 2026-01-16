@@ -66,10 +66,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
             (notification: NotificationSocketData) => {
               // Prevent duplicate notifications
               if (shownNotificationIds.has(notification.id)) {
-                console.log(
-                  "Skipping duplicate notification:",
-                  notification.id
-                );
+                
                 return;
               }
 
@@ -94,9 +91,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
           );
 
           socketServiceRef.current = socketService;
-          console.log("Socket.IO notifications enabled for user:", user.id);
+          
         } catch (err) {
-          console.error("Failed to initialize socket service:", err);
+          
         }
       }
     };

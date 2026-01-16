@@ -60,9 +60,9 @@ export default function AnalyticsPage() {
       setIsLoading(true);
       const data = await getAnalytics(timeRange);
       setAnalytics(data);
-      console.log("Analytics data loaded:", data);
+      
     } catch (error: any) {
-      console.error("Failed to fetch analytics:", error);
+      
       toast.error(error.response?.data?.message || "Failed to load analytics");
 
       // Fallback mock data to prevent NaN values
@@ -109,7 +109,7 @@ export default function AnalyticsPage() {
       const rate = await getCommissionRate();
       setCommissionRate(rate || 0.07);
     } catch (error: any) {
-      console.error("Failed to fetch commission rate:", error);
+      
       setCommissionRate(0.07);
     }
   };

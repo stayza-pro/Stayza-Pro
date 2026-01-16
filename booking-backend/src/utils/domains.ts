@@ -39,14 +39,7 @@ export function getDomainConfig(requestHost?: string): DomainConfig {
 
   const protocol = isProduction ? "https" : "http";
 
-  console.log("[Backend Domain Config]", {
-    isProduction,
-    mainDomain,
-    baseDomain,
-    protocol,
-    nodeEnv: config.NODE_ENV,
-    requestHost,
-  });
+  
 
   return {
     isProduction,
@@ -67,11 +60,7 @@ export function buildMainDomainUrl(
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   const url = `${protocol}://${mainDomain}${cleanPath}`;
 
-  console.log("[Backend] Building main domain URL:", {
-    path,
-    url,
-    requestHost,
-  });
+  
   return url;
 }
 
@@ -87,12 +76,7 @@ export function buildSubdomainUrl(
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   const url = `${protocol}://${subdomain}.${baseDomain}${cleanPath}`;
 
-  console.log("[Backend] Building subdomain URL:", {
-    subdomain,
-    path,
-    url,
-    requestHost,
-  });
+  
   return url;
 }
 
@@ -114,7 +98,7 @@ export function getEmailVerificationUrl(
 
   const path = `/verify-email?${params.toString()}`;
 
-  console.log("[Backend] Generated verification URL path:", path);
+  
 
   // All email verifications happen on main domain for consistency
   // The verify-email page is at the root level and handles all user types
@@ -194,7 +178,7 @@ export async function validateRealtorSubdomain(
 ): Promise<boolean> {
   // This would typically query the database to check if the realtor exists
   // For now, return true - implement actual validation as needed
-  console.log("[Backend] Validating realtor subdomain:", subdomain);
+  
   return true;
 }
 

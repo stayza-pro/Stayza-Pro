@@ -92,7 +92,7 @@ export const ReviewManagementDashboard: React.FC = () => {
       setReviews(filteredReviews);
       setAnalytics(analyticsResponse);
     } catch (error) {
-      console.error("Failed to load review data:", error);
+      
     } finally {
       setLoading(false);
     }
@@ -110,7 +110,7 @@ export const ReviewManagementDashboard: React.FC = () => {
       setResponseText("");
       loadData(); // Refresh data
     } catch (error) {
-      console.error("Failed to respond to review:", error);
+      
       alert("Failed to respond to review. Please try again.");
     }
   };

@@ -20,7 +20,7 @@ export function WaitlistSection() {
           setWaitlistCount(data.data.count + 100);
         }
       } catch (error) {
-        console.error("Failed to fetch waitlist count:", error);
+        
         // Keep default 100 if fetch fails
       }
     };

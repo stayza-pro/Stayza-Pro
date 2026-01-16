@@ -101,7 +101,7 @@ export function useRealtorStats(realtorId?: string): UseRealtorStatsReturn {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load statistics";
       setError(errorMessage);
-      console.error("Error fetching realtor stats:", err);
+      
     } finally {
       setIsLoading(false);
     }

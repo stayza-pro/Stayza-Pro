@@ -98,7 +98,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
       const response = await getBookingStats(30);
       setStats(response.data);
     } catch (error: any) {
-      console.error("Failed to fetch stats:", error);
+      
     }
   };
 
@@ -108,7 +108,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
       const data = await getAnalytics("30d");
       setAnalytics(data);
     } catch (error: any) {
-      console.error("Failed to fetch analytics:", error);
+      
     }
   };
 
@@ -187,7 +187,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
   const handleResolveDispute = async (disputeId: string, resolution: any) => {
     try {
       // This would be an API call to resolve the dispute
-      console.log("Resolving dispute:", disputeId, resolution);
+      
       // For now, just refresh the bookings
       await fetchBookings();
     } catch (error: any) {

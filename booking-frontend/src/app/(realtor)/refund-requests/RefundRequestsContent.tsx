@@ -34,13 +34,13 @@ export default function RefundRequestsContent() {
       setIsLoading(true);
       setError(null);
       const data = await refundService.getRealtorRefundRequests();
-      console.log("✅ Refund data received:", data);
-      console.log("📊 Refunds array length:", data?.data?.length);
-      console.log("📝 Refunds:", data?.data);
+      
+      
+      
       setRefundsData(data);
     } catch (err) {
-      console.error("❌ Error fetching refunds:", err);
-      console.error("Error details:", (err as any)?.response?.data);
+      
+      
       setError(err);
     } finally {
       setIsLoading(false);

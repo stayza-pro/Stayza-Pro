@@ -190,7 +190,7 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error("Form submission error:", error);
+      
     }
   };
 

@@ -39,13 +39,13 @@ export function useRealTimeUpdates() {
 
       // Set up connection listeners
       const unsubscribeConnection = socketService.onConnection(() => {
-        console.log("✅ Real-time connection established");
+        
         setIsConnected(true);
         // Connection toast disabled to prevent spam
       });
 
       const unsubscribeDisconnection = socketService.onDisconnection(() => {
-        console.log("❌ Real-time connection lost");
+        
         setIsConnected(false);
       });
 
@@ -80,10 +80,7 @@ export function useRealTimeUpdates() {
           setRecentUpdates((prev) => [update, ...prev].slice(0, 10));
 
           // All toast notifications disabled - check NotificationCenter bell icon for notifications
-          console.log(
-            `📢 ${update.type.toUpperCase()} notification:`,
-            notification.message
-          );
+          
         }
       );
 

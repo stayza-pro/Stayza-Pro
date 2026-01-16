@@ -181,7 +181,7 @@ export const useCreateProperty = () => {
         );
       },
       onError: (error) => {
-        console.error("Create property error:", error);
+        
       },
     }
   );
@@ -207,7 +207,7 @@ export const useUpdateProperty = () => {
       queryClient.invalidateQueries(propertyKeys.host());
     },
     onError: (error) => {
-      console.error("Update property error:", error);
+      
     },
   });
 };
@@ -225,7 +225,7 @@ export const useDeleteProperty = () => {
       queryClient.invalidateQueries(propertyKeys.host());
     },
     onError: (error) => {
-      console.error("Delete property error:", error);
+      
     },
   });
 };
@@ -241,7 +241,7 @@ export const useUploadPropertyImages = () => {
         queryClient.invalidateQueries(propertyKeys.detail(propertyId));
       },
       onError: (error) => {
-        console.error("Upload images error:", error);
+        
       },
     }
   );
@@ -259,7 +259,7 @@ export const useDeletePropertyImage = () => {
         queryClient.invalidateQueries(propertyKeys.detail(propertyId));
       },
       onError: (error) => {
-        console.error("Delete image error:", error);
+        
       },
     }
   );
@@ -284,7 +284,7 @@ export const useSetUnavailableDates = () => {
         ]);
       },
       onError: (error) => {
-        console.error("Set unavailable dates error:", error);
+        
       },
     }
   );
@@ -305,7 +305,7 @@ export const useRemoveUnavailableDates = () => {
         ]);
       },
       onError: (error) => {
-        console.error("Remove unavailable dates error:", error);
+        
       },
     }
   );

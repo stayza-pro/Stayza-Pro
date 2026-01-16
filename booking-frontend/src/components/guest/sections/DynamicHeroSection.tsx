@@ -73,7 +73,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
         setUser(parsedUser);
         setIsAuthenticated(true);
       } catch (error) {
-        console.error("Failed to parse user data:", error);
+        
       }
     }
   }, []);
@@ -157,7 +157,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
           totalGuests: totalGuestsSum,
         });
       } catch (error) {
-        console.error("Failed to fetch stats:", error);
+        
       }
     };
 

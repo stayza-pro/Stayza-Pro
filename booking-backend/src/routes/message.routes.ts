@@ -196,7 +196,7 @@ router.post(
         data: messageWithAttachments,
       });
     } catch (error: any) {
-      console.error("Error sending property inquiry:", error);
+      
       res.status(500).json({
         success: false,
         error: error.message || "Failed to send inquiry",
@@ -287,7 +287,7 @@ router.get(
         },
       });
     } catch (error: any) {
-      console.error("Error fetching property inquiry:", error);
+      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch inquiry messages",
@@ -493,7 +493,7 @@ router.post(
         data: messageWithAttachments,
       });
     } catch (error: any) {
-      console.error("Error sending booking message:", error);
+      
       res.status(500).json({
         success: false,
         error: error.message || "Failed to send message",
@@ -599,7 +599,7 @@ router.get(
         },
       });
     } catch (error: any) {
-      console.error("Error fetching booking messages:", error);
+      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch messages",
@@ -697,7 +697,7 @@ router.get(
         },
       });
     } catch (error: any) {
-      console.error("Error fetching conversations:", error);
+      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch conversations",
@@ -731,7 +731,7 @@ router.get(
         },
       });
     } catch (error: any) {
-      console.error("Error fetching unread count:", error);
+      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch unread count",
@@ -818,7 +818,7 @@ router.get(
         },
       });
     } catch (error: any) {
-      console.error("Error fetching admin messages:", error);
+      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch messages",

@@ -134,47 +134,39 @@ export function isRealtorDomain(): boolean {
  * Get appropriate dashboard URL based on user context
  */
 export function getDashboardUrl(userContext: UserContext): string {
-  console.log("🧭 Getting dashboard URL for user context:", userContext);
+  
 
   switch (userContext.role) {
     case "ADMIN":
-      console.log("🔧 Admin user - redirecting to main domain admin dashboard");
+      
       return buildMainDomainUrl("/admin");
 
     case "REALTOR":
       if (!userContext.subdomain) {
-        console.error("❌ Realtor user missing subdomain");
+        
         throw new Error("Realtor subdomain is required");
       }
 
       if (!userContext.isVerified) {
-        console.log(
-          "⏳ Realtor not verified - redirecting to main domain dashboard"
-        );
+        
         return buildMainDomainUrl("/realtor/dashboard");
       }
 
-      console.log(
-        `🏢 Verified realtor - redirecting to subdomain dashboard: ${userContext.subdomain}`
-      );
+      
       return buildSubdomainUrl(userContext.subdomain, "/realtor/dashboard");
 
     case "GUEST":
       const currentSubdomain = getCurrentSubdomain();
       if (currentSubdomain) {
-        console.log(
-          `👤 Guest on realtor subdomain - staying on: ${currentSubdomain}`
-        );
+        
         return buildSubdomainUrl(currentSubdomain, "/account");
       }
 
-      console.log(
-        "👤 Guest on main domain - redirecting to main domain account"
-      );
+      
       return buildMainDomainUrl("/account");
 
     default:
-      console.log("❓ Unknown user role - redirecting to main domain");
+      
       return buildMainDomainUrl("/");
   }
 }
@@ -183,28 +175,28 @@ export function getDashboardUrl(userContext: UserContext): string {
  * Get appropriate login URL based on current context and user type
  */
 export function getLoginUrl(userRole?: "ADMIN" | "REALTOR" | "GUEST"): string {
-  console.log("🔐 Getting login URL for role:", userRole);
+  
 
   const currentSubdomain = getCurrentSubdomain();
 
   if (userRole === "ADMIN" || isAdminDomain()) {
-    console.log("🔧 Admin login - main domain admin login");
+    
     return buildMainDomainUrl("/admin/login");
   }
 
   if (userRole === "REALTOR") {
-    console.log("🏢 Realtor login - main domain realtor login");
+    
     return buildMainDomainUrl("/realtor/login");
   }
 
   if (userRole === "GUEST" || currentSubdomain) {
     if (currentSubdomain) {
-      console.log(`👤 Guest login on realtor subdomain: ${currentSubdomain}`);
+      
       return buildSubdomainUrl(currentSubdomain, "/login");
     }
   }
 
-  console.log("🌐 Default login - main domain");
+  
   return buildMainDomainUrl("/login");
 }
 
@@ -214,28 +206,26 @@ export function getLoginUrl(userRole?: "ADMIN" | "REALTOR" | "GUEST"): string {
 export function getLogoutRedirectUrl(
   userRole?: "ADMIN" | "REALTOR" | "GUEST"
 ): string {
-  console.log("🚪 Getting logout redirect URL for role:", userRole);
+  
 
   const currentSubdomain = getCurrentSubdomain();
 
   if (userRole === "ADMIN" || isAdminDomain()) {
-    console.log("🔧 Admin logout - staying on main domain");
+    
     return buildMainDomainUrl("/");
   }
 
   if (userRole === "REALTOR") {
-    console.log("🏢 Realtor logout - redirecting to main domain");
+    
     return buildMainDomainUrl("/");
   }
 
   if (userRole === "GUEST" && currentSubdomain) {
-    console.log(
-      `👤 Guest logout - staying on realtor subdomain: ${currentSubdomain}`
-    );
+    
     return buildSubdomainUrl(currentSubdomain, "/");
   }
 
-  console.log("🌐 Default logout - main domain");
+  
   return buildMainDomainUrl("/");
 }
 
@@ -245,7 +235,7 @@ export function getLogoutRedirectUrl(
 export function getEmailVerificationRedirectUrl(
   userContext: UserContext
 ): string {
-  console.log("📧 Getting email verification redirect for:", userContext);
+  
 
   // After email verification, redirect to appropriate dashboard
   return getDashboardUrl(userContext);
@@ -258,18 +248,14 @@ export function getRealtorRegistrationRedirectUrl(
   subdomain: string,
   isVerified: boolean = false
 ): string {
-  console.log(
-    `🎉 Getting realtor registration redirect for subdomain: ${subdomain}, verified: ${isVerified}`
-  );
+  
 
   if (isVerified) {
-    console.log(`✅ Verified realtor - redirecting to subdomain dashboard`);
+    
     return buildSubdomainUrl(subdomain, "/realtor/dashboard");
   }
 
-  console.log(
-    `⏳ Unverified realtor - redirecting to main domain dashboard with verification prompt`
-  );
+  
   return buildMainDomainUrl(
     `/realtor/dashboard?verification-pending=true&subdomain=${subdomain}`
   );
@@ -279,7 +265,7 @@ export function getRealtorRegistrationRedirectUrl(
  * Navigate to URL with proper environment handling
  */
 export function navigateToUrl(url: string, replace: boolean = false): void {
-  console.log(`🔄 Navigating to URL: ${url} (replace: ${replace})`);
+  
 
   if (typeof window !== "undefined") {
     if (replace) {

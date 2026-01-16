@@ -54,7 +54,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        console.log("🔄 API: Attempting token refresh...");
+        
 
         // Try to get refresh token from authStore first, then localStorage
         let refreshToken: string | null = null;
@@ -64,11 +64,7 @@ api.interceptors.response.use(
           const storeRefreshToken = useAuthStore.getState().refreshToken;
           refreshToken =
             storeRefreshToken || localStorage.getItem("refreshToken");
-          console.log("🔍 API: Refresh token sources:", {
-            fromStore: !!storeRefreshToken,
-            fromLocalStorage: !!localStorage.getItem("refreshToken"),
-            hasRefreshToken: !!refreshToken,
-          });
+          
         } else {
           refreshToken = localStorage.getItem("refreshToken");
         }
@@ -90,7 +86,7 @@ api.interceptors.response.use(
           useAuthStore.setState({ accessToken });
         }
 
-        console.log("✅ API: Token refresh successful");
+        
 
         // Retry original request with new token
         if (originalRequest.headers) {
@@ -99,7 +95,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // Refresh failed, clear tokens and update auth store
-        console.log("❌ API: Token refresh failed:", refreshError);
+        
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
 

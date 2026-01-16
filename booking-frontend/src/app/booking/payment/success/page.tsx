@@ -111,7 +111,7 @@ const PaymentSuccessContent = () => {
           storedPaymentId = parsed.paymentId || null;
           storedBookingId = parsed.bookingId || null;
         } catch (err) {
-          console.warn("Unable to parse paystack payment meta", err);
+          
         }
       } else if (storedFlutterwaveMeta) {
         try {
@@ -119,16 +119,14 @@ const PaymentSuccessContent = () => {
           storedPaymentId = parsed.paymentId || null;
           storedBookingId = parsed.bookingId || null;
         } catch (err) {
-          console.warn("Unable to parse flutterwave payment meta", err);
+          
         }
       }
 
       try {
         // If no reference but we have bookingId, use verify-by-booking endpoint
         if (!reference && storedBookingId) {
-          console.log(
-            "No payment reference found, using verify-by-booking fallback"
-          );
+          
           const result = await paymentService.verifyPaymentByBooking({
             bookingId: storedBookingId,
           });
@@ -197,13 +195,11 @@ const PaymentSuccessContent = () => {
         }
       } catch (err) {
         const message = serviceUtils.extractErrorMessage(err);
-        console.error("Payment verification error:", err);
+        
 
         // If verification by reference failed but we have bookingId, try verify-by-booking as fallback
         if (reference && storedBookingId) {
-          console.log(
-            "Standard verification failed, trying verify-by-booking fallback"
-          );
+          
           try {
             const result = await paymentService.verifyPaymentByBooking({
               bookingId: storedBookingId,
@@ -222,7 +218,7 @@ const PaymentSuccessContent = () => {
             }
             return;
           } catch (fallbackErr) {
-            console.error("Fallback verification also failed:", fallbackErr);
+            
             // Fall through to error handling below
           }
         }

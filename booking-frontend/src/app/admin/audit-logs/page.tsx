@@ -59,7 +59,7 @@ export default function AuditLogsPage() {
         }
       );
     } catch (error: any) {
-      console.error("Failed to fetch audit logs:", error);
+      
       toast.error(error.response?.data?.message || "Failed to load audit logs");
       setLogs([]);
     } finally {

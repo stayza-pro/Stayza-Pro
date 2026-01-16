@@ -61,12 +61,7 @@ const CommissionSettings: React.FC<CommissionSettingsProps> = ({
   const hasChanges = Math.abs(commissionRate - currentRate) > 0.01;
 
   // Debug logging
-  console.log("Debug CommissionSettings:", {
-    currentRate,
-    commissionRate,
-    hasChanges,
-    difference: Math.abs(commissionRate - currentRate),
-  });
+  
 
   // Calculate preview values
   const previewBookingAmount = 50000; // ₦50,000 sample booking
@@ -84,7 +79,7 @@ const CommissionSettings: React.FC<CommissionSettingsProps> = ({
       setAnalytics(data);
       calculateImpactAnalysis(data, commissionRate);
     } catch (error) {
-      console.error("Failed to fetch analytics:", error);
+      
     }
   };
 

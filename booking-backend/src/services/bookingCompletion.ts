@@ -48,8 +48,7 @@ export async function completePastBookings(now: Date = new Date()) {
         })
         .catch(() => {});
     } catch (err) {
-      console.error("Failed to auto-complete booking", b.id, err);
-    }
+          }
   }
 
   return { processed: processedIds.length, bookings: processedIds };
@@ -124,8 +123,7 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
         })
         .catch(() => {});
     } catch (err) {
-      console.error("Failed to cancel stale booking", booking.id, err);
-    }
+          }
   }
 
   return { processed: cancelledIds.length, bookings: cancelledIds };
@@ -135,11 +133,7 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
  * Simple runner you could call manually (e.g. from a cron process script)
  */
 export async function runCompletionJob() {
-  console.log("[BookingCompletion] Job started");
-  const completion = await completePastBookings();
+    const completion = await completePastBookings();
   const cancellations = await cancelStalePendingBookings();
-  console.log(
-    `[BookingCompletion] Completed. Finalized=${completion.processed}, Cancelled=${cancellations.processed} stale bookings.`
-  );
-  return { completion, cancellations };
+    return { completion, cancellations };
 }

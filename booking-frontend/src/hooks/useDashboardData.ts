@@ -196,7 +196,7 @@ export function useDashboardData(): DashboardData {
         }));
       }
     } catch (err) {
-      console.error("Dashboard data fetch error:", err);
+      
       setError("Failed to load dashboard data");
 
       // Set fallback data based on user info

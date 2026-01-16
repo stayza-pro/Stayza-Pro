@@ -32,7 +32,7 @@ class ErrorLogger {
 
     // Log to console in development
     if (!this.isProduction) {
-      console.error("🔴 Error logged:", errorData);
+      
     }
 
     // In production, send to error tracking service
@@ -45,7 +45,7 @@ class ErrorLogger {
     }
 
     // Always log to console for now
-    console.error("Error:", errorData);
+    
   }
 
   /**
@@ -59,7 +59,7 @@ class ErrorLogger {
       ...context,
     };
 
-    console.warn("⚠️ Warning:", warningData);
+    
 
     if (this.isProduction && this.sentryEnabled) {
       // TODO: Send to Sentry
@@ -81,7 +81,7 @@ class ErrorLogger {
       ...metadata,
     };
 
-    console.info("ℹ️ Info:", infoData);
+    
 
     // Can send to analytics service
     if (this.isProduction) {
@@ -104,7 +104,7 @@ class ErrorLogger {
       ...metadata,
     };
 
-    console.log("📊 Action tracked:", actionData);
+    
 
     if (this.isProduction) {
       // TODO: Send to analytics service
@@ -129,7 +129,7 @@ class ErrorLogger {
       // });
     }
 
-    console.log("👤 User context set:", { userId, email, role });
+    
   }
 
   /**
@@ -141,7 +141,7 @@ class ErrorLogger {
       // Sentry.setUser(null);
     }
 
-    console.log("👤 User context cleared");
+    
   }
 }
 

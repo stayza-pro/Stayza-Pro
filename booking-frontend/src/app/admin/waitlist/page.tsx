@@ -53,7 +53,7 @@ export default function AdminWaitlistPage() {
 
       setIsLoading(false);
     } catch (error) {
-      console.error("Failed to fetch waitlist data:", error);
+      
       toast.error("Failed to load waitlist data");
       setIsLoading(false);
     }

@@ -82,7 +82,7 @@ export function usePropertiesData(
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load properties";
       setError(errorMessage);
-      console.error("Error fetching properties:", err);
+      
       setProperties([]);
     } finally {
       setIsLoading(false);

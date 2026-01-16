@@ -109,7 +109,7 @@ export default function WriteReviewPage() {
       toast.success("Review submitted successfully!");
       router.push(`/guest/bookings/${bookingId}`);
     } catch (error: any) {
-      console.error("Error submitting review:", error);
+      
       toast.error(
         error.message || "Failed to submit review. Please try again."
       );

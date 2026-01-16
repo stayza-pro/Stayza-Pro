@@ -97,8 +97,8 @@ export default function PropertyDetailsPage() {
   // Debug: Log property data
   React.useEffect(() => {
     if (property) {
-      console.log("Property data:", property);
-      console.log("Property images:", property.images);
+      
+      
     }
   }, [property]);
 
@@ -127,11 +127,11 @@ export default function PropertyDetailsPage() {
               .filter((day: any) => !day.available)
               .map((day: any) => day.date);
             setUnavailableDates(bookedDates);
-            console.log("📅 Loaded unavailable dates:", bookedDates.length);
+            
           }
         }
       } catch (error) {
-        console.error("Error fetching unavailable dates:", error);
+        
       }
     };
 
@@ -146,7 +146,7 @@ export default function PropertyDetailsPage() {
           const favorited = await favoritesService.checkFavorite(propertyId);
           setIsFavorited(favorited.data.isFavorited);
         } catch (error) {
-          console.error("Error checking favorite status:", error);
+          
         }
       }
     };
@@ -217,7 +217,7 @@ export default function PropertyDetailsPage() {
       }
       setIsFavorited(!isFavorited);
     } catch (error: any) {
-      console.error("Error toggling favorite:", error);
+      
       toast.error(error.message || "Failed to update favorites");
     }
   };
@@ -232,7 +232,7 @@ export default function PropertyDetailsPage() {
         });
       } catch (error) {
         // User cancelled or share failed
-        console.log("Share cancelled");
+        
       }
     } else {
       navigator.clipboard.writeText(window.location.href);
@@ -304,10 +304,10 @@ export default function PropertyDetailsPage() {
     e.stopPropagation();
 
     const dateString = formatDateToString(date);
-    console.log("Date clicked:", dateString, "isCheckIn:", isCheckIn);
+    
 
     if (isCheckIn) {
-      console.log("Setting check-in to:", dateString);
+      
       setCheckIn(dateString);
       setShowCheckInCalendar(false);
       if (checkOut && new Date(dateString) >= new Date(checkOut)) {
@@ -315,7 +315,7 @@ export default function PropertyDetailsPage() {
       }
       setTimeout(() => setShowCheckOutCalendar(true), 100);
     } else {
-      console.log("Setting check-out to:", dateString);
+      
       setCheckOut(dateString);
       setShowCheckOutCalendar(false);
     }
@@ -513,10 +513,7 @@ export default function PropertyDetailsPage() {
                   className="w-full h-full object-cover"
                   crossOrigin="anonymous"
                   onError={(e) => {
-                    console.error(
-                      "Image failed to load:",
-                      property.images?.[selectedImageIndex]?.url
-                    );
+                    
                     e.currentTarget.src =
                       "https://via.placeholder.com/800x600?text=Image+Not+Found";
                   }}
@@ -933,10 +930,7 @@ export default function PropertyDetailsPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log(
-                          "Check-in button clicked, current state:",
-                          showCheckInCalendar
-                        );
+                        
                         setShowCheckInCalendar(!showCheckInCalendar);
                         setShowCheckOutCalendar(false);
                       }}
@@ -976,10 +970,7 @@ export default function PropertyDetailsPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        console.log(
-                          "Check-out button clicked, checkIn:",
-                          checkIn
-                        );
+                        
                         if (!checkIn) {
                           setShowCheckInCalendar(true);
                           return;

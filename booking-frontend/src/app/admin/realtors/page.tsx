@@ -66,7 +66,7 @@ export default function RealtorsPage() {
       setRealtors(response.realtors);
       setPagination(response.pagination);
     } catch (error: any) {
-      console.error("Failed to fetch realtors:", error);
+      
       toast.error(error.response?.data?.message || "Failed to load realtors");
     } finally {
       setIsLoading(false);

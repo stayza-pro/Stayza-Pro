@@ -67,7 +67,7 @@ export default function GuestLandingPage() {
         setRealtorData(response.data);
         setLoading(false);
       } catch (err: any) {
-        console.error("Failed to load realtor branding:", err);
+        
         setError("This realtor website could not be found.");
         setLoading(false);
       }

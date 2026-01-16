@@ -21,7 +21,7 @@ export class SocketService {
 
   connect(token: string, userId: string, role: string): void {
     if (this.socket?.connected) {
-      console.log("Socket already connected");
+      
       return;
     }
 
@@ -43,14 +43,14 @@ export class SocketService {
 
     // Connection events
     this.socket.on("connect", () => {
-      console.log("Connected to notification server");
+      
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.onConnectionCallbacks.forEach((callback) => callback());
     });
 
     this.socket.on("disconnect", (reason) => {
-      console.log("Disconnected from notification server:", reason);
+      
       this.isConnected = false;
       this.onDisconnectionCallbacks.forEach((callback) => callback());
 
@@ -64,13 +64,13 @@ export class SocketService {
     });
 
     this.socket.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
+      
       this.handleReconnection();
     });
 
     // Notification events
     this.socket.on("notification", (notification: NotificationSocketData) => {
-      console.log("New notification received:", notification);
+      
 
       // Show toast notification
       this.showToastNotification(notification);
@@ -82,28 +82,28 @@ export class SocketService {
     });
 
     this.socket.on("unread_count", (count: number) => {
-      console.log("Unread count updated:", count);
+      
       this.onUnreadCountCallbacks.forEach((callback) => callback(count));
     });
 
     this.socket.on(
       "notification_history",
       (notifications: NotificationSocketData[]) => {
-        console.log("Notification history received:", notifications);
+        
       }
     );
   }
 
   private handleReconnection(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log("Max reconnection attempts reached");
+      
       toast.error("Connection lost. Please refresh the page.");
       return;
     }
 
     setTimeout(() => {
       this.reconnectAttempts++;
-      console.log(`Reconnection attempt ${this.reconnectAttempts}`);
+      
       this.socket?.connect();
     }, Math.pow(2, this.reconnectAttempts) * 1000); // Exponential backoff
   }

@@ -50,20 +50,17 @@ export function useRealtorBranding() {
 
       // Try to get subdomain first (same as guest-landing page)
       const subdomain = getRealtorSubdomain();
-      console.log("🔍 useRealtorBranding: subdomain =", subdomain);
+      
 
       if (subdomain) {
         try {
-          console.log(
-            "🌐 Fetching branding via subdomain:",
-            `/branding/subdomain/${subdomain}`
-          );
+          
           // Use the same endpoint as guest-landing page
           const response = await apiClient.get<APIRealtorBranding>(
             `/branding/subdomain/${subdomain}`
           );
 
-          console.log("✅ Subdomain API response:", response.data);
+          
           if (response.data) {
             const newBranding = {
               id: response.data.id, // Include realtor ID
@@ -75,14 +72,11 @@ export function useRealtorBranding() {
               logoUrl: response.data.logo,
               description: response.data.description,
             };
-            console.log("🎨 Setting branding:", newBranding);
+            
             setRealtorBranding(newBranding);
           }
         } catch (error) {
-          console.error(
-            "Failed to fetch realtor branding via subdomain:",
-            error
-          );
+          
           // Try fallback method using referredByRealtorId
           await tryFetchByRealtorId();
         } finally {
@@ -97,10 +91,10 @@ export function useRealtorBranding() {
     const tryFetchByRealtorId = async () => {
       // Skip the API call and go directly to localStorage fallback for now
       // since we don't have a proper realtorId-based endpoint that returns color data
-      console.log("� Skipping realtorId API call, using localStorage fallback");
+      
 
       if (user?.referredByRealtor) {
-        console.log("💾 Using localStorage fallback:", user.referredByRealtor);
+        
         setRealtorBranding({
           businessName: user.referredByRealtor.businessName,
           tagline: user.referredByRealtor.tagline,
@@ -197,18 +191,7 @@ export function useRealtorBranding() {
 
   // Debug logging
   if (!isLoading) {
-    console.log("🎨 useRealtorBranding result:", {
-      brandColor: result.brandColor,
-      secondaryColor: result.secondaryColor,
-      accentColor: result.accentColor,
-      realtorBranding: realtorBranding,
-      userRealtor: user?.referredByRealtor,
-      userRealtorColors: {
-        primary: user?.referredByRealtor?.primaryColor,
-        secondary: user?.referredByRealtor?.secondaryColor,
-        accent: user?.referredByRealtor?.accentColor,
-      },
-    });
+    
   }
 
   return result;

@@ -453,11 +453,7 @@ router.post(
       reference
     );
 
-    console.log(
-      "Paystack verification result:",
-      JSON.stringify(verificationResult, null, 2)
-    );
-
+    
     // Check Paystack API response structure
     // Paystack returns: { status: true/false, message: "...", data: { status: "success", amount: 123, ... } }
     const txData = verificationResult.data || {};
@@ -469,12 +465,7 @@ router.post(
     const actualAmount = txData.amount || 0;
 
     if (actualAmount !== expectedAmount) {
-      console.error("Payment amount mismatch:", {
-        expected: expectedAmount,
-        actual: actualAmount,
-        difference: actualAmount - expectedAmount,
-      });
-
+      
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
@@ -499,13 +490,7 @@ router.post(
     // Note: gateway_response can be "Successful", "test-3ds", etc. - we only check transaction status
     if (!isApiSuccess || !isTransactionSuccess) {
       // Log detailed failure info
-      console.error("Payment verification failed:", {
-        apiSuccess: isApiSuccess,
-        transactionStatus: txData.status,
-        gateway_response: txData.gateway_response,
-        message: verificationResult.message,
-      });
-
+      
       // Update payment to FAILED
       await prisma.payment.update({
         where: { id: payment.id },
@@ -524,10 +509,8 @@ router.post(
       sendEmail(payment.booking.guest.email, {
         subject: "Payment Failed",
         html: `<p>Your payment for ${payment.booking.property.title} has failed. Please try again.</p>`,
-      }).catch((err) =>
-        console.error("Failed to send payment failure email:", err.message)
-      );
-
+      }).catch((err) => {});
+        
       throw new AppError(
         `Payment verification failed: ${
           verificationResult.message || txData.status || "Unknown error"
@@ -632,10 +615,8 @@ router.post(
         checkOutDate: payment.booking.checkOutDate,
       },
       payment.booking.property
-    ).catch((err) =>
-      console.error("Failed to send payment receipt:", err.message)
-    );
-
+    ).catch((err) => {});
+      
     // Send booking confirmation to guest (non-blocking)
     sendBookingConfirmation(
       payment.booking.guest.email,
@@ -652,10 +633,8 @@ router.post(
         realtorEmail: payment.booking.property.realtor.user.email,
       },
       payment.booking.property.realtor
-    ).catch((err) =>
-      console.error("Failed to send booking confirmation:", err.message)
-    );
-
+    ).catch((err) => {});
+      
     // Send real-time notifications
     await prisma.notification.create({
       data: {
@@ -873,10 +852,8 @@ router.post(
           checkOutDate: payment.booking.checkOutDate,
         },
         payment.booking.property
-      ).catch((err) =>
-        console.error("Failed to send payment receipt:", err.message)
-      );
-
+      ).catch((err) => {});
+        
       sendBookingConfirmation(
         payment.booking.guest.email,
         payment.booking.guest.firstName,
@@ -892,10 +869,8 @@ router.post(
           realtorEmail: payment.booking.property.realtor.user.email,
         },
         payment.booking.property.realtor
-      ).catch((err) =>
-        console.error("Failed to send booking confirmation:", err.message)
-      );
-
+      ).catch((err) => {});
+        
       await prisma.notification.create({
         data: {
           userId: payment.booking.guestId,

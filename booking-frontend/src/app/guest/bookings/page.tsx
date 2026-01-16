@@ -60,7 +60,7 @@ export default function GuestBookingsPage() {
       return failureCount < 2;
     },
     onError: (error: any) => {
-      console.error("Failed to fetch bookings:", error);
+      
       // If it's an auth error, the user will be redirected by the useEffect above
     },
   });

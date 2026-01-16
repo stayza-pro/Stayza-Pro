@@ -111,7 +111,7 @@ export function useRevenueData(): RevenueChartData {
         throw new Error("Failed to fetch revenue data");
       }
     } catch (err) {
-      console.error("Revenue data fetch error:", err);
+      
       setError("Failed to load revenue data");
 
       // Use mock data as fallback

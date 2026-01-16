@@ -96,7 +96,7 @@ export default function PayoutsPage() {
       const data = await walletService.getWithdrawalHistory(1, 10);
       setWithdrawals(data.data);
     } catch (error: any) {
-      console.error("Failed to load withdrawal history:", error);
+      
     }
   };
 
@@ -109,7 +109,7 @@ export default function PayoutsPage() {
       setWalletBalance(balanceData);
       setEarnings(earningsData);
     } catch (error: any) {
-      console.error("Failed to load wallet data:", error);
+      
     }
   };
 
@@ -124,7 +124,7 @@ export default function PayoutsPage() {
       setTransactions(response.data);
       setTxTotalPages(response.pagination.totalPages);
     } catch (error: any) {
-      console.error("Failed to load transactions:", error);
+      
     }
   };
 
@@ -159,9 +159,9 @@ export default function PayoutsPage() {
         }
       } else {
         const errorData = await pendingRes.json();
-        console.error("Pending payouts error:", errorData);
-        console.error("Response status:", pendingRes.status);
-        console.error("Response headers:", pendingRes.headers);
+        
+        
+        
       }
 
       if (historyRes.ok) {
@@ -169,26 +169,23 @@ export default function PayoutsPage() {
         setPayoutHistory(data.data.history || []);
       } else {
         const errorData = await historyRes.json();
-        console.error("History error:", errorData);
-        console.error("Response status:", historyRes.status);
-        console.error(
-          "Error message:",
-          errorData.message || errorData.error?.message
-        );
+        
+        
+        
       }
 
       // Use payout settings as the primary source of truth for hasPayoutAccount
       if (settingsRes.ok) {
         const data = await settingsRes.json();
         setHasPayoutAccount(data.data.hasPayoutAccount || false);
-        console.log("Payout account status:", data.data.hasPayoutAccount);
-        console.log("Subaccount code:", data.data.subAccountCode);
+        
+        
       } else {
         const errorData = await settingsRes.json();
-        console.error("Settings error:", errorData);
+        
       }
     } catch (error) {
-      console.error("Failed to fetch payout data:", error);
+      
       showError("Failed to load payout information");
     } finally {
       setLoading(false);
@@ -268,7 +265,7 @@ export default function PayoutsPage() {
       await loadTransactions();
       await loadWithdrawals();
     } catch (error: any) {
-      console.error("Withdrawal failed:", error);
+      
       showError(
         error.response?.data?.message || "Failed to request withdrawal"
       );

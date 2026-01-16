@@ -13,9 +13,7 @@ export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
   // This can be enhanced with PostHog, Google Analytics, etc. in future releases
 
   if (process.env.NODE_ENV === "development") {
-    console.log(
-      "Analytics disabled for MVP - will be enabled in future releases"
-    );
+    
   }
 
   return <>{children}</>;

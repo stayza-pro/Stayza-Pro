@@ -114,7 +114,7 @@ export function useRevenueData(
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load revenue data";
       setError(errorMessage);
-      console.error("Error fetching revenue data:", err);
+      
     } finally {
       setIsLoading(false);
     }

@@ -75,7 +75,7 @@ export default function CheckoutPage() {
         }
       }
     } catch (error: any) {
-      console.error("Error fetching booking:", error);
+      
       toast.error("Failed to load booking details");
       router.push("/guest/bookings");
     } finally {
@@ -125,7 +125,7 @@ export default function CheckoutPage() {
           guestId: booking.guestId,
         },
         callback: function (response: any) {
-          console.log("Payment successful:", response);
+          
           toast.success("Payment successful! Verifying...");
 
           // Verify payment (handle async operation)
@@ -144,14 +144,14 @@ export default function CheckoutPage() {
               }
             })
             .catch((error) => {
-              console.error("Error verifying payment:", error);
+              
               toast.error(
                 "Payment verification failed. Please contact support."
               );
             });
         },
         onClose: function () {
-          console.log("Payment window closed");
+          
           setIsProcessing(false);
           toast("Payment cancelled");
         },
@@ -159,7 +159,7 @@ export default function CheckoutPage() {
 
       handler.openIframe();
     } catch (error: any) {
-      console.error("Error processing payment:", error);
+      
       toast.error(error.message || "Failed to process payment");
       setIsProcessing(false);
     }

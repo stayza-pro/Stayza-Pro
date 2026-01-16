@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       status: "OK",
     });
   } catch (error: any) {
-    console.error("Autocomplete API error:", error);
+    
     return NextResponse.json(
       {
         error: "Failed to fetch location suggestions",

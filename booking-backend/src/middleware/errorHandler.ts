@@ -82,17 +82,7 @@ const logError = async (
 ) => {
   const logLevel = statusCode >= 500 ? "ERROR" : "WARN";
 
-  console.error(`[${logLevel}] Error ID: ${errorId}`, {
-    message: err.message,
-    stack: err.stack,
-    url: req.originalUrl,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get("User-Agent"),
-    userId: (req as any).user?.id,
-    body: req.method !== "GET" ? req.body : undefined,
-    timestamp: new Date().toISOString(),
-  });
+  
 
   // Audit log critical errors
   if (statusCode >= 500) {
@@ -110,7 +100,7 @@ const logError = async (
         req,
       });
     } catch (auditError) {
-      console.error("Failed to audit log error:", auditError);
+      
     }
   }
 };
@@ -322,9 +312,9 @@ export const asyncHandler = (fn: AsyncRouteHandler) => {
 export const setupGlobalErrorHandlers = () => {
   // Handle uncaught exceptions
   process.on("uncaughtException", (err: Error) => {
-    console.error("UNCAUGHT EXCEPTION! 💥 Shutting down...");
-    console.error("Error:", err.name, err.message);
-    console.error("Stack:", err.stack);
+    
+    
+    
 
     // Log to audit system if possible
     auditLogger
@@ -343,9 +333,9 @@ export const setupGlobalErrorHandlers = () => {
 
   // Handle unhandled promise rejections
   process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
-    console.error("UNHANDLED REJECTION! 💥 Shutting down...");
-    console.error("Reason:", reason);
-    console.error("Promise:", promise);
+    
+    
+    
 
     // Log to audit system if possible
     auditLogger
@@ -364,13 +354,13 @@ export const setupGlobalErrorHandlers = () => {
 
   // Handle SIGTERM gracefully
   process.on("SIGTERM", () => {
-    console.log("👋 SIGTERM received. Shutting down gracefully...");
+    
     process.exit(0);
   });
 
   // Handle SIGINT gracefully (Ctrl+C)
   process.on("SIGINT", () => {
-    console.log("👋 SIGINT received. Shutting down gracefully...");
+    
     process.exit(0);
   });
 };

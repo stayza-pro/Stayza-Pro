@@ -78,7 +78,7 @@ export default function AdminActionsWidget({
         toast.success("Data refreshed successfully!");
       }
     } catch (error) {
-      console.error("Failed to fetch admin widget data:", error);
+      
       // Keep default values on error
     } finally {
       setLoading(false);

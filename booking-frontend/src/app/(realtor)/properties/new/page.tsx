@@ -408,7 +408,7 @@ export default function AddPropertyPage() {
       toast.success("🎉 Property created successfully!");
       router.push("/properties");
     } catch (error: any) {
-      console.error("Error creating property:", error);
+      
       toast.error(
         error.response?.data?.message ||
           error.message ||

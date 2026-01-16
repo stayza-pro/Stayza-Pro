@@ -65,12 +65,12 @@ export default function PaymentPage() {
     paystackScript.id = "paystack-script";
 
     paystackScript.onload = () => {
-      console.log("✅ Paystack script loaded successfully");
+      
       setIsPaystackLoaded(true);
     };
 
     paystackScript.onerror = () => {
-      console.error("❌ Failed to load Paystack script");
+      
       setError("Failed to load payment system. Please refresh the page.");
       setPaymentStatus("failed");
     };
@@ -101,10 +101,7 @@ export default function PaymentPage() {
 
       try {
         const bookingData = await bookingService.getBooking(bookingId);
-        console.log(
-          "Fetched booking data:",
-          JSON.stringify(bookingData, null, 2)
-        );
+        
         setBooking(bookingData);
 
         // Check if already paid (HELD or later status means payment processed)
@@ -122,7 +119,7 @@ export default function PaymentPage() {
 
         setPaymentStatus("ready");
       } catch (err: any) {
-        console.error("Error fetching booking:", err);
+        
         setError(err.message || "Failed to load booking details");
         setPaymentStatus("failed");
       }
@@ -155,18 +152,14 @@ export default function PaymentPage() {
     setError("");
 
     try {
-      console.log("🚀 Initializing Paystack payment via backend API...", {
-        bookingId: booking.id,
-        amount: booking.totalPrice,
-        currency: booking.currency,
-      });
+      
 
       // Call backend API to initialize payment
       const response = await paymentService.initializePaystackPayment({
         bookingId: booking.id,
       });
 
-      console.log("✅ Paystack initialization response:", response);
+      
 
       if (!response.reference) {
         throw new Error("No payment reference received from server");
@@ -204,20 +197,14 @@ export default function PaymentPage() {
           ],
         },
         onClose: function () {
-          console.log("Payment popup closed");
+          
           setPaymentStatus("ready");
           setError("Payment was cancelled. Please try again when ready.");
         },
         callback: function (paystackResponse: any) {
-          console.log("✅ Payment successful:", paystackResponse);
-          console.log(
-            "✅ Reference from Paystack:",
-            paystackResponse.reference
-          );
-          console.log(
-            "✅ Full Paystack response structure:",
-            JSON.stringify(paystackResponse, null, 2)
-          );
+          
+          
+          
 
           // Handle verification in a separate async call
           const verifyAndRedirect = async () => {
@@ -232,7 +219,7 @@ export default function PaymentPage() {
                 throw new Error("No reference found in Paystack response");
               }
 
-              console.log("🔍 Verifying payment with reference:", reference);
+              
 
               // Verify payment with backend
               const verifyResponse = await paymentService.verifyPaystackPayment(
@@ -241,7 +228,7 @@ export default function PaymentPage() {
                 }
               );
 
-              console.log("✅ Verification response:", verifyResponse);
+              
 
               if (verifyResponse.success) {
                 setPaymentStatus("success");
@@ -269,12 +256,8 @@ export default function PaymentPage() {
                 );
               }
             } catch (err: any) {
-              console.error("❌ Payment verification error:", err);
-              console.error("❌ Error details:", {
-                message: err.message,
-                response: err.response?.data,
-                status: err.response?.status,
-              });
+              
+              
               setPaymentStatus("failed");
               setError(
                 err.response?.data?.message ||
@@ -290,7 +273,7 @@ export default function PaymentPage() {
 
       handler.openIframe();
     } catch (err: any) {
-      console.error("❌ Paystack initialization error:", err);
+      
       setPaymentStatus("failed");
       setError(
         err.response?.data?.message ||
@@ -329,17 +312,11 @@ export default function PaymentPage() {
 
     // Validate dates
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-      console.error("Invalid dates:", {
-        checkInDate: booking.checkInDate,
-        checkOutDate: booking.checkOutDate,
-      });
+      
       return null;
     }
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-      console.error("Invalid dates:", {
-        checkIn: booking.checkInDate,
-        checkOut: booking.checkOutDate,
-      });
+      
       return null;
     }
 

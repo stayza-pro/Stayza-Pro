@@ -93,7 +93,7 @@ export function AdminDashboardLayout({ children }: AdminDashboardLayoutProps) {
       // Redirect to main domain landing page (domain-aware)
       window.location.href = getMainDomainUrl("/");
     } catch (error) {
-      console.error("Logout failed:", error);
+      
     }
   };
 

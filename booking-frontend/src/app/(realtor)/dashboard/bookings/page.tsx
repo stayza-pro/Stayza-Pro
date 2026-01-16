@@ -76,7 +76,7 @@ export default function BookingsPage() {
       setBookings(response.data || []);
       setTotalPages(response.pagination?.totalPages || 1);
     } catch (error) {
-      console.error("Error fetching bookings:", error);
+      
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ export default function BookingsPage() {
       setShowDetailModal(false);
       showSuccess(`Booking ${newStatus.toLowerCase()} successfully!`);
     } catch (error) {
-      console.error("Error updating booking:", error);
+      
       showError("Failed to update booking status");
     }
   };

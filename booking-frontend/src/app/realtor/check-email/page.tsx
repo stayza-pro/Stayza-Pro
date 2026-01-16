@@ -43,7 +43,7 @@ function CheckEmailContent() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      console.error("Resend verification error:", error);
+      
       toast.error("Network error. Please try again.");
     } finally {
       setIsResending(false);

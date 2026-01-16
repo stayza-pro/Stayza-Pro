@@ -184,7 +184,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       });
       setUploadedPhotos([]);
     } catch (error) {
-      console.error("Failed to submit review:", error);
+      
       alert("Failed to submit review. Please try again.");
     } finally {
       setIsSubmitting(false);

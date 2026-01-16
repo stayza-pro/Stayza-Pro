@@ -40,7 +40,7 @@ const getImageUrl = (image: any): string => {
     return image.src;
   }
 
-  console.warn("Unknown image format:", image);
+  
   return "";
 };
 

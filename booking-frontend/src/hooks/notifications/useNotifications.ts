@@ -141,7 +141,7 @@ export function useNotifications(): UseNotificationsReturn {
         setHasMore(data.pagination.hasNext);
       } catch (err: any) {
         setError(err.message || "Failed to load notifications");
-        console.error("Error loading notifications:", err);
+        
       } finally {
         setIsLoading(false);
       }
@@ -171,7 +171,7 @@ export function useNotifications(): UseNotificationsReturn {
         socketService.markNotificationAsRead(notificationId);
       } catch (err: any) {
         setError(err.message || "Failed to mark notification as read");
-        console.error("Error marking notification as read:", err);
+        
       }
     },
     []
@@ -192,7 +192,7 @@ export function useNotifications(): UseNotificationsReturn {
       socketService.markAllAsRead();
     } catch (err: any) {
       setError(err.message || "Failed to mark all notifications as read");
-      console.error("Error marking all notifications as read:", err);
+      
     }
   }, []);
 
@@ -214,7 +214,7 @@ export function useNotifications(): UseNotificationsReturn {
         }
       } catch (err: any) {
         setError(err.message || "Failed to delete notification");
-        console.error("Error deleting notification:", err);
+        
       }
     },
     [notifications]
@@ -227,7 +227,7 @@ export function useNotifications(): UseNotificationsReturn {
       setUnreadCount(count);
       socketService.getUnreadCount();
     } catch (err: any) {
-      console.error("Error refreshing unread count:", err);
+      
     }
   }, []);
 

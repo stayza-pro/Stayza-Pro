@@ -114,7 +114,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
       await onCancel(booking.id);
       setShowCancelModal(false);
     } catch (error) {
-      console.error("Cancellation error:", error);
+      
     } finally {
       setIsCancelling(false);
     }

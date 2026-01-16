@@ -103,7 +103,7 @@ router.post(
     try {
       await sendWaitlistEmail(email, fullName || undefined);
     } catch (emailError) {
-      console.error("Failed to send waitlist confirmation email:", emailError);
+      
       // Don't fail the request if email fails
     }
 

@@ -27,7 +27,7 @@ export const usePropertyAnalytics = (
     cacheTime: 10 * 60 * 1000, // 10 minutes
     enabled: !!propertyId,
     onError: (error) => {
-      console.error("Failed to fetch property analytics:", error);
+      
       toast.error("Failed to load analytics data");
     },
   });
@@ -195,7 +195,7 @@ export const useAnalyticsExport = () => {
 
         toast.success("Analytics report exported successfully");
       } catch (error) {
-        console.error("Failed to export analytics:", error);
+        
         toast.error("Failed to export analytics report");
       } finally {
         setIsExporting(false);

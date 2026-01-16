@@ -45,7 +45,7 @@ export default function RealtorForgotPasswordPage() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      console.error("Forgot password error:", error);
+      
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);

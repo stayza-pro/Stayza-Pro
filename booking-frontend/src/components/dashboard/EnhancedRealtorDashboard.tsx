@@ -117,9 +117,7 @@ export default function EnhancedRealtorDashboard() {
       const refreshToken = urlParams.get("refreshToken");
 
       if (accessToken && refreshToken) {
-        console.log(
-          "🔐 Cross-domain tokens detected, setting authentication..."
-        );
+        
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("refreshToken", refreshToken);
 
@@ -131,9 +129,9 @@ export default function EnhancedRealtorDashboard() {
               : ".stayza.pro";
           document.cookie = `accessToken=${accessToken}; domain=${domain}; path=/; Secure; SameSite=None`;
           document.cookie = `refreshToken=${refreshToken}; domain=${domain}; path=/; Secure; SameSite=None`;
-          console.log("🍪 Cross-domain cookies set for realtor dashboard");
+          
         } catch (error) {
-          console.warn("⚠️ Could not set cross-domain cookies:", error);
+          
         }
 
         // Clean up URL

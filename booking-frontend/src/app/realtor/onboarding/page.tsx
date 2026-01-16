@@ -72,7 +72,7 @@ export default function OnboardingPage() {
       const realtorSlug = (currentUser as any).realtor.slug;
       const redirectUrl = `http://${realtorSlug}.${window.location.host}/dashboard`;
 
-      console.log("🔄 Redirecting to realtor subdomain:", redirectUrl);
+      
 
       // Check if cross-domain redirect
       const currentHost = window.location.host;
@@ -87,13 +87,13 @@ export default function OnboardingPage() {
             redirectUrlObj.searchParams.set("token", accessToken);
             redirectUrlObj.searchParams.set("refresh", refreshToken);
 
-            console.log("🔐 Adding tokens to cross-domain redirect");
+            
             window.location.href = redirectUrlObj.toString();
             return;
           }
         }
       } catch (urlError) {
-        console.error("URL parsing error:", urlError);
+        
       }
 
       // Fallback to direct navigation
@@ -235,7 +235,7 @@ export default function OnboardingPage() {
           });
         }
       } catch (error) {
-        console.error("Subdomain check failed", error);
+        
         setSubdomainStatus({
           state: "error",
           message: "Check your connection and try again",
@@ -519,7 +519,7 @@ export default function OnboardingPage() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      console.error("Registration error:", error);
+      
       toast.error("Failed to create account. Please try again.");
     } finally {
       setIsCreatingAccount(false);
@@ -575,7 +575,7 @@ export default function OnboardingPage() {
         brandingPayload.logoUrl = logoUrl;
       }
 
-      console.log("🎨 Saving branding data:", brandingPayload);
+      
 
       const response = await fetch(`${API_URL}/realtors/profile`, {
         method: "PUT",
@@ -593,7 +593,7 @@ export default function OnboardingPage() {
         toast.error(errorData.message || "Failed to save branding");
       }
     } catch (error) {
-      console.error("Error saving branding:", error);
+      
       toast.error(
         "Failed to save branding. You can update it later from settings."
       );
@@ -637,7 +637,7 @@ export default function OnboardingPage() {
         throw new Error("Failed to add property");
       }
     } catch (error) {
-      console.error("Error adding property:", error);
+      
       toast.error(
         "Failed to add property. You can add it later from the dashboard."
       );
@@ -675,7 +675,7 @@ export default function OnboardingPage() {
           errorMessage.includes("CAC")
         ) {
           // Don't throw error, just inform user they can set this up later
-          console.log("Payout setup skipped - CAC verification required");
+          
           // This is not an error during onboarding, so we just log it
         } else {
           throw new Error(errorMessage || "Access denied");
@@ -689,7 +689,7 @@ export default function OnboardingPage() {
         throw new Error(errorMessage);
       }
     } catch (error) {
-      console.error("Error saving payout info:", error);
+      
       toast.error(
         "Failed to save payout info. You can update it later in settings."
       );
@@ -755,11 +755,11 @@ export default function OnboardingPage() {
         return result.data.url;
       } else {
         const error = await response.json();
-        console.error("CAC upload error:", error);
+        
         return null;
       }
     } catch (error) {
-      console.error("Error uploading CAC document:", error);
+      
       return null;
     }
   };
@@ -2337,7 +2337,7 @@ function PayoutStep({
           setBanks(data.data || []);
         }
       } catch (error) {
-        console.error("Error fetching banks:", error);
+        
         // Fallback to some common Nigerian banks
         setBanks([
           { code: "044", name: "Access Bank" },
@@ -2411,7 +2411,7 @@ function PayoutStep({
         }
       } catch (error: any) {
         // Silently fail for network errors during auto-verification
-        console.error("Auto-verification failed:", error);
+        
         setPayoutData({
           ...payoutData,
           accountName: "",
@@ -2619,7 +2619,7 @@ function CompleteStep({
         toast.error(errorMessage);
       }
     } catch (error: any) {
-      console.error("Resend verification error:", error);
+      
 
       // Check if it's a timeout or network error
       const isTimeoutError =

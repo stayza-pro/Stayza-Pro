@@ -46,25 +46,25 @@ export function useSocketNotifications(
 
     // Connection events
     socketInstance.on("connect", () => {
-      console.log("Socket.IO connected");
+      
       setIsConnected(true);
       // Request unread count on connect
       socketInstance.emit("get_unread_count");
     });
 
     socketInstance.on("disconnect", () => {
-      console.log("Socket.IO disconnected");
+      
       setIsConnected(false);
     });
 
     socketInstance.on("connect_error", (error) => {
-      console.error("Socket.IO connection error:", error);
+      
       setIsConnected(false);
     });
 
     // Notification events
     socketInstance.on("notification", (notification: NotificationData) => {
-      console.log("New notification received:", notification);
+      
 
       // Add to notifications list
       setNotifications((prev) => [notification, ...prev]);
@@ -85,12 +85,12 @@ export function useSocketNotifications(
     });
 
     socketInstance.on("unread_count", (count: number) => {
-      console.log("Unread count updated:", count);
+      
       setUnreadCount(count);
     });
 
     socketInstance.on("notification_history", (data: any) => {
-      console.log("Notification history received:", data);
+      
       setNotifications(data.notifications);
     });
 

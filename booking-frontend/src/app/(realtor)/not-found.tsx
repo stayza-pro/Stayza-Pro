@@ -22,7 +22,7 @@ export default function RealtorNotFound() {
         const { useAuthStore } = await import("@/store/authStore");
         await useAuthStore.getState().logout();
       } catch (error) {
-        console.error("Logout error:", error);
+        
       }
 
       // Redirect to main domain realtor login

@@ -79,7 +79,7 @@ export const getAllSettings = async (
     );
     return response;
   } catch (error: any) {
-    console.error("Error fetching settings:", error);
+    
     throw new Error(
       error.response?.data?.error?.message ||
         error.response?.data?.message ||
@@ -100,7 +100,7 @@ export const getSettingByKey = async (
     );
     return response;
   } catch (error: any) {
-    console.error(`Error fetching setting ${key}:`, error);
+    
     throw new Error(
       error.response?.data?.error?.message ||
         error.response?.data?.message ||
@@ -123,7 +123,7 @@ export const getSettingsByCategory = async (
     }>(`/admin/settings/category/${category}`);
     return response;
   } catch (error: any) {
-    console.error(`Error fetching ${category} settings:`, error);
+    
     throw new Error(
       error.response?.data?.error?.message ||
         error.response?.data?.message ||
@@ -146,7 +146,7 @@ export const updateSetting = async (
     );
     return response;
   } catch (error: any) {
-    console.error(`Error updating setting ${key}:`, error);
+    
     throw new Error(
       error.response?.data?.error?.message ||
         error.response?.data?.message ||
@@ -168,7 +168,7 @@ export const createSetting = async (
     );
     return response;
   } catch (error: any) {
-    console.error("Error creating setting:", error);
+    
     throw new Error(
       error.response?.data?.error?.message ||
         error.response?.data?.message ||
@@ -189,7 +189,7 @@ export const getCommissionRate = async (): Promise<number> => {
     const response = await getSettingByKey("commission_rate");
     return Number(response.data.value);
   } catch (error) {
-    console.error("Error fetching commission rate:", error);
+    
     // Return default fallback
     return 0.07; // 7%
   }
@@ -217,7 +217,7 @@ export const getPayoutThreshold = async (): Promise<number> => {
     const response = await getSettingByKey("payout_threshold");
     return Number(response.data.value);
   } catch (error) {
-    console.error("Error fetching payout threshold:", error);
+    
     // Return default fallback
     return 10000; // ₦10,000
   }
@@ -243,7 +243,7 @@ export const getCancellationWindow = async (): Promise<number> => {
     const response = await getSettingByKey("booking_cancellation_window");
     return Number(response.data.value);
   } catch (error) {
-    console.error("Error fetching cancellation window:", error);
+    
     return 24; // 24 hours default
   }
 };
@@ -256,7 +256,7 @@ export const getAutoPayoutEnabled = async (): Promise<boolean> => {
     const response = await getSettingByKey("auto_payout_enabled");
     return Boolean(response.data.value);
   } catch (error) {
-    console.error("Error fetching auto payout status:", error);
+    
     return true; // Default enabled
   }
 };
@@ -283,7 +283,7 @@ export const getMaxPropertyImages = async (): Promise<number> => {
     const response = await getSettingByKey("max_property_images");
     return Number(response.data.value);
   } catch (error) {
-    console.error("Error fetching max property images:", error);
+    
     return 10; // Default 10 images
   }
 };
@@ -300,7 +300,7 @@ export const getCommissionSettings = async (): Promise<PlatformSetting[]> => {
     const response = await getSettingsByCategory("commission");
     return response.data.settings;
   } catch (error) {
-    console.error("Error fetching commission settings:", error);
+    
     return [];
   }
 };
@@ -313,7 +313,7 @@ export const getPayoutSettings = async (): Promise<PlatformSetting[]> => {
     const response = await getSettingsByCategory("payout");
     return response.data.settings;
   } catch (error) {
-    console.error("Error fetching payout settings:", error);
+    
     return [];
   }
 };
@@ -326,7 +326,7 @@ export const getBookingSettings = async (): Promise<PlatformSetting[]> => {
     const response = await getSettingsByCategory("booking");
     return response.data.settings;
   } catch (error) {
-    console.error("Error fetching booking settings:", error);
+    
     return [];
   }
 };

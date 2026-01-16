@@ -128,11 +128,7 @@ export class MessageFilterService {
 
     // Log violations for monitoring
     if (result.violations.length > 0) {
-      console.warn("Message filtered:", {
-        violations: result.violations,
-        original: content.substring(0, 50) + "...",
-        filtered: result.filteredContent.substring(0, 50) + "...",
-      });
+      
     }
 
     return result.filteredContent;

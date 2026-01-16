@@ -108,7 +108,7 @@ function MessagesContent() {
 
       setConversations(conversationsData);
     } catch (error) {
-      console.error("Failed to fetch conversations:", error);
+      
       toast.error("Failed to load conversations");
       setConversations([]);
     } finally {
@@ -154,7 +154,7 @@ function MessagesContent() {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch messages:", error);
+      
       toast.error("Failed to load messages");
     } finally {
       setIsLoadingMessages(false);
@@ -219,7 +219,7 @@ function MessagesContent() {
         toast.success("Message sent!");
       }
     } catch (error: any) {
-      console.error("Failed to send message:", error);
+      
       toast.error(error.response?.data?.error || "Failed to send message");
     } finally {
       setIsSending(false);
@@ -267,7 +267,7 @@ function MessagesContent() {
       }, 1000);
     } catch (error) {
       toast.error("Microphone access denied");
-      console.error("Error starting recording:", error);
+      
     }
   };
 

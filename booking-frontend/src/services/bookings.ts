@@ -368,14 +368,14 @@ export const bookingService = {
       guests,
     });
 
-    console.log("🔍 Raw API response:", response);
-    console.log("🔍 response.data:", response.data);
+    
+    
 
     // API returns data directly in response.data (already unwrapped by axios)
     // Backend structure: { success, message, data: {...} }
     // But axios already extracts response.data, so we access .data directly
     const result = (response.data as any).data || response.data;
-    console.log("🔍 Extracted result:", result);
+    
 
     return result;
   },

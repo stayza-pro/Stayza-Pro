@@ -41,9 +41,9 @@ export default function BookingConfirmationPage() {
 
   // Debug logging
   React.useEffect(() => {
-    console.log("Confirmation page params:", params);
-    console.log("Extracted bookingId:", bookingId);
-    console.log("bookingId type:", typeof bookingId);
+    
+    
+    
   }, [params, bookingId]);
 
   // Get realtor branding

@@ -171,7 +171,7 @@ export function useRefundRequests(
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load refund requests";
       setError(errorMessage);
-      console.error("Error fetching refunds:", err);
+      
       setRefunds([]);
     } finally {
       setIsLoading(false);

@@ -66,7 +66,7 @@ export function NotificationBell({
       const count = await notificationApiService.getUnreadCount();
       setUnreadCount(count);
     } catch (error) {
-      console.error("Error fetching unread count:", error);
+      
     }
   };
 
@@ -80,7 +80,7 @@ export function NotificationBell({
       setNotifications(response.notifications);
       setUnreadCount(response.unreadCount);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      
       toast.error("Failed to load notifications");
     } finally {
       setIsLoading(false);
@@ -96,7 +96,7 @@ export function NotificationBell({
       setUnreadCount((prev) => Math.max(0, prev - 1));
       toast.success("Notification marked as read");
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      
       toast.error("Failed to mark as read");
     }
   };
@@ -108,7 +108,7 @@ export function NotificationBell({
       setUnreadCount(0);
       toast.success("All notifications marked as read");
     } catch (error) {
-      console.error("Error marking all as read:", error);
+      
       toast.error("Failed to mark all as read");
     }
   };
@@ -125,7 +125,7 @@ export function NotificationBell({
       }
       toast.success("Notification deleted");
     } catch (error) {
-      console.error("Error deleting notification:", error);
+      
       toast.error("Failed to delete notification");
     }
   };

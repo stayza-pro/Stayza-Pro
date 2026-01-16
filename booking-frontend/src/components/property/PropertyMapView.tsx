@@ -241,7 +241,7 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
           setMapZoom(14);
         },
         (error) => {
-          console.warn("Geolocation error:", error);
+          
         }
       );
     }

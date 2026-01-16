@@ -120,7 +120,7 @@ export const RefundForm: React.FC<RefundFormProps> = ({
     try {
       await onSubmit(refundData);
     } catch (error) {
-      console.error("Refund submission error:", error);
+      
     } finally {
       setIsSubmitting(false);
       setShowConfirmation(false);

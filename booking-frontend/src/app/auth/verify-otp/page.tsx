@@ -138,13 +138,7 @@ function OTPVerificationContent() {
         payload.referralSource = referralSource;
       }
 
-      console.log("🔐 Sending OTP verification:", {
-        endpoint,
-        email,
-        otpLength: code.length,
-        type,
-        payload,
-      });
+      
 
       const response = await fetch(`${backendUrl}${endpoint}`, {
         method: "POST",
@@ -156,11 +150,7 @@ function OTPVerificationContent() {
 
       const result = await response.json();
 
-      console.log("📥 OTP verification response:", {
-        ok: response.ok,
-        status: response.status,
-        result,
-      });
+      
 
       if (!response.ok) {
         // Handle specific error status codes with user-friendly messages
@@ -208,7 +198,7 @@ function OTPVerificationContent() {
         router.push(returnTo);
       }
     } catch (error: any) {
-      console.error("OTP verification error:", error);
+      
       toast.error(
         error.message || "Invalid verification code. Please try again."
       );
@@ -301,7 +291,7 @@ function OTPVerificationContent() {
       setOtp(["", "", "", "", "", ""]);
       inputRefs[0].current?.focus();
     } catch (error: any) {
-      console.error("Resend error:", error);
+      
       toast.error(error.message || "Failed to resend code. Please try again.");
     } finally {
       setIsResending(false);

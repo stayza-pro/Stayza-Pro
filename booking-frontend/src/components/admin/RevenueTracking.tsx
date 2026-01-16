@@ -124,7 +124,7 @@ export default function RevenueTracking({
 
       setMetrics(transformedMetrics);
     } catch (error: any) {
-      console.error("Failed to fetch analytics data:", error);
+      
       toast.error("Failed to load revenue data");
 
       // Set fallback empty metrics
@@ -219,7 +219,7 @@ export default function RevenueTracking({
 
       toast.success("Revenue data exported successfully!");
     } catch (error) {
-      console.error("Export failed:", error);
+      
       toast.error("Failed to export data");
     }
   };

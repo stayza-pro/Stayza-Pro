@@ -1375,8 +1375,7 @@ router.put(
     const { id } = req.params;
     const { reason } = req.body;
 
-    console.log("🚨 CANCEL BOOKING CALLED - Booking ID:", id);
-
+    
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: {
@@ -1446,17 +1445,13 @@ router.put(
 
     let refundInfo: any = null;
 
-    console.log("💳 Payment status:", booking.payment?.status);
-
+    
     // Process automatic cancellation refund based on tier
     if (
       booking.payment?.status === PaymentStatus.PARTIALLY_RELEASED ||
       booking.payment?.status === PaymentStatus.SETTLED
     ) {
-      console.log(
-        "✅ Payment is PARTIALLY_RELEASED or SETTLED, processing automatic refund"
-      );
-
+      
       try {
         const refundResult = await processAutomaticCancellationRefund(id);
 
@@ -1486,20 +1481,14 @@ router.put(
             message: calc.reason,
           };
 
-          console.log(
-            "✅ Automatic refund processed successfully:",
-            refundInfo
-          );
-        } else {
-          console.error("❌ Automatic refund failed:", refundResult.error);
-          refundInfo = {
+                  } else {
+                    refundInfo = {
             eligible: false,
             error: refundResult.error || "Refund processing failed",
           };
         }
       } catch (refundError) {
-        console.error("❌ Refund processing failed:", refundError);
-        logger.error("Refund processing failed:", refundError);
+                logger.error("Refund processing failed:", refundError);
         refundInfo = {
           eligible: false,
           error: "Refund processing failed - please contact support",

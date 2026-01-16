@@ -982,21 +982,21 @@ export const sendEmail = async (
       html: template.html,
     });
 
-    console.log("Email sent successfully via Resend:", result.data?.id);
+    
     return { success: true, messageId: result.data?.id };
   } catch (error: any) {
-    console.error("Error sending email:", error);
+    
 
     if (error.name === "ResendError") {
-      console.error("Resend API error:", error.message);
+      
       throw new Error(`Email service error: ${error.message}`);
     } else if (error.code === "ETIMEDOUT") {
       throw new Error("Email connection timeout. Please try again later.");
     } else if (error.code === "EENVELOPE") {
-      console.error("Invalid email address format.");
+      
       throw new Error("Invalid email address provided.");
     } else {
-      console.error("Unknown email error:", error.message);
+      
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }
@@ -1024,13 +1024,13 @@ export const sendRealtorWelcomeEmail = async (
 ) => {
   // Log verification URL in development for easy access
   if (process.env.NODE_ENV === "development" && verificationUrl) {
-    console.log("\n" + "=".repeat(80));
-    console.log("REALTOR WELCOME EMAIL - VERIFICATION LINK (Development Mode)");
-    console.log("=".repeat(80));
-    console.log(`To: ${to}`);
-    console.log(`Business: ${businessName}`);
-    console.log(`Verification Link: ${verificationUrl}`);
-    console.log("=".repeat(80) + "\n");
+    
+    
+    
+    
+    
+    
+    
   }
 
   const template = emailTemplates.realtorWelcome(
@@ -1050,12 +1050,12 @@ export const sendEmailVerification = async (
 ) => {
   // Log verification URL in development for easy access
   if (process.env.NODE_ENV === "development" && !tokenOrUrl.match(/^\d{6}$/)) {
-    console.log("\n" + "=".repeat(80));
-    console.log("EMAIL VERIFICATION LINK (Development Mode)");
-    console.log("=".repeat(80));
-    console.log(`To: ${to}`);
-    console.log(`Link: ${tokenOrUrl}`);
-    console.log("=".repeat(80) + "\n");
+    
+    
+    
+    
+    
+    
   }
 
   // Check if it's an OTP (6 digits) or a URL

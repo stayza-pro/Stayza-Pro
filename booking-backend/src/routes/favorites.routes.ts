@@ -193,7 +193,7 @@ router.get(
         data: activeFavorites,
       });
     } catch (error: any) {
-      console.error("Error fetching favorites:", error);
+      
       res.status(500).json({
         success: false,
         error: "Failed to fetch favorites",
@@ -234,7 +234,7 @@ router.get(
         },
       });
     } catch (error: any) {
-      console.error("Error checking favorite:", error);
+      
       res.status(500).json({
         success: false,
         error: "Failed to check favorite status",

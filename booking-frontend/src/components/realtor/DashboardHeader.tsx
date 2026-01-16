@@ -39,7 +39,7 @@ export function DashboardHeader({ onCopySuccess }: DashboardHeaderProps) {
       const balance = await walletService.getWalletBalance();
       setWalletBalance(balance);
     } catch (error) {
-      console.error("Failed to fetch wallet balance:", error);
+      
     } finally {
       setLoadingBalance(false);
     }
@@ -57,7 +57,7 @@ export function DashboardHeader({ onCopySuccess }: DashboardHeaderProps) {
       await navigator.clipboard.writeText(text);
       onCopySuccess?.();
     } catch (error) {
-      console.error("Failed to copy:", error);
+      
     }
   };
 

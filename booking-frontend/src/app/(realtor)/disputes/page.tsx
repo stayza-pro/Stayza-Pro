@@ -55,7 +55,7 @@ export default function RealtorDisputesPage() {
       const data = await disputeService.getRealtorDisputes(filterStatus);
       setDisputes(data);
     } catch (error: any) {
-      console.error("Failed to fetch disputes:", error);
+      
       showError(error.response?.data?.message || "Failed to load disputes");
     } finally {
       setLoading(false);
@@ -67,7 +67,7 @@ export default function RealtorDisputesPage() {
       const data = await disputeService.getRealtorDisputeStats();
       setStats(data);
     } catch (error) {
-      console.error("Failed to fetch stats:", error);
+      
     }
   };
 
@@ -102,7 +102,7 @@ export default function RealtorDisputesPage() {
       await fetchDisputes();
       await fetchStats();
     } catch (error: any) {
-      console.error("Failed to submit response:", error);
+      
       showError(error.response?.data?.message || "Failed to submit response");
     } finally {
       setIsResponding(false);
@@ -125,7 +125,7 @@ export default function RealtorDisputesPage() {
       await fetchDisputes();
       await fetchStats();
     } catch (error: any) {
-      console.error("Failed to accept dispute:", error);
+      
       showError(error.response?.data?.message || "Failed to accept dispute");
     } finally {
       setIsAccepting(false);

@@ -44,7 +44,7 @@ class NotificationApiService {
 
       return response.data.data;
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      
       throw error;
     }
   }
@@ -59,7 +59,7 @@ class NotificationApiService {
 
       return response.data.data.unreadCount;
     } catch (error) {
-      console.error("Error fetching unread count:", error);
+      
       throw error;
     }
   }
@@ -75,7 +75,7 @@ class NotificationApiService {
 
       return response.data.data;
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      
       throw error;
     }
   }
@@ -89,7 +89,7 @@ class NotificationApiService {
         { headers: this.getAuthHeaders() }
       );
     } catch (error) {
-      console.error("Error marking all notifications as read:", error);
+      
       throw error;
     }
   }
@@ -101,7 +101,7 @@ class NotificationApiService {
         headers: this.getAuthHeaders(),
       });
     } catch (error) {
-      console.error("Error deleting notification:", error);
+      
       throw error;
     }
   }
@@ -116,7 +116,7 @@ class NotificationApiService {
 
       return response.data.data;
     } catch (error) {
-      console.error("Error fetching notification stats:", error);
+      
       throw error;
     }
   }

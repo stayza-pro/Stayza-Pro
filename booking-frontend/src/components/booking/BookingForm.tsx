@@ -126,7 +126,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     try {
       await onSubmit(formData as BookingFormData);
     } catch (error) {
-      console.error("Booking submission error:", error);
+      
     } finally {
       setIsSubmitting(false);
     }

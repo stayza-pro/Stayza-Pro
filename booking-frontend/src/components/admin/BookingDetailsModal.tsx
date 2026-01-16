@@ -151,7 +151,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
       setDisputes(mockDisputes);
       setRefundAmount(mockBooking.totalAmount);
     } catch (error) {
-      console.error("Failed to load booking details:", error);
+      
     } finally {
       setLoading(false);
     }

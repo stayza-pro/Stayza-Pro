@@ -244,12 +244,7 @@ Thank you for staying with us! We'd love to hear about your experience - please 
 
     // Create message in database
     // Note: You'll need to add a Message model to your Prisma schema
-    console.log("System message would be sent:", {
-      type,
-      bookingId: data.bookingId,
-      content: content.substring(0, 100) + "...",
-    });
-
+    
     // TODO: Uncomment after adding Message model to schema
     /*
     await prisma.message.create({

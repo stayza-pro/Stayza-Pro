@@ -114,7 +114,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
         setProperties(activeProperties);
         setFilteredProperties(activeProperties);
       } catch (error) {
-        console.error("Failed to fetch properties:", error);
+        
         setProperties([]);
         setFilteredProperties([]);
       } finally {

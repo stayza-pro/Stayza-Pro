@@ -60,7 +60,7 @@ export default function RealtorLayout({
       // Redirect to realtor login on main domain
       window.location.href = buildMainDomainUrl("/realtor/login");
     } catch (error) {
-      console.error("Logout error:", error);
+      
       // Still redirect even if logout fails
       window.location.href = buildMainDomainUrl("/realtor/login");
     }

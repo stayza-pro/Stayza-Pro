@@ -182,7 +182,7 @@ export function useReviewsData(
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load reviews";
       setError(errorMessage);
-      console.error("Error fetching reviews:", err);
+      
       setReviews([]);
     } finally {
       setIsLoading(false);
@@ -223,7 +223,7 @@ export function useReviewsData(
         }
         return false;
       } catch (err) {
-        console.error("Error responding to review:", err);
+        
         return false;
       }
     },
@@ -250,7 +250,7 @@ export function useReviewsData(
         }
         return false;
       } catch (err) {
-        console.error("Error flagging review:", err);
+        
         return false;
       }
     },
@@ -280,7 +280,7 @@ export function useReviewsData(
         }
         return false;
       } catch (err) {
-        console.error("Error unflagging review:", err);
+        
         return false;
       }
     },

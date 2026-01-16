@@ -70,7 +70,7 @@ export default function CommissionPage() {
       });
       setPlatformReport(report);
     } catch (error: any) {
-      console.error("Failed to fetch platform report:", error);
+      
       toast.error(
         error.response?.data?.message || "Failed to load commission report"
       );
@@ -89,7 +89,7 @@ export default function CommissionPage() {
       setPendingPayouts(response.payouts);
       setPagination(response.pagination);
     } catch (error: any) {
-      console.error("Failed to fetch pending payouts:", error);
+      
       toast.error(
         error.response?.data?.message || "Failed to load pending payouts"
       );

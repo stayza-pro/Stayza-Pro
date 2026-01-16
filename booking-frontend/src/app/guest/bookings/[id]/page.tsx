@@ -118,22 +118,18 @@ export default function BookingDetailsPage() {
   } = useQuery({
     queryKey: ["cancellation-preview", bookingId],
     queryFn: async () => {
-      console.log("Fetching preview for:", bookingId);
+      
       try {
         const result = await bookingService.previewCancellation(bookingId);
-        console.log("Preview result:", result);
+        
         if (!result) {
-          console.error("Preview returned null/undefined");
+          
           throw new Error("No preview data received");
         }
         return result;
       } catch (error: any) {
-        console.error("Preview fetch failed:", error);
-        console.error("Error details:", {
-          message: error?.message,
-          response: error?.response?.data,
-          status: error?.response?.status,
-        });
+        
+        
         throw error;
       }
     },
@@ -149,7 +145,7 @@ export default function BookingDetailsPage() {
   // Fetch preview when modal opens
   React.useEffect(() => {
     if (showCancelModal && bookingId) {
-      console.log("Modal opened, triggering refetch");
+      
       refetchPreview();
     }
   }, [showCancelModal, bookingId, refetchPreview]);
@@ -157,12 +153,7 @@ export default function BookingDetailsPage() {
   // Debug logging
   React.useEffect(() => {
     if (showCancelModal) {
-      console.log("Modal state:", {
-        previewLoading,
-        hasError: !!previewError,
-        hasData: !!cancellationPreview,
-        bookingId,
-      });
+      
     }
   }, [
     showCancelModal,

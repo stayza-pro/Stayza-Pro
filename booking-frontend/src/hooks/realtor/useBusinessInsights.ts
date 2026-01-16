@@ -144,7 +144,7 @@ export function useBusinessInsights(
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load business insights";
       setError(errorMessage);
-      console.error("Error fetching business insights:", err);
+      
     } finally {
       setIsLoading(false);
     }

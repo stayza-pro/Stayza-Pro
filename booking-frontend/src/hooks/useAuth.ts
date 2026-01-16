@@ -41,7 +41,7 @@ export const useLogin = () => {
         queryClient.invalidateQueries(authKeys.profile);
       },
       onError: (error: unknown) => {
-        console.error("Login error:", error);
+        
       },
     }
   );
@@ -61,7 +61,7 @@ export const useRegister = () => {
         queryClient.invalidateQueries(authKeys.profile);
       },
       onError: (error: unknown) => {
-        console.error("Registration error:", error);
+        
       },
     }
   );
@@ -77,7 +77,7 @@ export const useLogout = () => {
       queryClient.clear();
     },
     onError: (error: unknown) => {
-      console.error("Logout error:", error);
+      
       // Even if logout fails on server, clear client-side data
       queryClient.clear();
     },
@@ -94,7 +94,7 @@ export const useUpdateProfile = () => {
       queryClient.setQueryData(authKeys.profile, updatedUser);
     },
     onError: (error: unknown) => {
-      console.error("Profile update error:", error);
+      
     },
   });
 };
@@ -102,7 +102,7 @@ export const useUpdateProfile = () => {
 export const useChangePassword = () => {
   return useMutation(authService.changePassword, {
     onError: (error: unknown) => {
-      console.error("Change password error:", error);
+      
     },
   });
 };
@@ -110,7 +110,7 @@ export const useChangePassword = () => {
 export const useRequestPasswordReset = () => {
   return useMutation(authService.requestPasswordReset, {
     onError: (error: unknown) => {
-      console.error("Password reset request error:", error);
+      
     },
   });
 };
@@ -118,7 +118,7 @@ export const useRequestPasswordReset = () => {
 export const useResetPassword = () => {
   return useMutation(authService.resetPassword, {
     onError: (error: unknown) => {
-      console.error("Password reset error:", error);
+      
     },
   });
 };
@@ -132,7 +132,7 @@ export const useVerifyEmail = () => {
       queryClient.invalidateQueries(authKeys.profile);
     },
     onError: (error: unknown) => {
-      console.error("Email verification error:", error);
+      
     },
   });
 };
@@ -140,7 +140,7 @@ export const useVerifyEmail = () => {
 export const useResendVerificationEmail = () => {
   return useMutation(authService.resendVerificationEmail, {
     onError: (error: unknown) => {
-      console.error("Resend verification error:", error);
+      
     },
   });
 };

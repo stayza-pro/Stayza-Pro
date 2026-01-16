@@ -40,7 +40,7 @@ export const paymentService = {
   initializePaystackPayment: async (
     data: PaystackInitializationRequest
   ): Promise<PaystackInitializationResponse> => {
-    console.log("🚀 Calling Paystack initialization API...");
+    
     const response = await apiClient.post<{
       success: boolean;
       message: string;
@@ -52,21 +52,21 @@ export const paymentService = {
       };
     }>("/payments/initialize-paystack", data);
 
-    console.log("📦 Raw API response:", response);
-    console.log("📦 response.data:", response.data);
-    console.log("📦 response.data.data:", response.data?.data);
+    
+    
+    
 
     if (!response || !response.data) {
-      console.error("❌ Invalid response:", response);
+      
       throw new Error("Invalid response from payment API");
     }
 
     // Check if data is nested or at top level
     const responseData = response.data.data || response.data;
-    console.log("✅ Parsed response data:", responseData);
+    
 
     if (!responseData || !responseData.authorizationUrl) {
-      console.error("❌ No authorizationUrl in response:", response);
+      
       throw new Error("No authorization URL returned from payment API");
     }
 
@@ -91,8 +91,8 @@ export const paymentService = {
       data?: { payment?: Payment; booking?: any };
     }>("/payments/verify-paystack", data);
 
-    console.log("🔍 Raw verification response:", response);
-    console.log("🔍 response.data:", response.data);
+    
+    
 
     return {
       success: response.success,

@@ -65,7 +65,7 @@ export class NotificationService {
     this.io.use(this.authenticateSocket.bind(this));
 
     this.io.on("connection", (socket: AuthenticatedSocket) => {
-      console.log(`User ${socket.userId} connected with socket ${socket.id}`);
+      
 
       // Add user to connected users map
       if (socket.userId) {
@@ -116,7 +116,7 @@ export class NotificationService {
 
       // Handle disconnect
       socket.on("disconnect", () => {
-        console.log(`User ${socket.userId} disconnected`);
+        
 
         if (socket.userId && this.connectedUsers.has(socket.userId)) {
           const userSockets = this.connectedUsers.get(socket.userId)!;
@@ -166,7 +166,7 @@ export class NotificationService {
 
       next();
     } catch (error) {
-      console.error("Socket authentication error:", error);
+      
       next(new Error("Authentication error"));
     }
   }
@@ -269,7 +269,7 @@ export class NotificationService {
         });
       }
     } catch (error) {
-      console.error("Error creating notification:", error);
+      
     }
   }
 
@@ -293,7 +293,7 @@ export class NotificationService {
       const unreadCount = await this.getUnreadCount(userId);
       this.io.to(`user:${userId}`).emit("unread_count", unreadCount);
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      
     }
   }
 
@@ -312,7 +312,7 @@ export class NotificationService {
 
       this.io.to(`user:${userId}`).emit("unread_count", 0);
     } catch (error) {
-      console.error("Error marking all notifications as read:", error);
+      
     }
   }
 
@@ -326,7 +326,7 @@ export class NotificationService {
         },
       });
     } catch (error) {
-      console.error("Error getting unread count:", error);
+      
       return 0;
     }
   }
@@ -400,7 +400,7 @@ export class NotificationService {
         },
       };
     } catch (error) {
-      console.error("Error getting notification history:", error);
+      
       return {
         notifications: [],
         pagination: { page: 1, limit: 20, total: 0, pages: 0 },
@@ -438,7 +438,7 @@ export class NotificationService {
         this.io.to(`user:${userId}`).emit("notification", notificationData);
       });
     } catch (error) {
-      console.error("Error sending pending notifications:", error);
+      
     }
   }
 
@@ -561,7 +561,7 @@ export class NotificationService {
         },
       });
     } catch (error) {
-      console.error("Error cleaning up expired notifications:", error);
+      
     }
   }
 }
@@ -827,7 +827,7 @@ export async function createAdminNotification(data: {
     });
 
     if (admins.length === 0) {
-      console.warn("No admin users found to notify");
+      
       return;
     }
 
@@ -862,12 +862,10 @@ export async function createAdminNotification(data: {
           });
       }
     } catch (wsError) {
-      console.log(
-        "WebSocket not initialized, notification saved to database only"
-      );
+      
     }
   } catch (error) {
-    console.error("Error creating admin notification:", error);
+    
   }
 }
 

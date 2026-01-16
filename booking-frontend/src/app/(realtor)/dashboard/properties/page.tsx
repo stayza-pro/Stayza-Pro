@@ -57,13 +57,13 @@ export default function PropertiesPage() {
 
   const fetchProperties = async () => {
     if (!user?.realtor?.id) {
-      console.log("No realtor ID available yet");
+      
       return;
     }
 
     try {
       setLoading(true);
-      console.log("Fetching properties for realtor:", user.realtor.id);
+      
       const response = await propertyService.getHostProperties(
         user.realtor.id,
         {
@@ -73,11 +73,11 @@ export default function PropertiesPage() {
         }
       );
 
-      console.log("Properties fetched:", response);
+      
       setProperties(response.data || []);
       setTotalPages(response.pagination?.totalPages || 1);
     } catch (error) {
-      console.error("Error fetching properties:", error);
+      
       showError("Failed to load properties");
     } finally {
       setLoading(false);
@@ -91,7 +91,7 @@ export default function PropertiesPage() {
         showSuccess("Property deleted successfully!");
         fetchProperties(); // Refresh list
       } catch (error) {
-        console.error("Error deleting property:", error);
+        
         showError("Failed to delete property");
       }
     });

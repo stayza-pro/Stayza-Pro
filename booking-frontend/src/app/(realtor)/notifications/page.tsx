@@ -76,7 +76,7 @@ export default function NotificationsPage() {
       const count = await notificationApiService.getUnreadCount();
       setUnreadCount(count);
     } catch (err) {
-      console.error("Failed to fetch unread count:", err);
+      
     }
   };
 

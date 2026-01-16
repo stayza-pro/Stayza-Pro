@@ -39,7 +39,7 @@ export default function ProtectedRoute({
         const refreshFromUrl = searchParams.get("refresh");
 
         if (tokenFromUrl && refreshFromUrl) {
-          console.log("🔑 ProtectedRoute: Restoring tokens from URL...");
+          
 
           // Set tokens in localStorage for this subdomain
           localStorage.setItem("accessToken", tokenFromUrl);
@@ -56,7 +56,7 @@ export default function ProtectedRoute({
             isAuthenticated: true, // Assume authenticated for now
           });
 
-          console.log("✅ ProtectedRoute: Tokens restored to storage");
+          
 
           // Clean up URL by removing token parameters
           const newUrl = new URL(window.location.href);
@@ -69,41 +69,28 @@ export default function ProtectedRoute({
 
           // Now verify tokens by fetching user profile
           try {
-            console.log("🔍 ProtectedRoute: Verifying tokens with backend...");
+            
             await checkAuth();
 
             // Get fresh state after checkAuth completes
             const { user: updatedUser, isAuthenticated: updatedAuth } =
               useAuthStore.getState();
-            console.log("✅ ProtectedRoute: Token verification successful", {
-              isAuthenticated: updatedAuth,
-              hasUser: !!updatedUser,
-              userRole: updatedUser?.role,
-              userId: updatedUser?.id,
-            });
+            
           } catch (verifyError) {
-            console.error(
-              "❌ ProtectedRoute: Token verification failed:",
-              verifyError
-            );
+            
             // If verification fails, checkAuth already cleared the state
           }
         } else {
           // No tokens in URL, just check existing auth state
-          console.log("🔍 ProtectedRoute: Checking existing auth...");
+          
           await checkAuth();
 
           // Log the auth state after checkAuth completes
           const authState = useAuthStore.getState();
-          console.log("✅ ProtectedRoute: Auth check completed", {
-            isAuthenticated: authState.isAuthenticated,
-            hasUser: !!authState.user,
-            userRole: authState.user?.role,
-            userId: authState.user?.id,
-          });
+          
         }
       } catch (error) {
-        console.error("❌ ProtectedRoute: Auth initialization failed:", error);
+        
       } finally {
         setIsChecking(false);
       }
@@ -114,26 +101,17 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     if (!isChecking && !isLoading) {
-      console.log("🔍 ProtectedRoute: Checking access...", {
-        isAuthenticated,
-        userRole: user?.role,
-        requiredRole,
-      });
+      
 
       if (!isAuthenticated) {
-        console.log(
-          "❌ ProtectedRoute: Not authenticated, redirecting to:",
-          redirectTo
-        );
+        
         router.push(redirectTo);
         return;
       }
 
       // Check role if required
       if (requiredRole && user?.role !== requiredRole) {
-        console.log(
-          `❌ ProtectedRoute: Role mismatch. Required: ${requiredRole}, Got: ${user?.role}`
-        );
+        
         // Redirect based on user role
         if (user?.role === "REALTOR") {
           router.push("/dashboard");
@@ -145,7 +123,7 @@ export default function ProtectedRoute({
         return;
       }
 
-      console.log("✅ ProtectedRoute: Access granted!");
+      
     }
   }, [
     isAuthenticated,

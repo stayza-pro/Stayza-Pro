@@ -32,7 +32,7 @@ export const useBranding = () => {
           setBranding(defaultBranding);
         }
       } catch (err) {
-        console.error("Failed to fetch branding:", err);
+        
         setError("Failed to load branding");
 
         // Fallback to default branding
@@ -67,7 +67,7 @@ export const useBranding = () => {
         setBranding(defaultBranding);
       }
     } catch (err) {
-      console.error("Failed to fetch branding:", err);
+      
       setError("Failed to load branding");
 
       const fallbackBranding = brandingService.getDefaultBranding(

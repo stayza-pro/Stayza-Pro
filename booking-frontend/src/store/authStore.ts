@@ -51,15 +51,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         try {
           set({ isLoading: true, error: null });
 
-          console.log("🔐 Attempting login for:", email);
+          
           const response = await authService.login({ email, password });
 
-          console.log("✅ Login response received:", {
-            user: response.user?.email,
-            role: response.user?.role,
-            hasRedirectUrl: !!(response as any).redirectUrl,
-            redirectUrl: (response as any).redirectUrl,
-          });
+          
 
           // Set cookies for cross-subdomain access
           if (typeof window !== "undefined") {
@@ -125,7 +120,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           await authService.logout();
         } catch (error) {
           // Even if logout fails on server, clear local state
-          console.error("Logout error:", error);
+          
         } finally {
           // Clear cookies for cross-subdomain logout
           if (typeof window !== "undefined") {
@@ -203,7 +198,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         tokens: { accessToken: string; refreshToken: string },
         user: User
       ) => {
-        console.log("🔐 Auto-login: Setting user and tokens in auth store");
+        
 
         // Set tokens in localStorage
         localStorage.setItem("accessToken", tokens.accessToken);
@@ -223,33 +218,20 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           error: null,
         });
 
-        console.log("✅ Auto-login: User authenticated successfully", {
-          userId: user.id,
-          email: user.email,
-          role: user.role,
-        });
+        
       },
 
       checkAuth: async () => {
-        console.log("🔍 AuthStore: Starting checkAuth...");
+        
         const state = get();
         let token = state.accessToken || authService.getAccessToken();
         let refreshToken = state.refreshToken || authService.getRefreshToken();
 
-        console.log("🔍 AuthStore: Initial token check", {
-          hasStateToken: !!state.accessToken,
-          hasServiceToken: !!authService.getAccessToken(),
-          hasStateRefresh: !!state.refreshToken,
-          hasServiceRefresh: !!authService.getRefreshToken(),
-          hasStateUser: !!state.user,
-          isAuthenticated: state.isAuthenticated,
-        });
+        
 
         // If we already have a valid user and tokens from persistence, just verify
         if (state.user && state.accessToken && state.isAuthenticated) {
-          console.log(
-            "✅ AuthStore: User already authenticated from persisted state"
-          );
+          
 
           // Set loading to false immediately for persisted state
           set({ isLoading: false });
@@ -260,12 +242,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             set({
               user,
             });
-            console.log("✅ AuthStore: Token validated successfully");
+            
             return;
           } catch (error: any) {
-            console.warn(
-              "⚠️ AuthStore: Token validation failed, will attempt refresh"
-            );
+            
             // Don't clear auth yet, try to refresh first
             // Continue to refresh logic below if we have a refresh token
             if (!state.refreshToken) {
@@ -285,14 +265,11 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
         // Fallback to cookies if localStorage doesn't have tokens (cross-subdomain case)
         if (typeof window !== "undefined" && (!token || !refreshToken)) {
-          console.log("🍪 AuthStore: Checking cookies for tokens...");
+          
           const cookieToken = getCookie("accessToken");
           const cookieRefresh = getCookie("refreshToken");
 
-          console.log("🍪 AuthStore: Cookie token check", {
-            hasCookieToken: !!cookieToken,
-            hasCookieRefresh: !!cookieRefresh,
-          });
+          
 
           if (cookieToken) token = cookieToken;
           if (cookieRefresh) refreshToken = cookieRefresh;
@@ -300,15 +277,11 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           // Also update localStorage for this subdomain
           if (cookieToken) {
             localStorage.setItem("accessToken", cookieToken);
-            console.log(
-              "💾 AuthStore: Restored access token to localStorage from cookie"
-            );
+            
           }
           if (cookieRefresh) {
             localStorage.setItem("refreshToken", cookieRefresh);
-            console.log(
-              "💾 AuthStore: Restored refresh token to localStorage from cookie"
-            );
+            
           }
 
           // Update state with tokens from cookies
@@ -322,7 +295,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
         if (!token && !refreshToken) {
           // No tokens available, user is not authenticated
-          console.log("❌ AuthStore: No tokens found, user not authenticated");
+          
           set({
             user: null,
             accessToken: null,
@@ -348,12 +321,12 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             error: null,
           });
 
-          console.log("✅ AuthStore: User authenticated successfully");
+          
         } catch (error: any) {
           // If profile fetch fails, try to refresh token
           if (refreshToken && error?.response?.status === 401) {
             try {
-              console.log("🔄 AuthStore: Access token expired, refreshing...");
+              
               await get().refreshUserToken();
               // After successful refresh, try to get profile again
               const user = await authService.getProfile();
@@ -366,12 +339,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
                 isLoading: false,
                 error: null,
               });
-              console.log(
-                "✅ AuthStore: Token refreshed and user authenticated"
-              );
+              
             } catch (refreshError) {
               // Refresh failed, clear auth state
-              console.error("❌ Token refresh failed:", refreshError);
+              
               set({
                 user: null,
                 accessToken: null,
@@ -390,7 +361,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             }
           } else {
             // Token is invalid and no refresh token, clear state
-            console.error("❌ Auth check failed:", error);
+            
             set({
               user: null,
               accessToken: null,

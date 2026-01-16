@@ -102,7 +102,7 @@ export const deleteCloudinaryImage = async (url: string): Promise<void> => {
       await cloudinary.uploader.destroy(publicId);
     }
   } catch (error) {
-    console.error("Error deleting image from Cloudinary:", error);
+    
     // Don't throw error to avoid breaking the flow
   }
 };
@@ -127,7 +127,7 @@ export const uploadBase64Image = async (
       publicId: result.public_id,
     };
   } catch (error) {
-    console.error("Error uploading base64 image:", error);
+    
     throw new AppError("Failed to upload image", 500);
   }
 };
@@ -156,7 +156,7 @@ export const validateImageDimensions = async (
     const result = await cloudinary.api.resource(getCloudinaryPublicId(url));
     return result.width >= minWidth && result.height >= minHeight;
   } catch (error) {
-    console.error("Error validating image dimensions:", error);
+    
     return false;
   }
 };
@@ -174,7 +174,7 @@ export const getImageInfo = async (url: string) => {
       createdAt: result.created_at,
     };
   } catch (error) {
-    console.error("Error getting image info:", error);
+    
     return null;
   }
 };
@@ -199,7 +199,7 @@ export const deleteMultipleImages = async (urls: string[]): Promise<void> => {
   try {
     await Promise.allSettled(deletePromises);
   } catch (error) {
-    console.error("Error in batch delete:", error);
+    
   }
 };
 

@@ -187,7 +187,7 @@ export default function SettingsPage() {
         });
       }
     } catch (error) {
-      console.error("Error fetching payout data:", error);
+      
       showError("Failed to load payout settings");
     } finally {
       setIsLoading(false);
@@ -214,7 +214,7 @@ export default function SettingsPage() {
         }
       }
     } catch (error) {
-      console.error("Error fetching CAC status:", error);
+      
     } finally {
       setIsLoading(false);
     }

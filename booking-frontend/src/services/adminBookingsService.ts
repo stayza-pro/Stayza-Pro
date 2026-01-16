@@ -256,7 +256,7 @@ export const getAdminBookings = async (
     );
     return response;
   } catch (error: any) {
-    console.error("Error fetching admin bookings:", error);
+    
     throw new Error(
       error.response?.data?.message || "Failed to fetch bookings"
     );
@@ -275,7 +275,7 @@ export const getBookingStats = async (
     );
     return response;
   } catch (error: any) {
-    console.error("Error fetching booking stats:", error);
+    
     throw new Error(
       error.response?.data?.message || "Failed to fetch booking statistics"
     );
@@ -294,7 +294,7 @@ export const getBookingById = async (
     );
     return response;
   } catch (error: any) {
-    console.error(`Error fetching booking ${id}:`, error);
+    
     throw new Error(
       error.response?.data?.message || "Failed to fetch booking details"
     );
@@ -315,7 +315,7 @@ export const updateBookingStatus = async (
     );
     return response;
   } catch (error: any) {
-    console.error(`Error updating booking ${id} status:`, error);
+    
     throw new Error(
       error.response?.data?.message || "Failed to update booking status"
     );
@@ -336,7 +336,7 @@ export const cancelBooking = async (
     }>(`/admin/bookings/${id}/cancel`, data);
     return response;
   } catch (error: any) {
-    console.error(`Error cancelling booking ${id}:`, error);
+    
     throw new Error(
       error.response?.data?.message || "Failed to cancel booking"
     );

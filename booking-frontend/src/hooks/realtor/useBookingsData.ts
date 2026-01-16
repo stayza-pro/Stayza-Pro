@@ -82,7 +82,7 @@ export function useBookingsData(
       const errorMessage =
         err instanceof Error ? err.message : "Failed to load bookings";
       setError(errorMessage);
-      console.error("Error fetching bookings:", err);
+      
       setBookings([]);
     } finally {
       setIsLoading(false);
@@ -111,7 +111,7 @@ export function useBookingsData(
         await fetchBookings(); // Refresh bookings after confirmation
         return true;
       } catch (err) {
-        console.error("Error confirming booking:", err);
+        
         return false;
       }
     },
@@ -125,7 +125,7 @@ export function useBookingsData(
         await fetchBookings(); // Refresh bookings after cancellation
         return true;
       } catch (err) {
-        console.error("Error cancelling booking:", err);
+        
         return false;
       }
     },

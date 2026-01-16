@@ -52,7 +52,7 @@ export const ModernAdminDashboard: React.FC<ModernAdminDashboardProps> = ({
       const data = await getAnalytics(timeRange);
       setAnalytics(data);
     } catch (error: any) {
-      console.error("Failed to fetch analytics:", error);
+      
       toast.error(
         error.response?.data?.message || "Failed to load analytics data"
       );

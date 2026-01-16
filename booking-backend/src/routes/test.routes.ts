@@ -22,7 +22,7 @@ router.post("/test-waitlist-email", async (req, res) => {
       message: `Waitlist email sent to ${email}`,
     });
   } catch (error) {
-    console.error("Test email error:", error);
+    
     res.status(500).json({
       success: false,
       message: error.message,

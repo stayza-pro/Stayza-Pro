@@ -68,42 +68,42 @@ export default function PropertiesPage() {
 
   const fetchProperties = useCallback(async () => {
     if (!user) {
-      console.log("No user available yet");
+      
       setLoading(false);
       return;
     }
 
     // Log full user object to see what's available
-    console.log("🔍 Full user object:", user);
-    console.log("🔍 User role:", user.role);
-    console.log("🔍 User realtor:", user.realtor);
-    console.log("🔍 User ID:", user.id);
+    
+    
+    
+    
 
     // Use user.id directly since the backend creates properties with req.realtor?.id || req.user!.id
     const realtorId = user.realtor?.id || user.id;
 
     if (!realtorId) {
-      console.log("❌ No realtor ID or user ID available");
+      
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      console.log("✅ Fetching properties for ID:", realtorId);
+      
       const response = await propertyService.getHostProperties(realtorId, {
         page: currentPage,
         limit: 12,
         query: searchQuery || undefined,
       });
 
-      console.log("Properties response:", response);
-      console.log("First property images:", response.data?.[0]?.images);
+      
+      
 
       setProperties(response.data || []);
       setTotalPages(response.pagination?.totalPages || 1);
     } catch (error) {
-      console.error("Error fetching properties:", error);
+      
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export default function PropertiesPage() {
           showSuccess("Property deleted successfully!");
           fetchProperties();
         } catch (error) {
-          console.error("Error deleting property:", error);
+          
           showError("Failed to delete property. Please try again.");
         }
       },
@@ -143,7 +143,7 @@ export default function PropertiesPage() {
         newStatus = "INACTIVE";
       }
 
-      console.log("Toggling property:", { id, currentStatus, newStatus });
+      
       await propertyService.togglePropertyStatus(id, newStatus);
       showSuccess(
         `Property ${
@@ -152,8 +152,8 @@ export default function PropertiesPage() {
       );
       fetchProperties();
     } catch (error: any) {
-      console.error("Error toggling property status:", error);
-      console.error("Error response:", error.response?.data);
+      
+      
 
       // Show specific validation errors if available
       const errorData = error.response?.data;
@@ -537,16 +537,7 @@ export default function PropertiesPage() {
 
                     // Debug logging for first property
                     if (index === 0) {
-                      console.log("First property in grid:", {
-                        id: property.id,
-                        title: property.title,
-                        status: property.status,
-                        propertyStatus,
-                        hasImages: property.images?.length || 0,
-                        price: property.pricePerNight,
-                        address: property.address,
-                        city: property.city,
-                      });
+                      
                     }
 
                     return (

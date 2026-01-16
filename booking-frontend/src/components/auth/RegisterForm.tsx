@@ -70,7 +70,7 @@ export const RegisterForm: React.FC = () => {
       });
       router.push("/dashboard");
     } catch (err) {
-      console.error("Registration error:", err);
+      
     }
   };
 

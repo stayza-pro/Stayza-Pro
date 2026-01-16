@@ -67,7 +67,7 @@ export default function CacVerificationPage() {
         total: needsVerification.length,
       });
     } catch (error: any) {
-      console.error("Failed to fetch realtors:", error);
+      
       toast.error(
         error.response?.data?.message || "Failed to load CAC verifications"
       );

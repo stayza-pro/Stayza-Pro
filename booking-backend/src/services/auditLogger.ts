@@ -78,15 +78,10 @@ export const auditLogger = {
       });
 
       // Also log to console for development
-      console.log(`Audit: ${action} on ${entity}`, {
-        entityId: opts.entityId,
-        userId: opts.userId,
-        adminId: opts.adminId,
-        details: opts.details,
-      });
+      
     } catch (err) {
       // Silent fail to avoid impacting request lifecycle
-      console.error("Audit log failure", action, entity, err);
+      
     }
   },
 

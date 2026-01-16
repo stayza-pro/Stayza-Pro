@@ -63,7 +63,7 @@ function VerifyEmailContent() {
 
           // Auto-redirect to login page after successful verification
           setTimeout(() => {
-            console.log(`🔄 Redirecting to ${redirectUrl}`);
+            
             router.push(redirectUrl);
           }, 3000); // Wait 3 seconds to show success message
         } else {
@@ -74,7 +74,7 @@ function VerifyEmailContent() {
           toast.error(data.message || "Email verification failed.");
         }
       } catch (error) {
-        console.error("Email verification error:", error);
+        
         setResult({
           success: false,
           message: "Something went wrong during email verification.",
@@ -114,7 +114,7 @@ function VerifyEmailContent() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      console.error("Resend verification error:", error);
+      
       toast.error("Failed to resend verification email. Please try again.");
     }
   };

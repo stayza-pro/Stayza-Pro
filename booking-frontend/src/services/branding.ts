@@ -75,7 +75,7 @@ export const brandingService = {
         },
       };
     } catch (error) {
-      console.error("Error fetching realtor branding:", error);
+      
       // Return fallback branding instead of throwing
       return {
         businessName: "My Business",
@@ -161,7 +161,7 @@ export const brandingService = {
         },
       };
     } catch (error) {
-      console.error("Error fetching branding by subdomain:", error);
+      
       throw error;
     }
   },
@@ -188,7 +188,7 @@ export const brandingService = {
         },
       };
     } catch (error) {
-      console.error("Error fetching my branding:", error);
+      
       throw error;
     }
   },
@@ -230,7 +230,7 @@ export const brandingService = {
         },
       };
     } catch (error) {
-      console.error("Error updating branding:", error);
+      
       throw error;
     }
   },

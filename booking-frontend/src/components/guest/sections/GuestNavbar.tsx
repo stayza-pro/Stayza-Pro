@@ -43,7 +43,7 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
         setUser(parsedUser);
         setIsAuthenticated(true);
       } catch (error) {
-        console.error("Failed to parse user data:", error);
+        
       }
     }
   }, []);
@@ -74,7 +74,7 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
         });
       }
     } catch (error) {
-      console.error("Logout error:", error);
+      
     } finally {
       // Clear local storage regardless of API call result
       localStorage.removeItem("user");

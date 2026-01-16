@@ -50,7 +50,7 @@ export default function PropertiesPage() {
 
       setProperties(response.properties);
     } catch (error) {
-      console.error("Failed to fetch properties:", error);
+      
       toast.error("Failed to load properties. Please try again.");
 
       // Fallback to mock data if API fails
@@ -122,7 +122,7 @@ export default function PropertiesPage() {
 
       toast.success("Property approved successfully!");
     } catch (error) {
-      console.error("Failed to approve property:", error);
+      
       toast.error("Failed to approve property. Please try again.");
     }
   };
@@ -143,7 +143,7 @@ export default function PropertiesPage() {
 
       toast.success("Property rejected successfully!");
     } catch (error) {
-      console.error("Failed to reject property:", error);
+      
       toast.error("Failed to reject property. Please try again.");
     }
   };

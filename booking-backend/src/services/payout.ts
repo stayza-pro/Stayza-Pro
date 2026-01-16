@@ -52,11 +52,7 @@ export const createTransferRecipient = async (
 
     return response.data.data.recipient_code;
   } catch (error: any) {
-    console.error(
-      "Error creating transfer recipient:",
-      error.response?.data || error.message
-    );
-    throw new Error("Failed to create transfer recipient");
+        throw new Error("Failed to create transfer recipient");
   }
 };
 
@@ -75,11 +71,7 @@ export const initiateTransfer = async (
 
     return response.data.data;
   } catch (error: any) {
-    console.error(
-      "Error initiating transfer:",
-      error.response?.data || error.message
-    );
-    throw error;
+        throw error;
   }
 };
 
@@ -210,13 +202,7 @@ export const processBookingPayout = async (bookingId: string) => {
       },
     });
 
-    console.log(`✅ Payout completed for booking ${bookingId}:`, {
-      realtor: booking.property.realtor.businessName,
-      realtorPayout,
-      stayzaCommission,
-      transferReference,
-    });
-
+    
     return {
       success: true,
       bookingId,
@@ -234,8 +220,7 @@ export const processBookingPayout = async (bookingId: string) => {
       },
     });
 
-    console.error(`❌ Payout failed for booking ${bookingId}:`, error.message);
-    throw error;
+        throw error;
   }
 };
 

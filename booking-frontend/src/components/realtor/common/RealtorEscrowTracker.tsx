@@ -67,10 +67,7 @@ export default function RealtorEscrowTracker() {
       for (let i = 0; i < paidBookings.length; i++) {
         try {
           const escrowData = await getEscrowStatus(paidBookings[i].id);
-          console.log(
-            `Escrow data for booking ${paidBookings[i].id}:`,
-            escrowData
-          );
+          
           setBookingsWithEscrow((prev) => {
             const updated = [...prev];
             updated[i] = {
@@ -81,10 +78,7 @@ export default function RealtorEscrowTracker() {
             return updated;
           });
         } catch (error: any) {
-          console.error(
-            `Error loading escrow for booking ${paidBookings[i].id}:`,
-            error
-          );
+          
           setBookingsWithEscrow((prev) => {
             const updated = [...prev];
             updated[i] = {

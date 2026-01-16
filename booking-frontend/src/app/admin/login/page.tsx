@@ -44,17 +44,14 @@ function AdminLoginContent() {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
-      console.log("🔐 Attempting login with:", {
-        email: trimmedEmail,
-        passwordLength: trimmedPassword.length,
-      });
+      
 
       const result = await authService.login({
         email: trimmedEmail,
         password: trimmedPassword,
       });
 
-      console.log("✅ Login successful:", result);
+      
 
       if (result.user) {
         // Check if user is an admin
@@ -71,7 +68,7 @@ function AdminLoginContent() {
         router.push(returnTo);
       }
     } catch (err: any) {
-      console.error("❌ Login error:", err);
+      
       const errorMessage =
         err.response?.data?.message ||
         err.message ||

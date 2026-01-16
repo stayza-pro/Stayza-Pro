@@ -144,7 +144,7 @@ export const optionalAuthenticate = async (
       }
     } catch (error) {
       // Token invalid or expired - continue without user
-      console.log("Optional auth failed:", error);
+      
     }
 
     next();
@@ -367,7 +367,7 @@ export const requireApprovedRealtor = async (
     req.realtor = realtor;
     next();
   } catch (error) {
-    console.error("Error checking realtor status:", error);
+    
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -455,7 +455,7 @@ export const requireRealtorDashboardAccess = async (
 
     next();
   } catch (error) {
-    console.error("Dashboard access middleware error:", error);
+    
     res.status(500).json({
       success: false,
       message: "Authentication failed",

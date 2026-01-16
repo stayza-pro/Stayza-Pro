@@ -114,12 +114,7 @@ export default function DisputeResolutionModal({
   }, [isOpen, disputeId]);
 
   const handleResolveDispute = () => {
-    console.log("Resolving dispute:", {
-      disputeId,
-      resolutionNotes,
-      refundAmount,
-      blacklistRealtor,
-    });
+    
 
     if (onStatusUpdate) {
       onStatusUpdate(disputeId, "resolved");

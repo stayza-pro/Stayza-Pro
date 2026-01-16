@@ -313,8 +313,7 @@ export const processRealtorPayout = async (
       payment.bookingId
     );
   } catch (emailError) {
-    console.error("Failed to send payout notification email:", emailError);
-  }
+      }
 };
 
 /**

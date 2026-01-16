@@ -118,10 +118,10 @@ export default function EarningsPage() {
       }
 
       const data = await response.json();
-      console.log("📊 Analytics data:", data);
+      
       setAnalytics(data.data);
     } catch (error) {
-      console.error("Error fetching analytics:", error);
+      
       toast.error("Failed to load earnings data");
     } finally {
       setIsLoading(false);

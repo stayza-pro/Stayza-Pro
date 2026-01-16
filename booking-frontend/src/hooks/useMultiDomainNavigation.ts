@@ -25,17 +25,17 @@ export function useMultiDomainNavigation() {
    * Navigate to dashboard based on user context
    */
   const goToDashboard = (realtorData?: any) => {
-    console.log("🏠 Navigating to dashboard");
+    
 
     const userContext = buildUserContext(user, realtorData);
     const dashboardUrl = getDashboardUrl(userContext);
 
     if (isSameDomain(dashboardUrl)) {
-      console.log("📍 Same domain navigation - using Next.js router");
+      
       const url = new URL(dashboardUrl);
       router.push(url.pathname + url.search);
     } else {
-      console.log("🌍 Cross-domain navigation - using window.location");
+      
       navigateToUrl(dashboardUrl);
     }
   };
@@ -44,16 +44,16 @@ export function useMultiDomainNavigation() {
    * Navigate to login page
    */
   const goToLogin = (userRole?: "ADMIN" | "REALTOR" | "GUEST") => {
-    console.log("🔐 Navigating to login");
+    
 
     const loginUrl = getLoginUrl(userRole);
 
     if (isSameDomain(loginUrl)) {
-      console.log("📍 Same domain navigation - using Next.js router");
+      
       const url = new URL(loginUrl);
       router.push(url.pathname + url.search);
     } else {
-      console.log("🌍 Cross-domain navigation - using window.location");
+      
       navigateToUrl(loginUrl);
     }
   };
@@ -62,7 +62,7 @@ export function useMultiDomainNavigation() {
    * Handle logout with proper redirect
    */
   const handleLogout = async (userRole?: "ADMIN" | "REALTOR" | "GUEST") => {
-    console.log("🚪 Handling logout");
+    
 
     try {
       await logout();
@@ -70,15 +70,15 @@ export function useMultiDomainNavigation() {
       const logoutRedirectUrl = getLogoutRedirectUrl(userRole || user?.role);
 
       if (isSameDomain(logoutRedirectUrl)) {
-        console.log("📍 Same domain redirect - using Next.js router");
+        
         const url = new URL(logoutRedirectUrl);
         router.replace(url.pathname + url.search);
       } else {
-        console.log("🌍 Cross-domain redirect - using window.location");
+        
         navigateToUrl(logoutRedirectUrl, true);
       }
     } catch (error) {
-      console.error("❌ Logout error:", error);
+      
       // Force redirect even if logout fails
       const logoutRedirectUrl = getLogoutRedirectUrl(userRole || user?.role);
       navigateToUrl(logoutRedirectUrl, true);
@@ -89,17 +89,17 @@ export function useMultiDomainNavigation() {
    * Handle email verification success
    */
   const handleEmailVerificationSuccess = (realtorData?: any) => {
-    console.log("📧 Handling email verification success");
+    
 
     const userContext = buildUserContext(user, realtorData);
     const redirectUrl = getEmailVerificationRedirectUrl(userContext);
 
     if (isSameDomain(redirectUrl)) {
-      console.log("📍 Same domain navigation - using Next.js router");
+      
       const url = new URL(redirectUrl);
       router.push(url.pathname + url.search);
     } else {
-      console.log("🌍 Cross-domain navigation - using window.location");
+      
       navigateToUrl(redirectUrl);
     }
   };
@@ -111,7 +111,7 @@ export function useMultiDomainNavigation() {
     subdomain: string,
     isVerified: boolean = false
   ) => {
-    console.log(`🎉 Handling realtor registration success for ${subdomain}`);
+    
 
     const redirectUrl = getRealtorRegistrationRedirectUrl(
       subdomain,
@@ -119,9 +119,7 @@ export function useMultiDomainNavigation() {
     );
 
     // Always use window.location for registration success to ensure clean state
-    console.log(
-      "🌍 Registration redirect - using window.location for clean state"
-    );
+    
     navigateToUrl(redirectUrl, true);
   };
 
@@ -129,7 +127,7 @@ export function useMultiDomainNavigation() {
    * Navigate to specific path with domain awareness
    */
   const navigateToPath = (path: string, replace: boolean = false) => {
-    console.log(`🔄 Navigating to path: ${path}`);
+    
 
     if (replace) {
       router.replace(path);

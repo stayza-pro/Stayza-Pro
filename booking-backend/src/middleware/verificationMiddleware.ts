@@ -14,14 +14,7 @@ export const validateVerificationRequest = (
   const { token, email } = req.query;
 
   // Log verification attempt
-  console.log("🔍 Email verification request validation:", {
-    token: token ? `${String(token).substring(0, 10)}...` : "missing",
-    email: email,
-    origin: req.headers.origin,
-    host: req.headers.host,
-    userAgent: req.headers["user-agent"]?.substring(0, 50),
-    ip: req.ip,
-  });
+  
 
   // Validate token presence and format
   if (!token) {
@@ -29,10 +22,7 @@ export const validateVerificationRequest = (
   }
 
   if (typeof token !== "string" || token.length < 20) {
-    console.log("❌ Invalid token format:", {
-      type: typeof token,
-      length: String(token).length,
-    });
+    
     throw new AppError("Invalid token format", 400);
   }
 
@@ -42,28 +32,28 @@ export const validateVerificationRequest = (
   }
 
   if (typeof email !== "string" || !email.includes("@")) {
-    console.log("❌ Invalid email format:", email);
+    
     throw new AppError("Invalid email format", 400);
   }
 
   // Validate email format with regex
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email as string)) {
-    console.log("❌ Email fails regex validation:", email);
+    
     throw new AppError("Invalid email address format", 400);
   }
 
   // Rate limiting for verification attempts
   const userAttempts = (req as any).rateLimit;
   if (userAttempts && userAttempts.remaining < 1) {
-    console.log("❌ Rate limit exceeded for verification attempts");
+    
     throw new AppError(
       "Too many verification attempts. Please try again later.",
       429
     );
   }
 
-  console.log("✅ Verification request validation passed");
+  
   next();
 };
 
@@ -79,11 +69,7 @@ export const handleCrossDomainVerification = (
   const origin = req.headers.origin;
   const host = req.headers.host;
 
-  console.log("🌐 Cross-domain verification check:", {
-    origin,
-    host,
-    referer: req.headers.referer,
-  });
+  
 
   // Set additional CORS headers for verification endpoint
   if (origin) {
@@ -95,7 +81,7 @@ export const handleCrossDomainVerification = (
     if (isValidOrigin) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Access-Control-Allow-Credentials", "true");
-      console.log("✅ Cross-domain headers set for origin:", origin);
+      
     }
   }
 
@@ -119,14 +105,7 @@ export const logVerificationSuccess = (
   const originalJson = res.json;
   res.json = function (data: any) {
     if (data && data.success) {
-      console.log("🎉 Email verification successful:", {
-        email: req.query.email,
-        timestamp: new Date().toISOString(),
-        userAgent: req.headers["user-agent"]?.substring(0, 100),
-        ip: req.ip,
-        redirectUrl: data.redirectUrl,
-        hasTokens: !!data.authTokens,
-      });
+      
     }
     return originalJson.call(this, data);
   };

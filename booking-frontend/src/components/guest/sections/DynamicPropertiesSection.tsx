@@ -37,26 +37,23 @@ export const DynamicPropertiesSection: React.FC<
         const response = await apiClient.get<Property[]>(
           `/properties/host/${realtorId}`
         );
-        console.log("Properties API Response:", response);
+        
 
         // Filter only ACTIVE properties
         const activeProperties = (response.data || []).filter(
           (p: Property) => p.status === "ACTIVE"
         );
-        console.log("Active Properties:", activeProperties);
+        
 
         // Log first property images for debugging
         if (activeProperties.length > 0 && activeProperties[0].images) {
-          console.log("First property images:", activeProperties[0].images);
-          console.log(
-            "First image URL:",
-            getImageUrl(activeProperties[0].images[0])
-          );
+          
+          
         }
 
         setProperties(activeProperties);
       } catch (error) {
-        console.error("Failed to fetch properties:", error);
+        
         setProperties([]);
       } finally {
         setLoading(false);
@@ -371,18 +368,12 @@ export const DynamicPropertiesSection: React.FC<
                             backgroundColor: "#e5e7eb",
                           }}
                           onLoad={(e) => {
-                            console.log(
-                              "Image loaded successfully:",
-                              getImageUrl(property.images![0])
-                            );
+                            
                             const target = e.target as HTMLImageElement;
                             target.style.backgroundColor = "transparent";
                           }}
                           onError={(e) => {
-                            console.error(
-                              "Image failed to load:",
-                              getImageUrl(property.images![0])
-                            );
+                            
                             // Fallback if image fails to load
                             const target = e.target as HTMLImageElement;
                             target.style.display = "none";

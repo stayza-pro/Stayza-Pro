@@ -163,7 +163,7 @@ function GuestRegistrationContent() {
 
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
     } catch (error: any) {
-      console.error("Registration error:", error);
+      
       toast.error(error.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);

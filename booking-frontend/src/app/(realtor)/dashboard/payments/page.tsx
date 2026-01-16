@@ -90,7 +90,7 @@ export default function PaymentsPage() {
       // Calculate stats
       calculateStats(paymentsData);
     } catch (error) {
-      console.error("Error fetching payments:", error);
+      
     } finally {
       setLoading(false);
     }
@@ -154,7 +154,7 @@ export default function PaymentsPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error("Error downloading receipt:", error);
+      
       showError("Failed to download receipt");
     }
   };

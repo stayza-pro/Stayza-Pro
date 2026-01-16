@@ -33,7 +33,7 @@ export const UserProfile: React.FC = () => {
       await updateProfile(formData);
       setIsEditing(false);
     } catch (err) {
-      console.error("Profile update error:", err);
+      
     }
   };
 

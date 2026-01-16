@@ -66,7 +66,7 @@ function VerifyEmailContent() {
 
           // Auto-redirect to login page after successful verification
           setTimeout(() => {
-            console.log("🔄 Redirecting to login page");
+            
             router.push("/realtor/login");
           }, 3000); // Wait 3 seconds to show success message
         } else {
@@ -77,7 +77,7 @@ function VerifyEmailContent() {
           toast.error(data.message || "Email verification failed.");
         }
       } catch (error) {
-        console.error("Email verification error:", error);
+        
         setResult({
           success: false,
           message: "Something went wrong during email verification.",
@@ -118,7 +118,7 @@ function VerifyEmailContent() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      console.error("Resend verification error:", error);
+      
       toast.error("Something went wrong. Please try again.");
     }
   };

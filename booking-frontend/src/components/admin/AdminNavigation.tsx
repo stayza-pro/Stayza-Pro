@@ -62,7 +62,7 @@ export function AdminNavigation() {
       const data = await getNotifications({ limit: 10, unreadOnly: false });
       setNotifications(data);
     } catch (error) {
-      console.error("Failed to fetch notifications:", error);
+      
     } finally {
       setIsLoadingNotifications(false);
     }
@@ -73,7 +73,7 @@ export function AdminNavigation() {
       await markAllNotificationsAsRead();
       await fetchNotifications(); // Re-fetch to update the UI
     } catch (error) {
-      console.error("Failed to mark all as read:", error);
+      
     }
   };
 

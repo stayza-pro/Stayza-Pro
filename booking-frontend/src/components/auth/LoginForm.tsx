@@ -37,7 +37,7 @@ export const LoginForm: React.FC = () => {
       router.push("/dashboard");
     } catch (err) {
       // Error is already handled in the store
-      console.error("Login error:", err);
+      
     }
   };
 

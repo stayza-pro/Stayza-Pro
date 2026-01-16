@@ -80,7 +80,7 @@ export default function EditPropertyPage() {
 
       setExistingImages(data.images || []);
     } catch (error) {
-      console.error("Error fetching property:", error);
+      
       showError("Failed to load property");
     } finally {
       setLoading(false);
@@ -108,7 +108,7 @@ export default function EditPropertyPage() {
         setExistingImages((prev) => prev.filter((_, i) => i !== index));
         showSuccess("Image deleted successfully");
       } catch (error: any) {
-        console.error("Error deleting image:", error);
+        
         showError(error.message || "Failed to delete image");
       }
     });
@@ -129,7 +129,7 @@ export default function EditPropertyPage() {
       showSuccess("Property updated successfully!");
       router.push("/dashboard/properties");
     } catch (error: any) {
-      console.error("Error updating property:", error);
+      
       showError(error.message || "Failed to update property");
     } finally {
       setSaving(false);
@@ -145,7 +145,7 @@ export default function EditPropertyPage() {
           showSuccess("Property deleted successfully!");
           router.push("/dashboard/properties");
         } catch (error) {
-          console.error("Error deleting property:", error);
+          
           showError("Failed to delete property");
         }
       }

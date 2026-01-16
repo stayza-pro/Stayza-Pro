@@ -83,7 +83,7 @@ export default function RealtorMessagesPage() {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
 
-      console.log("Conversations API response:", response);
+      
 
       // Handle different response structures
       let conversationsData: Conversation[] = [];
@@ -101,10 +101,10 @@ export default function RealtorMessagesPage() {
         }
       }
 
-      console.log("Setting conversations:", conversationsData);
+      
       setConversations(conversationsData);
     } catch (error: any) {
-      console.error("Error fetching conversations:", error);
+      
       toast.error("Failed to load conversations");
       setConversations([]);
     } finally {
@@ -146,7 +146,7 @@ export default function RealtorMessagesPage() {
       }
     } catch (error: any) {
       toast.error("Failed to load messages");
-      console.error("Error fetching messages:", error);
+      
     } finally {
       setIsLoadingMessages(false);
     }
@@ -202,7 +202,7 @@ export default function RealtorMessagesPage() {
       toast.success("Message sent!");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to send message");
-      console.error("Error sending message:", error);
+      
     } finally {
       setIsSending(false);
     }
@@ -249,7 +249,7 @@ export default function RealtorMessagesPage() {
       }, 1000);
     } catch (error) {
       toast.error("Microphone access denied");
-      console.error("Error starting recording:", error);
+      
     }
   };
 

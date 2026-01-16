@@ -145,7 +145,7 @@ function GuestLoginContent() {
 
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
     } catch (error: any) {
-      console.error("OTP request error:", error);
+      
       toast.error(
         error.message || "Failed to send verification code. Please try again."
       );

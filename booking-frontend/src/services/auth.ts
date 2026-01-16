@@ -24,7 +24,7 @@ export const authService = {
 
   // Login user
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    console.log("🔐 Auth Service: Starting login request...");
+    
 
     // Clear any existing tokens to avoid interference
     localStorage.removeItem("accessToken");
@@ -35,13 +35,7 @@ export const authService = {
       credentials
     );
 
-    console.log("✅ Auth Service: Login response received:", {
-      hasAccessToken: !!response.data.accessToken,
-      hasRefreshToken: !!response.data.refreshToken,
-      userRole: response.data.user?.role,
-      hasRedirectUrl: !!(response.data as any).redirectUrl,
-      redirectUrl: (response.data as any).redirectUrl,
-    });
+    
 
     // Store tokens with cross-domain support
     if (response.data.accessToken) {
@@ -56,9 +50,9 @@ export const authService = {
             : ".stayza.pro";
         document.cookie = `accessToken=${response.data.accessToken}; domain=${domain}; path=/; Secure; SameSite=None`;
         document.cookie = `refreshToken=${response.data.refreshToken}; domain=${domain}; path=/; Secure; SameSite=None`;
-        console.log("🍪 Cross-domain cookies set for domain:", domain);
+        
       } catch (cookieError) {
-        console.warn("⚠️ Could not set cross-domain cookies:", cookieError);
+        
       }
     }
 
@@ -110,7 +104,7 @@ export const authService = {
     // apiClient.get already returns the backend response: { success, message, data: { user } }
     // So response.data contains { user: {...} }
     if (!response.data?.user) {
-      console.error("❌ Validation failed - response:", response);
+      
       throw new Error("Invalid profile response format");
     }
     return response.data.user;

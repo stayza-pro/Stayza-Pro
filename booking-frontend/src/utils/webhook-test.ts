@@ -58,7 +58,7 @@ export function generatePaystackSignature(
  * @example
  * ```typescript
  * const result = await testPaystackWebhook('PAY-1234567890-ABC123');
- * console.log(result.success);
+ * 
  * ```
  */
 export async function testPaystackWebhook(
@@ -96,9 +96,9 @@ export async function testPaystackWebhook(
   // Generate signature
   const signature = generatePaystackSignature(payload, secretKey);
 
-  console.log("📤 Sending test webhook to Paystack endpoint...");
-  console.log(`Reference: ${paymentReference}`);
-  console.log(`Signature: ${signature.substring(0, 20)}...`);
+  
+  
+  
 
   try {
     const response = await fetch(`${apiUrl}/webhooks/paystack`, {
@@ -174,8 +174,8 @@ export async function testFlutterwaveWebhook(
     },
   };
 
-  console.log("📤 Sending test webhook to Flutterwave endpoint...");
-  console.log(`Reference: ${paymentReference}`);
+  
+  
 
   try {
     const response = await fetch(`${apiUrl}/webhooks/flutterwave`, {
@@ -277,12 +277,10 @@ export async function testWebhookFlow(
   apiUrl: string = "http://localhost:5050",
   authToken?: string
 ): Promise<void> {
-  console.log(
-    `\n🧪 Testing ${provider} webhook flow for: ${paymentReference}\n`
-  );
+  
 
   // Step 1: Check initial status
-  console.log("1️⃣ Checking initial payment status...");
+  
   const initialStatus = await checkPaymentStatus(
     paymentReference,
     apiUrl,
@@ -290,41 +288,35 @@ export async function testWebhookFlow(
   );
 
   if (!initialStatus.success) {
-    console.error(
-      "❌ Failed to retrieve initial status:",
-      initialStatus.message
-    );
+    
     return;
   }
 
-  console.log(
-    "✅ Initial status:",
-    initialStatus.data?.data?.status || "UNKNOWN"
-  );
-  console.log("");
+  
+  
 
   // Step 2: Send webhook
-  console.log("2️⃣ Sending webhook...");
+  
   const webhookResult =
     provider === "paystack"
       ? await testPaystackWebhook(paymentReference, apiUrl)
       : await testFlutterwaveWebhook(paymentReference, apiUrl);
 
   if (!webhookResult.success) {
-    console.error("❌ Webhook failed:", webhookResult.message);
-    console.error("Response:", webhookResult.data);
+    
+    
     return;
   }
 
-  console.log("✅ Webhook processed:", webhookResult.message);
-  console.log("");
+  
+  
 
   // Step 3: Wait a bit for processing
-  console.log("3️⃣ Waiting for webhook processing...");
+  
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Step 4: Check updated status
-  console.log("4️⃣ Checking updated payment status...");
+  
   const updatedStatus = await checkPaymentStatus(
     paymentReference,
     apiUrl,
@@ -332,28 +324,23 @@ export async function testWebhookFlow(
   );
 
   if (!updatedStatus.success) {
-    console.error(
-      "❌ Failed to retrieve updated status:",
-      updatedStatus.message
-    );
+    
     return;
   }
 
   const finalPaymentStatus = updatedStatus.data?.data?.status;
   const finalBookingStatus = updatedStatus.data?.data?.booking?.status;
 
-  console.log("✅ Updated payment status:", finalPaymentStatus);
-  console.log("✅ Updated booking status:", finalBookingStatus);
-  console.log("");
+  
+  
+  
 
   // Step 5: Summary
   if (finalPaymentStatus === "HELD" && finalBookingStatus === "CONFIRMED") {
-    console.log("🎉 SUCCESS: Webhook auto-verification working correctly!");
+    
   } else {
-    console.warn("⚠️  WARNING: Status not updated as expected");
-    console.warn(
-      `Expected: HELD/CONFIRMED, Got: ${finalPaymentStatus}/${finalBookingStatus}`
-    );
+    
+    
   }
 }
 

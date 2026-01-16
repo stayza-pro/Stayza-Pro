@@ -47,7 +47,7 @@ export const ActionModal: React.FC<ActionModalProps> = ({
       setInputValue("");
       onClose();
     } catch (error) {
-      console.error("Action failed:", error);
+      
     } finally {
       setIsLoading(false);
     }
