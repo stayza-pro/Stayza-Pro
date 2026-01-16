@@ -35,10 +35,10 @@ export const brand = {
 } as const;
 
 export const navLinks = [
+  { label: "For Realtors", href: "/booking-website-for-realtors" },
+  { label: "How It Works", href: "/how-it-works" },
   { label: "Why Stayza", href: "/#why" },
   { label: "Capabilities", href: "/#capabilities" },
-  { label: "Workflow", href: "/#workflow" },
-  { label: "Signals", href: "/#signals" },
   { label: "FAQ", href: "/#faq" },
 ] as const;
 

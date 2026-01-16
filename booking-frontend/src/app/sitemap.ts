@@ -1,48 +1,40 @@
 import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
+  const routes = [
+    { path: "", priority: 1, changeFrequency: "daily" as const },
     {
-      url: "https://stayza.pro",
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 1,
+      path: "/booking-website-for-realtors",
+      priority: 0.95,
+      changeFrequency: "weekly" as const,
     },
+    { path: "/get-started", priority: 0.9, changeFrequency: "weekly" as const },
     {
-      url: "https://stayza.pro/guest-landing",
-      lastModified: new Date(),
-      changeFrequency: "weekly",
+      path: "/how-it-works",
       priority: 0.9,
+      changeFrequency: "weekly" as const,
     },
     {
-      url: "https://stayza.pro/become-host",
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.9,
-    },
-    {
-      url: "https://stayza.pro/browse",
-      lastModified: new Date(),
-      changeFrequency: "daily",
+      path: "/join-waitlist",
       priority: 0.8,
+      changeFrequency: "weekly" as const,
     },
+    { path: "/become-host", priority: 0.9, changeFrequency: "weekly" as const },
     {
-      url: "https://stayza.pro/help",
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.6,
+      path: "/guest-landing",
+      priority: 0.8,
+      changeFrequency: "weekly" as const,
     },
-    {
-      url: "https://stayza.pro/privacy",
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
-      url: "https://stayza.pro/terms",
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
+    { path: "/browse", priority: 0.8, changeFrequency: "daily" as const },
+    { path: "/help", priority: 0.6, changeFrequency: "monthly" as const },
+    { path: "/privacy", priority: 0.5, changeFrequency: "monthly" as const },
+    { path: "/terms", priority: 0.5, changeFrequency: "monthly" as const },
   ];
+
+  return routes.map((route) => ({
+    url: `https://stayza.pro${route.path}`,
+    lastModified: new Date(),
+    changeFrequency: route.changeFrequency,
+    priority: route.priority,
+  }));
 }

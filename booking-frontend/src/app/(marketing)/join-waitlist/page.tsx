@@ -34,7 +34,6 @@ export default function JoinWaitlistPage() {
           setWaitlistCount(data.data.count + 100);
         }
       } catch (error) {
-        
         // Keep default 100 if fetch fails
       }
     };

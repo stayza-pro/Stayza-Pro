@@ -1,10 +1,14 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/guest/sections/Footer";
+import { Navigation } from "@/app/(marketing)/sections/Navigation";
+import { FooterSection } from "@/app/(marketing)/sections/FooterSection";
+import { WhySection } from "@/app/(marketing)/sections/WhySection";
+import { CapabilitiesSection } from "@/app/(marketing)/sections/CapabilitiesSection";
+import { FAQSection } from "@/app/(marketing)/sections/FAQSection";
+import { SectionTitle } from "@/app/(marketing)/components/SectionTitle";
+import { CTAButton } from "@/app/(marketing)/components/CTAButton";
+import { palette } from "@/app/(marketing)/content";
 import {
   Search,
   Calendar,
@@ -17,13 +21,6 @@ import {
 } from "lucide-react";
 
 export default function HowItWorksPage() {
-  const {
-    brandColor: primaryColor,
-    realtorName,
-    tagline,
-    description,
-  } = useRealtorBranding();
-
   const guestSteps = [
     {
       icon: Search,
@@ -100,198 +97,230 @@ export default function HowItWorksPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-
+    <div className="marketing-theme min-h-screen antialiased">
       {/* Hero Section */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            How {realtorName} Works
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Discover how easy it is to book your perfect stay or list your
-            property on our platform
-          </p>
-        </div>
-      </div>
+      <section
+        className="relative overflow-hidden"
+        style={{ backgroundColor: palette.primary }}
+      >
+        <Navigation />
 
-      {/* For Guests Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">For Guests</h2>
-          <p className="text-lg text-gray-600">
-            Book your perfect stay in 4 simple steps
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {guestSteps.map((step, index) => {
-            const Icon = step.icon;
-            return (
-              <div key={index} className="relative">
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 h-full hover:shadow-md transition-shadow">
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                    style={{ backgroundColor: `${primaryColor}15` }}
-                  >
-                    <Icon className="h-6 w-6" style={{ color: primaryColor }} />
-                  </div>
-                  <div
-                    className="absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    {index + 1}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {step.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm">{step.description}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="text-center">
-          <Link
-            href="/guest/browse"
-            className="inline-flex items-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: primaryColor }}
-          >
-            Start Browsing Properties
-          </Link>
-        </div>
-      </div>
-
-      {/* For Realtors Section */}
-      <div className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              For Property Owners
-            </h2>
-            <p className="text-lg text-gray-600">
-              Start earning with your property in 4 easy steps
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-24 pt-16">
+          <div className="mx-auto max-w-4xl text-center text-white">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] mb-8">
+              Step by Step
+            </span>
+            <h1 className="text-4xl font-bold leading-tight md:text-6xl mb-6">
+              How Stayza Pro Works
+            </h1>
+            <p className="text-xl text-white/90 leading-relaxed max-w-3xl mx-auto">
+              Discover how easy it is to book your perfect stay or list your
+              property on our platform
             </p>
           </div>
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-            {realtorSteps.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <div key={index} className="relative">
-                  <div className="bg-gray-50 rounded-2xl p-6 shadow-sm border border-gray-200 h-full hover:shadow-md transition-shadow">
+      {/* Main Content */}
+      <main className="bg-marketing-surface text-marketing-foreground">
+        {/* For Guests Section */}
+        <section
+          className="py-24"
+          style={{ backgroundColor: palette.neutralLight }}
+        >
+          <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
+            <SectionTitle
+              eyebrow="for guests"
+              title="Book Your Perfect Stay"
+              description="Book your perfect stay in 4 simple steps"
+            />
+
+            <div className="grid gap-8 lg:grid-cols-4">
+              {guestSteps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <article
+                    key={index}
+                    className="marketing-card relative overflow-hidden p-8"
+                  >
                     <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                      style={{ backgroundColor: `${primaryColor}15` }}
+                      className="absolute right-[-18%] top-[-20%] h-28 w-28 rounded-full"
+                      style={{
+                        backgroundColor: "var(--marketing-primary-mist)",
+                      }}
+                    />
+                    <div className="relative">
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-xl"
+                        style={{
+                          backgroundColor: "var(--marketing-primary-soft)",
+                        }}
+                      >
+                        <Icon
+                          className="h-6 w-6"
+                          style={{ color: palette.primary }}
+                        />
+                      </div>
+                      <div
+                        className="absolute -top-6 -left-6 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                        style={{ backgroundColor: palette.primary }}
+                      >
+                        {index + 1}
+                      </div>
+                      <h3 className="mt-6 text-xl font-semibold text-marketing-foreground">
+                        {step.title}
+                      </h3>
+                      <p className="mt-3 text-sm text-marketing-muted leading-relaxed">
+                        {step.description}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-center">
+              <CTAButton
+                label="Start Listing Properties"
+                href="/realtor/onboarding"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* For Property Owners Section */}
+        <section className="py-24">
+          <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
+            <SectionTitle
+              eyebrow="for property owners"
+              title="Start Earning with Your Property"
+              description="Start earning with your property in 4 easy steps"
+            />
+
+            <div className="grid gap-8 lg:grid-cols-4">
+              {realtorSteps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <article
+                    key={index}
+                    className="marketing-card relative overflow-hidden p-8"
+                  >
+                    <div
+                      className="absolute right-[-18%] top-[-20%] h-28 w-28 rounded-full"
+                      style={{
+                        backgroundColor: "var(--marketing-secondary-mist)",
+                      }}
+                    />
+                    <div className="relative">
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-xl"
+                        style={{
+                          backgroundColor: "var(--marketing-secondary-soft)",
+                        }}
+                      >
+                        <Icon
+                          className="h-6 w-6"
+                          style={{ color: palette.secondary }}
+                        />
+                      </div>
+                      <div
+                        className="absolute -top-6 -left-6 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                        style={{ backgroundColor: palette.secondary }}
+                      >
+                        {index + 1}
+                      </div>
+                      <h3 className="mt-6 text-xl font-semibold text-marketing-foreground">
+                        {step.title}
+                      </h3>
+                      <p className="mt-3 text-sm text-marketing-muted leading-relaxed">
+                        {step.description}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-center">
+              <CTAButton label="Become a Host" href="/realtor/onboarding" />
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section
+          className="py-24"
+          style={{ backgroundColor: palette.neutralLight }}
+        >
+          <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
+            <SectionTitle
+              eyebrow="why choose us"
+              title="The Best Experience for Everyone"
+              description="We provide the best experience for both guests and hosts"
+            />
+
+            <div className="grid gap-8 lg:grid-cols-3">
+              {features.map((feature, index) => {
+                const Icon = feature.icon;
+                return (
+                  <article
+                    key={index}
+                    className="marketing-card p-8 text-center"
+                  >
+                    <div
+                      className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                      style={{
+                        backgroundColor: "var(--marketing-accent-soft)",
+                      }}
                     >
                       <Icon
-                        className="h-6 w-6"
-                        style={{ color: primaryColor }}
+                        className="h-8 w-8"
+                        style={{ color: palette.accent }}
                       />
                     </div>
-                    <div
-                      className="absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      {index + 1}
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {step.title}
+                    <h3 className="text-xl font-semibold text-marketing-foreground mb-3">
+                      {feature.title}
                     </h3>
-                    <p className="text-gray-600 text-sm">{step.description}</p>
-                  </div>
-                </div>
-              );
-            })}
+                    <p className="text-marketing-muted leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
           </div>
+        </section>
 
-          <div className="text-center">
-            <Link
-              href="/realtor/onboarding"
-              className="inline-flex items-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: primaryColor }}
-            >
-              Become a Host
-            </Link>
+        {/* Why Stayza Section */}
+        <WhySection />
+
+        {/* Capabilities Section */}
+        <CapabilitiesSection />
+
+        {/* FAQ Section */}
+        <FAQSection />
+
+        {/* CTA Section */}
+        <section className="py-24" style={{ backgroundColor: palette.primary }}>
+          <div className="mx-auto max-w-4xl space-y-6 px-4 text-center text-white sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold md:text-4xl">
+              Ready to Get Started?
+            </h2>
+            <p className="text-xl text-white/90">
+              Join thousands of guests and hosts who trust our platform for
+              their short-let needs
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <CTAButton
+                label="List Your Property"
+                href="/realtor/onboarding"
+              />
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
 
-      {/* Features Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Why Choose Us?
-          </h2>
-          <p className="text-lg text-gray-600">
-            We provide the best experience for both guests and hosts
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {features.map((feature, index) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={index}
-                className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 text-center hover:shadow-md transition-shadow"
-              >
-                <div
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
-                  style={{ backgroundColor: `${primaryColor}15` }}
-                >
-                  <Icon className="h-8 w-8" style={{ color: primaryColor }} />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600">{feature.description}</p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="bg-white border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Ready to Join the Waitlist?
-          </h2>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            Join thousands of guests and hosts who trust our platform for their
-            short-let needs
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/guest/browse"
-              className="inline-flex items-center justify-center px-8 py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: primaryColor }}
-            >
-              Browse Properties
-            </Link>
-            <Link
-              href="/realtor/onboarding"
-              className="inline-flex items-center justify-center px-8 py-3 rounded-xl font-semibold border-2 hover:bg-gray-50 transition-colors"
-              style={{
-                borderColor: primaryColor,
-                color: primaryColor,
-              }}
-            >
-              List Your Property
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        description={description}
-        primaryColor={primaryColor}
-      />
+      <FooterSection />
     </div>
   );
 }
