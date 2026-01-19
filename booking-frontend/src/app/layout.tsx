@@ -1,4 +1,5 @@
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "../context/AuthContext";
 import { QueryProvider } from "../context/QueryProvider";
 import { AlertProvider } from "../context/AlertContext";
@@ -47,6 +48,7 @@ export default function RootLayout({
             </AlertProvider>
           </AuthProvider>
         </QueryProvider>
+        <Analytics />
       </body>
     </html>
   );
