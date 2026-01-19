@@ -9,8 +9,9 @@ import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
-  display: "swap",
+  display: "optional",
   preload: true,
+  adjustFontFallback: true,
 });
 
 export const metadata = {
@@ -32,6 +33,8 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="preconnect" href="https://res.cloudinary.com" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <link rel="preconnect" href="https://stayza-pro.onrender.com" />
+        <link rel="dns-prefetch" href="https://stayza-pro.onrender.com" />
       </head>
       <body className={inter.className}>
         <PerformanceMonitor />

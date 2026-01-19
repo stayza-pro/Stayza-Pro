@@ -12,8 +12,8 @@ export function HeroSection() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const propertyImages = [
-    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&q=75&fm=webp&fit=crop",
-    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600&q=75&fm=webp&fit=crop",
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=450&h=350&q=75&fm=webp&fit=crop",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=450&h=350&q=75&fm=webp&fit=crop",
   ];
 
   useEffect(() => {
@@ -35,9 +35,9 @@ export function HeroSection() {
           : { opacity: 1, transition: { duration: 0.6, ease: "easeOut" } }
       }
     >
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" aria-hidden="true">
         <motion.div
-          className="absolute right-[-18%] top-[-35%] h-[460px] w-[460px] rounded-full"
+          className="absolute right-[-18%] top-[-35%] h-[460px] w-[460px] rounded-full will-change-transform"
           style={{
             background:
               "radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)",
@@ -50,7 +50,7 @@ export function HeroSection() {
           transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute bottom-[-30%] left-[-8%] h-[380px] w-[380px] rounded-full"
+          className="absolute bottom-[-30%] left-[-8%] h-[380px] w-[380px] rounded-full will-change-transform"
           style={{
             background:
               "radial-gradient(circle, rgba(4,120,87,0.25) 0%, transparent 70%)",
@@ -284,10 +284,10 @@ export function HeroSection() {
                             src={image}
                             alt={`Property ${index + 1}`}
                             fill
-                            sizes="(max-width: 768px) 100vw, 400px"
+                            sizes="(max-width: 768px) 90vw, (max-width: 1024px) 45vw, 420px"
                             className="object-cover"
                             priority={index === 0}
-                            quality={75}
+                            quality={70}
                           />
                         </motion.div>
                       ))}

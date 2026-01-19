@@ -1,4 +1,5 @@
-export default {
+// postcss.config.js - Optimized for production
+module.exports = {
   plugins: {
     tailwindcss: {},
     autoprefixer: {},
@@ -11,10 +12,13 @@ export default {
                 discardComments: {
                   removeAll: true,
                 },
+                normalizeWhitespace: true,
+                minifyFontValues: true,
+                minifyGradients: true,
               },
             ],
           },
         }
       : {}),
   },
-}
+};
