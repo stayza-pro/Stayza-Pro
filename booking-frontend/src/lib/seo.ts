@@ -2,7 +2,7 @@ import { Metadata } from "next";
 
 export const baseMetadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://stayza.pro"
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.stayza.pro",
   ),
   title: {
     default: "Stayza Pro - Property Booking & Guest Management for Realtors",
@@ -43,7 +43,7 @@ export const baseMetadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "/",
+    url: "/en",
     siteName: "Stayza Pro",
     title: "Property Booking & Guest Management for Realtors | Stayza Pro",
     description:
@@ -83,7 +83,7 @@ export const baseMetadata: Metadata = {
     // bing: process.env.NEXT_PUBLIC_BING_VERIFICATION,
   },
   alternates: {
-    canonical: "/",
+    canonical: "/en",
   },
 };
 
@@ -119,7 +119,7 @@ export const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Stayza Pro",
-  url: "https://stayza.pro",
+  url: "https://www.stayza.pro",
   logo: "https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png",
   description:
     "Multi-tenant property booking management platform for realtors and property managers",

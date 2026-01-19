@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 import { Menu, X } from "lucide-react";
 
@@ -22,20 +23,28 @@ const navToggleStyles: CSSProperties & Record<string, string> = {
 
 export function Navigation() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   const handleSmoothScroll = (
     e: React.MouseEvent<HTMLAnchorElement>,
     href: string
   ) => {
-    // Only handle anchor links (starting with /#)
-    if (href.startsWith("/#")) {
-      e.preventDefault();
-      const targetId = href.substring(2); // Remove /#
-      const element = document.getElementById(targetId);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-        setOpen(false);
-      }
+    const hashIndex = href.indexOf("#");
+    if (hashIndex === -1) {
+      return;
+    }
+
+    const targetPath = href.slice(0, hashIndex) || "/";
+    const targetId = href.slice(hashIndex + 1);
+    if (!targetId || targetPath !== pathname) {
+      return;
+    }
+
+    e.preventDefault();
+    const element = document.getElementById(targetId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+      setOpen(false);
     }
   };
 

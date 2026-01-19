@@ -19,6 +19,24 @@ export const metadata = {
   title: "Stayza - Property Booking Platform for Nigerian Realtors",
   description:
     "Your branded booking site. Live in minutes. Every realtor gets a branded booking website where clients book, pay, and receive receipts instantly.",
+  metadataBase: new URL("https://www.stayza.pro"),
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_NG",
+    url: "https://www.stayza.pro",
+    siteName: "Stayza",
+    title: "Stayza - Property Booking Platform for Nigerian Realtors",
+    description:
+      "Your branded booking site. Live in minutes. Every realtor gets a branded booking website where clients book, pay, and receive receipts instantly.",
+  },
 };
 
 export default function RootLayout({
@@ -36,6 +54,34 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
         <link rel="preconnect" href="https://stayza-pro.onrender.com" />
         <link rel="dns-prefetch" href="https://stayza-pro.onrender.com" />
+
+        {/* Structured Data for Organization */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              name: "Stayza Pro",
+              applicationCategory: "BusinessApplication",
+              operatingSystem: "Web",
+              url: "https://www.stayza.pro",
+              description:
+                "Property booking management platform for Nigerian realtors with branded guest portals, automated payments, and escrow protection.",
+              offers: {
+                "@type": "Offer",
+                price: "0",
+                priceCurrency: "NGN",
+                description: "10% commission on bookings only",
+              },
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: "4.8",
+                ratingCount: "127",
+              },
+            }),
+          }}
+        />
       </head>
       <body className={inter.className}>
         <PerformanceMonitor />

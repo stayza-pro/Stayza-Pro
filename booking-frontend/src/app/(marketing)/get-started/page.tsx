@@ -16,6 +16,21 @@ import {
   Target,
 } from "lucide-react";
 
+export const metadata = {
+  title: "Get Started - Launch Your Booking Platform in Minutes",
+  description:
+    "Start accepting property bookings in 4 simple steps. Create your account, list properties, customize your branded site, and go live. No subscription fees, 10% commission only.",
+  openGraph: {
+    title: "Get Started - Launch Your Booking Platform in Minutes",
+    description:
+      "Start accepting property bookings in 4 simple steps. Create your account, list properties, and go live.",
+    url: "/get-started",
+  },
+  alternates: {
+    canonical: "/get-started",
+  },
+};
+
 export default function GetStartedPage() {
   const shouldReduceMotion = useReducedMotion();
 
@@ -377,7 +392,7 @@ export default function GetStartedPage() {
                 />
                 <CTAButton
                   variant="outline"
-                  href="/#faq"
+                  href="/en#faq"
                   className="border-white text-white hover:bg-white hover:text-marketing-primary"
                   label="View FAQ"
                 />

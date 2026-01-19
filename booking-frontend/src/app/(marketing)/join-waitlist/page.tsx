@@ -18,6 +18,21 @@ import {
   BarChart3,
 } from "lucide-react";
 
+export const metadata = {
+  title: "Join the Waitlist - Get Early Access to Stayza Pro",
+  description:
+    "Be among the first realtors to launch your branded booking platform. Join 500+ property managers on the waitlist. No subscription fees, only 10% commission on bookings.",
+  openGraph: {
+    title: "Join the Waitlist - Get Early Access to Stayza Pro",
+    description:
+      "Be among the first realtors to launch your branded booking platform. Join 500+ property managers on the waitlist.",
+    url: "/join-waitlist",
+  },
+  alternates: {
+    canonical: "/join-waitlist",
+  },
+};
+
 export default function JoinWaitlistPage() {
   const shouldReduceMotion = useReducedMotion();
   const [waitlistCount, setWaitlistCount] = useState(100);
@@ -26,7 +41,7 @@ export default function JoinWaitlistPage() {
     const fetchWaitlistCount = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/waitlist/count`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/waitlist/count`,
         );
         const data = await response.json();
         if (data.success) {

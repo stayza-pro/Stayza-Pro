@@ -7,15 +7,19 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: [
         "/admin/",
+        "/dashboard/",
         "/guest/",
         "/realtor/",
+        "/settings/",
         "/api/",
+        "/booking/",
+        "/bookings/",
         "/auth/",
         "/verify-email",
         "/reset-password",
         "/forgot-password",
       ],
     },
-    sitemap: "https://stayza.pro/sitemap.xml",
+    sitemap: "https://www.stayza.pro/sitemap.xml",
   };
 }

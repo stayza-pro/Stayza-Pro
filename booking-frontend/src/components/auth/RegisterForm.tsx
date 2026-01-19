@@ -395,12 +395,15 @@ export const RegisterForm: React.FC = () => {
             />
             <label className="ml-2 text-sm text-gray-600">
               I agree to the{" "}
-              <Link href="/terms" className="text-blue-600 hover:text-blue-800">
+              <Link
+                href="/legal/terms"
+                className="text-blue-600 hover:text-blue-800"
+              >
                 Terms of Service
               </Link>{" "}
               and{" "}
               <Link
-                href="/privacy"
+                href="/legal/privacy"
                 className="text-blue-600 hover:text-blue-800"
               >
                 Privacy Policy

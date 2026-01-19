@@ -5,9 +5,9 @@ import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { NotificationProvider } from "@/providers/NotificationProvider";
 
 export const metadata: Metadata = {
-  title: "Stayza Pro – Smart Booking for Realtors and Guests",
+  title: "Stayza Pro - Smart Booking for Realtors and Guests",
   description:
-    "Stayza Pro lets realtors create branded mini booking sites with Paystack payouts, property management, guest reviews, maps, and more — all in one seamless platform.",
+    "Stayza Pro lets realtors create branded mini booking sites with Paystack payouts, property management, guest reviews, maps, and more - all in one seamless platform.",
   icons: {
     icon: [{ url: "/favicon.ico" }, { url: "/icon.png", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png" }],

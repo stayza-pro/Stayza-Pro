@@ -1648,7 +1648,7 @@ function AccountCreationStep({
         <p className="text-xs text-gray-600">
           By creating an account, you agree to our{" "}
           <Link
-            href="/terms"
+            href="/legal/terms"
             className="font-medium hover:underline"
             style={{ color: brandColor }}
           >
@@ -1656,7 +1656,7 @@ function AccountCreationStep({
           </Link>{" "}
           and{" "}
           <Link
-            href="/privacy"
+            href="/legal/privacy"
             className="font-medium hover:underline"
             style={{ color: brandColor }}
           >

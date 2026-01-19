@@ -33,6 +33,55 @@ const nextConfig = {
   // Optimize for modern browsers
   swcMinify: true,
   
+  // Server-side redirects for better SEO
+  async redirects() {
+    return [
+      // Redirect common alternate URLs to canonical versions
+      {
+        source: '/home',
+        destination: '/en',
+        permanent: true,
+      },
+      {
+        source: '/index',
+        destination: '/en',
+        permanent: true,
+      },
+      {
+        source: '/index.html',
+        destination: '/en',
+        permanent: true,
+      },
+    ];
+  },
+  
+  // Security and SEO headers
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on'
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'origin-when-cross-origin'
+          },
+        ],
+      },
+    ];
+  },
+  
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_STRIPE_PUBLIC_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY,
