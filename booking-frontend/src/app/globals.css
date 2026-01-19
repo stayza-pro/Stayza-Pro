@@ -74,6 +74,8 @@
     @apply inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em];
     background-color: var(--marketing-chip-bg);
     color: var(--marketing-chip-fg);
+    /* Ensure minimum contrast ratio of 4.5:1 */
+    font-weight: 600;
   }
 }
 
@@ -100,6 +102,15 @@
 
   .text-marketing-foreground {
     color: var(--marketing-foreground);
+  }
+
+  /* Improved contrast utility classes for accessibility */
+  .text-white-high-contrast {
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .text-white-medium-contrast {
+    color: rgba(255, 255, 255, 0.87);
   }
 
   .bg-marketing-surface {
@@ -206,14 +217,14 @@
   --marketing-accent: #f97316;
   --marketing-background: #ffffff;
   --marketing-foreground: #111827;
-  --marketing-muted: #4b5563;
-  --marketing-subtle: #6b7280;
+  --marketing-muted: #374151;
+  --marketing-subtle: #4b5563;
   --marketing-surface: #f8fafc;
   --marketing-elevated: rgba(255, 255, 255, 0.9);
   --marketing-border: rgba(17, 24, 39, 0.12);
   --marketing-glass: rgba(255, 255, 255, 0.08);
-  --marketing-chip-bg: rgba(4, 120, 87, 0.14);
-  --marketing-chip-fg: #036244;
+  --marketing-chip-bg: rgba(4, 120, 87, 0.18);
+  --marketing-chip-fg: #014737;
   --marketing-focus: rgba(249, 115, 22, 0.45);
   --marketing-ring-offset: rgba(255, 255, 255, 0.95);
   --marketing-hero-highlight: rgba(255, 255, 255, 0.12);

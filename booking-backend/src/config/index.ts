@@ -37,7 +37,7 @@ export const config = {
   SMTP_PASS: process.env.SMTP_PASS!,
   SMTP_SECURE: toBoolean(
     process.env.SMTP_SECURE,
-    (process.env.SMTP_PORT || "587") === "465"
+    (process.env.SMTP_PORT || "587") === "465",
   ),
   RESEND_API_KEY: process.env.RESEND_API_KEY, // Optional - will fallback to SMTP if not provided
 
@@ -52,28 +52,28 @@ export const config = {
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: parseInt(
     process.env.RATE_LIMIT_WINDOW_MS || "900000",
-    1000000
+    10,
   ),
   RATE_LIMIT_MAX_REQUESTS: parseInt(
     process.env.RATE_LIMIT_MAX_REQUESTS || "100",
-    10
+    10,
   ),
 
   // Booking
   REFUND_WINDOW_HOURS: parseInt(process.env.REFUND_WINDOW_HOURS || "24", 10),
   BOOKING_PAYMENT_TIMEOUT_MINUTES: parseInt(
     process.env.BOOKING_PAYMENT_TIMEOUT_MINUTES || "30",
-    10
+    10,
   ),
 
   // Financial (platform economics)
   SERVICE_FEE_RATE: parseFloat(process.env.SERVICE_FEE_RATE || "0.12"), // 12% of property price (visible service fee)
   DEFAULT_PLATFORM_COMMISSION_RATE: parseFloat(
-    process.env.DEFAULT_PLATFORM_COMMISSION_RATE || "0.05"
+    process.env.DEFAULT_PLATFORM_COMMISSION_RATE || "0.05",
   ), // 5% of property price (taken from property price portion)
   ESCROW_RELEASE_OFFSET_HOURS: parseInt(
     process.env.ESCROW_RELEASE_OFFSET_HOURS || "0",
-    10
+    10,
   ), // If >0, delay payout release this many hours after check-in
 };
 

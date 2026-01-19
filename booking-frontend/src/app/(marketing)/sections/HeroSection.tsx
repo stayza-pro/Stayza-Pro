@@ -5,14 +5,15 @@ import { heroHighlights, palette } from "@/app/(marketing)/content";
 import { CTAButton } from "@/app/(marketing)/components/CTAButton";
 import { Navigation } from "@/app/(marketing)/sections/Navigation";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 export function HeroSection() {
   const shouldReduceMotion = useReducedMotion();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const propertyImages = [
-    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600",
-    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600",
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&q=75&fm=webp&fit=crop",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600&q=75&fm=webp&fit=crop",
   ];
 
   useEffect(() => {
@@ -120,7 +121,7 @@ export function HeroSection() {
                 Your booking site. Branded. Live in minutes.
               </motion.h1>
               <motion.p
-                className="max-w-xl text-lg text-white/80 md:text-xl"
+                className="max-w-xl text-lg text-white-medium-contrast md:text-xl"
                 initial={shouldReduceMotion ? false : { opacity: 0, y: 24 }}
                 animate={
                   shouldReduceMotion
@@ -185,11 +186,13 @@ export function HeroSection() {
                   >
                     <div className="flex items-center gap-3 text-white/85">
                       <Icon className="h-5 w-5" />
-                      <span className="text-xs uppercase tracking-[0.14em] text-white/60">
+                      <span className="text-xs uppercase tracking-[0.14em] text-white-medium-contrast">
                         {title}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-white/75">{description}</p>
+                    <p className="mt-3 text-sm text-white-medium-contrast">
+                      {description}
+                    </p>
                   </motion.article>
                 ))}
               </motion.div>
@@ -268,17 +271,25 @@ export function HeroSection() {
                   <div className="space-y-4 rounded-2xl border border-marketing-subtle bg-marketing-surface p-5">
                     <div className="h-44 rounded-xl overflow-hidden relative">
                       {propertyImages.map((image, index) => (
-                        <motion.img
+                        <motion.div
                           key={image}
-                          src={image}
-                          alt={`Property ${index + 1}`}
-                          className="absolute inset-0 w-full h-full object-cover"
+                          className="absolute inset-0 w-full h-full"
                           initial={{ opacity: 0 }}
                           animate={{
                             opacity: currentImageIndex === index ? 1 : 0,
                             transition: { duration: 1.8 },
                           }}
-                        />
+                        >
+                          <Image
+                            src={image}
+                            alt={`Property ${index + 1}`}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 400px"
+                            className="object-cover"
+                            priority={index === 0}
+                            quality={75}
+                          />
+                        </motion.div>
                       ))}
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
