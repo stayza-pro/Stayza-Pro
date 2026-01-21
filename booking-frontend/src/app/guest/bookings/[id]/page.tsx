@@ -563,15 +563,24 @@ export default function BookingDetailsPage() {
   const StatusIcon = status.icon;
   const nights = calculateNights();
   const ongoing = isOngoing();
+  const secondaryBrand = secondaryColor || primaryColor;
+  const brandGradient = `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryBrand} 100%)`;
+  const softBrandGradient = `linear-gradient(135deg, ${primaryColor}12 0%, ${secondaryBrand}08 100%)`;
+  const helpGradient = `linear-gradient(135deg, ${accentColor}18 0%, ${primaryColor}10 100%)`;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
       <GuestHeader
         currentPage="bookings"
         searchPlaceholder="Search your bookings..."
       />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-72"
+        style={{ background: brandGradient, opacity: 0.12 }}
+      />
+
+      <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <button
             onClick={() => router.push("/guest/bookings")}
@@ -593,7 +602,8 @@ export default function BookingDetailsPage() {
           </div>
         </div>
 
-        <Card className="overflow-hidden border border-gray-200">
+        <Card className="overflow-hidden border border-gray-200 shadow-sm">
+          <div className="h-1 w-full" style={{ background: brandGradient }} />
           <div className="grid grid-cols-1 lg:grid-cols-12">
             <div className="lg:col-span-5 relative min-h-[240px] bg-gray-100">
               {booking.property?.images?.[0]?.url ? (
@@ -643,25 +653,29 @@ export default function BookingDetailsPage() {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="rounded-lg border border-gray-200 p-3 bg-white">
+                <div className="rounded-lg border border-gray-200 p-3 bg-white"
+                  style={{ backgroundColor: primaryColor + "08", borderColor: primaryColor + "25" }}>
                   <p className="text-xs text-gray-500">Check-in</p>
                   <p className="text-sm font-semibold text-gray-900">
                     {formatDate(booking.checkInDate)}
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-200 p-3 bg-white">
+                <div className="rounded-lg border border-gray-200 p-3 bg-white"
+                  style={{ backgroundColor: primaryColor + "08", borderColor: primaryColor + "25" }}>
                   <p className="text-xs text-gray-500">Check-out</p>
                   <p className="text-sm font-semibold text-gray-900">
                     {formatDate(booking.checkOutDate)}
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-200 p-3 bg-white">
+                <div className="rounded-lg border border-gray-200 p-3 bg-white"
+                  style={{ backgroundColor: primaryColor + "08", borderColor: primaryColor + "25" }}>
                   <p className="text-xs text-gray-500">Guests</p>
                   <p className="text-sm font-semibold text-gray-900">
                     {booking.totalGuests}
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-200 p-3 bg-white">
+                <div className="rounded-lg border border-gray-200 p-3 bg-white"
+                  style={{ backgroundColor: primaryColor + "08", borderColor: primaryColor + "25" }}>
                   <p className="text-xs text-gray-500">Nights</p>
                   <p className="text-sm font-semibold text-gray-900">
                     {nights}
@@ -692,9 +706,12 @@ export default function BookingDetailsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
           <div className="lg:col-span-8 space-y-6">
-            <Card className="p-6">
+            <Card className="p-6 border border-gray-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <h2
+                  className="text-xl font-semibold text-gray-900 flex items-center"
+                  style={{ color: secondaryBrand }}
+                >
                   <Home className="h-5 w-5 mr-2" />
                   Property & Host
                 </h2>
@@ -742,8 +759,11 @@ export default function BookingDetailsPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <Card className="p-6 border border-gray-200 shadow-sm">
+              <h2
+                className="text-xl font-semibold text-gray-900 mb-4 flex items-center"
+                style={{ color: secondaryBrand }}
+              >
                 <Calendar className="h-5 w-5 mr-2" />
                 Stay Details
               </h2>
@@ -784,9 +804,11 @@ export default function BookingDetailsPage() {
               )}
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6 border border-gray-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">Payment Summary</h2>
+                <h2 className="text-xl font-semibold text-gray-900" style={{ color: secondaryBrand }}>
+                  Payment Summary
+                </h2>
                 <span
                   className="text-xs font-semibold px-3 py-1 rounded-full"
                   style={{ backgroundColor: primaryColor + "15", color: primaryColor }}
@@ -835,9 +857,14 @@ export default function BookingDetailsPage() {
 
           <div className="lg:col-span-4">
             <div className="sticky top-24 space-y-4">
-              <Card className="p-5">
+              <Card
+                className="p-5 border shadow-sm"
+                style={{ borderColor: primaryColor + "30", background: softBrandGradient }}
+              >
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">Action Center</h3>
+                  <h3 className="font-semibold text-gray-900" style={{ color: secondaryBrand }}>
+                    Action Center
+                  </h3>
                   <span className="text-xs text-gray-400">Guest</span>
                 </div>
                 <div className="space-y-2">
@@ -913,10 +940,12 @@ export default function BookingDetailsPage() {
               </Card>
 
               <Card
-                className="p-5 border"
-                style={{ backgroundColor: accentColor + "10", borderColor: accentColor + "30" }}
+                className="p-5 border shadow-sm"
+                style={{ background: helpGradient, borderColor: accentColor + "35" }}
               >
-                <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
+                <h3 className="font-semibold text-gray-900 mb-2" style={{ color: secondaryBrand }}>
+                  Need Help?
+                </h3>
                 <p className="text-sm text-gray-700 mb-3">
                   If you have any questions or concerns about your booking,
                   please contact our support team.
