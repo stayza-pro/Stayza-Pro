@@ -120,7 +120,8 @@ export async function getBookingEscrowEvents(
   bookingId: string
 ): Promise<EscrowEvent[]> {
   const response = await api.get(`/bookings/${bookingId}/escrow-events`);
-  return response.data;
+  const data = response.data?.data ?? response.data;
+  return Array.isArray(data) ? data : [];
 }
 
 /**
@@ -128,7 +129,8 @@ export async function getBookingEscrowEvents(
  */
 export async function getActiveJobLocks(): Promise<JobLock[]> {
   const response = await api.get("/admin/system/job-locks");
-  return response.data;
+  const data = response.data?.data ?? response.data;
+  return Array.isArray(data) ? data : [];
 }
 
 /**
@@ -136,7 +138,7 @@ export async function getActiveJobLocks(): Promise<JobLock[]> {
  */
 export async function getSystemHealthStats(): Promise<SystemHealthStats> {
   const response = await api.get("/admin/system/health-stats");
-  return response.data;
+  return response.data?.data ?? response.data;
 }
 
 /**
