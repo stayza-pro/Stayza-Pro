@@ -4,17 +4,22 @@ import { cn } from "@/utils/cn";
 import { brand, palette } from "@/app/(marketing)/content";
 
 export type LogoLockupProps = {
+  href?: string;
   tone?: "dark" | "light";
   className?: string;
 };
 
-export function LogoLockup({ tone = "dark", className }: LogoLockupProps) {
+export function LogoLockup({
+  href = "/",
+  tone = "dark",
+  className,
+}: LogoLockupProps) {
   const logoIcon = brand.logoIcon;
   const isLight = tone === "light";
 
   return (
     <Link
-      href="/"
+      href={href}
       className={cn(
         "group flex items-center gap-3 transition-transform motion-safe:hover:-translate-y-0.5",
         className

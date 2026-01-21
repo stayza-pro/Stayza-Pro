@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
 import { headers } from "next/headers";
 
 // Root page router - server-side redirects for SEO
@@ -8,9 +8,9 @@ export default function RootPage() {
 
   // Admin subdomain -> admin login (server-side redirect)
   if (tenantType === "admin") {
-    redirect("/admin/login");
+    permanentRedirect("/admin/login");
   }
 
   // All other domains -> marketing site (server-side redirect)
-  redirect("/en");
+  permanentRedirect("/en");
 }

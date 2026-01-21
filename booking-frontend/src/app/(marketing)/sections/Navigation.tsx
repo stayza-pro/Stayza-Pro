@@ -54,7 +54,7 @@ export function Navigation() {
         aria-label="Primary navigation"
         className="mx-auto flex max-w-7xl items-center justify-between gap-6"
       >
-        <LogoLockup tone="light" />
+        <LogoLockup tone="light" href="/en" />
 
         <button
           type="button"

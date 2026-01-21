@@ -23,7 +23,7 @@ export function FooterSection() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <LogoLockup tone="light" />
+            <LogoLockup tone="light" href="/en" />
             <p
               className="mt-3 max-w-xs text-sm"
               style={{ color: "var(--marketing-footer-muted)" }}
