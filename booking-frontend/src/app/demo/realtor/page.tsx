@@ -143,7 +143,7 @@ export default function RealtorDemoPage() {
               className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white mb-6"
               variants={itemVariants}
             >
-              Experience <span className="text-marketing-accent">Stayza</span>{" "}
+              Experience <span className="text-marketing-accent">Stayza Pro</span>{" "}
               <br className="hidden md:block" />
               In Action
             </motion.h1>
@@ -326,7 +326,7 @@ export default function RealtorDemoPage() {
 
               <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
                 Join thousands of realtors who've already revolutionized their
-                client experience with Stayza's booking platform.
+                client experience with Stayza Pro's booking platform.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-6 justify-center">

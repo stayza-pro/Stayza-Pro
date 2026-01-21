@@ -131,7 +131,7 @@ export default function RealtorLayout({
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Redirecting to Stayza login...</p>
+          <p className="text-gray-600">Redirecting to Stayza Pro login...</p>
         </div>
       </div>
     );
@@ -319,7 +319,7 @@ export default function RealtorLayout({
               <div className="text-center">
                 <p className="text-xs text-gray-400">
                   Powered by{" "}
-                  <span className="font-semibold text-gray-600">Stayza</span>
+                  <span className="font-semibold text-gray-600">Stayza Pro</span>
                 </p>
                 <p className="text-xs text-gray-300 mt-1">
                   v1.0.0 • {new Date().getFullYear()}

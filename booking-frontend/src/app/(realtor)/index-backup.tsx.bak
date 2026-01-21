@@ -157,7 +157,7 @@ export default function RealtorPublicPage() {
             </div>
             <div className="text-sm text-gray-500">
               Powered by{" "}
-              <span className="font-medium text-gray-700">Stayza</span>
+              <span className="font-medium text-gray-700">Stayza Pro</span>
             </div>
           </div>
         </div>

@@ -251,7 +251,7 @@ export default function OnboardingPage() {
     {
       id: "account",
       title: "Create Your Account",
-      description: "Start your journey as a Stayza host",
+      description: "Start your journey as a Stayza Pro host",
       icon: Rocket,
     },
     {
@@ -1320,7 +1320,7 @@ function AccountCreationStep({
           Create Your Host Account
         </h2>
         <p className="text-gray-600">
-          Start your journey as a Stayza property host
+          Start your journey as a Stayza Pro property host
         </p>
       </div>
 
@@ -2688,7 +2688,7 @@ function CompleteStep({
               <div className="text-left">
                 <p className="text-gray-900 font-semibold">Check your inbox</p>
                 <p className="text-sm text-gray-600">
-                  Look for an email from Stayza
+                  Look for an email from Stayza Pro
                 </p>
               </div>
             </div>

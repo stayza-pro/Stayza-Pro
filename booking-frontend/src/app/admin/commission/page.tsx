@@ -337,7 +337,7 @@ export default function CommissionPage() {
                     Platform Commission Rate
                   </h3>
                   <p className="text-gray-700 mb-4">
-                    Stayza charges a <strong>7% commission</strong> on all
+                    Stayza Pro charges a <strong>10% commission</strong> on all
                     completed bookings. This commission is automatically
                     calculated and deducted from the booking amount before
                     payout to realtors.

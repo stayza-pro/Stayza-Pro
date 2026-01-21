@@ -1377,7 +1377,7 @@ export default function AddPropertyPage() {
               </h1>
               <p className="text-gray-600">
                 Fill in the details to list your property on{" "}
-                {branding?.businessName || "Stayza"}
+                {branding?.businessName || "Stayza Pro"}
               </p>
             </div>
             <div className="hidden md:block">

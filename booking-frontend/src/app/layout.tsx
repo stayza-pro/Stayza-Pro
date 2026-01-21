@@ -32,8 +32,8 @@ export const metadata = {
     type: "website",
     locale: "en_NG",
     url: "https://www.stayza.pro",
-    siteName: "Stayza",
-    title: "Stayza - Property Booking Platform for Nigerian Realtors",
+    siteName: "Stayza Pro",
+    title: "Stayza Pro - Property Booking Platform for Nigerian Realtors",
     description:
       "Your branded booking site. Live in minutes. Every realtor gets a branded booking website where clients book, pay, and receive receipts instantly.",
   },

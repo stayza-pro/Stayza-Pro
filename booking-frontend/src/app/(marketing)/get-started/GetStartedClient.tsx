@@ -8,12 +8,15 @@ import { FooterSection } from "@/app/(marketing)/sections/FooterSection";
 import {
   Rocket,
   Check,
-  Star,
   Users,
   TrendingUp,
-  Shield,
-  Zap,
-  Target,
+  Globe,
+  CalendarCheck,
+  CreditCard,
+  MonitorSmartphone,
+  MessageSquare,
+  ShieldCheck,
+  Wallet,
 } from "lucide-react";
 
 
@@ -54,88 +57,77 @@ export function GetStartedClient() {
         },
   };
 
-  const plans = [
-    {
-      id: "free",
-      name: "Free Plan",
-      price: "$0",
-      period: "Free Forever",
-      description:
-        "Perfect for individual realtors getting started with digital bookings",
-      features: [
-        "Up to 5 property listings",
-        "Basic booking calendar",
-        "Email notifications",
-        "Client contact management",
-        "Mobile-responsive booking page",
-        "Payment processing",
-        "Basic analytics",
-        "Community support",
-      ],
-      cta: "Start Free",
-      href: "/register",
-      popular: true,
-    },
-    // TODO: Paid plans will be added later
-    // {
-    //   id: "professional",
-    //   name: "Professional Plan",
-    //   price: "$29",
-    //   period: "per month",
-    //   description: "Enhanced features for growing real estate professionals",
-    //   features: [
-    //     "Unlimited property listings",
-    //     "Advanced calendar management",
-    //     "Automated email campaigns",
-    //     "Analytics and reporting",
-    //     "Custom branding",
-    //     "Payment processing integration",
-    //     "Priority support",
-    //   ],
-    //   cta: "Start Trial",
-    //   href: "/realtor/register?plan=professional",
-    //   popular: false,
-    // },
-    // {
-    //   id: "enterprise",
-    //   name: "Enterprise Plan",
-    //   price: "$99",
-    //   period: "per month",
-    //   description: "Complete solution for real estate agencies and teams",
-    //   features: [
-    //     "Everything in Professional",
-    //     "Multi-agent dashboard",
-    //     "Team collaboration tools",
-    //     "Advanced analytics",
-    //     "API access",
-    //     "White-label solutions",
-    //     "Dedicated account manager",
-    //     "Custom integrations",
-    //   ],
-    //   cta: "Contact Sales",
-    //   href: "/contact",
-    //   popular: false,
-    // },
-  ];
-
   const steps = [
     {
-      icon: Target,
-      title: "Choose Your Plan",
-      description: "Select the plan that matches your business needs and goals",
+      icon: Globe,
+      title: "Claim your branded subdomain",
+      description:
+        "Choose yourbusiness.stayza.pro, upload your logo, and set your brand colors.",
     },
     {
-      icon: Rocket,
-      title: "Quick Setup",
+      icon: CalendarCheck,
+      title: "List properties and set availability",
       description:
-        "Create your account and customize your booking experience in minutes",
+        "Add listings, pricing, and a real-time calendar to prevent double bookings.",
+    },
+    {
+      icon: CreditCard,
+      title: "Connect Paystack escrow",
+      description:
+        "Collect payments securely with escrow protection and automated payouts.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Get verified and go live",
+      description:
+        "Submit CAC verification, earn a trust badge, and start accepting bookings.",
+    },
+  ];
+
+  const featureHighlights = [
+    {
+      icon: MonitorSmartphone,
+      title: "Branded guest booking portals",
+      description:
+        "Own your experience with a personalized booking site and custom branding.",
+    },
+    {
+      icon: Wallet,
+      title: "Escrow-protected payouts",
+      description:
+        "Funds are held safely in escrow, then split automatically after check-in.",
+    },
+    {
+      icon: CalendarCheck,
+      title: "Real-time availability calendar",
+      description:
+        "Block dates, prevent overlaps, and keep every listing accurate.",
+    },
+    {
+      icon: MessageSquare,
+      title: "Guest communication + reviews",
+      description:
+        "Automated updates, messaging, and reviews to build trust and loyalty.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Disputes + audit trail",
+      description:
+        "Track every booking, payment, and resolution in one place.",
     },
     {
       icon: Users,
-      title: "Start Booking",
+      title: "CAC verification badge",
       description:
-        "Share your personalized booking link and start receiving client appointments",
+        "Stand out with verified business credentials and higher booking confidence.",
     },
+  ];
+
+  const pricingHighlights = [
+    "No subscription or setup fees",
+    "10% commission on room fees only",
+    "You keep 90% + 100% of cleaning fees",
+    "Escrow releases payouts automatically after check-in",
   ];
 
   return (
@@ -183,31 +175,40 @@ export function GetStartedClient() {
               variants={itemVariants}
             >
               <Rocket className="w-4 h-4 mr-2" />
-              Start Your Journey
+              Commission-only pricing. No subscriptions.
             </motion.div>
 
             <motion.h1
               className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white mb-6"
               variants={itemVariants}
             >
-              Join the Waitlist for{" "}
-              <span className="text-marketing-accent">Stayza</span>
+              Launch your branded booking site in minutes with{" "}
+              <span className="text-marketing-accent">Stayza Pro</span>
             </motion.h1>
 
             <motion.p
               className="text-xl md:text-2xl text-white/80 leading-relaxed mb-12 max-w-3xl mx-auto"
               variants={itemVariants}
             >
-              Transform your real estate business today. Choose the perfect plan
-              and start accepting bookings in minutes, not weeks.
+              Give guests a seamless experience with branded portals, escrow
+              payments, real-time calendars, and CAC verification. You own your
+              listings, your payouts, and your customer relationships.
             </motion.p>
 
             <motion.div
               className="flex flex-col sm:flex-row gap-6 justify-center"
               variants={itemVariants}
             >
-              <CTAButton variant="solid" href="#pricing" label="View Pricing" />
-              <CTAButton variant="ghost" href="/demo" label="Watch Demo" />
+              <CTAButton
+                variant="solid"
+                href="/join-waitlist"
+                label="Join Waitlist"
+              />
+              <CTAButton
+                variant="ghost"
+                href="/how-it-works"
+                label="See How It Works"
+              />
             </motion.div>
           </motion.div>
         </div>
@@ -226,13 +227,13 @@ export function GetStartedClient() {
             >
               <motion.div variants={itemVariants}>
                 <SectionTitle
-                  title="How It Works"
-                  description="Three simple steps to transform your business"
+                  title="How Stayza Pro works"
+                  description="Four steps to launch and start earning"
                 />
               </motion.div>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {steps.map((step, index) => {
                 const Icon = step.icon;
                 return (
@@ -266,8 +267,8 @@ export function GetStartedClient() {
           </div>
         </section>
 
-        {/* Pricing Section */}
-        <section id="pricing" className="py-32">
+        {/* Features Section */}
+        <section className="py-32">
           <div className="container mx-auto px-6 max-w-7xl">
             <motion.div
               className="text-center mb-20"
@@ -278,71 +279,89 @@ export function GetStartedClient() {
             >
               <motion.div variants={itemVariants}>
                 <SectionTitle
-                  title="Choose Your Plan"
-                  description="Flexible pricing that grows with your business"
+                  title="Everything you need to run bookings"
+                  description="Stayza Pro covers branding, payments, compliance, and guest experience."
                 />
               </motion.div>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {plans.map((plan, index) => (
-                <motion.div
-                  key={plan.id}
-                  className={`marketing-card p-8 hover:shadow-xl transition-all duration-300 ${
-                    plan.popular ? "ring-2 ring-marketing-accent relative" : ""
-                  }`}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true, margin: "-100px" }}
-                  variants={itemVariants}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-marketing-accent text-white px-6 py-2 rounded-full text-sm font-semibold flex items-center">
-                        <Star className="w-4 h-4 mr-2" />
-                        Most Popular
-                      </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featureHighlights.map((feature, index) => {
+                const Icon = feature.icon;
+                return (
+                  <motion.div
+                    key={feature.title}
+                    className="marketing-card p-8 hover:shadow-xl transition-all duration-300"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: "-100px" }}
+                    variants={itemVariants}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <div className="w-14 h-14 bg-marketing-primary rounded-2xl flex items-center justify-center mb-6">
+                      <Icon className="w-7 h-7 text-white" />
                     </div>
-                  )}
-
-                  <div className="text-center mb-8">
-                    <h3 className="text-2xl font-bold text-marketing-text mb-3">
-                      {plan.name}
+                    <h3 className="text-xl font-semibold text-marketing-text mb-3">
+                      {feature.title}
                     </h3>
-                    <div className="mb-4">
-                      <span className="text-4xl font-bold text-marketing-primary">
-                        {plan.price}
-                      </span>
-                      <span className="text-marketing-text-muted ml-2">
-                        {plan.period}
-                      </span>
-                    </div>
-                    <p className="text-marketing-text-muted">
-                      {plan.description}
+                    <p className="text-marketing-text-muted leading-relaxed">
+                      {feature.description}
                     </p>
-                  </div>
-
-                  <ul className="space-y-4 mb-8">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start">
-                        <Check className="w-5 h-5 text-marketing-secondary mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-marketing-text-muted">
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <CTAButton
-                    variant={plan.popular ? "solid" : "outline"}
-                    href={plan.href}
-                    className="w-full"
-                    label={plan.cta}
-                  />
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
+          </div>
+        </section>
+
+        {/* Commission Section */}
+        <section className="py-32">
+          <div className="container mx-auto px-6 max-w-5xl">
+            <motion.div
+              className="text-center mb-14"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={containerVariants}
+            >
+              <motion.div variants={itemVariants}>
+                <SectionTitle
+                  title="Commission-only pricing"
+                  description="Pay nothing upfront. Stayza Pro earns only when you earn."
+                />
+              </motion.div>
+            </motion.div>
+
+            <motion.div
+              className="marketing-card p-10"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              variants={itemVariants}
+            >
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-marketing-secondary mb-4">
+                    Simple, transparent pricing
+                  </p>
+                  <h3 className="text-3xl font-bold text-marketing-text mb-4">
+                    10% commission on room fees
+                  </h3>
+                  <p className="text-marketing-text-muted text-lg">
+                    Keep 90% of room fees plus 100% of cleaning fees, with escrow
+                    protection for every booking.
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  {pricingHighlights.map((item) => (
+                    <div key={item} className="flex items-start">
+                      <Check className="w-5 h-5 text-marketing-secondary mr-3 mt-0.5 flex-shrink-0" />
+                      <span className="text-marketing-text-muted">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
           </div>
         </section>
 
@@ -361,12 +380,12 @@ export function GetStartedClient() {
               </div>
 
               <h3 className="text-3xl font-bold mb-6">
-                Ready to Transform Your Real Estate Business?
+                Ready to launch your branded booking site?
               </h3>
 
               <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                Join thousands of successful realtors who've streamlined their
-                booking process and increased their revenue with Stayza.
+                Join 500+ property professionals building their booking business
+                with Stayza Pro. Get priority access and onboarding support.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-6 justify-center">

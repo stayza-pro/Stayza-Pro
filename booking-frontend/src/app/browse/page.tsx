@@ -129,7 +129,7 @@ export default function BrowsePropertiesPage() {
       </main>
 
       <Footer
-        realtorName={realtorName || "Stayza"}
+        realtorName={realtorName || "Stayza Pro"}
         tagline={tagline || "Your Trusted Property Partner"}
         logo={logoUrl}
         description={description || "Find your perfect stay with us"}

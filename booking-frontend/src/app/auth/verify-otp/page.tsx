@@ -189,7 +189,7 @@ function OTPVerificationContent() {
         const firstName = result.data.user.firstName || "there";
 
         if (type === "register") {
-          toast.success(`Welcome to Stayza, ${firstName}! 🎉`);
+          toast.success(`Welcome to Stayza Pro, ${firstName}! 🎉`);
         } else {
           toast.success(`Welcome back, ${firstName}!`);
         }

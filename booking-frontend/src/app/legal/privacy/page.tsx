@@ -163,7 +163,7 @@ export default function PrivacyPage() {
               className="text-xl md:text-2xl text-white/80 leading-relaxed mb-12 max-w-3xl mx-auto"
               variants={itemVariants}
             >
-              Transparency matters. Here's how Stayza handles and protects your
+              Transparency matters. Here's how Stayza Pro handles and protects your
               personal information with industry-leading security standards.
             </motion.p>
           </motion.div>

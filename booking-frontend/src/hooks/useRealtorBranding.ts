@@ -128,7 +128,7 @@ export function useRealtorBranding() {
     return (
       realtorBranding?.businessName ||
       user?.referredByRealtor?.businessName ||
-      "Stayza"
+      "Stayza Pro"
     );
   };
 

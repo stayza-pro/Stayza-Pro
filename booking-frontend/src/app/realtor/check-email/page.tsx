@@ -81,7 +81,7 @@ function CheckEmailContent() {
                 </p>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>1. Open your email inbox</li>
-                  <li>2. Look for an email from Stayza</li>
+                  <li>2. Look for an email from Stayza Pro</li>
                   <li>3. Click the verification link</li>
                   <li>4. You'll be redirected to your dashboard</li>
                 </ul>
