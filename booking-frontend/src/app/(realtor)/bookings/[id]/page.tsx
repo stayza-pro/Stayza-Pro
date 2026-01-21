@@ -24,6 +24,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import { bookingService } from "@/services/bookings";
+import { paymentService } from "@/services/payments";
 import { BookingStatus } from "@/types";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
 import { format } from "date-fns";
@@ -121,6 +122,29 @@ export default function RealtorBookingDetailsPage() {
       return;
     }
     refundMutation.mutate({ amount, reason: refundReason });
+  };
+
+  const handleDownloadReceipt = async () => {
+    const paymentId = booking?.payment?.id;
+
+    if (!paymentId) {
+      showToast.error("No receipt available yet.");
+      return;
+    }
+
+    try {
+      const blob = await paymentService.downloadReceipt(paymentId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `receipt-${paymentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      showToast.error("Unable to download receipt.");
+    }
   };
 
   // Refund calculation now handled by backend
@@ -513,7 +537,7 @@ export default function RealtorBookingDetailsPage() {
               <h3 className="font-semibold text-gray-900 mb-4">Actions</h3>
               <div className="space-y-3">
                 <button
-                  onClick={() => alert("Download receipt feature coming soon")}
+                  onClick={handleDownloadReceipt}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center font-medium text-gray-700"
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -668,8 +692,4 @@ export default function RealtorBookingDetailsPage() {
       )}
     </div>
   );
-}
-
-function toast(arg0: { title: string; description: string; variant: string }) {
-  throw new Error("Function not implemented.");
 }

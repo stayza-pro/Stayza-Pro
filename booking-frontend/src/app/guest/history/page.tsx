@@ -18,7 +18,9 @@ import { Footer } from "@/components/guest/sections/Footer";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useQuery } from "react-query";
 import { bookingService } from "@/services";
+import { paymentService } from "@/services/payments";
 import { Booking } from "@/types";
+import { toast } from "react-hot-toast";
 
 export default function BookingHistoryPage() {
   const router = useRouter();
@@ -114,13 +116,61 @@ export default function BookingHistoryPage() {
   );
 
   const handleDownloadReceipt = (bookingId: string) => {
-    // TODO: Implement receipt download
-    alert(`Downloading receipt for booking ${bookingId}`);
+    const booking = bookings.find((item: Booking) => item.id === bookingId);
+    const paymentId = booking?.payment?.id;
+
+    if (!paymentId) {
+      toast.error("No receipt available yet.");
+      return;
+    }
+
+    paymentService
+      .downloadReceipt(paymentId)
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `receipt-${paymentId}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(() => {
+        toast.error("Unable to download receipt.");
+      });
   };
 
   const handleDownloadAllReceipts = () => {
-    // TODO: Implement bulk download
-    alert("Downloading all receipts");
+    const paymentIds = bookings
+      .map((booking: Booking) => booking.payment?.id)
+      .filter(Boolean) as string[];
+
+    if (paymentIds.length === 0) {
+      toast.error("No receipts available yet.");
+      return;
+    }
+
+    toast.success("Preparing receipts...");
+    paymentIds.forEach((paymentId, index) => {
+      setTimeout(() => {
+        paymentService
+          .downloadReceipt(paymentId)
+          .then((blob) => {
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `receipt-${paymentId}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+          })
+          .catch(() => {
+            toast.error(`Unable to download receipt ${paymentId}.`);
+          });
+      }, index * 400);
+    });
   };
 
   if (isLoading) {

@@ -19,12 +19,14 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useQuery } from "react-query";
 import { bookingService } from "@/services";
+import { paymentService } from "@/services/payments";
 import {
   BookingStatusBadge,
   PaymentStatusBadge,
   BookingStatusCard,
 } from "@/components/booking";
 import { formatPaymentStatus } from "@/utils/bookingEnums";
+import { toast } from "react-hot-toast";
 
 export default function BookingConfirmationPage() {
   const params = useParams();
@@ -110,8 +112,28 @@ export default function BookingConfirmationPage() {
   };
 
   const handleDownloadConfirmation = () => {
-    // TODO: Implement PDF download
-    alert("PDF download will be implemented");
+    const paymentId = booking?.payment?.id;
+
+    if (!paymentId) {
+      toast.error("No receipt available yet.");
+      return;
+    }
+
+    paymentService
+      .downloadReceipt(paymentId)
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `receipt-${paymentId}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(() => {
+        toast.error("Unable to download receipt.");
+      });
   };
 
   if (isLoading) {

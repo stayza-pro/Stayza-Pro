@@ -1,8 +1,13 @@
 import { apiClient } from "./api";
 
 export interface RealtorBranding {
+  id?: string;
+  userId?: string;
   businessName: string;
+  businessEmail?: string;
   tagline?: string;
+  description?: string;
+  subdomain?: string;
   primaryColor: string;
   secondaryColor?: string;
   accentColor?: string;
@@ -34,6 +39,7 @@ export interface RealtorProfile {
   linkedinUrl?: string;
   facebookUrl?: string;
   user: {
+    id?: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -146,8 +152,13 @@ export const brandingService = {
       const realtor = response.data;
 
       return {
+        id: realtor.id,
+        userId: realtor.user?.id,
         businessName: realtor.businessName || "My Business",
+        businessEmail: realtor.user?.email,
         tagline: realtor.tagline,
+        description: realtor.description,
+        subdomain: realtor.slug,
         primaryColor: realtor.primaryColor || "#0066CC",
         secondaryColor: realtor.secondaryColor || "#10B981",
         accentColor: realtor.accentColor || "#F59E0B",

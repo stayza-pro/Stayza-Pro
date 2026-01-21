@@ -141,6 +141,60 @@ export default function EarningsPage() {
     return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
   };
 
+  const handleExport = () => {
+    if (!analytics) return;
+
+    const rows: Array<Array<string | number>> = [
+      ["Metric", "Value"],
+      ["Total Revenue", analytics.overview.revenue.total],
+      ["Average Booking Value", analytics.overview.revenue.average],
+      ["Total Bookings", analytics.overview.bookings.total],
+      ["Completed Bookings", analytics.overview.bookings.completed],
+      ["Pending Bookings", analytics.overview.bookings.pending],
+      ["Cancelled Bookings", analytics.overview.bookings.cancelled],
+      ["Total Guests", analytics.overview.guests.total],
+      ["New Guests", analytics.overview.guests.newInPeriod],
+      ["Average Rating", analytics.overview.performance.averageRating],
+      ["Total Reviews", analytics.overview.performance.totalReviews],
+      ["Occupancy Rate", analytics.overview.performance.occupancyRate],
+      ["Conversion Rate", analytics.overview.performance.conversionRate],
+      [],
+      ["Monthly Trends"],
+      ["Month", "Bookings", "Revenue"],
+      ...analytics.trends.monthly.map((trend) => [
+        trend.month,
+        trend.bookings,
+        trend.revenue,
+      ]),
+    ];
+
+    const csv = rows
+      .map((row) =>
+        row
+          .map((cell) => {
+            if (typeof cell === "string" && cell.includes(",")) {
+              return `"${cell}"`;
+            }
+            return cell;
+          })
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `stayza-earnings-${timeRange}-${format(
+      new Date(),
+      "yyyy-MM-dd"
+    )}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
   const COLORS = [
     brandColor,
     secondaryColor,
@@ -207,7 +261,7 @@ export default function EarningsPage() {
           </select>
           <button
             className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            onClick={() => toast("Export feature coming soon!")}
+            onClick={handleExport}
           >
             <Download className="h-5 w-5" />
           </button>

@@ -31,6 +31,7 @@ import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import { bookingService } from "@/services/bookings";
 import { disputeService } from "@/services/disputes";
+import { paymentService } from "@/services/payments";
 import { BookingStatus } from "@/types";
 import { DisputeIssueType } from "@/types/dispute";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
@@ -293,8 +294,28 @@ export default function BookingDetailsPage() {
   // Refund calculation now handled by backend
 
   const handleDownloadReceipt = () => {
-    // TODO: Implement receipt download
-    alert("Receipt download will be implemented");
+    const paymentId = booking?.payment?.id;
+
+    if (!paymentId) {
+      toast.error("No receipt available yet.");
+      return;
+    }
+
+    paymentService
+      .downloadReceipt(paymentId)
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `receipt-${paymentId}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(() => {
+        toast.error("Unable to download receipt.");
+      });
   };
 
   const handleWriteReview = () => {

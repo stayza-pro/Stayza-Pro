@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { getCookie } from "@/utils/cookies";
 import { Payment } from "../types";
 
 export interface PaystackInitializationRequest {
@@ -175,13 +176,15 @@ export const paymentService = {
 
   // Download receipt for a completed payment (returns Blob)
   downloadReceipt: async (paymentId: string): Promise<Blob> => {
+    const token =
+      localStorage.getItem("accessToken") || getCookie("accessToken") || "";
     const res = await fetch(
       `${
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api"
       }/payments/${paymentId}/receipt`,
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );

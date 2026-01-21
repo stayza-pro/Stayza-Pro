@@ -1,32 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { getSubdomainInfo } from "@/utils/subdomain";
 import { buildMainDomainUrl } from "@/utils/domains";
 
 export default function RealtorNotFound() {
   const router = useRouter();
-  const [isRedirecting, setIsRedirecting] = useState(false);
-
   useEffect(() => {
     const handleNotFound = async () => {
-      setIsRedirecting(true);
-
-      // Get subdomain info
-      const tenantInfo = getSubdomainInfo();
-
-      // Log out the user
-      try {
-        const { useAuthStore } = await import("@/store/authStore");
-        await useAuthStore.getState().logout();
-      } catch (error) {
-        
-      }
-
-      // Redirect to main domain realtor login
-      window.location.href = buildMainDomainUrl("/realtor/login");
+      // Redirect to main domain marketing home
+      window.location.replace(buildMainDomainUrl("/en"));
     };
 
     handleNotFound();
@@ -39,7 +23,7 @@ export default function RealtorNotFound() {
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
           Page Not Found
         </h2>
-        <p className="text-gray-600">Redirecting to login...</p>
+        <p className="text-gray-600">Redirecting to Stayza Pro...</p>
       </div>
     </div>
   );

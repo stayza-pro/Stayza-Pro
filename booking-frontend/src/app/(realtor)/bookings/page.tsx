@@ -5,7 +5,6 @@ import { useBookingsData } from "@/hooks/realtor/useBookingsData";
 import { useBranding } from "@/hooks/useBranding";
 import { useAlert } from "@/context/AlertContext";
 import { useAuth } from "@/context/AuthContext";
-import { getRealtorSubdomain } from "@/utils/subdomain";
 import { Booking, BookingStatus } from "@/types";
 import { useRouter } from "next/navigation";
 import {
@@ -32,7 +31,6 @@ export default function RealtorBookingsPage() {
   const { user } = useAuth();
   const { branding } = useBranding();
   const { showSuccess, showConfirm } = useAlert();
-  const realtorSubdomain = getRealtorSubdomain();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">(
     "all"
@@ -167,10 +165,6 @@ export default function RealtorBookingsPage() {
         </div>
       </div>
     );
-  }
-
-  function showAlert(arg0: string, arg1: string): void {
-    throw new Error("Function not implemented.");
   }
 
   return (

@@ -5,6 +5,7 @@ import axios, {
   AxiosError,
 } from "axios";
 import { toast } from "react-hot-toast";
+import { getCookie, setCookie, deleteCookie } from "@/utils/cookies";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
@@ -20,7 +21,15 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("accessToken");
+    let token = localStorage.getItem("accessToken");
+
+    // Fallback to cookies for cross-subdomain refreshes
+    if (!token && typeof window !== "undefined") {
+      token = getCookie("accessToken");
+      if (token) {
+        localStorage.setItem("accessToken", token);
+      }
+    }
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -56,7 +65,7 @@ api.interceptors.response.use(
       try {
         
 
-        // Try to get refresh token from authStore first, then localStorage
+        // Try to get refresh token from authStore first, then localStorage/cookies
         let refreshToken: string | null = null;
 
         if (typeof window !== "undefined") {
@@ -64,6 +73,13 @@ api.interceptors.response.use(
           const storeRefreshToken = useAuthStore.getState().refreshToken;
           refreshToken =
             storeRefreshToken || localStorage.getItem("refreshToken");
+
+          if (!refreshToken) {
+            refreshToken = getCookie("refreshToken");
+            if (refreshToken) {
+              localStorage.setItem("refreshToken", refreshToken);
+            }
+          }
           
         } else {
           refreshToken = localStorage.getItem("refreshToken");
@@ -79,6 +95,9 @@ api.interceptors.response.use(
 
         const { accessToken } = response.data;
         localStorage.setItem("accessToken", accessToken);
+
+        // Keep cookie in sync for subdomain access
+        setCookie("accessToken", accessToken, 7);
 
         // Also update authStore with new access token
         if (typeof window !== "undefined") {
@@ -102,10 +121,8 @@ api.interceptors.response.use(
         // Update auth store to reflect logout state
         if (typeof window !== "undefined") {
           // Clear cookies as well
-          import("@/utils/cookies").then(({ deleteCookie }) => {
-            deleteCookie("accessToken");
-            deleteCookie("refreshToken");
-          });
+          deleteCookie("accessToken");
+          deleteCookie("refreshToken");
 
           // Dynamically import to avoid SSR issues
           import("@/store/authStore").then(({ useAuthStore }) => {

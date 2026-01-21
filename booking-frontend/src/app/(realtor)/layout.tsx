@@ -10,6 +10,7 @@ import { useBranding } from "@/hooks/useBranding";
 import { BrandProvider } from "@/components/realtor/context/BrandContext";
 import { DashboardHeader } from "@/components/realtor/DashboardHeader";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { brandingService } from "@/services/branding";
 import Image from "next/image";
 import {
   Building2,
@@ -41,6 +42,7 @@ export default function RealtorLayout({
   const [activeNav, setActiveNav] = useState("dashboard");
   const [mounted, setMounted] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isTenantValid, setIsTenantValid] = useState<boolean | null>(null);
   const [tenantInfo, setTenantInfo] = useState<
     ReturnType<typeof getSubdomainInfo>
   >({
@@ -71,6 +73,40 @@ export default function RealtorLayout({
     setTenantInfo(getSubdomainInfo());
     setMounted(true);
   }, []);
+
+  // Validate realtor subdomain to avoid showing invalid pages
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (tenantInfo.type !== "realtor" || !tenantInfo.subdomain) {
+      setIsTenantValid(true);
+      return;
+    }
+
+    let isActive = true;
+    setIsTenantValid(null);
+
+    brandingService
+      .getBrandingBySubdomain(tenantInfo.subdomain)
+      .then(() => {
+        if (!isActive) return;
+        setIsTenantValid(true);
+      })
+      .catch((error: any) => {
+        if (!isActive) return;
+        const status = error?.response?.status;
+        if (status === 404) {
+          setIsTenantValid(false);
+        } else {
+          // If there's a network or transient error, don't block the dashboard
+          setIsTenantValid(true);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [mounted, tenantInfo.type, tenantInfo.subdomain]);
 
   // On subdomains, if someone tries to access /login, redirect to main domain
   useEffect(() => {
@@ -121,6 +157,29 @@ export default function RealtorLayout({
   // Only apply this layout on realtor subdomains (NOT on main domain)
   if (tenantInfo.type !== "realtor") {
     return <>{children}</>;
+  }
+
+  if (isTenantValid === false) {
+    window.location.replace(buildMainDomainUrl("/en"));
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to Stayza Pro...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTenantValid === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking your site...</p>
+        </div>
+      </div>
+    );
   }
 
   const realtorSubdomain =
