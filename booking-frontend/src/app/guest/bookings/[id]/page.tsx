@@ -96,7 +96,11 @@ export default function BookingDetailsPage() {
   const { data: existingDispute, isLoading: disputeLoading } = useQuery({
     queryKey: ["booking-dispute", bookingId],
     queryFn: () => disputeService.getDisputeByBooking(bookingId),
-    enabled: !!user && !!bookingId,
+    enabled:
+      !!user &&
+      !!bookingId &&
+      !!booking &&
+      (booking.status === "DISPUTED" || booking.status === "DISPUTE_OPENED"),
     retry: false,
   });
 
