@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { paymentService } from "@/services/payments";
 import { Payment } from "@/types";
 import { useAlert } from "@/context/AlertContext";
+import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import {
   DollarSign,
   TrendingUp,
@@ -142,13 +143,22 @@ export default function PaymentsPage() {
     });
   };
 
-  const handleDownloadReceipt = async (paymentId: string) => {
+  const handleDownloadReceipt = async (payment: Payment) => {
+    if (!canDownloadReceipt(payment.status)) {
+      showError(
+        `Receipt available once payment is released. Current status: ${formatPaymentStatus(
+          payment.status
+        )}.`
+      );
+      return;
+    }
+
     try {
-      const blob = await paymentService.downloadReceipt(paymentId);
+      const blob = await paymentService.downloadReceipt(payment.id);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `receipt-${paymentId}.pdf`;
+      a.download = `receipt-${payment.id}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -418,7 +428,7 @@ export default function PaymentsPage() {
                         {(payment.status === "SETTLED" ||
                           payment.status === "PARTIALLY_RELEASED") && (
                           <button
-                            onClick={() => handleDownloadReceipt(payment.id)}
+                            onClick={() => handleDownloadReceipt(payment)}
                             className="text-blue-600 hover:text-blue-900 inline-flex items-center gap-1"
                           >
                             <Download className="h-4 w-4" />

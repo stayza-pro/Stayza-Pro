@@ -12,6 +12,7 @@ import { toast } from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { TransferStatusBadge } from "@/components/payments/TransferStatus";
 import { useTransferStatus } from "@/hooks/useEscrow";
+import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 
 const mapPaymentStatus = (status?: Payment["status"]) => {
   switch (status) {
@@ -69,6 +70,16 @@ const PaymentSuccessContent = () => {
   const handleDownloadReceipt = async () => {
     if (!paymentId) {
       toast.error("No receipt available yet.");
+      return;
+    }
+
+    if (!canDownloadReceipt(payment?.status)) {
+      const paymentStatusLabel = payment?.status
+        ? formatPaymentStatus(payment.status)
+        : "Unknown";
+      toast.error(
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+      );
       return;
     }
 

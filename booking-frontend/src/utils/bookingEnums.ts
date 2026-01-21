@@ -170,6 +170,16 @@ export const isPaymentCompleted = (status: PaymentStatus): boolean => {
 };
 
 /**
+ * Check if a receipt is available for the payment status
+ */
+export const canDownloadReceipt = (
+  status?: PaymentStatus | null
+): boolean => {
+  if (!status) return false;
+  return ["PARTIALLY_RELEASED", "SETTLED"].includes(status);
+};
+
+/**
  * Check if payment can be refunded
  */
 export const canRefundPayment = (status: PaymentStatus): boolean => {

@@ -33,6 +33,7 @@ import { bookingService } from "@/services/bookings";
 import { disputeService } from "@/services/disputes";
 import { paymentService } from "@/services/payments";
 import { BookingStatus } from "@/types";
+import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import { DisputeIssueType } from "@/types/dispute";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
 import { toast } from "react-hot-toast";
@@ -301,6 +302,16 @@ export default function BookingDetailsPage() {
       return;
     }
 
+    if (!canDownloadReceipt(booking?.paymentStatus)) {
+      const paymentStatusLabel = booking?.paymentStatus
+        ? formatPaymentStatus(booking.paymentStatus)
+        : "Unknown";
+      toast.error(
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+      );
+      return;
+    }
+
     paymentService
       .downloadReceipt(paymentId)
       .then((blob) => {
@@ -323,7 +334,7 @@ export default function BookingDetailsPage() {
   };
 
   const handleContactHost = () => {
-    router.push(`/guest/messages?hostId=${booking?.property?.realtorId}`);
+    router.push(`/guest/messages?bookingId=${bookingId}`);
   };
 
   const handleCreateDispute = () => {
@@ -791,6 +802,7 @@ export default function BookingDetailsPage() {
                     onClick={handleDownloadReceipt}
                     className="w-full"
                     variant="outline"
+                    disabled={!canDownloadReceipt(booking.paymentStatus)}
                   >
                     <Download className="h-4 w-4 mr-2" />
                     Download Receipt

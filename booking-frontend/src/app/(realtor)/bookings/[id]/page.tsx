@@ -26,6 +26,7 @@ import { useQuery, useMutation, useQueryClient } from "react-query";
 import { bookingService } from "@/services/bookings";
 import { paymentService } from "@/services/payments";
 import { BookingStatus } from "@/types";
+import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
 import { format } from "date-fns";
 import { toast as showToast } from "react-hot-toast";
@@ -129,6 +130,16 @@ export default function RealtorBookingDetailsPage() {
 
     if (!paymentId) {
       showToast.error("No receipt available yet.");
+      return;
+    }
+
+    if (!canDownloadReceipt(booking?.paymentStatus)) {
+      const paymentStatusLabel = booking?.paymentStatus
+        ? formatPaymentStatus(booking.paymentStatus)
+        : "Unknown";
+      showToast.error(
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+      );
       return;
     }
 
@@ -539,6 +550,7 @@ export default function RealtorBookingDetailsPage() {
                 <button
                   onClick={handleDownloadReceipt}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center font-medium text-gray-700"
+                  disabled={!canDownloadReceipt(booking.paymentStatus)}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download Receipt

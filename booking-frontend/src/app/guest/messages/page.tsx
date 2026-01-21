@@ -26,6 +26,9 @@ function MessagesContent() {
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading } = useCurrentUser();
   const [authChecked, setAuthChecked] = useState(false);
+  const bookingIdParam = searchParams.get("bookingId");
+  const propertyIdParam = searchParams.get("propertyId");
+  const hostIdParam = searchParams.get("hostId");
 
   // Use realtor branding hook for consistent styling
   const {
@@ -40,7 +43,7 @@ function MessagesContent() {
 
   const [selectedConversation, setSelectedConversation] = useState<
     string | null
-  >(searchParams.get("hostId") || null);
+  >(bookingIdParam || propertyIdParam || hostIdParam || null);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -52,6 +55,7 @@ function MessagesContent() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [hasMappedHostId, setHasMappedHostId] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +76,56 @@ function MessagesContent() {
       router.push("/guest/login?returnTo=/guest/messages");
     }
   }, [isLoading, isAuthenticated, authChecked, router]);
+
+  useEffect(() => {
+    if (!selectedConversation) {
+      if (bookingIdParam) {
+        setSelectedConversation(bookingIdParam);
+      } else if (propertyIdParam) {
+        setSelectedConversation(propertyIdParam);
+      }
+    }
+  }, [bookingIdParam, propertyIdParam, selectedConversation]);
+
+  useEffect(() => {
+    if (!hostIdParam || hasMappedHostId) return;
+    if (bookingIdParam || propertyIdParam) return;
+    if (isLoadingConversations) return;
+
+    if (selectedConversation && selectedConversation !== hostIdParam) {
+      setHasMappedHostId(true);
+      return;
+    }
+
+    const hostConversation = conversations.find(
+      (conversation) => conversation.otherUser.id === hostIdParam
+    );
+
+    if (hostConversation) {
+      const conversationId =
+        hostConversation.bookingId || hostConversation.propertyId || null;
+      if (conversationId) {
+        setSelectedConversation(conversationId);
+      }
+    } else {
+      if (selectedConversation === hostIdParam) {
+        setSelectedConversation(null);
+      }
+      toast.error(
+        "No existing conversation with that host yet. Open messages from a property or booking."
+      );
+    }
+
+    setHasMappedHostId(true);
+  }, [
+    hostIdParam,
+    hasMappedHostId,
+    conversations,
+    bookingIdParam,
+    propertyIdParam,
+    selectedConversation,
+    isLoadingConversations,
+  ]);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -116,46 +170,79 @@ function MessagesContent() {
     }
   };
 
+  const resolveConversationContext = () => {
+    if (!selectedConversation) return null;
+
+    const selectedConv = conversations.find(
+      (c) =>
+        c.propertyId === selectedConversation ||
+        c.bookingId === selectedConversation
+    );
+
+    if (selectedConv?.propertyId) {
+      return {
+        id: selectedConv.propertyId,
+        type: "property" as const,
+        conversation: selectedConv,
+      };
+    }
+
+    if (selectedConv?.bookingId) {
+      return {
+        id: selectedConv.bookingId,
+        type: "booking" as const,
+        conversation: selectedConv,
+      };
+    }
+
+    if (bookingIdParam && selectedConversation === bookingIdParam) {
+      return { id: bookingIdParam, type: "booking" as const };
+    }
+
+    if (propertyIdParam && selectedConversation === propertyIdParam) {
+      return { id: propertyIdParam, type: "property" as const };
+    }
+
+    return null;
+  };
+
   const fetchMessages = async () => {
     if (!selectedConversation) return;
 
     try {
       setIsLoadingMessages(true);
-      const selectedConv = conversations.find(
-        (c) =>
-          c.propertyId === selectedConversation ||
-          c.bookingId === selectedConversation
-      );
-
-      if (!selectedConv) return;
+      const context = resolveConversationContext();
+      if (!context) {
+        setMessages([]);
+        return;
+      }
 
       let response;
-      if (selectedConv.propertyId) {
-        response = await messageService.getPropertyMessages(
-          selectedConv.propertyId
-        );
-      } else if (selectedConv.bookingId) {
-        response = await messageService.getBookingMessages(
-          selectedConv.bookingId
-        );
+      if (context.type === "property") {
+        response = await messageService.getPropertyMessages(context.id);
+      } else {
+        response = await messageService.getBookingMessages(context.id);
       }
 
       if (response?.success && response.data) {
         setMessages(response.data);
 
         // Mark conversation as read
-        if (selectedConv.propertyId || selectedConv.bookingId) {
+        if (context.conversation) {
           await messageService.markConversationAsRead(
-            selectedConv.propertyId,
-            selectedConv.bookingId
+            context.conversation.propertyId,
+            context.conversation.bookingId
           );
           // Refresh conversations to update unread count
           fetchConversations();
         }
       }
-    } catch (error) {
-      
-      toast.error("Failed to load messages");
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        setMessages([]);
+      } else {
+        toast.error("Failed to load messages");
+      }
     } finally {
       setIsLoadingMessages(false);
     }
@@ -168,13 +255,11 @@ function MessagesContent() {
     )
       return;
 
-    const selectedConv = conversations.find(
-      (c) =>
-        c.propertyId === selectedConversation ||
-        c.bookingId === selectedConversation
-    );
-
-    if (!selectedConv) return;
+    const context = resolveConversationContext();
+    if (!context) {
+      toast.error("Select a conversation or open messages from a booking or property.");
+      return;
+    }
 
     try {
       setIsSending(true);
@@ -196,14 +281,14 @@ function MessagesContent() {
 
       let response;
 
-      if (selectedConv.propertyId) {
+      if (context.type === "property") {
         response = await messageService.sendPropertyInquiryWithAttachments(
-          selectedConv.propertyId,
+          context.id,
           formData
         );
-      } else if (selectedConv.bookingId) {
+      } else {
         response = await messageService.sendBookingMessageWithAttachments(
-          selectedConv.bookingId,
+          context.id,
           formData
         );
       }
@@ -452,7 +537,33 @@ function MessagesContent() {
                         c.propertyId === selectedConversation ||
                         c.bookingId === selectedConversation
                     );
-                    if (!selectedConv) return null;
+                    if (!selectedConv) {
+                      const context = resolveConversationContext();
+                      if (!context) return null;
+
+                      return (
+                        <>
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold mr-3"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            ?
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900">
+                              {context.type === "booking"
+                                ? "Booking Conversation"
+                                : "Property Inquiry"}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {context.type === "booking"
+                                ? `Booking: ${context.id}`
+                                : `Property: ${context.id}`}
+                            </p>
+                          </div>
+                        </>
+                      );
+                    }
 
                     return (
                       <>

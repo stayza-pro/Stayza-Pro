@@ -25,7 +25,7 @@ import {
   PaymentStatusBadge,
   BookingStatusCard,
 } from "@/components/booking";
-import { formatPaymentStatus } from "@/utils/bookingEnums";
+import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import { toast } from "react-hot-toast";
 
 export default function BookingConfirmationPage() {
@@ -116,6 +116,16 @@ export default function BookingConfirmationPage() {
 
     if (!paymentId) {
       toast.error("No receipt available yet.");
+      return;
+    }
+
+    if (!canDownloadReceipt(booking?.paymentStatus)) {
+      const paymentStatusLabel = booking?.paymentStatus
+        ? formatPaymentStatus(booking.paymentStatus)
+        : "Unknown";
+      toast.error(
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+      );
       return;
     }
 
@@ -287,6 +297,7 @@ export default function BookingConfirmationPage() {
             onClick={handleDownloadConfirmation}
             className="shadow-sm hover:shadow-md transition-all"
             style={{ backgroundColor: brandColor }}
+            disabled={!canDownloadReceipt(booking.paymentStatus)}
           >
             <Download className="h-4 w-4 mr-2" />
             Download PDF

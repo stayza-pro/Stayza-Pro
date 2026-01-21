@@ -20,6 +20,7 @@ import { useQuery } from "react-query";
 import { bookingService } from "@/services";
 import { paymentService } from "@/services/payments";
 import { Booking } from "@/types";
+import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import { toast } from "react-hot-toast";
 
 export default function BookingHistoryPage() {
@@ -62,6 +63,9 @@ export default function BookingHistoryPage() {
 
   const bookings = (bookingsData?.data || []).filter(
     (b: Booking) => b.status === "COMPLETED"
+  );
+  const hasEligibleReceipts = bookings.some((booking: Booking) =>
+    canDownloadReceipt(booking.paymentStatus)
   );
 
   // Show loading state while checking authentication
@@ -124,6 +128,16 @@ export default function BookingHistoryPage() {
       return;
     }
 
+    if (!canDownloadReceipt(booking?.paymentStatus)) {
+      const paymentStatusLabel = booking?.paymentStatus
+        ? formatPaymentStatus(booking.paymentStatus)
+        : "Unknown";
+      toast.error(
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+      );
+      return;
+    }
+
     paymentService
       .downloadReceipt(paymentId)
       .then((blob) => {
@@ -143,11 +157,15 @@ export default function BookingHistoryPage() {
 
   const handleDownloadAllReceipts = () => {
     const paymentIds = bookings
+      .filter(
+        (booking: Booking) =>
+          canDownloadReceipt(booking.paymentStatus) && booking.payment?.id
+      )
       .map((booking: Booking) => booking.payment?.id)
       .filter(Boolean) as string[];
 
     if (paymentIds.length === 0) {
-      toast.error("No receipts available yet.");
+      toast.error("No downloadable receipts available yet.");
       return;
     }
 
@@ -246,6 +264,7 @@ export default function BookingHistoryPage() {
             <Button
               onClick={handleDownloadAllReceipts}
               className="w-full"
+              disabled={!hasEligibleReceipts}
               style={{ backgroundColor: primaryColor }} // Lighter touch - primary for CTA
             >
               <Download className="h-4 w-4 mr-2" />
@@ -326,14 +345,15 @@ export default function BookingHistoryPage() {
                           </div>
                         </div>
 
-                        <Button
-                          onClick={() => handleDownloadReceipt(booking.id)}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Receipt
-                        </Button>
+                      <Button
+                        onClick={() => handleDownloadReceipt(booking.id)}
+                        variant="outline"
+                        size="sm"
+                        disabled={!canDownloadReceipt(booking.paymentStatus)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Receipt
+                      </Button>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">

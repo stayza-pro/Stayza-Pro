@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getCookie } from "@/utils/cookies";
 import {
   Notification,
   NotificationPreferences,
@@ -16,10 +17,19 @@ const API_BASE_URL =
 
 class NotificationApiService {
   private getAuthHeaders() {
-    const token = localStorage.getItem("accessToken");
-    return {
-      Authorization: `Bearer ${token}`,
-    };
+    let token: string | null = null;
+
+    if (typeof window !== "undefined") {
+      token = localStorage.getItem("accessToken");
+      if (!token) {
+        token = getCookie("accessToken");
+        if (token) {
+          localStorage.setItem("accessToken", token);
+        }
+      }
+    }
+
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   // Get paginated notifications
@@ -67,7 +77,7 @@ class NotificationApiService {
   // Mark notification as read
   async markAsRead(notificationId: string): Promise<Notification> {
     try {
-      const response = await axios.put<NotificationResponse>(
+      const response = await axios.patch<NotificationResponse>(
         `${API_BASE_URL}/notifications/${notificationId}/read`,
         {},
         { headers: this.getAuthHeaders() }
