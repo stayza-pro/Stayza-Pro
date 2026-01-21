@@ -20,12 +20,14 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService } from "@/services";
 import { PaymentRetryAlert } from "@/components/payments/RetryIndicator";
+import { useAuthStore } from "@/store";
 
 export default function BookingCheckoutPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading: userLoading } = useCurrentUser();
+  const logout = useAuthStore((state) => state.logout);
 
   // Get realtor branding
   const {
@@ -90,6 +92,15 @@ export default function BookingCheckoutPage() {
       );
     }
   }, [user, userLoading, router, propertyId, checkIn, checkOut, guestsParam]);
+
+  useEffect(() => {
+    if (!userLoading && user && user.role && user.role !== "GUEST") {
+      const redirectUrl = `/guest/login?redirect=/booking/${propertyId}/checkout?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestsParam}`;
+      logout().finally(() => {
+        router.replace(redirectUrl);
+      });
+    }
+  }, [user, userLoading, logout, router, propertyId, checkIn, checkOut, guestsParam]);
 
   // Calculate booking total
   useEffect(() => {
