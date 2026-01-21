@@ -6,7 +6,6 @@ import {
   Calendar,
   MapPin,
   Users,
-  Phone,
   Mail,
   Home,
   Download,
@@ -572,148 +571,200 @@ export default function BookingDetailsPage() {
         searchPlaceholder="Search your bookings..."
       />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
-        <button
-          onClick={() => router.push("/guest/bookings")}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
-        >
-          <ArrowLeft className="h-5 w-5 mr-1" />
-          Back to bookings
-        </button>
-
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Booking Details
-            </h1>
-            <div
-              className="flex items-center space-x-2 px-4 py-2 rounded-full border-2 font-medium"
-              style={{
-                backgroundColor: status.backgroundColor,
-                color: status.color,
-                borderColor: status.borderColor,
-              }}
-            >
-              <StatusIcon className="h-5 w-5" />
-              <span>{status.text}</span>
-            </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <button
+            onClick={() => router.push("/guest/bookings")}
+            className="flex items-center text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-5 w-5 mr-1" />
+            Back to bookings
+          </button>
+          <div
+            className="flex items-center space-x-2 px-4 py-2 rounded-full border-2 font-medium"
+            style={{
+              backgroundColor: status.backgroundColor,
+              color: status.color,
+              borderColor: status.borderColor,
+            }}
+          >
+            <StatusIcon className="h-5 w-5" />
+            <span>{status.text}</span>
           </div>
-
-          {ongoing && (
-            <div
-              className="border rounded-lg p-4 flex items-center"
-              style={{
-                backgroundColor: accentColor + "10",
-                borderColor: accentColor + "30",
-              }}
-            >
-              <AlertCircle
-                className="h-5 w-5 mr-3"
-                style={{ color: accentColor }}
-              />
-              <p className="font-medium" style={{ color: accentColor }}>
-                Your stay is currently ongoing. Enjoy your time!
-              </p>
-            </div>
-          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Property Information */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <Home className="h-5 w-5 mr-2" />
-                Property
-              </h2>
-
-              <div className="flex items-start space-x-4 mb-4">
-                <div className="relative w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
-                  {booking.property?.images?.[0]?.url ? (
-                    <Image
-                      src={booking.property.images[0].url}
-                      alt={booking.property.title || "Property"}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <Home className="h-12 w-12 text-gray-400" />
-                    </div>
-                  )}
+        <Card className="overflow-hidden border border-gray-200">
+          <div className="grid grid-cols-1 lg:grid-cols-12">
+            <div className="lg:col-span-5 relative min-h-[240px] bg-gray-100">
+              {booking.property?.images?.[0]?.url ? (
+                <Image
+                  src={booking.property.images[0].url}
+                  alt={booking.property.title || "Property"}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Home className="h-16 w-16 text-gray-300" />
                 </div>
-
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {booking.property?.title || "Unknown Property"}
-                  </h3>
-                  <div className="space-y-1 text-gray-600">
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      <span>{booking.property?.address}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      <span>
-                        {booking.property?.city}, {booking.property?.state}
-                      </span>
-                    </div>
-                  </div>
+              )}
+            </div>
+            <div className="lg:col-span-7 p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">
+                    Booking Reference
+                  </p>
+                  <p className="font-mono text-sm text-gray-900">
+                    #{booking.id.slice(-8).toUpperCase()}
+                  </p>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Booked on {formatDate(booking.createdAt)}
                 </div>
               </div>
 
-              {booking.property?.realtor && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <p className="text-sm text-gray-600 mb-2">Hosted by</p>
-                  <p className="font-semibold text-gray-900">
-                    {booking.property.realtor.businessName}
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  {booking.property?.title || "Booking Details"}
+                </h1>
+                <div className="flex items-center text-gray-600">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  <span>
+                    {booking.property?.city || "-"},{" "}
+                    {booking.property?.state || "-"}
+                  </span>
+                </div>
+                {booking.property?.address && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {booking.property.address}
                   </p>
-                  {booking.property.realtor.businessEmail && (
-                    <div className="flex items-center text-sm text-gray-600 mt-1">
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-lg border border-gray-200 p-3 bg-white">
+                  <p className="text-xs text-gray-500">Check-in</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {formatDate(booking.checkInDate)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3 bg-white">
+                  <p className="text-xs text-gray-500">Check-out</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {formatDate(booking.checkOutDate)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3 bg-white">
+                  <p className="text-xs text-gray-500">Guests</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {booking.totalGuests}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3 bg-white">
+                  <p className="text-xs text-gray-500">Nights</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {nights}
+                  </p>
+                </div>
+              </div>
+
+              {ongoing && (
+                <div
+                  className="border rounded-lg p-3 flex items-center"
+                  style={{
+                    backgroundColor: accentColor + "10",
+                    borderColor: accentColor + "30",
+                  }}
+                >
+                  <AlertCircle
+                    className="h-5 w-5 mr-3"
+                    style={{ color: accentColor }}
+                  />
+                  <p className="font-medium" style={{ color: accentColor }}>
+                    Your stay is currently ongoing. Enjoy your time!
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+          <div className="lg:col-span-8 space-y-6">
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Home className="h-5 w-5 mr-2" />
+                  Property & Host
+                </h2>
+                <span className="text-xs text-gray-400">Powered by Stayza Pro</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3 text-sm text-gray-700">
+                  <div className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+                    <span>{booking.property?.address || "Address not available"}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+                    <span>{booking.property?.city || "-"}, {booking.property?.state || "-"}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Home className="h-4 w-4 mr-2 text-gray-400" />
+                    <span className="capitalize">
+                      {booking.property?.type
+                        ? booking.property.type.toLowerCase().replace(/_/g, " ")
+                        : "Property"}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <Users className="h-4 w-4 mr-2 text-gray-400" />
+                    <span>
+                      {booking.property?.bedrooms || 0} bedrooms / {booking.property?.bathrooms || 0} baths / up to {booking.property?.maxGuests || booking.totalGuests} guests
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-xs text-gray-500 mb-1">Hosted by</p>
+                  <p className="font-semibold text-gray-900">
+                    {booking.property?.realtor?.businessName || "Host"}
+                  </p>
+                  {booking.property?.realtor?.businessEmail && (
+                    <div className="flex items-center text-sm text-gray-600 mt-2">
                       <Mail className="h-4 w-4 mr-2" />
                       <span>{booking.property.realtor.businessEmail}</span>
                     </div>
                   )}
                 </div>
-              )}
+              </div>
             </Card>
 
-            {/* Booking Information */}
             <Card className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Calendar className="h-5 w-5 mr-2" />
-                Booking Information
+                Stay Details
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Check-in</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {formatDate(booking.checkInDate)}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    After {booking.property?.checkInTime || "2:00 PM"}
-                  </p>
+                  <p className="text-lg font-semibold text-gray-900">{formatDate(booking.checkInDate)}</p>
+                  <p className="text-sm text-gray-600">After {booking.property?.checkInTime || "2:00 PM"}</p>
                 </div>
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Check-out</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {formatDate(booking.checkOutDate)}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Before {booking.property?.checkOutTime || "11:00 AM"}
-                  </p>
+                  <p className="text-lg font-semibold text-gray-900">{formatDate(booking.checkOutDate)}</p>
+                  <p className="text-sm text-gray-600">Before {booking.property?.checkOutTime || "11:00 AM"}</p>
                 </div>
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Guests</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {booking.totalGuests}{" "}
-                    {booking.totalGuests === 1 ? "guest" : "guests"}
+                    {booking.totalGuests} {booking.totalGuests === 1 ? "guest" : "guests"}
                   </p>
                 </div>
 
@@ -733,49 +784,46 @@ export default function BookingDetailsPage() {
               )}
             </Card>
 
-            {/* Payment Information */}
             <Card className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Payment Details
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Payment Summary</h2>
+                <span
+                  className="text-xs font-semibold px-3 py-1 rounded-full"
+                  style={{ backgroundColor: primaryColor + "15", color: primaryColor }}
+                >
+                  {formatPaymentStatus(booking.paymentStatus)}
+                </span>
+              </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between text-gray-700">
-                  <span>
-                    {formatPrice(booking.totalPrice / nights, booking.currency)}{" "}
-                    × {nights} {nights === 1 ? "night" : "nights"}
-                  </span>
-                  <span>
-                    {formatPrice(booking.totalPrice, booking.currency)}
-                  </span>
+              <div className="space-y-3 text-gray-700">
+                <div className="flex justify-between">
+                  <span>Average per night</span>
+                  <span>{formatPrice(booking.totalPrice / nights, booking.currency)}</span>
                 </div>
-
-                <div className="border-t border-gray-200 pt-3 flex justify-between font-semibold text-gray-900 text-lg">
-                  <span>Total</span>
-                  <span>
-                    {formatPrice(booking.totalPrice, booking.currency)}
-                  </span>
+                <div className="flex justify-between">
+                  <span>Total nights</span>
+                  <span>{nights}</span>
                 </div>
-
-                <div className="border-t border-gray-200 pt-3">
-                  <p className="text-sm text-gray-600">Payment Status</p>
-                  <p className="font-semibold text-gray-900 capitalize">
-                    {booking.paymentStatus?.toLowerCase()}
-                  </p>
-                </div>
-
-                {booking.payment?.reference && (
-                  <div>
-                    <p className="text-sm text-gray-600">Payment Reference</p>
-                    <p className="font-mono text-sm text-gray-900">
-                      {booking.payment.reference}
-                    </p>
+                {booking.payment?.method && (
+                  <div className="flex justify-between">
+                    <span>Payment Method</span>
+                    <span className="capitalize">{booking.payment.method.toLowerCase()}</span>
                   </div>
                 )}
+                {booking.payment?.reference && (
+                  <div>
+                    <p className="text-sm text-gray-500">Payment Reference</p>
+                    <p className="font-mono text-sm text-gray-900">{booking.payment.reference}</p>
+                  </div>
+                )}
+
+                <div className="border-t border-gray-200 pt-3 flex justify-between font-semibold text-gray-900 text-lg">
+                  <span>Total Paid</span>
+                  <span>{formatPrice(booking.totalPrice, booking.currency)}</span>
+                </div>
               </div>
             </Card>
 
-            {/* Escrow Status Section */}
             {(booking.status === "ACTIVE" ||
               booking.status === "PAID" ||
               booking.status === "CHECKED_IN" ||
@@ -785,22 +833,22 @@ export default function BookingDetailsPage() {
             )}
           </div>
 
-          {/* Sidebar Actions */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-4">
             <div className="sticky top-24 space-y-4">
-              <Card className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-4">Actions</h3>
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900">Action Center</h3>
+                  <span className="text-xs text-gray-400">Guest</span>
+                </div>
                 <div className="space-y-2">
-                  {canReview() && (
-                    <Button
-                      onClick={handleWriteReview}
-                      className="w-full"
-                      variant="primary"
-                    >
-                      <Star className="h-4 w-4 mr-2" />
-                      Write a Review
-                    </Button>
-                  )}
+                  <Button
+                    onClick={handleContactHost}
+                    className="w-full text-white"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Contact Host
+                  </Button>
 
                   <Button
                     onClick={handleDownloadReceipt}
@@ -812,14 +860,16 @@ export default function BookingDetailsPage() {
                     Download Receipt
                   </Button>
 
-                  <Button
-                    onClick={handleContactHost}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Contact Host
-                  </Button>
+                  {canReview() && (
+                    <Button
+                      onClick={handleWriteReview}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <Star className="h-4 w-4 mr-2" />
+                      Write a Review
+                    </Button>
+                  )}
 
                   {canCancel() && (
                     <Button
@@ -832,7 +882,6 @@ export default function BookingDetailsPage() {
                     </Button>
                   )}
 
-                  {/* Dispute button */}
                   {!existingDispute && canOpenDispute() && (
                     <Button
                       onClick={() => setShowDisputeModal(true)}
@@ -857,17 +906,15 @@ export default function BookingDetailsPage() {
                       )}
                     </Button>
                   )}
-
-                  {/* Refunds are automatic on cancellation - no manual request needed */}
                 </div>
+                <p className="text-xs text-gray-500 mt-4">
+                  Receipts are available after payment release.
+                </p>
               </Card>
 
               <Card
-                className="p-4 border"
-                style={{
-                  backgroundColor: accentColor + "10",
-                  borderColor: accentColor + "30",
-                }}
+                className="p-5 border"
+                style={{ backgroundColor: accentColor + "10", borderColor: accentColor + "30" }}
               >
                 <h3 className="font-semibold text-gray-900 mb-2">Need Help?</h3>
                 <p className="text-sm text-gray-700 mb-3">
@@ -885,6 +932,7 @@ export default function BookingDetailsPage() {
             </div>
           </div>
         </div>
+
       </main>
 
       {/* Cancel Modal */}
