@@ -36,17 +36,6 @@ Create a scalable SaaS platform that democratizes property booking technology fo
 
 ---
 
-## 🚫 **Features Removed for MVP**
-
-To maintain simplicity and focus for the initial launch:
-- ❌ **Paid Plans/Subscriptions** - Only free tier available (paid tiers deferred)
-- ❌ **Multi-language Support** - English only (i18n/localization removed)
-- ❌ **Social Media Integration** - No social auth or profile links
-- ❌ **WhatsApp Integration** - No WhatsApp/WhatsApp Business features
-- ❌ **Phone Number Requirements** - Email-only communication
-
----
-
 ## 🏗️ **System Architecture**
 
 ```
