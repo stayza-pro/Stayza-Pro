@@ -20,7 +20,6 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-
 export function HowItWorksClient() {
   const guestSteps = [
     {
@@ -182,8 +181,8 @@ export function HowItWorksClient() {
 
             <div className="flex items-center justify-center">
               <CTAButton
-                label="Start Listing Properties"
-                href="/realtor/onboarding"
+                label="Join the Waitlist"
+                href="/join-waitlist"
               />
             </div>
           </div>
@@ -243,7 +242,7 @@ export function HowItWorksClient() {
             </div>
 
             <div className="flex items-center justify-center">
-              <CTAButton label="Become a Host" href="/realtor/onboarding" />
+              <CTAButton label="Join the Waitlist" href="/join-waitlist" />
             </div>
           </div>
         </section>
@@ -313,8 +312,8 @@ export function HowItWorksClient() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <CTAButton
-                label="List Your Property"
-                href="/realtor/onboarding"
+                label="Join the Waitlist"
+                href="/join-waitlist"
               />
             </div>
           </div>
