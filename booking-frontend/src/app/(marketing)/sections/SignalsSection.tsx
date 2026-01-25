@@ -18,7 +18,7 @@ export function SignalsSection() {
         <SectionTitle
           eyebrow="platform features"
           title="Built for Nigerian property professionals launching soon"
-          description="Join 500+ realtors on the waitlist. Get your branded booking site, escrow-protected payments, and CAC verification when we launch."
+          description="Join 100+ realtors on the waitlist. Get your branded booking site, escrow-protected payments, and CAC verification when we launch."
         />
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="grid gap-6 sm:grid-cols-2">

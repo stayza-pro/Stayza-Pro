@@ -130,7 +130,7 @@ export function JoinWaitlistClient() {
 
   const testimonials = [
     {
-      name: "500+ Realtors",
+      name: "100+ Realtors",
       role: "Already Waiting",
       content:
         "Join hundreds of Nigerian property professionals preparing to launch their branded booking sites.",
@@ -386,7 +386,7 @@ export function JoinWaitlistClient() {
             Get Priority Access to Your Branded Booking Site
           </h2>
           <p className="text-xl text-white/90 mb-8">
-            Join 500+ realtors waiting to launch. Be notified when we go live.
+            Join 100+ realtors waiting to launch. Be notified when we go live.
           </p>
           <a
             href="#form"

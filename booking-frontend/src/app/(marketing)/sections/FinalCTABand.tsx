@@ -19,7 +19,7 @@ export function FinalCTABand() {
           headaches. Guests can browse, favorite, and review properties, while
           CAC-verified realtors stand out with a trust badge. Platform takes 10%
           commission on room fees, you keep 90% plus 100% of cleaning fees. Join
-          500+ property professionals building their booking business.
+          100+ property professionals building their booking business.
         </p>
       </div>
     </section>

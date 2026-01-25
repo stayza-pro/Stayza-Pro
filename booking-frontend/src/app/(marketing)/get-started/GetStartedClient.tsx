@@ -384,7 +384,7 @@ export function GetStartedClient() {
               </h3>
 
               <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                Join 500+ property professionals building their booking business
+                Join 100+ property professionals building their booking business
                 with Stayza Pro. Get priority access and onboarding support.
               </p>
 

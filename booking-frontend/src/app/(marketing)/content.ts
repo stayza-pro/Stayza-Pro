@@ -219,7 +219,7 @@ export const caseStudies = [
   {
     company: "Pre-Launch Platform",
     industry: "Coming Soon",
-    result: "500+ Realtors on Waitlist",
+    result: "100+ Realtors on Waitlist",
     delta:
       "Join early and be among the first to launch your branded booking site with escrow-protected payments",
   },
