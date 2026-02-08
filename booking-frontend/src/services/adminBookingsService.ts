@@ -396,7 +396,7 @@ export const canCancelBooking = (booking: AdminBooking): boolean => {
  * Check if booking is active (not cancelled or completed)
  */
 export const isBookingActive = (booking: AdminBooking): boolean => {
-  return booking.status === "PENDING" || booking.status === "CONFIRMED";
+  return booking.status === "PENDING" || booking.status === "ACTIVE";
 };
 
 /**

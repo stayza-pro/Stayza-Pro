@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import Image from "next/image";
@@ -78,7 +78,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     new Date(booking.checkInDate) <= new Date() &&
     new Date(booking.checkOutDate) > new Date();
   const canCancel =
-    booking.status === "CONFIRMED" && isUpcoming && booking.isRefundable;
+    booking.status === "ACTIVE" && isUpcoming && booking.isRefundable;
   const canReview =
     booking.status === "COMPLETED" &&
     (!booking.reviews || booking.reviews.length === 0) &&
@@ -86,7 +86,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case "CONFIRMED":
+      case "ACTIVE":
         return "bg-green-100 text-green-800";
       case "PENDING":
         return "bg-yellow-100 text-yellow-800";
@@ -102,7 +102,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
   };
 
   const getStatusText = (status: string): string => {
-    if (isOngoing && status === "CONFIRMED") return "Ongoing";
+    if (isOngoing && status === "ACTIVE") return "Ongoing";
     return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   };
 
@@ -138,7 +138,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         <div>
           {onBack && (
             <Button variant="outline" onClick={onBack} className="mb-2">
-              ← Back
+              â† Back
             </Button>
           )}
           <h1 className="text-2xl font-bold text-gray-900">Booking Details</h1>
@@ -387,7 +387,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           <div className="space-y-3">
             <div className="flex justify-between text-gray-600">
               <span>
-                {booking.currency} {booking.property?.pricePerNight ?? 0} ×{" "}
+                {booking.currency} {booking.property?.pricePerNight ?? 0} Ã—{" "}
                 {nights} nights
               </span>
               <span>
@@ -644,3 +644,5 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     </div>
   );
 };
+
+

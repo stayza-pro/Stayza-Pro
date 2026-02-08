@@ -10,6 +10,7 @@ import {
   PaymentStatus,
   PayoutStatus,
   RefundTier,
+  StayStatus,
 } from "@/types";
 
 // ========================
@@ -20,17 +21,10 @@ import {
  * Valid state transitions for BookingStatus
  * Based on backend state machine in bookingStatus.ts
  */
-export const BOOKING_STATUS_TRANSITIONS: Partial<
-  Record<BookingStatus, BookingStatus[]>
-> = {
+export const BOOKING_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   PENDING: ["ACTIVE", "CANCELLED"],
   ACTIVE: ["DISPUTED", "COMPLETED", "CANCELLED"],
-  PAID: ["CONFIRMED", "CHECKED_IN", "CANCELLED"], // Deprecated
-  CONFIRMED: ["CHECKED_IN", "CANCELLED"], // Deprecated
-  CHECKED_IN: ["CHECKED_OUT", "DISPUTED"],
   DISPUTED: ["COMPLETED", "CANCELLED"],
-  DISPUTE_OPENED: ["COMPLETED", "CANCELLED"], // Deprecated
-  CHECKED_OUT: ["COMPLETED"],
   COMPLETED: [], // Terminal state
   CANCELLED: [], // Terminal state
 };
@@ -56,22 +50,25 @@ export const isTerminalBookingStatus = (status: BookingStatus): boolean => {
  * Check if booking can be cancelled
  */
 export const canCancelBooking = (status: BookingStatus): boolean => {
-  return ["PENDING", "ACTIVE", "PAID", "CONFIRMED"].includes(status);
+  return ["PENDING", "ACTIVE"].includes(status);
 };
 
 /**
  * Format booking status for display
  */
-export const formatBookingStatus = (status: BookingStatus): string => {
-  const statusMap: Partial<Record<BookingStatus, string>> = {
+export const formatBookingStatus = (
+  status: BookingStatus,
+  stayStatus?: StayStatus
+): string => {
+  if (status === "ACTIVE") {
+    if (stayStatus === "CHECKED_IN") return "Checked In";
+    if (stayStatus === "CHECKED_OUT") return "Checked Out";
+  }
+
+  const statusMap: Record<BookingStatus, string> = {
     PENDING: "Pending Payment",
     ACTIVE: "Confirmed",
-    PAID: "Confirmed",
-    CONFIRMED: "Confirmed",
-    CHECKED_IN: "Checked In",
     DISPUTED: "Disputed",
-    DISPUTE_OPENED: "Disputed",
-    CHECKED_OUT: "Checked Out",
     COMPLETED: "Completed",
     CANCELLED: "Cancelled",
   };
@@ -82,15 +79,31 @@ export const formatBookingStatus = (status: BookingStatus): string => {
  * Get color class for booking status badge
  */
 export const getBookingStatusColor = (
-  status: BookingStatus
+  status: BookingStatus,
+  stayStatus?: StayStatus
 ): {
   bg: string;
   text: string;
   border: string;
 } => {
-  const colorMap: Partial<
-    Record<BookingStatus, { bg: string; text: string; border: string }>
-  > = {
+  if (status === "ACTIVE") {
+    if (stayStatus === "CHECKED_IN") {
+      return {
+        bg: "bg-indigo-50",
+        text: "text-indigo-700",
+        border: "border-indigo-200",
+      };
+    }
+    if (stayStatus === "CHECKED_OUT") {
+      return {
+        bg: "bg-purple-50",
+        text: "text-purple-700",
+        border: "border-purple-200",
+      };
+    }
+  }
+
+  const colorMap: Record<BookingStatus, { bg: string; text: string; border: string }> = {
     PENDING: {
       bg: "bg-yellow-50",
       text: "text-yellow-700",
@@ -101,35 +114,10 @@ export const getBookingStatusColor = (
       text: "text-green-700",
       border: "border-green-200",
     },
-    PAID: {
-      bg: "bg-blue-50",
-      text: "text-blue-700",
-      border: "border-blue-200",
-    },
-    CONFIRMED: {
-      bg: "bg-green-50",
-      text: "text-green-700",
-      border: "border-green-200",
-    },
-    CHECKED_IN: {
-      bg: "bg-indigo-50",
-      text: "text-indigo-700",
-      border: "border-indigo-200",
-    },
     DISPUTED: {
       bg: "bg-red-50",
       text: "text-red-700",
       border: "border-red-200",
-    },
-    DISPUTE_OPENED: {
-      bg: "bg-red-50",
-      text: "text-red-700",
-      border: "border-red-200",
-    },
-    CHECKED_OUT: {
-      bg: "bg-purple-50",
-      text: "text-purple-700",
-      border: "border-purple-200",
     },
     COMPLETED: {
       bg: "bg-green-50",
@@ -447,7 +435,8 @@ export const getCustomerRefundSummary = (tier: RefundTier): string => {
  */
 export const getBookingStatusSummary = (
   bookingStatus: BookingStatus,
-  paymentStatus: PaymentStatus
+  paymentStatus: PaymentStatus,
+  stayStatus?: StayStatus
 ): {
   label: string;
   description: string;
@@ -473,7 +462,7 @@ export const getBookingStatusSummary = (
     };
   }
 
-  if (bookingStatus === "DISPUTED" || bookingStatus === "DISPUTE_OPENED") {
+  if (bookingStatus === "DISPUTED") {
     return {
       label: "Dispute Active",
       description:
@@ -482,27 +471,23 @@ export const getBookingStatusSummary = (
     };
   }
 
-  if (bookingStatus === "CHECKED_OUT") {
+  if (bookingStatus === "ACTIVE" && stayStatus === "CHECKED_OUT") {
     return {
       label: "Checked Out",
       description: "Guest has checked out. Finalizing payment release.",
-      color: getBookingStatusColor("CHECKED_OUT"),
+      color: getBookingStatusColor("ACTIVE", "CHECKED_OUT"),
     };
   }
 
-  if (bookingStatus === "CHECKED_IN") {
+  if (bookingStatus === "ACTIVE" && stayStatus === "CHECKED_IN") {
     return {
       label: "In Progress",
       description: "Guest is currently checked in at the property.",
-      color: getBookingStatusColor("CHECKED_IN"),
+      color: getBookingStatusColor("ACTIVE", "CHECKED_IN"),
     };
   }
 
-  if (
-    bookingStatus === "ACTIVE" ||
-    bookingStatus === "PAID" ||
-    bookingStatus === "CONFIRMED"
-  ) {
+  if (bookingStatus === "ACTIVE") {
     return {
       label: "Confirmed",
       description: "Payment received. Your booking is confirmed.",
@@ -523,13 +508,14 @@ export const getBookingStatusSummary = (
  */
 export const isBookingActive = (
   bookingStatus: BookingStatus,
+  stayStatus: StayStatus | undefined,
   checkInDate: Date,
   checkOutDate: Date
 ): boolean => {
   const now = new Date();
   return (
-    bookingStatus === "CHECKED_IN" ||
-    (bookingStatus === "PAID" && now >= checkInDate && now < checkOutDate)
+    (bookingStatus === "ACTIVE" && stayStatus === "CHECKED_IN") ||
+    (bookingStatus === "ACTIVE" && now >= checkInDate && now < checkOutDate)
   );
 };
 
@@ -546,6 +532,6 @@ export const canModifyBooking = (
 
   return (
     bookingStatus === "PENDING" ||
-    (bookingStatus === "PAID" && hoursUntilCheckIn > 24)
+    (bookingStatus === "ACTIVE" && hoursUntilCheckIn > 24)
   );
 };

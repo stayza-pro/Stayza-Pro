@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import Image from "next/image";
@@ -57,7 +57,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
     new Date(booking.checkInDate) <= new Date() &&
     new Date(booking.checkOutDate) > new Date();
   const canCancel =
-    booking.status === "CONFIRMED" && isUpcoming && booking.isRefundable;
+    booking.status === "ACTIVE" && isUpcoming && booking.isRefundable;
   const canReview =
     booking.status === "COMPLETED" &&
     (!booking.reviews || booking.reviews.length === 0) &&
@@ -65,7 +65,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case "CONFIRMED":
+      case "ACTIVE":
         return "bg-green-100 text-green-800";
       case "PENDING":
         return "bg-yellow-100 text-yellow-800";
@@ -81,7 +81,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   };
 
   const getStatusText = (status: string): string => {
-    if (isOngoing && status === "CONFIRMED") return "Ongoing";
+    if (isOngoing && status === "ACTIVE") return "Ongoing";
     return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   };
 
@@ -333,3 +333,5 @@ export const BookingCard: React.FC<BookingCardProps> = ({
     </Card>
   );
 };
+
+

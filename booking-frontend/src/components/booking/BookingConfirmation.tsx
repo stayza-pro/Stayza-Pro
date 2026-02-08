@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import Image from "next/image";
@@ -234,7 +234,7 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         <div className="space-y-3">
           <div className="flex justify-between text-gray-600">
             <span>
-              {booking.currency} {booking.property?.pricePerNight ?? 0} ×{" "}
+              {booking.currency} {booking.property?.pricePerNight ?? 0} Ã—{" "}
               {nights} nights
             </span>
             <span>
@@ -307,16 +307,16 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 
         <div className="space-y-2 text-sm text-blue-800">
           <p>
-            • A confirmation email has been sent to your registered email
+            â€¢ A confirmation email has been sent to your registered email
             address
           </p>
-          <p>• You can cancel free of charge until 48 hours before check-in</p>
-          <p>• Please bring a valid ID for check-in verification</p>
+          <p>â€¢ You can cancel free of charge until 48 hours before check-in</p>
+          <p>â€¢ Please bring a valid ID for check-in verification</p>
           <p>
-            • Contact your host if you need any assistance or have questions
+            â€¢ Contact your host if you need any assistance or have questions
           </p>
           <p>
-            • Check-in instructions will be provided closer to your arrival date
+            â€¢ Check-in instructions will be provided closer to your arrival date
           </p>
         </div>
       </Card>
@@ -358,14 +358,14 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
         <div className="text-sm text-gray-600 mb-2">Booking Status</div>
         <div
           className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-            booking.status === "CONFIRMED"
+            booking.status === "ACTIVE"
               ? "bg-green-100 text-green-800"
               : booking.status === "PENDING"
               ? "bg-yellow-100 text-yellow-800"
               : "bg-gray-100 text-gray-800"
           }`}
         >
-          {booking.status === "CONFIRMED" && (
+          {booking.status === "ACTIVE" && (
             <CheckCircle className="h-4 w-4 mr-1" />
           )}
           {booking.status}
@@ -374,3 +374,5 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
     </div>
   );
 };
+
+

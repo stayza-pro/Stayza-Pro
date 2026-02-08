@@ -47,16 +47,17 @@ export type PropertyAmenity =
   | "SOAP";
 // Booking lifecycle states (matches backend Prisma schema)
 export type BookingStatus =
-  | "PENDING" // Initial state, waiting for payment
-  | "ACTIVE" // Payment confirmed, funds in escrow (backend uses this)
-  | "PAID" // Deprecated - use ACTIVE instead
-  | "CONFIRMED" // Deprecated - use ACTIVE instead
-  | "DISPUTED" // Either user or realtor opened a dispute (backend name)
-  | "DISPUTE_OPENED" // Deprecated - use DISPUTED
-  | "CHECKED_IN" // User has checked in
-  | "CHECKED_OUT" // User has checked out
-  | "COMPLETED" // All funds released, booking finished
+  | "PENDING" // Created, not paid
+  | "ACTIVE" // Paid and in progress
+  | "DISPUTED" // Has active dispute
+  | "COMPLETED" // Fully settled
   | "CANCELLED"; // Booking cancelled before check-in
+
+// Stay lifecycle states (matches backend Prisma schema)
+export type StayStatus =
+  | "NOT_STARTED" // Guest has not checked in
+  | "CHECKED_IN" // Guest currently staying
+  | "CHECKED_OUT"; // Guest has checked out
 
 // Payment money flow states (matches backend Prisma schema EXACTLY)
 export type PaymentStatus =
@@ -282,6 +283,7 @@ export interface Booking {
   checkOutDate: Date | string;
   checkInTime?: Date | string; // Actual check-in timestamp
   checkOutTime?: Date | string; // Actual check-out timestamp
+  stayStatus?: StayStatus;
   totalGuests: number;
   totalPrice: number;
   currency: string;

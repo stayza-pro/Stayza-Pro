@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Booking } from "@/types";
 import { useTransferStatus } from "@/hooks/useEscrow";
 import { TransferTimeline } from "@/components/payments/TransferStatus";
@@ -23,7 +23,11 @@ export const EscrowStatusSection: React.FC<EscrowStatusSectionProps> = ({
 
   // Determine escrow stage based on booking status and timestamps
   const getEscrowStage = () => {
-    if (booking.status === "PENDING" || booking.status === "PAID") {
+    if (
+      booking.status === "PENDING" ||
+      (booking.status === "ACTIVE" &&
+        (!booking.stayStatus || booking.stayStatus === "NOT_STARTED"))
+    ) {
       return {
         stage: "funds_held",
         title: "Funds Held in Escrow",
@@ -33,7 +37,11 @@ export const EscrowStatusSection: React.FC<EscrowStatusSectionProps> = ({
       };
     }
 
-    if (booking.status === "CHECKED_IN" && booking.checkInTime) {
+    if (
+      booking.status === "ACTIVE" &&
+      booking.stayStatus === "CHECKED_IN" &&
+      booking.checkInTime
+    ) {
       const userWindowOpen = isUserDisputeWindowOpen(booking.checkInTime);
 
       if (userWindowOpen) {
@@ -58,7 +66,11 @@ export const EscrowStatusSection: React.FC<EscrowStatusSectionProps> = ({
       };
     }
 
-    if (booking.status === "CHECKED_OUT" && booking.checkOutTime) {
+    if (
+      booking.status === "ACTIVE" &&
+      booking.stayStatus === "CHECKED_OUT" &&
+      booking.checkOutTime
+    ) {
       const realtorWindowOpen = isRealtorDisputeWindowOpen(
         booking.checkOutTime
       );
@@ -85,6 +97,17 @@ export const EscrowStatusSection: React.FC<EscrowStatusSectionProps> = ({
       };
     }
 
+    if (booking.status === "DISPUTED") {
+      return {
+        stage: "dispute",
+        title: "Dispute in Progress",
+        description:
+          "A dispute has been opened. Funds are held pending resolution.",
+        icon: AlertCircle,
+        color: "orange",
+      };
+    }
+
     if (booking.status === "COMPLETED") {
       return {
         stage: "completed",
@@ -103,17 +126,6 @@ export const EscrowStatusSection: React.FC<EscrowStatusSectionProps> = ({
           "Your payment has been refunded according to the cancellation policy.",
         icon: CheckCircle,
         color: "green",
-      };
-    }
-
-    if (booking.status === "DISPUTE_OPENED") {
-      return {
-        stage: "dispute",
-        title: "Dispute in Progress",
-        description:
-          "A dispute has been opened. Funds are held pending resolution.",
-        icon: AlertCircle,
-        color: "orange",
       };
     }
 
@@ -223,3 +235,5 @@ export const EscrowStatusSection: React.FC<EscrowStatusSectionProps> = ({
     </div>
   );
 };
+
+

@@ -1,5 +1,10 @@
 import { apiClient, PaginatedResponse } from "./api";
-import { Booking, BookingFormData, SearchParams } from "../types";
+import {
+  Booking,
+  BookingFormData,
+  BookingStatus,
+  SearchParams,
+} from "../types";
 
 export const bookingService = {
   // Create new booking
@@ -101,9 +106,9 @@ export const bookingService = {
   // Update booking status (hosts only)
   updateBookingStatus: async (
     id: string,
-    status: "CONFIRMED" | "CANCELLED"
+    status: BookingStatus
   ): Promise<Booking> => {
-    const response = await apiClient.patch<Booking>(`/bookings/${id}/status`, {
+    const response = await apiClient.put<Booking>(`/bookings/${id}/status`, {
       status,
     });
     return response.data;
@@ -387,24 +392,26 @@ export const bookingService = {
     success: boolean;
     message: string;
     data: {
-      booking: Booking;
-      disputeWindow: {
-        closesAt: string;
-        remainingMinutes: number;
-      };
+      bookingId: string;
+      checkinConfirmedAt: string;
+      confirmationType: "GUEST_CONFIRMED" | "REALTOR_CONFIRMED";
+      disputeWindowClosesAt: string;
+      roomFeeReleaseEligibleAt: string;
+      disputeWindowDuration: string;
     };
   }> => {
     const response = await apiClient.post<{
       success: boolean;
       message: string;
       data: {
-        booking: Booking;
-        disputeWindow: {
-          closesAt: string;
-          remainingMinutes: number;
-        };
+        bookingId: string;
+        checkinConfirmedAt: string;
+        confirmationType: "GUEST_CONFIRMED" | "REALTOR_CONFIRMED";
+        disputeWindowClosesAt: string;
+        roomFeeReleaseEligibleAt: string;
+        disputeWindowDuration: string;
       };
-    }>(`/bookings/${id}/check-in`);
+    }>(`/bookings/${id}/confirm-checkin`);
     return response.data;
   },
 
@@ -415,24 +422,24 @@ export const bookingService = {
     success: boolean;
     message: string;
     data: {
-      booking: Booking;
-      realtorDisputeWindow: {
-        closesAt: string;
-        remainingHours: number;
-      };
+      bookingId: string;
+      checkOutTime: string;
+      depositRefundEligibleAt: string;
+      realtorDisputeWindowDuration: string;
+      depositAmount: number;
     };
   }> => {
     const response = await apiClient.post<{
       success: boolean;
       message: string;
       data: {
-        booking: Booking;
-        realtorDisputeWindow: {
-          closesAt: string;
-          remainingHours: number;
-        };
+        bookingId: string;
+        checkOutTime: string;
+        depositRefundEligibleAt: string;
+        realtorDisputeWindowDuration: string;
+        depositAmount: number;
       };
-    }>(`/bookings/${id}/check-out`);
+    }>(`/bookings/${id}/checkout`);
     return response.data;
   },
 };

@@ -157,11 +157,6 @@ export const createBookingSchema = Joi.object({
   specialRequests: Joi.string().max(500).allow("").optional(),
 });
 
-export const updateBookingSchema = Joi.object({
-  status: Joi.string().valid("CONFIRMED", "CANCELLED").optional(),
-  specialRequests: Joi.string().max(500).optional(),
-});
-
 // Review validation schemas
 export const createReviewSchema = Joi.object({
   bookingId: Joi.string().required(),

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -131,10 +131,10 @@ export default function GuestBookingsPage() {
   const getStatusConfig = (status: BookingStatus) => {
     switch (status) {
       case "ACTIVE":
-      case "CONFIRMED":
+      case "ACTIVE":
         return {
           icon: CheckCircle,
-          text: "Confirmed",
+          text: "ACTIVE",
           className: "border",
           bgColor: `${secondaryColor || "#059669"}15`,
           textColor: secondaryColor || "#059669",
@@ -186,7 +186,7 @@ export default function GuestBookingsPage() {
     return (
       checkIn <= now &&
       checkOut >= now &&
-      (booking.status === "ACTIVE" || booking.status === "CONFIRMED")
+      (booking.status === "ACTIVE" || booking.status === "ACTIVE")
     );
   };
 
@@ -306,7 +306,7 @@ export default function GuestBookingsPage() {
                 {
                   bookings.filter(
                     (b: Booking) =>
-                      b.status === "CONFIRMED" || b.status === "COMPLETED"
+                      b.status === "ACTIVE" || b.status === "COMPLETED"
                   ).length
                 }
               </p>
@@ -355,7 +355,7 @@ export default function GuestBookingsPage() {
                       checkIn > now ||
                       (checkIn <= now &&
                         checkOut >= now &&
-                        b.status === "CONFIRMED")
+                        b.status === "ACTIVE")
                     );
                   }).length
                 }
@@ -392,7 +392,7 @@ export default function GuestBookingsPage() {
                       checkIn > now ||
                       (checkIn <= now &&
                         checkOut >= now &&
-                        b.status === "CONFIRMED")
+                        b.status === "ACTIVE")
                     );
                   }).length,
                 },
@@ -805,3 +805,5 @@ export default function GuestBookingsPage() {
     </div>
   );
 }
+
+

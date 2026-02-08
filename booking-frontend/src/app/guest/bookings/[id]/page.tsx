@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -95,11 +95,7 @@ export default function BookingDetailsPage() {
   const { data: existingDispute, isLoading: disputeLoading } = useQuery({
     queryKey: ["booking-dispute", bookingId],
     queryFn: () => disputeService.getDisputeByBooking(bookingId),
-    enabled:
-      !!user &&
-      !!bookingId &&
-      !!booking &&
-      (booking.status === "DISPUTED" || booking.status === "DISPUTE_OPENED"),
+    enabled: !!user && !!bookingId && !!booking,
     retry: false,
   });
 
@@ -184,7 +180,7 @@ export default function BookingDetailsPage() {
 
       if (refund) {
         if (refund.totals.customerRefund > 0) {
-          message += ` Your refund of ₦${refund.totals.customerRefund.toLocaleString()} has been automatically processed.`;
+          message += ` Your refund of â‚¦${refund.totals.customerRefund.toLocaleString()} has been automatically processed.`;
         } else {
           message +=
             " Late cancellation - no refund applicable (security deposit policy).";
@@ -390,10 +386,10 @@ export default function BookingDetailsPage() {
 
   const getStatusConfig = (status: BookingStatus) => {
     switch (status) {
-      case "CONFIRMED":
+      case "ACTIVE":
         return {
           icon: CheckCircle,
-          text: "Confirmed",
+          text: "ACTIVE",
           backgroundColor: secondaryColor,
           color: "#ffffff",
           borderColor: secondaryColor,
@@ -438,7 +434,7 @@ export default function BookingDetailsPage() {
     const now = new Date();
     const checkIn = new Date(booking.checkInDate);
     const checkOut = new Date(booking.checkOutDate);
-    return checkIn <= now && checkOut >= now && booking.status === "CONFIRMED";
+    return checkIn <= now && checkOut >= now && booking.status === "ACTIVE";
   };
 
   const canCancel = () => {
@@ -447,14 +443,12 @@ export default function BookingDetailsPage() {
     const now = new Date();
     const hoursDiff = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    // Allow cancellation for PENDING, ACTIVE/PAID, or CONFIRMED bookings
+    // Allow cancellation for pending or active bookings before check-in.
     // Can cancel anytime BEFORE check-in (even with 0% refund in LATE tier)
     // Cannot cancel after check-in time has passed
     return (
       (booking.status === "PENDING" ||
-        booking.status === "ACTIVE" ||
-        booking.status === "PAID" ||
-        booking.status === "CONFIRMED") &&
+        booking.status === "ACTIVE") &&
       hoursDiff > 0 && // Before check-in time
       booking.paymentStatus !== "REFUNDED"
     );
@@ -834,9 +828,7 @@ export default function BookingDetailsPage() {
             </Card>
 
             {(booking.status === "ACTIVE" ||
-              booking.status === "PAID" ||
-              booking.status === "CHECKED_IN" ||
-              booking.status === "CHECKED_OUT" ||
+              booking.status === "DISPUTED" ||
               booking.status === "COMPLETED") && (
               <EscrowStatusSection booking={booking} viewType="guest" />
             )}
@@ -1009,7 +1001,7 @@ export default function BookingDetailsPage() {
                       <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-red-900 font-bold text-lg mb-1">
-                          ⚠️ Late Cancellation
+                          âš ï¸ Late Cancellation
                         </p>
                         <p className="text-red-800 text-sm">
                           You are cancelling within 12 hours of check-in. Your
@@ -1132,7 +1124,7 @@ export default function BookingDetailsPage() {
                               : "text-green-800"
                           }`}
                         >
-                          ₦
+                          â‚¦
                           {cancellationPreview.refundInfo.customerRefund.toLocaleString()}
                         </span>
                       </div>
@@ -1170,7 +1162,7 @@ export default function BookingDetailsPage() {
                             : "text-green-900"
                         }`}
                       >
-                        ₦
+                        â‚¦
                         {cancellationPreview.refundInfo.customerRefund.toLocaleString()}
                       </span>
                     </div>
@@ -1625,3 +1617,5 @@ export default function BookingDetailsPage() {
     </div>
   );
 }
+
+

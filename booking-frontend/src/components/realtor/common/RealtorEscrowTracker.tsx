@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
@@ -41,14 +41,7 @@ export default function RealtorEscrowTracker() {
 
       // Filter bookings with payments (including cancelled to show refund events)
       const paidBookings = bookings.filter((b: Booking) =>
-        [
-          "ACTIVE",
-          "CONFIRMED",
-          "CHECKED_IN",
-          "CHECKED_OUT",
-          "COMPLETED",
-          "CANCELLED",
-        ].includes(b.status)
+        ["ACTIVE", "DISPUTED", "COMPLETED", "CANCELLED"].includes(b.status)
       );
 
       // Initialize bookings with escrow data
@@ -467,7 +460,7 @@ export default function RealtorEscrowTracker() {
                     {escrowData.dispute?.hasDispute && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                         <h3 className="text-lg font-semibold text-red-900 mb-2">
-                          ⚠️ Active Dispute
+                          âš ï¸ Active Dispute
                         </h3>
                         <p className="text-sm text-red-700">
                           Status:{" "}
@@ -498,3 +491,5 @@ export default function RealtorEscrowTracker() {
     </div>
   );
 }
+
+

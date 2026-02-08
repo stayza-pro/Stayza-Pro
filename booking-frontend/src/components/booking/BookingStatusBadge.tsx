@@ -6,7 +6,7 @@
  */
 
 import React from "react";
-import { BookingStatus, PaymentStatus } from "@/types";
+import { BookingStatus, PaymentStatus, StayStatus } from "@/types";
 import {
   formatBookingStatus,
   getBookingStatusColor,
@@ -17,17 +17,19 @@ import {
 
 interface BookingStatusBadgeProps {
   status: BookingStatus;
+  stayStatus?: StayStatus;
   size?: "sm" | "md" | "lg";
   showIcon?: boolean;
 }
 
 export const BookingStatusBadge: React.FC<BookingStatusBadgeProps> = ({
   status,
+  stayStatus,
   size = "md",
   showIcon = true,
 }) => {
-  const colors = getBookingStatusColor(status);
-  const label = formatBookingStatus(status);
+  const colors = getBookingStatusColor(status, stayStatus);
+  const label = formatBookingStatus(status, stayStatus);
 
   const sizeClasses = {
     sm: "px-2 py-0.5 text-xs",
@@ -60,8 +62,42 @@ export const BookingStatusBadge: React.FC<BookingStatusBadgeProps> = ({
           </svg>
         );
       case "ACTIVE":
-      case "PAID":
-      case "CONFIRMED":
+        if (stayStatus === "CHECKED_IN") {
+          return (
+            <svg
+              className={iconSizes[size]}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+              />
+            </svg>
+          );
+        }
+
+        if (stayStatus === "CHECKED_OUT") {
+          return (
+            <svg
+              className={iconSizes[size]}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
+          );
+        }
+
         return (
           <svg
             className={iconSizes[size]}
@@ -77,40 +113,7 @@ export const BookingStatusBadge: React.FC<BookingStatusBadgeProps> = ({
             />
           </svg>
         );
-      case "CHECKED_IN":
-        return (
-          <svg
-            className={iconSizes[size]}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-            />
-          </svg>
-        );
-      case "CHECKED_OUT":
-        return (
-          <svg
-            className={iconSizes[size]}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-            />
-          </svg>
-        );
       case "DISPUTED":
-      case "DISPUTE_OPENED":
         return (
           <svg
             className={iconSizes[size]}
@@ -211,15 +214,21 @@ export const PaymentStatusBadge: React.FC<PaymentStatusBadgeProps> = ({
 interface BookingStatusCardProps {
   bookingStatus: BookingStatus;
   paymentStatus: PaymentStatus;
+  stayStatus?: StayStatus;
   className?: string;
 }
 
 export const BookingStatusCard: React.FC<BookingStatusCardProps> = ({
   bookingStatus,
   paymentStatus,
+  stayStatus,
   className = "",
 }) => {
-  const summary = getBookingStatusSummary(bookingStatus, paymentStatus);
+  const summary = getBookingStatusSummary(
+    bookingStatus,
+    paymentStatus,
+    stayStatus
+  );
 
   return (
     <div
@@ -237,7 +246,11 @@ export const BookingStatusCard: React.FC<BookingStatusCardProps> = ({
           <p className="mt-1 text-sm text-gray-600">{summary.description}</p>
         </div>
         <div className="ml-4 flex flex-col gap-2">
-          <BookingStatusBadge status={bookingStatus} size="sm" />
+          <BookingStatusBadge
+            status={bookingStatus}
+            stayStatus={stayStatus}
+            size="sm"
+          />
           <PaymentStatusBadge status={paymentStatus} size="sm" />
         </div>
       </div>

@@ -107,7 +107,7 @@ export function useBookingsData(
   const confirmBooking = useCallback(
     async (bookingId: string): Promise<boolean> => {
       try {
-        await bookingService.updateBookingStatus(bookingId, "CONFIRMED");
+        await bookingService.updateBookingStatus(bookingId, "ACTIVE");
         await fetchBookings(); // Refresh bookings after confirmation
         return true;
       } catch (err) {

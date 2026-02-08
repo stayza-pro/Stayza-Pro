@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import { bookingService } from "@/services/bookings";
@@ -24,13 +24,13 @@ import { format } from "date-fns";
 type BookingStatus =
   | "ALL"
   | "PENDING"
-  | "CONFIRMED"
+  | "ACTIVE"
   | "CANCELLED"
   | "COMPLETED";
 
 const STATUS_COLORS = {
   PENDING: "bg-yellow-100 text-yellow-800",
-  CONFIRMED: "bg-green-100 text-green-800",
+  ACTIVE: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
   COMPLETED: "", // Will use dynamic brand colors
 };
@@ -38,7 +38,7 @@ const STATUS_COLORS = {
 const STATUS_FILTERS: { value: BookingStatus; label: string }[] = [
   { value: "ALL", label: "All Bookings" },
   { value: "PENDING", label: "Pending" },
-  { value: "CONFIRMED", label: "Confirmed" },
+  { value: "ACTIVE", label: "Active" },
   { value: "CANCELLED", label: "Cancelled" },
   { value: "COMPLETED", label: "Completed" },
 ];
@@ -84,7 +84,7 @@ export default function BookingsPage() {
 
   const handleStatusUpdate = async (
     bookingId: string,
-    newStatus: "CONFIRMED" | "CANCELLED"
+    newStatus: "ACTIVE" | "CANCELLED"
   ) => {
     try {
       await bookingService.updateBookingStatus(bookingId, newStatus);
@@ -306,7 +306,7 @@ export default function BookingsPage() {
                         <>
                           <button
                             onClick={() =>
-                              handleStatusUpdate(booking.id, "CONFIRMED")
+                              handleStatusUpdate(booking.id, "ACTIVE")
                             }
                             className="text-green-600 hover:text-green-900 mr-2"
                             title="Confirm"
@@ -500,7 +500,7 @@ export default function BookingsPage() {
                   <div className="flex gap-3 pt-4 border-t border-gray-200">
                     <button
                       onClick={() =>
-                        handleStatusUpdate(selectedBooking.id, "CONFIRMED")
+                        handleStatusUpdate(selectedBooking.id, "ACTIVE")
                       }
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                     >
@@ -526,3 +526,5 @@ export default function BookingsPage() {
     </div>
   );
 }
+
+

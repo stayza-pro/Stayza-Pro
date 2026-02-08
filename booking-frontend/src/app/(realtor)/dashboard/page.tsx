@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { motion } from "framer-motion";
@@ -53,7 +53,7 @@ export default function RealtorDashboardPage() {
   const { insights: insightsData, isLoading: insightsLoading } =
     useBusinessInsights();
   const { bookings, isLoading: bookingsLoading } = useBookingsData({
-    status: "CONFIRMED",
+    status: "ACTIVE",
     limit: 5,
   });
   const { data: revenueChartData, isLoading: revenueLoading } =
@@ -142,7 +142,7 @@ export default function RealtorDashboardPage() {
         {[
           {
             label: "Total Revenue",
-            value: `₦${Math.round(stats.totalRevenue * 100) / 100}`,
+            value: `â‚¦${Math.round(stats.totalRevenue * 100) / 100}`,
             icon: TrendingUp,
             iconBg: "bg-green-50",
             iconColor: "text-green-600",
@@ -443,7 +443,7 @@ export default function RealtorDashboardPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-gray-900">
-                    ₦{Math.round((booking.totalPrice || 0) * 100) / 100}
+                    â‚¦{Math.round((booking.totalPrice || 0) * 100) / 100}
                   </p>
                   <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded">
                     {booking.status}
@@ -457,3 +457,5 @@ export default function RealtorDashboardPage() {
     </div>
   );
 }
+
+

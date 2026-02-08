@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -74,9 +74,9 @@ export default function RealtorBookingDetailsPage() {
         showToast.success(
           `Booking Cancelled. Refund processed automatically (${
             refund.tier
-          } tier). Guest receives: ₦${
+          } tier). Guest receives: â‚¦${
             totals.customerRefund?.toLocaleString() || 0
-          }, You receive: ₦${totals.realtorPortion?.toLocaleString() || 0}`,
+          }, You receive: â‚¦${totals.realtorPortion?.toLocaleString() || 0}`,
           { duration: 6000 }
         );
       } else {
@@ -167,7 +167,27 @@ export default function RealtorBookingDetailsPage() {
     return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const getStatusConfig = (status: BookingStatus) => {
+  const getStatusConfig = (status: BookingStatus, stayStatus?: string) => {
+    if (status === "ACTIVE" && stayStatus === "CHECKED_IN") {
+      return {
+        text: "Checked In",
+        color: "#8B5CF6",
+        backgroundColor: "#EDE9FE",
+        borderColor: "#C4B5FD",
+        icon: CheckCircle,
+      };
+    }
+
+    if (status === "ACTIVE" && stayStatus === "CHECKED_OUT") {
+      return {
+        text: "Checked Out",
+        color: "#6366F1",
+        backgroundColor: "#E0E7FF",
+        borderColor: "#A5B4FC",
+        icon: CheckCircle,
+      };
+    }
+
     const configs = {
       PENDING: {
         text: "Pending",
@@ -183,40 +203,12 @@ export default function RealtorBookingDetailsPage() {
         borderColor: "#6EE7B7",
         icon: CheckCircle,
       },
-      PAID: {
-        text: "Paid",
-        color: "#10B981",
-        backgroundColor: "#D1FAE5",
-        borderColor: "#6EE7B7",
-        icon: CheckCircle,
-      },
-      CONFIRMED: {
-        text: "Confirmed",
-        color: "#3B82F6",
-        backgroundColor: "#DBEAFE",
-        borderColor: "#93C5FD",
-        icon: CheckCircle,
-      },
       DISPUTED: {
         text: "Disputed",
         color: "#F97316",
         backgroundColor: "#FFEDD5",
         borderColor: "#FED7AA",
         icon: AlertCircle,
-      },
-      CHECKED_IN: {
-        text: "Checked In",
-        color: "#8B5CF6",
-        backgroundColor: "#EDE9FE",
-        borderColor: "#C4B5FD",
-        icon: CheckCircle,
-      },
-      CHECKED_OUT: {
-        text: "Checked Out",
-        color: "#6366F1",
-        backgroundColor: "#E0E7FF",
-        borderColor: "#A5B4FC",
-        icon: CheckCircle,
       },
       COMPLETED: {
         text: "Completed",
@@ -232,25 +224,12 @@ export default function RealtorBookingDetailsPage() {
         borderColor: "#FCA5A5",
         icon: XCircle,
       },
-      DISPUTE_OPENED: {
-        text: "Dispute",
-        color: "#F97316",
-        backgroundColor: "#FFEDD5",
-        borderColor: "#FED7AA",
-        icon: AlertCircle,
-      },
     };
     return configs[status] || configs.PENDING;
   };
 
   const canCancel = () => {
-    return (
-      booking &&
-      (booking.status === "PENDING" ||
-        booking.status === "ACTIVE" ||
-        booking.status === "PAID" ||
-        booking.status === "CONFIRMED")
-    );
+    return booking && (booking.status === "PENDING" || booking.status === "ACTIVE");
   };
 
   const canRequestRefund = () => {
@@ -258,7 +237,6 @@ export default function RealtorBookingDetailsPage() {
       booking &&
       (booking.status === "CANCELLED" ||
         booking.status === "DISPUTED" ||
-        booking.status === "DISPUTE_OPENED" ||
         booking.status === "COMPLETED")
     );
   };
@@ -297,7 +275,7 @@ export default function RealtorBookingDetailsPage() {
     );
   }
 
-  const status = getStatusConfig(booking.status);
+  const status = getStatusConfig(booking.status, booking.stayStatus);
   const StatusIcon = status.icon;
   const nights = calculateNights();
 
@@ -466,7 +444,7 @@ export default function RealtorBookingDetailsPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Booking Amount</span>
                 <span className="font-medium text-gray-900">
-                  ₦{(booking.totalPrice || 0).toLocaleString()}
+                  â‚¦{(booking.totalPrice || 0).toLocaleString()}
                 </span>
               </div>
 
@@ -491,7 +469,7 @@ export default function RealtorBookingDetailsPage() {
                   Total Amount
                 </span>
                 <span className="font-bold text-gray-900 text-lg">
-                  ₦{(booking.totalPrice || 0).toLocaleString()}
+                  â‚¦{(booking.totalPrice || 0).toLocaleString()}
                 </span>
               </div>
 
@@ -532,10 +510,7 @@ export default function RealtorBookingDetailsPage() {
 
           {/* Escrow Status */}
           {(booking.status === "ACTIVE" ||
-            booking.status === "PAID" ||
-            booking.status === "CONFIRMED" ||
-            booking.status === "CHECKED_IN" ||
-            booking.status === "CHECKED_OUT" ||
+            booking.status === "DISPUTED" ||
             booking.status === "COMPLETED") && (
             <EscrowStatusSection booking={booking} viewType="host" />
           )}
@@ -659,7 +634,7 @@ export default function RealtorBookingDetailsPage() {
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Refund Amount (₦)
+                Refund Amount (â‚¦)
               </label>
               <input
                 type="number"
@@ -670,7 +645,7 @@ export default function RealtorBookingDetailsPage() {
                 max={booking.totalPrice}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Max: ₦{booking.totalPrice.toLocaleString()}
+                Max: â‚¦{booking.totalPrice.toLocaleString()}
               </p>
             </div>
 
@@ -705,3 +680,5 @@ export default function RealtorBookingDetailsPage() {
     </div>
   );
 }
+
+

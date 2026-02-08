@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { useBookingsData } from "@/hooks/realtor/useBookingsData";
@@ -98,35 +98,10 @@ export default function RealtorBookingsPage() {
       color: "bg-green-50 text-green-700 border-green-200",
       icon: CheckCircle,
     },
-    PAID: {
-      label: "Paid",
-      color: "bg-green-50 text-green-700 border-green-200",
-      icon: CheckCircle,
-    },
-    CONFIRMED: {
-      label: "Confirmed",
-      color: "bg-blue-50 text-blue-700 border-blue-200",
-      icon: CheckCircle,
-    },
-    CHECKED_IN: {
-      label: "Checked In",
-      color: "bg-purple-50 text-purple-700 border-purple-200",
-      icon: CheckCircle,
-    },
     DISPUTED: {
       label: "Disputed",
       color: "bg-orange-50 text-orange-700 border-orange-200",
       icon: AlertCircle,
-    },
-    DISPUTE_OPENED: {
-      label: "Dispute",
-      color: "bg-orange-50 text-orange-700 border-orange-200",
-      icon: AlertCircle,
-    },
-    CHECKED_OUT: {
-      label: "Checked Out",
-      color: "bg-indigo-50 text-indigo-700 border-indigo-200",
-      icon: CheckCircle,
     },
     COMPLETED: {
       label: "Completed",
@@ -191,8 +166,8 @@ export default function RealtorBookingsPage() {
             color: "#F59E0B",
           },
           {
-            label: "Confirmed",
-            value: bookings.filter((b) => b.status === "CONFIRMED").length,
+            label: "ACTIVE",
+            value: bookings.filter((b) => b.status === "ACTIVE").length,
             icon: CheckCircle,
             color: "#10B981",
           },
@@ -251,12 +226,7 @@ export default function RealtorBookingsPage() {
             <option value="all">All Status</option>
             <option value="PENDING">Pending</option>
             <option value="ACTIVE">Active</option>
-            <option value="PAID">Paid (Legacy)</option>
-            <option value="CONFIRMED">Confirmed (Legacy)</option>
-            <option value="CHECKED_IN">Checked In</option>
             <option value="DISPUTED">Disputed</option>
-            <option value="DISPUTE_OPENED">Dispute (Legacy)</option>
-            <option value="CHECKED_OUT">Checked Out</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
@@ -354,7 +324,7 @@ export default function RealtorBookingsPage() {
 
                           <div className="flex items-center gap-2 text-sm">
                             <span className="text-gray-400 text-lg font-bold">
-                              ₦
+                              â‚¦
                             </span>
                             <div>
                               <p className="text-gray-600">Total Price</p>
@@ -482,3 +452,5 @@ export default function RealtorBookingsPage() {
     </div>
   );
 }
+
+

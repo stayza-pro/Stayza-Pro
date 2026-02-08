@@ -8,7 +8,7 @@ import {
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest, BookingSearchQuery } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
-import { createBookingSchema, updateBookingSchema } from "@/utils/validation";
+import { createBookingSchema } from "@/utils/validation";
 import { refundPolicyService } from "@/services/refundPolicy";
 import { calculateRefundSplit, processBookingRefund } from "@/services/refund";
 import { processAutomaticCancellationRefund } from "@/services/cancellationRefund";
@@ -67,7 +67,7 @@ const router = express.Router();
  *           type: string
  *         status:
  *           type: string
- *           enum: [PENDING, CONFIRMED, PAID, CHECKED_IN, CHECKED_OUT, CANCELLED, COMPLETED]
+ *           enum: [PENDING, ACTIVE, DISPUTED, COMPLETED, CANCELLED]
  *         specialRequests:
  *           type: string
  *         roomFee:
@@ -697,7 +697,7 @@ router.post(
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, CONFIRMED, PAID, CHECKED_IN, CHECKED_OUT, CANCELLED, COMPLETED]
+ *           enum: [PENDING, ACTIVE, DISPUTED, COMPLETED, CANCELLED]
  *     responses:
  *       200:
  *         description: User bookings retrieved successfully
@@ -724,23 +724,10 @@ router.get(
       guestId: req.user!.id,
     };
 
-    // Map frontend status values to database BookingStatus enum
     if (status) {
-      const statusMap: Record<string, BookingStatus> = {
-        CONFIRMED: "ACTIVE",
-        PAID: "ACTIVE",
-        CHECKED_IN: "ACTIVE",
-        CHECKED_OUT: "COMPLETED",
-        PENDING: "PENDING",
-        CANCELLED: "CANCELLED",
-        COMPLETED: "COMPLETED",
-        DISPUTED: "DISPUTED",
-        ACTIVE: "ACTIVE",
-      };
-
-      const mappedStatus = statusMap[status as string];
-      if (mappedStatus) {
-        where.status = mappedStatus;
+      const parsedStatus = status as BookingStatus;
+      if (Object.values(BookingStatus).includes(parsedStatus)) {
+        where.status = parsedStatus;
       }
     }
 
@@ -830,7 +817,7 @@ router.get(
  *         name: status
  *         schema:
  *           type: string
- *           enum: [PENDING, CONFIRMED, PAID, CHECKED_IN, CHECKED_OUT, CANCELLED, COMPLETED]
+ *           enum: [PENDING, ACTIVE, DISPUTED, COMPLETED, CANCELLED]
  *       - in: query
  *         name: propertyId
  *         schema:
@@ -874,23 +861,10 @@ router.get(
       },
     };
 
-    // Map frontend status values to database BookingStatus enum
     if (status) {
-      const statusMap: Record<string, BookingStatus> = {
-        CONFIRMED: "ACTIVE",
-        PAID: "ACTIVE",
-        CHECKED_IN: "ACTIVE",
-        CHECKED_OUT: "COMPLETED",
-        PENDING: "PENDING",
-        CANCELLED: "CANCELLED",
-        COMPLETED: "COMPLETED",
-        DISPUTED: "DISPUTED",
-        ACTIVE: "ACTIVE",
-      };
-
-      const mappedStatus = statusMap[status as string];
-      if (mappedStatus) {
-        where.status = mappedStatus;
+      const parsedStatus = status as BookingStatus;
+      if (Object.values(BookingStatus).includes(parsedStatus)) {
+        where.status = parsedStatus;
       }
     }
     if (propertyId) where.propertyId = propertyId;
@@ -1059,7 +1033,7 @@ router.get(
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [PENDING, CONFIRMED, PAID, CHECKED_IN, CHECKED_OUT, CANCELLED, COMPLETED]
+ *                 enum: [PENDING, ACTIVE, DISPUTED, COMPLETED, CANCELLED]
  *     responses:
  *       200:
  *         description: Booking status updated successfully
@@ -1559,263 +1533,6 @@ router.put(
           cancelledBy: isAdmin ? "admin" : "guest",
           cancelledAt: new Date(),
           refundEligible: cancellationCheck.refundEligible,
-        },
-      },
-    });
-  })
-);
-
-/**
- * @swagger
- * /api/bookings/{id}/check-in:
- *   post:
- *     summary: Check-in booking
- *     description: Check in to a booking (guest or admin only)
- *     tags: [Bookings]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Check-in successful
- *       400:
- *         description: Cannot check in
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Booking not found
- */
-router.post(
-  "/:id/check-in",
-  authenticate,
-  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
-    const userId = req.user!.id;
-    const isAdmin = req.user!.role === "ADMIN";
-
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        guest: true,
-        property: {
-          include: {
-            realtor: true,
-          },
-        },
-        payment: true,
-      },
-    });
-
-    if (!booking) {
-      throw new AppError("Booking not found", 404);
-    }
-
-    if (!isAdmin && booking.guestId !== userId) {
-      throw new AppError("Unauthorized to check in this booking", 403);
-    }
-
-    if (booking.status !== BookingStatus.ACTIVE) {
-      throw new AppError(
-        `Cannot check in. Booking status is ${booking.status}`,
-        400
-      );
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkInDate = new Date(booking.checkInDate);
-    checkInDate.setHours(0, 0, 0, 0);
-
-    if (checkInDate > today) {
-      throw new AppError("Check-in date has not arrived yet", 400);
-    }
-
-    const checkInTime = new Date();
-    const disputeWindowClosesAt = new Date(
-      checkInTime.getTime() + 60 * 60 * 1000
-    );
-
-    const updatedBooking = await prisma.booking.update({
-      where: { id },
-      data: {
-        status: BookingStatus.ACTIVE,
-        checkInTime,
-        disputeWindowClosesAt,
-      },
-      include: {
-        guest: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-        property: {
-          select: {
-            id: true,
-            title: true,
-            address: true,
-            city: true,
-            realtor: {
-              select: {
-                id: true,
-                businessName: true,
-              },
-            },
-          },
-        },
-        payment: true,
-      },
-    });
-
-    await auditLogger.log("BOOKING_CHECKED_IN" as any, "BOOKING" as any, {
-      userId,
-      entityId: id,
-      details: {
-        checkInTime: checkInTime.toISOString(),
-        disputeWindowClosesAt: disputeWindowClosesAt.toISOString(),
-      },
-    });
-
-    res.json({
-      success: true,
-      message: "Check-in successful",
-      data: {
-        booking: updatedBooking,
-        disputeWindow: {
-          closesAt: disputeWindowClosesAt,
-          remainingMinutes: 60,
-        },
-      },
-    });
-  })
-);
-
-/**
- * @swagger
- * /api/bookings/{id}/check-out:
- *   post:
- *     summary: Check-out booking
- *     description: Check out from a booking (guest or admin only)
- *     tags: [Bookings]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Check-out successful
- *       400:
- *         description: Cannot check out
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Booking not found
- */
-router.post(
-  "/:id/check-out",
-  authenticate,
-  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
-    const userId = req.user!.id;
-    const isAdmin = req.user!.role === "ADMIN";
-
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        guest: true,
-        property: {
-          include: {
-            realtor: true,
-          },
-        },
-        payment: true,
-      },
-    });
-
-    if (!booking) {
-      throw new AppError("Booking not found", 404);
-    }
-
-    if (!isAdmin && booking.guestId !== userId) {
-      throw new AppError("Unauthorized to check out this booking", 403);
-    }
-
-    if (booking.stayStatus !== "CHECKED_IN") {
-      throw new AppError(
-        `Cannot check out. Must be checked in first. Current stayStatus: ${booking.stayStatus}`,
-        400
-      );
-    }
-
-    const checkOutTime = new Date();
-    const realtorDisputeClosesAt = new Date(
-      checkOutTime.getTime() + 2 * 60 * 60 * 1000
-    );
-
-    const updatedBooking = await prisma.booking.update({
-      where: { id },
-      data: {
-        status: BookingStatus.ACTIVE, // Keep ACTIVE until deposit released
-        stayStatus: "CHECKED_OUT", // Set to CHECKED_OUT
-        checkOutTime,
-        realtorDisputeClosesAt,
-      },
-      include: {
-        guest: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-        property: {
-          select: {
-            id: true,
-            title: true,
-            address: true,
-            city: true,
-            realtor: {
-              select: {
-                id: true,
-                businessName: true,
-                userId: true,
-              },
-            },
-          },
-        },
-        payment: true,
-      },
-    });
-
-    await auditLogger.log("BOOKING_CHECKED_OUT" as any, "BOOKING" as any, {
-      userId,
-      entityId: id,
-      details: {
-        checkOutTime: checkOutTime.toISOString(),
-        realtorDisputeClosesAt: realtorDisputeClosesAt.toISOString(),
-      },
-    });
-
-    res.json({
-      success: true,
-      message: "Check-out successful",
-      data: {
-        booking: updatedBooking,
-        realtorDisputeWindow: {
-          closesAt: realtorDisputeClosesAt,
-          remainingMinutes: 120,
         },
       },
     });

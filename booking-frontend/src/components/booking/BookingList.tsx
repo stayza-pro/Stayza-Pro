@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { Button, Card, Loading } from "../ui";
@@ -68,15 +68,15 @@ export const BookingList: React.FC<BookingListProps> = ({
 
         switch (filterType) {
           case "upcoming":
-            return checkIn > now && booking.status === "CONFIRMED";
+            return checkIn > now && booking.status === "ACTIVE";
           case "ongoing":
             return (
-              checkIn <= now && checkOut > now && booking.status === "CONFIRMED"
+              checkIn <= now && checkOut > now && booking.status === "ACTIVE"
             );
           case "past":
             return (
               checkOut <= now &&
-              (booking.status === "COMPLETED" || booking.status === "CONFIRMED")
+              (booking.status === "COMPLETED" || booking.status === "ACTIVE")
             );
           case "cancelled":
             return booking.status === "CANCELLED";
@@ -134,17 +134,17 @@ export const BookingList: React.FC<BookingListProps> = ({
       const checkIn = new Date(booking.checkInDate);
       const checkOut = new Date(booking.checkOutDate);
 
-      if (checkIn > now && booking.status === "CONFIRMED") {
+      if (checkIn > now && booking.status === "ACTIVE") {
         counts.upcoming++;
       } else if (
         checkIn <= now &&
         checkOut > now &&
-        booking.status === "CONFIRMED"
+        booking.status === "ACTIVE"
       ) {
         counts.ongoing++;
       } else if (
         checkOut <= now &&
-        (booking.status === "COMPLETED" || booking.status === "CONFIRMED")
+        (booking.status === "COMPLETED" || booking.status === "ACTIVE")
       ) {
         counts.past++;
       } else if (
@@ -322,3 +322,5 @@ export const BookingList: React.FC<BookingListProps> = ({
     </div>
   );
 };
+
+

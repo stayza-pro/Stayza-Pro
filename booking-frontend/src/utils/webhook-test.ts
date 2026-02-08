@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Webhook Testing Utilities
  *
  * Use these functions to test webhook functionality locally
@@ -336,7 +336,7 @@ export async function testWebhookFlow(
   
 
   // Step 5: Summary
-  if (finalPaymentStatus === "HELD" && finalBookingStatus === "CONFIRMED") {
+  if (finalPaymentStatus === "HELD" && finalBookingStatus === "ACTIVE") {
     
   } else {
     
@@ -355,3 +355,5 @@ async function runTest() {
 
 runTest();
 */
+
+
