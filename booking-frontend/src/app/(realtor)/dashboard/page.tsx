@@ -61,6 +61,14 @@ export default function RealtorDashboardPage() {
 
   const brandColor = branding?.colors?.primary || "#3B82F6";
 
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount || 0);
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     showSuccess("Copied to clipboard!");
@@ -142,7 +150,7 @@ export default function RealtorDashboardPage() {
         {[
           {
             label: "Total Revenue",
-            value: `â‚¦${Math.round(stats.totalRevenue * 100) / 100}`,
+            value: formatCurrency(Math.round(stats.totalRevenue * 100) / 100),
             icon: TrendingUp,
             iconBg: "bg-green-50",
             iconColor: "text-green-600",
@@ -443,7 +451,7 @@ export default function RealtorDashboardPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-gray-900">
-                    â‚¦{Math.round((booking.totalPrice || 0) * 100) / 100}
+                    {formatCurrency(Math.round((booking.totalPrice || 0) * 100) / 100)}
                   </p>
                   <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded">
                     {booking.status}

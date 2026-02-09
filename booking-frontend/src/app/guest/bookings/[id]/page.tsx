@@ -180,7 +180,10 @@ export default function BookingDetailsPage() {
 
       if (refund) {
         if (refund.totals.customerRefund > 0) {
-          message += ` Your refund of â‚¦${refund.totals.customerRefund.toLocaleString()} has been automatically processed.`;
+          message += ` Your refund of ${formatPrice(
+            refund.totals.customerRefund,
+            booking?.currency || "NGN"
+          )} has been automatically processed.`;
         } else {
           message +=
             " Late cancellation - no refund applicable (security deposit policy).";
@@ -1124,8 +1127,10 @@ export default function BookingDetailsPage() {
                               : "text-green-800"
                           }`}
                         >
-                          â‚¦
-                          {cancellationPreview.refundInfo.customerRefund.toLocaleString()}
+                          {formatPrice(
+                            cancellationPreview.refundInfo.customerRefund,
+                            booking?.currency || "NGN"
+                          )}
                         </span>
                       </div>
 
@@ -1162,8 +1167,10 @@ export default function BookingDetailsPage() {
                             : "text-green-900"
                         }`}
                       >
-                        â‚¦
-                        {cancellationPreview.refundInfo.customerRefund.toLocaleString()}
+                        {formatPrice(
+                          cancellationPreview.refundInfo.customerRefund,
+                          booking?.currency || "NGN"
+                        )}
                       </span>
                     </div>
                   </div>
