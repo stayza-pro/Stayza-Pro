@@ -1,8 +1,6 @@
-import { Resend } from "resend";
 import { config } from "@/config";
-
-// Initialize Resend client
-const resend = new Resend(config.RESEND_API_KEY);
+import { queueAndSendEmail } from "@/services/emailWorker";
+import { logger } from "@/utils/logger";
 
 // Stayza Brand Colors
 const brandColors = {
@@ -969,36 +967,25 @@ export const sendEmail = async (
   attachments?: any[]
 ) => {
   try {
-    if (!config.RESEND_API_KEY) {
-      throw new Error(
-        "RESEND_API_KEY is not configured. Please add it to your environment variables."
-      );
-    }
-
-    const result = await resend.emails.send({
-      from: "Stayza Pro <noreply@stayza.pro>",
-      to: Array.isArray(to) ? to : [to],
-      subject: template.subject,
-      html: template.html,
+    const result = await queueAndSendEmail({
+      to,
+      template,
+      attachments,
     });
 
-    
-    return { success: true, messageId: result.data?.id };
+    return {
+      success: result.success,
+      queued: result.queued,
+      jobId: result.jobId,
+      messageId: result.messageId,
+    };
   } catch (error: any) {
-    
-
-    if (error.name === "ResendError") {
-      
-      throw new Error(`Email service error: ${error.message}`);
-    } else if (error.code === "ETIMEDOUT") {
-      throw new Error("Email connection timeout. Please try again later.");
-    } else if (error.code === "EENVELOPE") {
-      
-      throw new Error("Invalid email address provided.");
-    } else {
-      
-      throw new Error(`Failed to send email: ${error.message}`);
-    }
+    logger.error("Failed to enqueue/send email", {
+      to,
+      subject: template.subject,
+      error: error?.message || error,
+    });
+    throw new Error(error?.message || "Failed to send email");
   }
 };
 

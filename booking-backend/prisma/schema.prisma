@@ -941,6 +941,30 @@ model WithdrawalRequest {
    @@map("withdrawal_requests")
 }
 
+model EmailJob {
+   id                String         @id @default(cuid())
+   to                String[]
+   subject           String
+   html              String         @db.Text
+   attachments       Json?
+   status            EmailJobStatus @default(PENDING)
+   attempts          Int            @default(0)
+   maxAttempts       Int            @default(5)
+   nextAttemptAt     DateTime       @default(now())
+   lastError         String?
+   provider          String?
+   providerMessageId String?
+   lockedAt          DateTime?
+   lockedBy          String?
+   sentAt            DateTime?
+   createdAt         DateTime       @default(now())
+   updatedAt         DateTime       @updatedAt
+
+   @@index([status, nextAttemptAt])
+   @@index([createdAt])
+   @@map("email_jobs")
+}
+
 enum WalletOwnerType {
    REALTOR
    PLATFORM
@@ -980,6 +1004,13 @@ enum WithdrawalRequestStatus {
    COMPLETED // Successfully paid to realtor
    FAILED // Transfer failed, funds restored
    CANCELLED // Cancelled by admin/realtor
+}
+
+enum EmailJobStatus {
+   PENDING
+   PROCESSING
+   SENT
+   FAILED
 }
 
 enum MessageType {

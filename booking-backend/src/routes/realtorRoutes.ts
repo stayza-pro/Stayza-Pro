@@ -3722,8 +3722,6 @@ router.post(
         accountNumber: maskAccountNumber(normalizedAccountNumber),
         accountName: String(accountName),
       }
-    ).catch((error) =>
-      logger.error("Failed to send payout account OTP email", error)
     );
 
     return res.status(200).json({

@@ -39,6 +39,30 @@ export const config = {
     process.env.SMTP_SECURE,
     (process.env.SMTP_PORT || "587") === "465",
   ),
+  SMTP_REQUIRE_TLS: toBoolean(process.env.SMTP_REQUIRE_TLS, false),
+  SMTP_TLS_REJECT_UNAUTHORIZED: toBoolean(
+    process.env.SMTP_TLS_REJECT_UNAUTHORIZED,
+    true,
+  ),
+  SMTP_CONNECTION_TIMEOUT: parseInt(
+    process.env.SMTP_CONNECTION_TIMEOUT || "10000",
+    10,
+  ),
+  EMAIL_FROM: process.env.EMAIL_FROM || "Stayza Pro <noreply@stayza.pro>",
+  EMAIL_WORKER_ENABLED: toBoolean(process.env.EMAIL_WORKER_ENABLED, true),
+  EMAIL_WORKER_INTERVAL_MS: parseInt(
+    process.env.EMAIL_WORKER_INTERVAL_MS || "15000",
+    10,
+  ),
+  EMAIL_WORKER_BATCH_SIZE: parseInt(
+    process.env.EMAIL_WORKER_BATCH_SIZE || "10",
+    10,
+  ),
+  EMAIL_WORKER_LOCK_TIMEOUT_MS: parseInt(
+    process.env.EMAIL_WORKER_LOCK_TIMEOUT_MS || "120000",
+    10,
+  ),
+  EMAIL_MAX_RETRIES: parseInt(process.env.EMAIL_MAX_RETRIES || "5", 10),
   RESEND_API_KEY: process.env.RESEND_API_KEY, // Optional - will fallback to SMTP if not provided
 
   // Frontend

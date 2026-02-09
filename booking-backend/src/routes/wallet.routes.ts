@@ -459,8 +459,6 @@ router.post(
         otp,
         amount,
         WITHDRAWAL_OTP_EXPIRY_MINUTES
-      ).catch((error) =>
-        logger.error("Failed to send withdrawal OTP email", error)
       );
 
       res.status(200).json({
