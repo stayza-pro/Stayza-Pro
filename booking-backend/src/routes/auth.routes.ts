@@ -44,7 +44,7 @@ async function cleanupExpiredPendingRegistrations() {
     });
     if (deleted.count > 0) {
       logger.info(
-        `🧹 Cleaned up ${deleted.count} expired pending registrations`
+        `🧹 Cleaned up ${deleted.count} expired pending registrations`,
       );
     }
   } catch (error) {
@@ -353,7 +353,7 @@ router.post(
     ) {
       loginRedirectUrl = buildMainDomainUrl(
         "/realtor/check-email",
-        req.headers.host
+        req.headers.host,
       );
     } else if (user.role === "ADMIN") {
       dashboardUrl = getDashboardUrl("admin");
@@ -378,7 +378,7 @@ router.post(
         primary: loginRedirectUrl,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -418,7 +418,7 @@ router.get(
       message: "User profile retrieved successfully",
       data: { user: req.user },
     });
-  })
+  }),
 );
 
 /**
@@ -481,7 +481,7 @@ router.put(
       message: "Profile updated successfully",
       data: { user },
     });
-  })
+  }),
 );
 
 /**
@@ -504,7 +504,7 @@ router.post(
       success: true,
       message: "Logged out successfully",
     });
-  })
+  }),
 );
 
 /**
@@ -562,7 +562,7 @@ router.post(
         refreshToken: newRefreshToken,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -662,7 +662,7 @@ router.get(
 
     sendWelcomeEmail(
       verifiedUser.email,
-      verifiedUser.firstName || "User"
+      verifiedUser.firstName || "User",
     ).catch((err) => logger.error("Welcome email failed", err));
 
     let dashboardUrl = "/";
@@ -670,7 +670,7 @@ router.get(
       dashboardUrl = getDashboardUrl(
         "realtor",
         verifiedUser.realtor.slug,
-        true
+        true,
       );
     } else if (verifiedUser.role === "ADMIN") {
       dashboardUrl = getDashboardUrl("admin");
@@ -693,7 +693,7 @@ router.get(
         isEmailVerified: true,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -774,7 +774,7 @@ router.post(
       emailVerificationToken,
       userType,
       realtorSlug,
-      user.email
+      user.email,
     );
 
     // Try to send email, but don't fail the request if email service is down
@@ -782,7 +782,7 @@ router.post(
       await sendEmailVerification(
         user.email,
         user.firstName || "User",
-        verificationUrl
+        verificationUrl,
       );
       logger.info(`Verification email sent successfully to ${user.email}`);
     } catch (emailError: any) {
@@ -797,7 +797,7 @@ router.post(
       success: true,
       message: "Verification email sent successfully",
     });
-  })
+  }),
 );
 
 /**
@@ -841,7 +841,7 @@ router.post(
     const resetUrl = `${
       config.FRONTEND_URL
     }/reset-password?token=${resetToken}&email=${encodeURIComponent(
-      user.email
+      user.email,
     )}`;
 
     await sendPasswordReset(user.email, user.firstName || "User", resetUrl);
@@ -850,7 +850,7 @@ router.post(
       success: true,
       message: "If that email exists, a reset link has been sent",
     });
-  })
+  }),
 );
 
 /**
@@ -908,7 +908,7 @@ router.post(
       success: true,
       message: "Password reset successfully",
     });
-  })
+  }),
 );
 
 /**
@@ -961,7 +961,7 @@ router.post(
       if (existingUser.isEmailVerified) {
         throw new AppError(
           "User with this email already exists. Please login instead.",
-          400
+          400,
         );
       }
 
@@ -1001,7 +1001,7 @@ router.post(
         expiresIn: "10 minutes",
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1048,7 +1048,7 @@ router.post(
     if (user.role !== "GUEST") {
       throw new AppError(
         "Passwordless login is only available for guest accounts",
-        400
+        400,
       );
     }
 
@@ -1066,7 +1066,7 @@ router.post(
     await sendEmailVerification(
       email,
       otp,
-      user.fullName || `${user.firstName} ${user.lastName}`
+      user.fullName || `${user.firstName} ${user.lastName}`,
     );
 
     res.json({
@@ -1077,7 +1077,7 @@ router.post(
         expiresIn: "10 minutes",
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1165,11 +1165,11 @@ router.post(
     try {
       await sendWelcomeEmail(
         email,
-        user.fullName || `${user.firstName} ${user.lastName}`
+        user.fullName || `${user.firstName} ${user.lastName}`,
       );
     } catch (emailError) {
       logger.info(
-        "⚠️  Welcome email failed to send, but registration completed successfully"
+        "⚠️  Welcome email failed to send, but registration completed successfully",
       );
     }
 
@@ -1191,7 +1191,7 @@ router.post(
         refreshToken,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1249,7 +1249,7 @@ router.post(
       if (userCheck.role !== "GUEST") {
         throw new AppError(
           "Passwordless login is only available for guest accounts",
-          400
+          400,
         );
       }
       throw new AppError("Invalid verification code", 400);
@@ -1290,7 +1290,7 @@ router.post(
         refreshToken,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1346,7 +1346,7 @@ router.patch(
 
     const isValidPassword = await comparePassword(
       currentPassword,
-      user.password
+      user.password,
     );
 
     if (!isValidPassword) {
@@ -1366,7 +1366,7 @@ router.patch(
       success: true,
       message: "Password updated successfully",
     });
-  })
+  }),
 );
 
 /**
@@ -1447,7 +1447,7 @@ router.delete(
     if (activeBookings > 0) {
       throw new AppError(
         "Cannot delete account with active bookings. Please cancel or complete all bookings first.",
-        400
+        400,
       );
     }
 
@@ -1463,7 +1463,7 @@ router.delete(
       if (activeProperties > 0) {
         throw new AppError(
           "Realtors cannot delete account while having active properties. Please remove all properties first.",
-          400
+          400,
         );
       }
     }
@@ -1502,7 +1502,7 @@ router.delete(
       success: true,
       message: "Account successfully deleted",
     });
-  })
+  }),
 );
 
 export default router;

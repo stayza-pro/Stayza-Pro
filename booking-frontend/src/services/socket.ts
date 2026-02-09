@@ -3,7 +3,7 @@ import { NotificationSocketData } from "@/types/notifications";
 import toast from "react-hot-toast";
 
 const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5050";
+  process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5050";
 
 export class SocketService {
   private socket: Socket | null = null;

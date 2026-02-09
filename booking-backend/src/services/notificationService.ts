@@ -32,13 +32,41 @@ export class NotificationService {
   private connectedUsers: Map<string, Set<string>> = new Map(); // userId -> Set of socketIds
 
   constructor(server: HTTPServer) {
+    // Allow all production subdomains and dev URLs
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || "http://localhost:3000",
+      "https://stayza.pro",
+      "https://www.stayza.pro",
+      /^https:\/\/.*\.stayza\.pro$/,
+      "http://localhost:3000",
+      "http://localhost:3001",
+    ];
+
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:3000",
+        origin: (origin, callback) => {
+          // Allow requests with no origin (like mobile apps or curl)
+          if (!origin) return callback(null, true);
+          
+          // Check if origin matches any allowed pattern
+          const isAllowed = allowedOrigins.some(allowed => {
+            if (typeof allowed === 'string') return origin === allowed;
+            if (allowed instanceof RegExp) return allowed.test(origin);
+            return false;
+          });
+          
+          if (isAllowed) {
+            callback(null, true);
+          } else {
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
         methods: ["GET", "POST"],
         credentials: true,
       },
       transports: ["websocket", "polling"],
+      pingTimeout: 60000,
+      pingInterval: 25000,
     });
 
     this.setupSocketHandlers();

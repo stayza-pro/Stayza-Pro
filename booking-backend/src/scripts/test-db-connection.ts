@@ -8,7 +8,7 @@ const testConnection = async () => {
   try {
     console.log("🔍 Testing database connection...");
     const start = Date.now();
-    
+
     // Test simple query
     await prisma.$queryRaw`SELECT 1`;
     console.log(`✅ Basic connection: ${Date.now() - start}ms`);
@@ -50,8 +50,8 @@ const testConnection = async () => {
 
     // Test with a delay to check if connection stays alive
     console.log("⏳ Waiting 5 seconds...");
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
     const delayedStart = Date.now();
     await prisma.$queryRaw`SELECT 1`;
     console.log(`✅ Delayed query: ${Date.now() - delayedStart}ms`);

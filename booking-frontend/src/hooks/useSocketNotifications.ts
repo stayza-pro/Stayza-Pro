@@ -31,13 +31,14 @@ export function useSocketNotifications(
 
     // Connect to Socket.IO server
     const socketInstance = io(
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050",
+      process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5050",
       {
         auth: { token },
         transports: ["websocket", "polling"],
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
+        timeout: 20000,
       }
     );
 
