@@ -1,4 +1,5 @@
 import api from "./api";
+import axios from "axios";
 
 export interface WalletBalance {
   walletId: string;
@@ -56,6 +57,7 @@ export interface WithdrawalOtpChallenge {
   amount: number;
   maskedEmail: string;
   expiresInMinutes: number;
+  legacyFlow?: boolean;
 }
 
 /**
@@ -106,8 +108,39 @@ export const requestWithdrawal = async (
 export const requestWithdrawalOtp = async (
   amount: number
 ): Promise<WithdrawalOtpChallenge> => {
-  const response = await api.post("/wallets/withdraw/request-otp", { amount });
-  return response.data.data;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await api.post("/wallets/withdraw/request-otp", {
+        amount,
+      });
+      return response.data.data;
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        // Backward compatibility for older backend deployments.
+        if (error.response?.status === 404) {
+          return {
+            amount,
+            maskedEmail: "",
+            expiresInMinutes: 0,
+            legacyFlow: true,
+          };
+        }
+
+        const isTimeout =
+          error.code === "ECONNABORTED" ||
+          error.message?.toLowerCase().includes("timeout");
+
+        if (isTimeout && attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          continue;
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error("Failed to request withdrawal OTP.");
 };
 
 /**
@@ -118,6 +151,16 @@ export const confirmWithdrawal = async (
   otp: string
 ): Promise<WithdrawalRequest> => {
   const response = await api.post("/wallets/withdraw/confirm", { amount, otp });
+  return response.data.data;
+};
+
+/**
+ * Legacy withdrawal flow for older backend versions without OTP endpoints.
+ */
+export const requestWithdrawalLegacy = async (
+  amount: number
+): Promise<WithdrawalRequest> => {
+  const response = await api.post("/wallets/withdraw", { amount });
   return response.data.data;
 };
 
@@ -151,6 +194,7 @@ const walletService = {
   requestWithdrawal,
   requestWithdrawalOtp,
   confirmWithdrawal,
+  requestWithdrawalLegacy,
   getWithdrawalHistory,
   getEarningsSummary,
 };

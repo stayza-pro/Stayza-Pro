@@ -276,15 +276,38 @@ export default function PayoutsPage() {
     try {
       setIsSendingOtp(true);
       const response = await walletService.requestWithdrawalOtp(amount);
+
+      // Fallback when backend is not yet updated with OTP endpoints.
+      if (response.legacyFlow) {
+        setIsWithdrawing(true);
+        await walletService.requestWithdrawalLegacy(amount);
+        showSuccess("Withdrawal request submitted successfully.");
+        closeWithdrawModal();
+        await fetchWalletData();
+        await loadTransactions();
+        await loadWithdrawals();
+        return;
+      }
+
       setOtpAmount(amount);
       setOtpDestination(response.maskedEmail || "");
       setWithdrawStep("otp");
       setWithdrawOtp("");
       showSuccess("A 4-digit OTP has been sent to your email.");
     } catch (error: any) {
-      showError(error.response?.data?.message || "Failed to send OTP");
+      const isTimeout =
+        error?.code === "ECONNABORTED" ||
+        String(error?.message || "")
+          .toLowerCase()
+          .includes("timeout");
+      showError(
+        isTimeout
+          ? "Request timed out. Server may be waking up. Please try again."
+          : error.response?.data?.message || "Failed to send OTP"
+      );
     } finally {
       setIsSendingOtp(false);
+      setIsWithdrawing(false);
     }
   };
 
@@ -308,7 +331,16 @@ export default function PayoutsPage() {
       await loadTransactions();
       await loadWithdrawals();
     } catch (error: any) {
-      showError(error.response?.data?.message || "Failed to confirm withdrawal");
+      const isTimeout =
+        error?.code === "ECONNABORTED" ||
+        String(error?.message || "")
+          .toLowerCase()
+          .includes("timeout");
+      showError(
+        isTimeout
+          ? "Verification timed out. Please try again."
+          : error.response?.data?.message || "Failed to confirm withdrawal"
+      );
     } finally {
       setIsWithdrawing(false);
     }
