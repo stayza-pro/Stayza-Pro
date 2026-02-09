@@ -5,7 +5,6 @@ import React, {
   useContext,
   useEffect,
   useRef,
-  useState,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/notifications/useToast";
@@ -31,16 +30,14 @@ interface NotificationProviderProps {
 
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const { user, token } = useAuth();
-  const { toasts, removeToast, success, error, warning, info } = useToast();
+  const { toasts, removeToast, error, info } = useToast();
   const socketServiceRef = useRef<any>(null);
-  const [shownNotificationIds, setShownNotificationIds] = useState<Set<string>>(
-    new Set()
-  );
+  const shownNotificationIdsRef = useRef<Set<string>>(new Set());
 
   // Clear shown notification IDs every 5 minutes to prevent memory leak
   useEffect(() => {
     const interval = setInterval(() => {
-      setShownNotificationIds(new Set());
+      shownNotificationIdsRef.current.clear();
     }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
@@ -49,6 +46,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   // Initialize socket connection and handle real-time notifications
   useEffect(() => {
     let socketService: any = null;
+    let isCancelled = false;
 
     const initializeSocket = async () => {
       // Only enable Socket.IO notifications for admins, disabled for guests and realtors
@@ -65,15 +63,13 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
           socketService.onNotification(
             (notification: NotificationSocketData) => {
               // Prevent duplicate notifications
-              if (shownNotificationIds.has(notification.id)) {
+              if (shownNotificationIdsRef.current.has(notification.id)) {
                 
                 return;
               }
 
               // Mark as shown
-              setShownNotificationIds((prev) =>
-                new Set(prev).add(notification.id)
-              );
+              shownNotificationIdsRef.current.add(notification.id);
 
               // Show appropriate toast based on notification priority
               const duration = getNotificationDuration(notification.priority);
@@ -90,6 +86,11 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
             }
           );
 
+          if (isCancelled) {
+            socketService.disconnect();
+            return;
+          }
+
           socketServiceRef.current = socketService;
           
         } catch (err) {
@@ -102,12 +103,13 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
     // Cleanup on unmount or auth change
     return () => {
+      isCancelled = true;
       if (socketServiceRef.current) {
         socketServiceRef.current.disconnect();
         socketServiceRef.current = null;
       }
     };
-  }, [user, token, success, error, warning, info, shownNotificationIds]);
+  }, [user?.id, user?.role, token, error, info]);
 
   const value: NotificationContextType = {
     // Add any shared notification state or methods here

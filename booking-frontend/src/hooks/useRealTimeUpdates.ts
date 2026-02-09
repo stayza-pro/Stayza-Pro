@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { socketService } from "@/services/socket";
 import { useAuth } from "@/context/AuthContext";
 import { NotificationSocketData } from "@/types/notifications";
@@ -19,14 +19,12 @@ export function useRealTimeUpdates() {
     useState<NotificationSocketData | null>(null);
 
   // Track shown notifications to prevent duplicates
-  const [shownNotifications, setShownNotifications] = useState<Set<string>>(
-    new Set()
-  );
+  const shownNotificationsRef = useRef<Set<string>>(new Set());
 
   // Clear old shown notifications after 5 minutes to prevent memory leak
   useEffect(() => {
     const interval = setInterval(() => {
-      setShownNotifications(new Set());
+      shownNotificationsRef.current.clear();
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(interval);
@@ -53,12 +51,12 @@ export function useRealTimeUpdates() {
       const unsubscribeNotification = socketService.onNotification(
         (notification: NotificationSocketData) => {
           // Check if we've already shown this notification
-          if (shownNotifications.has(notification.id)) {
+          if (shownNotificationsRef.current.has(notification.id)) {
             return; // Skip duplicate
           }
 
           // Mark as shown
-          setShownNotifications((prev) => new Set(prev).add(notification.id));
+          shownNotificationsRef.current.add(notification.id);
 
           setLatestNotification(notification);
 
@@ -103,7 +101,7 @@ export function useRealTimeUpdates() {
         socketService.disconnect();
       };
     }
-  }, [user, token]);
+  }, [user?.id, user?.role, token]);
 
   return {
     isConnected,

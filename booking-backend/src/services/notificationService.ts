@@ -47,18 +47,18 @@ export class NotificationService {
         origin: (origin, callback) => {
           // Allow requests with no origin (like mobile apps or curl)
           if (!origin) return callback(null, true);
-          
+
           // Check if origin matches any allowed pattern
-          const isAllowed = allowedOrigins.some(allowed => {
-            if (typeof allowed === 'string') return origin === allowed;
+          const isAllowed = allowedOrigins.some((allowed) => {
+            if (typeof allowed === "string") return origin === allowed;
             if (allowed instanceof RegExp) return allowed.test(origin);
             return false;
           });
-          
+
           if (isAllowed) {
             callback(null, true);
           } else {
-            callback(new Error('Not allowed by CORS'));
+            callback(new Error("Not allowed by CORS"));
           }
         },
         methods: ["GET", "POST"],
@@ -83,7 +83,7 @@ export class NotificationService {
   public static getInstance(): NotificationService {
     if (!NotificationService.instance) {
       throw new Error(
-        "NotificationService not initialized. Call initialize() first."
+        "NotificationService not initialized. Call initialize() first.",
       );
     }
     return NotificationService.instance;
@@ -93,8 +93,6 @@ export class NotificationService {
     this.io.use(this.authenticateSocket.bind(this));
 
     this.io.on("connection", (socket: AuthenticatedSocket) => {
-      
-
       // Add user to connected users map
       if (socket.userId) {
         if (!this.connectedUsers.has(socket.userId)) {
@@ -136,16 +134,14 @@ export class NotificationService {
           const notifications = await this.getNotificationHistory(
             socket.userId!,
             data.page || 1,
-            data.limit || 20
+            data.limit || 20,
           );
           socket.emit("notification_history", notifications);
-        }
+        },
       );
 
       // Handle disconnect
       socket.on("disconnect", () => {
-        
-
         if (socket.userId && this.connectedUsers.has(socket.userId)) {
           const userSockets = this.connectedUsers.get(socket.userId)!;
           userSockets.delete(socket.id);
@@ -163,7 +159,7 @@ export class NotificationService {
 
   private async authenticateSocket(
     socket: AuthenticatedSocket,
-    next: Function
+    next: Function,
   ): Promise<void> {
     try {
       const token =
@@ -194,7 +190,6 @@ export class NotificationService {
 
       next();
     } catch (error) {
-      
       next(new Error("Authentication error"));
     }
   }
@@ -202,7 +197,7 @@ export class NotificationService {
   // Send notification to specific user
   public async sendToUser(
     userId: string,
-    notification: NotificationData
+    notification: NotificationData,
   ): Promise<void> {
     this.io.to(`user:${userId}`).emit("notification", notification);
   }
@@ -222,14 +217,14 @@ export class NotificationService {
   // Send notification to specific realtor
   public async sendToRealtor(
     realtorId: string,
-    notification: NotificationData
+    notification: NotificationData,
   ): Promise<void> {
     this.io.to(`realtor:${realtorId}`).emit("notification", notification);
   }
 
   // Send system-wide notification
   public async sendSystemNotification(
-    notification: NotificationData
+    notification: NotificationData,
   ): Promise<void> {
     this.io.emit("system_notification", notification);
   }
@@ -296,15 +291,13 @@ export class NotificationService {
           logger.error(`Failed to send email notification: ${error.message}`);
         });
       }
-    } catch (error) {
-      
-    }
+    } catch (error) {}
   }
 
   // Mark notification as read
   private async markNotificationAsRead(
     notificationId: string,
-    userId: string
+    userId: string,
   ): Promise<void> {
     try {
       await prisma.notification.updateMany({
@@ -320,9 +313,7 @@ export class NotificationService {
       // Send updated unread count
       const unreadCount = await this.getUnreadCount(userId);
       this.io.to(`user:${userId}`).emit("unread_count", unreadCount);
-    } catch (error) {
-      
-    }
+    } catch (error) {}
   }
 
   // Mark all notifications as read for user
@@ -339,9 +330,7 @@ export class NotificationService {
       });
 
       this.io.to(`user:${userId}`).emit("unread_count", 0);
-    } catch (error) {
-      
-    }
+    } catch (error) {}
   }
 
   // Get unread notification count
@@ -354,7 +343,6 @@ export class NotificationService {
         },
       });
     } catch (error) {
-      
       return 0;
     }
   }
@@ -363,7 +351,7 @@ export class NotificationService {
   private async getNotificationHistory(
     userId: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
   ) {
     try {
       const skip = (page - 1) * limit;
@@ -428,7 +416,6 @@ export class NotificationService {
         },
       };
     } catch (error) {
-      
       return {
         notifications: [],
         pagination: { page: 1, limit: 20, total: 0, pages: 0 },
@@ -465,15 +452,13 @@ export class NotificationService {
 
         this.io.to(`user:${userId}`).emit("notification", notificationData);
       });
-    } catch (error) {
-      
-    }
+    } catch (error) {}
   }
 
   // Send email notification
   private async sendEmailNotification(
     userId: string,
-    notification: any
+    notification: any,
   ): Promise<void> {
     try {
       // Skip email in development if SMTP is not configured
@@ -505,12 +490,12 @@ export class NotificationService {
               .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
               .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
               .priority-${notification.priority.toLowerCase()} { border-left: 4px solid ${
-        notification.priority === "HIGH"
-          ? "#ef4444"
-          : notification.priority === "MEDIUM"
-          ? "#f59e0b"
-          : "#3b82f6"
-      }; padding-left: 15px; margin: 20px 0; }
+                notification.priority === "HIGH"
+                  ? "#ef4444"
+                  : notification.priority === "MEDIUM"
+                    ? "#f59e0b"
+                    : "#3b82f6"
+              }; padding-left: 15px; margin: 20px 0; }
               .button { display: inline-block; padding: 12px 30px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
               .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
             </style>
@@ -552,12 +537,12 @@ export class NotificationService {
       });
 
       logger.info(
-        `Email notification sent to user ${userId}: ${notification.title}`
+        `Email notification sent to user ${userId}: ${notification.title}`,
       );
     } catch (error) {
       logger.error(
         `Error sending email notification to user ${userId}:`,
-        error
+        error,
       );
       // Don't throw - email delivery failure shouldn't break notification creation
     }
@@ -588,9 +573,7 @@ export class NotificationService {
           },
         },
       });
-    } catch (error) {
-      
-    }
+    } catch (error) {}
   }
 }
 
@@ -600,7 +583,7 @@ export const notificationHelpers = {
   bookingConfirmed: (
     userId: string,
     bookingId: string,
-    propertyTitle: string
+    propertyTitle: string,
   ) => ({
     userId,
     type: "BOOKING_CONFIRMED",
@@ -613,7 +596,7 @@ export const notificationHelpers = {
   bookingCancelled: (
     userId: string,
     bookingId: string,
-    propertyTitle: string
+    propertyTitle: string,
   ) => ({
     userId,
     type: "BOOKING_CANCELLED",
@@ -628,7 +611,7 @@ export const notificationHelpers = {
     userId: string,
     paymentId: string,
     amount: number,
-    currency: string
+    currency: string,
   ) => ({
     userId,
     type: "PAYMENT_COMPLETED",
@@ -642,7 +625,7 @@ export const notificationHelpers = {
     userId: string,
     paymentId: string,
     amount: number,
-    currency: string
+    currency: string,
   ) => ({
     userId,
     type: "PAYMENT_FAILED",
@@ -657,7 +640,7 @@ export const notificationHelpers = {
     userId: string,
     reviewId: string,
     propertyTitle: string,
-    rating: number
+    rating: number,
   ) => ({
     userId,
     type: "REVIEW_RECEIVED",
@@ -670,7 +653,7 @@ export const notificationHelpers = {
   reviewResponse: (
     userId: string,
     reviewId: string,
-    propertyTitle: string
+    propertyTitle: string,
   ) => ({
     userId,
     type: "REVIEW_RESPONSE",
@@ -683,7 +666,7 @@ export const notificationHelpers = {
   createReviewModerationNotification: (
     propertyTitle: string,
     action: string,
-    businessName?: string
+    businessName?: string,
   ) => ({
     type: "REVIEW_MODERATION",
     title: "Review Status Updated",
@@ -699,7 +682,7 @@ export const notificationHelpers = {
     amount: number,
     currency: string,
     propertyTitle: string,
-    guestName: string
+    guestName: string,
   ) => ({
     userId,
     type: "REFUND_REQUEST",
@@ -712,7 +695,7 @@ export const notificationHelpers = {
     userId: string,
     amount: number,
     currency: string,
-    propertyTitle: string
+    propertyTitle: string,
   ) => ({
     userId,
     type: "REFUND_APPROVED_BY_REALTOR",
@@ -726,7 +709,7 @@ export const notificationHelpers = {
     amount: number,
     currency: string,
     propertyTitle: string,
-    reason: string
+    reason: string,
   ) => ({
     userId,
     type: "REFUND_REJECTED_BY_REALTOR",
@@ -739,7 +722,7 @@ export const notificationHelpers = {
     userId: string,
     amount: number,
     currency: string,
-    propertyTitle: string
+    propertyTitle: string,
   ) => ({
     userId,
     type: "REFUND_PENDING_ADMIN_APPROVAL",
@@ -752,7 +735,7 @@ export const notificationHelpers = {
     userId: string,
     amount: number,
     currency: string,
-    propertyTitle: string
+    propertyTitle: string,
   ) => ({
     userId,
     type: "REFUND_PROCESSED",
@@ -855,7 +838,6 @@ export async function createAdminNotification(data: {
     });
 
     if (admins.length === 0) {
-      
       return;
     }
 
@@ -889,12 +871,8 @@ export async function createAdminNotification(data: {
             createdAt: new Date(),
           });
       }
-    } catch (wsError) {
-      
-    }
-  } catch (error) {
-    
-  }
+    } catch (wsError) {}
+  } catch (error) {}
 }
 
 export default NotificationService;

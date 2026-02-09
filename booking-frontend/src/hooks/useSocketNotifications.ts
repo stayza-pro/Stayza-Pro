@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import toast from "react-hot-toast";
+import { SOCKET_BASE_URL } from "@/services/socket";
 
 interface NotificationData {
   id: string;
@@ -16,7 +17,7 @@ interface NotificationData {
 
 export function useSocketNotifications(
   token: string | null,
-  userId: string | null
+  userId: string | null,
 ) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -30,43 +31,36 @@ export function useSocketNotifications(
     }
 
     // Connect to Socket.IO server
-    const socketInstance = io(
-      process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5050",
-      {
-        auth: { token },
-        transports: ["websocket", "polling"],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 20000,
-      }
-    );
+    const socketInstance = io(SOCKET_BASE_URL, {
+      auth: { token },
+      path: "/socket.io",
+      transports: ["polling", "websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+    });
 
     socketRef.current = socketInstance;
     setSocket(socketInstance);
 
     // Connection events
     socketInstance.on("connect", () => {
-      
       setIsConnected(true);
       // Request unread count on connect
       socketInstance.emit("get_unread_count");
     });
 
     socketInstance.on("disconnect", () => {
-      
       setIsConnected(false);
     });
 
     socketInstance.on("connect_error", (error) => {
-      
       setIsConnected(false);
     });
 
     // Notification events
     socketInstance.on("notification", (notification: NotificationData) => {
-      
-
       // Add to notifications list
       setNotifications((prev) => [notification, ...prev]);
 
@@ -86,12 +80,10 @@ export function useSocketNotifications(
     });
 
     socketInstance.on("unread_count", (count: number) => {
-      
       setUnreadCount(count);
     });
 
     socketInstance.on("notification_history", (data: any) => {
-      
       setNotifications(data.notifications);
     });
 

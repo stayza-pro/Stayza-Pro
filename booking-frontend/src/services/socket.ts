@@ -2,36 +2,60 @@ import { io, Socket } from "socket.io-client";
 import { NotificationSocketData } from "@/types/notifications";
 import toast from "react-hot-toast";
 
-const SOCKET_URL =
-  process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5050";
+const resolveSocketBaseUrl = (): string => {
+  const rawUrl =
+    process.env.NEXT_PUBLIC_SOCKET_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:5050";
+
+  // API URLs often end with /api; Socket.IO should connect at the host root.
+  return rawUrl.replace(/\/api\/?$/i, "");
+};
+
+export const SOCKET_BASE_URL = resolveSocketBaseUrl();
 
 export class SocketService {
   private socket: Socket | null = null;
   private isConnected = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+  private manualDisconnect = false;
 
   // Event listeners
   private onNotificationCallbacks: ((
-    notification: NotificationSocketData
+    notification: NotificationSocketData,
   ) => void)[] = [];
   private onUnreadCountCallbacks: ((count: number) => void)[] = [];
   private onConnectionCallbacks: (() => void)[] = [];
   private onDisconnectionCallbacks: (() => void)[] = [];
 
   connect(token: string, userId: string, role: string): void {
-    if (this.socket?.connected) {
-      
+    if (!token || !userId) {
       return;
     }
 
-    this.socket = io(SOCKET_URL, {
+    if (this.socket?.connected) {
+      return;
+    }
+
+    // Ensure stale instances do not keep listeners/reconnect loops alive.
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
+    this.manualDisconnect = false;
+
+    this.socket = io(SOCKET_BASE_URL, {
       auth: {
         token,
         userId,
         role,
       },
-      transports: ["websocket", "polling"],
+      path: "/socket.io",
+      transports: ["polling", "websocket"],
+      reconnection: false,
       autoConnect: true,
     });
 
@@ -43,20 +67,21 @@ export class SocketService {
 
     // Connection events
     this.socket.on("connect", () => {
-      
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.onConnectionCallbacks.forEach((callback) => callback());
     });
 
     this.socket.on("disconnect", (reason) => {
-      
       this.isConnected = false;
       this.onDisconnectionCallbacks.forEach((callback) => callback());
 
-      // Auto-reconnect logic
-      if (reason === "io server disconnect") {
-        // Server initiated disconnect, don't reconnect automatically
+      // Don't reconnect on intentional or server-forced disconnects.
+      if (
+        reason === "io server disconnect" ||
+        reason === "io client disconnect" ||
+        this.manualDisconnect
+      ) {
         return;
       }
 
@@ -64,48 +89,58 @@ export class SocketService {
     });
 
     this.socket.on("connect_error", (error) => {
-      
+      const message = String(error?.message || "").toLowerCase();
+
+      // Auth errors need user/session action, not reconnect loops.
+      if (
+        message.includes("authentication error") ||
+        message.includes("invalid token")
+      ) {
+        return;
+      }
+
       this.handleReconnection();
     });
 
     // Notification events
     this.socket.on("notification", (notification: NotificationSocketData) => {
-      
-
       // Show toast notification
       this.showToastNotification(notification);
 
       // Call registered callbacks
       this.onNotificationCallbacks.forEach((callback) =>
-        callback(notification)
+        callback(notification),
       );
     });
 
     this.socket.on("unread_count", (count: number) => {
-      
       this.onUnreadCountCallbacks.forEach((callback) => callback(count));
     });
 
     this.socket.on(
       "notification_history",
-      (notifications: NotificationSocketData[]) => {
-        
-      }
+      (notifications: NotificationSocketData[]) => {},
     );
   }
 
   private handleReconnection(): void {
+    if (!this.socket || this.manualDisconnect) {
+      return;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      
       toast.error("Connection lost. Please refresh the page.");
       return;
     }
 
-    setTimeout(() => {
-      this.reconnectAttempts++;
-      
-      this.socket?.connect();
-    }, Math.pow(2, this.reconnectAttempts) * 1000); // Exponential backoff
+    setTimeout(
+      () => {
+        this.reconnectAttempts++;
+
+        this.socket?.connect();
+      },
+      Math.pow(2, this.reconnectAttempts) * 1000,
+    ); // Exponential backoff
   }
 
   private showToastNotification(notification: NotificationSocketData): void {
@@ -114,8 +149,8 @@ export class SocketService {
         notification.priority === "urgent"
           ? 10000
           : notification.priority === "high"
-          ? 6000
-          : 4000,
+            ? 6000
+            : 4000,
       position: "top-right" as const,
     };
 
@@ -157,7 +192,7 @@ export class SocketService {
 
   // Event subscription methods
   onNotification(
-    callback: (notification: NotificationSocketData) => void
+    callback: (notification: NotificationSocketData) => void,
   ): () => void {
     this.onNotificationCallbacks.push(callback);
 
@@ -206,9 +241,11 @@ export class SocketService {
   // Connection management
   disconnect(): void {
     if (this.socket) {
+      this.manualDisconnect = true;
       this.socket.disconnect();
       this.socket = null;
       this.isConnected = false;
+      this.reconnectAttempts = 0;
     }
   }
 
