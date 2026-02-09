@@ -3581,44 +3581,72 @@ router.post(
       throw new AppError("Account number and bank code are required", 400);
     }
 
+    // Normalize account number
+    const normalizedAccountNumber = String(accountNumber).trim();
+    
+    if (!/^\d{10}$/.test(normalizedAccountNumber)) {
+      throw new AppError("Account number must be 10 digits", 400);
+    }
+
+    logger.info(`Verifying account: ${normalizedAccountNumber} with bank code: ${bankCode}`);
+
     try {
       const response = await axios.get(
-        `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`,
+        `https://api.paystack.co/bank/resolve`,
         {
+          params: {
+            account_number: normalizedAccountNumber,
+            bank_code: bankCode,
+          },
           headers: {
             Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`,
           },
-          timeout: 10000, // 10 second timeout for verification
+          timeout: 15000, // 15 second timeout for verification
         }
       );
 
-      return res.status(200).json({
-        success: true,
-        data: response.data.data,
-      });
-    } catch (error: any) {
-      logger.error(
-        "Error verifying account:",
-        error.response?.data || error.message
-      );
+      if (response.data.status && response.data.data) {
+        logger.info(`✅ Account verified: ${response.data.data.account_name}`);
+        return res.status(200).json({
+          success: true,
+          data: response.data.data,
+        });
+      }
 
-      // Return mock verification for MVP/development
-      if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
-        logger.info("⚠️ Returning mock verification - Paystack API timeout");
+      throw new AppError("Invalid response from bank verification service", 400);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message;
+      const errorData = error.response?.data;
+      
+      logger.error("Bank account verification failed:", {
+        error: errorMessage,
+        data: errorData,
+        accountNumber: normalizedAccountNumber,
+        bankCode,
+      });
+
+      // Return mock verification for development/testing or API issues
+      if (
+        error.code === "ECONNABORTED" || 
+        error.message.includes("timeout") ||
+        error.response?.status === 503 ||
+        error.response?.status === 500
+      ) {
+        logger.warn("⚠️ Returning mock verification - Paystack API unavailable");
         return res.status(200).json({
           success: true,
           data: {
-            account_number: accountNumber,
+            account_number: normalizedAccountNumber,
             account_name: "Test Account Holder", // Mock name
-            bank_id: bankCode,
+            bank_id: parseInt(bankCode),
           },
           _mock: true,
-          _message: "Mock verification - Paystack API timeout",
+          _message: "Mock verification - Payment provider temporarily unavailable",
         });
       }
 
       throw new AppError(
-        error.response?.data?.message || "Failed to verify bank account",
+        errorMessage || "Failed to verify bank account",
         400
       );
     }
@@ -3657,6 +3685,8 @@ router.post(
       throw new AppError("Account number must be 10 digits", 400);
     }
 
+    logger.info(`OTP request for realtor: ${req.user.id}`);
+
     const realtor = await prisma.realtor.findUnique({
       where: { userId: req.user.id },
       include: {
@@ -3675,6 +3705,7 @@ router.post(
 
     // First-time setup does not require OTP.
     if (!hasConfiguredPayoutAccount(realtor)) {
+      logger.info(`First-time setup for realtor ${realtor.id} - OTP not required`);
       return res.status(200).json({
         success: true,
         message: "OTP not required for first-time payout setup",
@@ -3696,43 +3727,56 @@ router.post(
       Date.now() + PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES * 60 * 1000
     );
 
-    await prisma.auditLog.create({
-      data: {
-        action: PAYOUT_ACCOUNT_OTP_ACTION,
-        entityType: PAYOUT_ACCOUNT_OTP_ENTITY_TYPE,
-        entityId: realtor.id,
-        userId: req.user.id,
-        details: {
-          otpHash: hashPayoutAccountOtp(otp),
-          otpExpiresAt: otpExpiresAt.toISOString(),
-          attempts: 0,
-          used: false,
-          payloadHash,
-        } as PayoutAccountOtpDetails,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          action: PAYOUT_ACCOUNT_OTP_ACTION,
+          entityType: PAYOUT_ACCOUNT_OTP_ENTITY_TYPE,
+          entityId: realtor.id,
+          userId: req.user.id,
+          details: {
+            otpHash: hashPayoutAccountOtp(otp),
+            otpExpiresAt: otpExpiresAt.toISOString(),
+            attempts: 0,
+            used: false,
+            payloadHash,
+          } as PayoutAccountOtpDetails,
+        },
+      });
 
-    await sendPayoutAccountOtpEmail(
-      realtor.user.email,
-      realtor.user.firstName || realtor.businessName,
-      otp,
-      PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES,
-      {
-        bankName: String(bankName),
-        accountNumber: maskAccountNumber(normalizedAccountNumber),
-        accountName: String(accountName),
-      }
-    );
+      logger.info(`OTP audit log created for realtor ${realtor.id}`);
 
-    return res.status(200).json({
-      success: true,
-      message: "OTP sent to your email. Enter the code to confirm account change.",
-      data: {
-        otpRequired: true,
-        maskedEmail: maskEmailAddress(realtor.user.email),
-        expiresInMinutes: PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES,
-      },
-    });
+      await sendPayoutAccountOtpEmail(
+        realtor.user.email,
+        realtor.user.firstName || realtor.businessName,
+        otp,
+        PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES,
+        {
+          bankName: String(bankName),
+          accountNumber: maskAccountNumber(normalizedAccountNumber),
+          accountName: String(accountName),
+        }
+      );
+
+      logger.info(`✅ OTP email sent successfully to ${realtor.user.email}`);
+
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent to your email. Enter the code to confirm account change.",
+        data: {
+          otpRequired: true,
+          maskedEmail: maskEmailAddress(realtor.user.email),
+          expiresInMinutes: PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES,
+        },
+      });
+    } catch (error: any) {
+      logger.error("Failed to send OTP:", {
+        error: error.message,
+        realtorId: realtor.id,
+        email: realtor.user.email,
+      });
+      throw new AppError("Failed to send OTP. Please try again.", 500);
+    }
   })
 );
 
