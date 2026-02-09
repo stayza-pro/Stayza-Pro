@@ -293,9 +293,10 @@ router.post(
     }
 
     const { email, password } = value;
+    const normalizedEmail = String(email).trim().toLowerCase();
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       include: {
         realtor: {
           select: {
