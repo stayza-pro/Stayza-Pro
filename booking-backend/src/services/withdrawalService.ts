@@ -7,7 +7,7 @@ import {
   sendWithdrawalCompletedEmail,
   sendWithdrawalFailedEmail,
 } from "@/services/email";
-import { Prisma } from "@prisma/client";
+import { Prisma, WithdrawalRequestStatus } from "@prisma/client";
 
 /**
  * Process a pending withdrawal by transferring funds via Paystack
@@ -281,7 +281,7 @@ export const retryFailedWithdrawals = async (): Promise<{
  * Get pending and failed withdrawals for admin dashboard
  */
 export const getWithdrawalsForAdmin = async (filters?: {
-  status?: string;
+  status?: string | string[];
   realtorId?: string;
   page?: number;
   limit?: number;
@@ -292,8 +292,28 @@ export const getWithdrawalsForAdmin = async (filters?: {
 
   const where: any = {};
 
-  if (filters?.status) {
-    where.status = filters.status;
+  const allowedStatuses = new Set<WithdrawalRequestStatus>([
+    "PENDING",
+    "PROCESSING",
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED",
+  ]);
+
+  const normalizedStatuses = (Array.isArray(filters?.status)
+    ? filters?.status
+    : filters?.status
+      ? [filters.status]
+      : []
+  )
+    .flatMap((value) => String(value).split(","))
+    .map((value) => value.trim().toUpperCase())
+    .filter((value): value is WithdrawalRequestStatus =>
+      allowedStatuses.has(value as WithdrawalRequestStatus)
+    );
+
+  if (normalizedStatuses.length > 0) {
+    where.status = { in: normalizedStatuses };
   } else {
     // Default: show PENDING and FAILED
     where.status = { in: ["PENDING", "FAILED"] };

@@ -72,7 +72,23 @@ export const getWithdrawals = async (
   realtorId?: string
 ): Promise<PaginatedResponse<WithdrawalRequest>> => {
   const params: any = { page, limit };
-  if (status) params.status = status;
+  if (status) {
+    const normalizedStatuses = status
+      .split(",")
+      .map((value) => value.trim().toUpperCase())
+      .filter(Boolean);
+
+    // Compatibility fallback: backend defaults to PENDING+FAILED when status is omitted.
+    if (
+      !(
+        normalizedStatuses.length === 2 &&
+        normalizedStatuses.includes("PENDING") &&
+        normalizedStatuses.includes("FAILED")
+      )
+    ) {
+      params.status = normalizedStatuses.join(",");
+    }
+  }
   if (realtorId) params.realtorId = realtorId;
 
   const response = await api.get("/admin/withdrawals", { params });

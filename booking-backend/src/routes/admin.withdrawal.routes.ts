@@ -50,7 +50,12 @@ router.get("/", async (req, res, next) => {
       realtorId,
       page = "1",
       limit = "20",
-    } = req.query as Record<string, string>;
+    } = req.query as {
+      status?: string | string[];
+      realtorId?: string;
+      page?: string;
+      limit?: string;
+    };
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -63,7 +68,10 @@ router.get("/", async (req, res, next) => {
 
     // If no status specified, default to PENDING and FAILED
     if (status) {
-      filters.status = status.split(",");
+      const statusList = Array.isArray(status)
+        ? status
+        : String(status).split(",");
+      filters.status = statusList;
     } else {
       filters.status = ["PENDING", "FAILED"];
     }
