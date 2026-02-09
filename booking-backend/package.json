@@ -5,9 +5,9 @@
   "main": "dist/app.js",
   "scripts": {
     "build": "tsc && tsc-alias",
-    "start": "node -r tsconfig-paths/register dist/app.js",
-    "dev": "tsx watch src/app.ts",
-    "dev:debug": "tsx watch --inspect src/app.ts",
+    "start": "node --no-deprecation -r tsconfig-paths/register dist/app.js",
+    "dev": "tsx watch --no-warnings src/app.ts",
+    "dev:debug": "tsx watch --no-warnings --inspect src/app.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
