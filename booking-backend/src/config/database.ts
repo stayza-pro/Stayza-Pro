@@ -18,13 +18,25 @@ declare global {
 }
 
 if (process.env.NODE_ENV === "production") {
-  prisma = new PrismaClient();
+  prisma = new PrismaClient({
+    log: ["error", "warn"],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
+  });
 } else {
   // In development, use a global variable to preserve the instance
   // across hot-reloads
   if (!global.__prisma) {
     global.__prisma = new PrismaClient({
-      log: ["query", "error", "warn"],
+      log: ["error", "warn"],
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
     });
   }
   prisma = global.__prisma;

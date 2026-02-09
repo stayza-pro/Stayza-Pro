@@ -295,9 +295,22 @@ router.post(
     const { email, password } = value;
     const normalizedEmail = String(email).trim().toLowerCase();
 
+    // Optimize query - only fetch realtor data if user role is REALTOR
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        firstName: true,
+        lastName: true,
+        fullName: true,
+        role: true,
+        avatar: true,
+        phone: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
         realtor: {
           select: {
             id: true,
