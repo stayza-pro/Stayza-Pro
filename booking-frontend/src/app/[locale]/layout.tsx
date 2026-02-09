@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { AuthProvider } from "../../context/AuthContext";
 import { QueryProvider } from "../../context/QueryProvider";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { NotificationProvider } from "@/providers/NotificationProvider";
+import { routing } from "@/i18n/routing";
 
 export const metadata: Metadata = {
   title: "Stayza Pro - Smart Booking for Realtors and Guests",
@@ -22,6 +24,10 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: { locale: string };
 }) {
+  if (!routing.locales.includes(locale)) {
+    notFound();
+  }
+
   return (
     <QueryProvider>
       <AuthProvider>

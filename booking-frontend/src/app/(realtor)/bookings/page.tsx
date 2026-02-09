@@ -57,6 +57,12 @@ export default function RealtorBookingsPage() {
 
   const brandColor = branding?.colors?.primary || "#3B82F6";
 
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+    }).format(amount || 0);
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     showSuccess("Copied to clipboard!");
@@ -323,13 +329,10 @@ export default function RealtorBookingsPage() {
                           </div>
 
                           <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-400 text-lg font-bold">
-                              â‚¦
-                            </span>
                             <div>
                               <p className="text-gray-600">Total Price</p>
                               <p className="font-bold text-gray-900">
-                                {booking.totalPrice.toLocaleString()}
+                                {formatCurrency(booking.totalPrice || 0)}
                               </p>
                             </div>
                           </div>

@@ -1565,6 +1565,69 @@ export const sendCommissionRateChangeEmail = async (
 };
 
 /**
+ * Send withdrawal OTP verification email
+ */
+export const sendWithdrawalOtpEmail = async (
+  to: string,
+  name: string,
+  otp: string,
+  amount: number,
+  expiresInMinutes: number = 10
+) => {
+  const template = {
+    subject: "Withdrawal verification code - Stayza Pro",
+    html: getEmailContainer(`
+      <h2 style="color: ${
+        brandColors.primary
+      }; margin: 0 0 20px 0; font-size: 24px;">
+        Confirm your withdrawal request
+      </h2>
+
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        Hi <strong>${name}</strong>,
+      </p>
+
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        Use this 4-digit code to authorize your withdrawal of <strong>NGN ${amount.toLocaleString(
+          "en-NG",
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }
+        )}</strong>.
+      </p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <div style="display: inline-block; font-size: 42px; letter-spacing: 10px; font-weight: 700; color: ${
+          brandColors.primary
+        }; background: ${brandColors.neutralLight}; padding: 16px 26px; border-radius: 12px;">
+          ${otp}
+        </div>
+      </div>
+
+      ${getInfoBox(
+        "Security Notice",
+        `This code expires in ${expiresInMinutes} minutes. Never share this code with anyone.`,
+        "warning"
+      )}
+
+      <p style="font-size: 15px; margin-top: 28px; color: ${
+        brandColors.neutralDark
+      };">
+        If you did not request this withdrawal, ignore this email and secure your account.
+      </p>
+
+      <p style="font-size: 16px; margin-top: 20px;">
+        Best regards,<br>
+        <strong>The Stayza Team</strong>
+      </p>
+    `),
+  };
+
+  return sendEmail(to, template);
+};
+
+/**
  * Send withdrawal requested notification email
  */
 export const sendWithdrawalRequestedEmail = async (

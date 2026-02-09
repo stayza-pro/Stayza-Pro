@@ -2,11 +2,16 @@ import { Router, Response, NextFunction } from "express";
 import { authenticate, authorize } from "@/middleware/auth";
 import * as walletService from "@/services/walletService";
 import * as withdrawalService from "@/services/withdrawalService";
-import { sendWithdrawalRequestedEmail } from "@/services/email";
+import {
+  sendWithdrawalOtpEmail,
+  sendWithdrawalRequestedEmail,
+} from "@/services/email";
 import { WalletOwnerType, UserRole } from "@prisma/client";
 import { prisma } from "@/config/database";
+import { config } from "@/config";
 import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
+import { createHash } from "crypto";
 
 const router = Router();
 
@@ -32,6 +37,291 @@ const getRealtorId = async (userId: string): Promise<string> => {
   }
 
   return realtor.id;
+};
+
+const WITHDRAWAL_OTP_EXPIRY_MINUTES = 10;
+const WITHDRAWAL_OTP_MAX_ATTEMPTS = 5;
+const WITHDRAWAL_OTP_AUDIT_ACTION = "WITHDRAWAL_OTP_REQUESTED";
+const WITHDRAWAL_OTP_ENTITY_TYPE = "WITHDRAWAL_OTP";
+
+type WithdrawalOtpDetails = {
+  amount: number;
+  otpHash: string;
+  otpExpiresAt: string;
+  attempts: number;
+  used: boolean;
+  verifiedAt?: string;
+};
+
+const normalizeAmount = (value: number): number =>
+  Math.round(Number(value) * 100) / 100;
+
+const formatCurrency = (value: number): string =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+  }).format(value);
+
+const hashWithdrawalOtp = (otp: string): string =>
+  createHash("sha256")
+    .update(`${otp}:${config.JWT_SECRET}`)
+    .digest("hex");
+
+const maskEmail = (email: string): string => {
+  const [localPart, domainPart] = email.split("@");
+  if (!localPart || !domainPart) return email;
+  if (localPart.length <= 2) return `${localPart[0]}***@${domainPart}`;
+  return `${localPart.slice(0, 2)}***@${domainPart}`;
+};
+
+const getWithdrawalContext = async (userId: string) => {
+  const realtorId = await getRealtorId(userId);
+
+  const wallet = await walletService.getOrCreateWallet(
+    WalletOwnerType.REALTOR,
+    realtorId
+  );
+
+  const realtor = await prisma.realtor.findUnique({
+    where: { id: realtorId },
+    select: {
+      id: true,
+      businessName: true,
+      paystackSubAccountCode: true,
+      user: {
+        select: {
+          email: true,
+          firstName: true,
+        },
+      },
+    },
+  });
+
+  if (!realtor) {
+    throw new AppError("Realtor not found", 404);
+  }
+
+  if (!realtor.paystackSubAccountCode) {
+    throw new AppError(
+      "Paystack subaccount not configured. Please contact support.",
+      400
+    );
+  }
+
+  return { realtorId, wallet, realtor };
+};
+
+const ensureSufficientWalletBalance = async (
+  walletId: string,
+  amount: number
+) => {
+  const currentBalance = await walletService.getWalletBalance(walletId);
+  if (currentBalance.available < amount) {
+    throw new AppError(
+      `Insufficient balance. Available: ${formatCurrency(
+        currentBalance.available
+      )}, Requested: ${formatCurrency(amount)}`,
+      400
+    );
+  }
+};
+
+const saveWithdrawalOtpChallenge = async (
+  userId: string,
+  realtorId: string,
+  amount: number,
+  otp: string
+) => {
+  const otpExpiresAt = new Date(
+    Date.now() + WITHDRAWAL_OTP_EXPIRY_MINUTES * 60 * 1000
+  );
+
+  const details: WithdrawalOtpDetails = {
+    amount,
+    otpHash: hashWithdrawalOtp(otp),
+    otpExpiresAt: otpExpiresAt.toISOString(),
+    attempts: 0,
+    used: false,
+  };
+
+  await prisma.auditLog.create({
+    data: {
+      action: WITHDRAWAL_OTP_AUDIT_ACTION,
+      entityType: WITHDRAWAL_OTP_ENTITY_TYPE,
+      entityId: realtorId,
+      userId,
+      details,
+    },
+  });
+};
+
+const getLatestWithdrawalOtpChallenge = async (userId: string) => {
+  const otpAuditLog = await prisma.auditLog.findFirst({
+    where: {
+      action: WITHDRAWAL_OTP_AUDIT_ACTION,
+      entityType: WITHDRAWAL_OTP_ENTITY_TYPE,
+      userId,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!otpAuditLog || !otpAuditLog.details) {
+    throw new AppError("No active OTP challenge. Request a new code.", 400);
+  }
+
+  return otpAuditLog;
+};
+
+const verifyAndConsumeWithdrawalOtp = async (
+  userId: string,
+  amount: number,
+  otp: string
+) => {
+  const otpAuditLog = await getLatestWithdrawalOtpChallenge(userId);
+  const details = (otpAuditLog.details as WithdrawalOtpDetails) || null;
+
+  if (!details) {
+    throw new AppError("Invalid OTP challenge data. Request a new code.", 400);
+  }
+
+  if (details.used) {
+    throw new AppError(
+      "This OTP has already been used. Request a new code.",
+      400
+    );
+  }
+
+  if (Math.abs(normalizeAmount(details.amount) - amount) > 0.009) {
+    throw new AppError(
+      "OTP code was generated for a different amount. Request a new code.",
+      400
+    );
+  }
+
+  const now = new Date();
+  if (new Date(details.otpExpiresAt) <= now) {
+    throw new AppError("OTP has expired. Request a new code.", 400);
+  }
+
+  const attempts = Number(details.attempts || 0);
+  if (attempts >= WITHDRAWAL_OTP_MAX_ATTEMPTS) {
+    throw new AppError("Too many invalid OTP attempts. Request a new code.", 400);
+  }
+
+  const otpHash = hashWithdrawalOtp(otp.trim());
+  if (otpHash !== details.otpHash) {
+    const updatedAttempts = attempts + 1;
+    await prisma.auditLog.update({
+      where: { id: otpAuditLog.id },
+      data: {
+        details: {
+          ...details,
+          attempts: updatedAttempts,
+          lastAttemptAt: now.toISOString(),
+        },
+      },
+    });
+
+    const remainingAttempts = WITHDRAWAL_OTP_MAX_ATTEMPTS - updatedAttempts;
+    if (remainingAttempts <= 0) {
+      throw new AppError("Too many invalid OTP attempts. Request a new code.", 400);
+    }
+
+    throw new AppError(
+      `Invalid OTP. ${remainingAttempts} attempt${
+        remainingAttempts === 1 ? "" : "s"
+      } remaining.`,
+      400
+    );
+  }
+
+  await prisma.auditLog.update({
+    where: { id: otpAuditLog.id },
+    data: {
+      details: {
+        ...details,
+        used: true,
+        verifiedAt: now.toISOString(),
+      },
+    },
+  });
+};
+
+const createWithdrawalRequest = async ({
+  walletId,
+  realtorId,
+  amount,
+  email,
+  displayName,
+}: {
+  walletId: string;
+  realtorId: string;
+  amount: number;
+  email: string;
+  displayName: string;
+}) => {
+  const withdrawalReference = `WITHDRAWAL_${Date.now()}_${realtorId.slice(-8)}`;
+
+  await walletService.lockFundsForWithdrawal(walletId, amount, withdrawalReference);
+
+  const withdrawalRequest = await prisma.withdrawalRequest.create({
+    data: {
+      walletId,
+      realtorId,
+      amount,
+      status: "PENDING",
+      requestedAt: new Date(),
+      metadata: { reference: withdrawalReference },
+    },
+  });
+
+  logger.info("Withdrawal request created", {
+    realtorId,
+    amount,
+    withdrawalRequestId: withdrawalRequest.id,
+  });
+
+  await sendWithdrawalRequestedEmail(
+    email,
+    displayName,
+    amount,
+    withdrawalReference
+  ).catch((error) =>
+    logger.error("Failed to send withdrawal requested email", error)
+  );
+
+  logger.info("Attempting automatic withdrawal processing", {
+    withdrawalRequestId: withdrawalRequest.id,
+  });
+
+  withdrawalService
+    .processWithdrawal(withdrawalRequest.id, false)
+    .then((result) => {
+      if (result.success) {
+        logger.info("Withdrawal processed automatically", {
+          withdrawalRequestId: withdrawalRequest.id,
+          transferReference: result.transferReference,
+        });
+      } else {
+        logger.warn(
+          "Automatic withdrawal processing failed, will require manual processing",
+          {
+            withdrawalRequestId: withdrawalRequest.id,
+            error: result.message,
+          }
+        );
+      }
+    })
+    .catch((error) => {
+      logger.error("Error in automatic withdrawal processing", {
+        withdrawalRequestId: withdrawalRequest.id,
+        error: error.message,
+      });
+    });
+
+  return withdrawalRequest;
 };
 
 /**
@@ -138,8 +428,109 @@ router.get(
 );
 
 /**
+ * POST /api/wallets/withdraw/request-otp
+ * Send withdrawal OTP to authenticated realtor email
+ */
+router.post(
+  "/withdraw/request-otp",
+  authenticate,
+  authorize(UserRole.REALTOR),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const amount = normalizeAmount(Number(req.body?.amount));
+      if (!amount || amount <= 0) {
+        throw new AppError("Invalid withdrawal amount", 400);
+      }
+
+      const { realtorId, wallet, realtor } = await getWithdrawalContext(
+        req.user!.id
+      );
+      await ensureSufficientWalletBalance(wallet.id, amount);
+
+      const otp = Math.floor(1000 + Math.random() * 9000).toString();
+      await saveWithdrawalOtpChallenge(req.user!.id, realtorId, amount, otp);
+
+      await sendWithdrawalOtpEmail(
+        realtor.user.email,
+        realtor.user.firstName || realtor.businessName,
+        otp,
+        amount,
+        WITHDRAWAL_OTP_EXPIRY_MINUTES
+      ).catch((error) =>
+        logger.error("Failed to send withdrawal OTP email", error)
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "OTP sent to your email. Enter the 4-digit code to continue.",
+        data: {
+          amount,
+          maskedEmail: maskEmail(realtor.user.email),
+          expiresInMinutes: WITHDRAWAL_OTP_EXPIRY_MINUTES,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/wallets/withdraw/confirm
+ * Confirm withdrawal with OTP and process transfer
+ */
+router.post(
+  "/withdraw/confirm",
+  authenticate,
+  authorize(UserRole.REALTOR),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const amount = normalizeAmount(Number(req.body?.amount));
+      const otp = String(req.body?.otp || "").trim();
+
+      if (!amount || amount <= 0) {
+        throw new AppError("Invalid withdrawal amount", 400);
+      }
+
+      if (!/^\d{4}$/.test(otp)) {
+        throw new AppError("A valid 4-digit OTP is required", 400);
+      }
+
+      const { wallet, realtorId, realtor } = await getWithdrawalContext(
+        req.user!.id
+      );
+      await ensureSufficientWalletBalance(wallet.id, amount);
+      await verifyAndConsumeWithdrawalOtp(req.user!.id, amount, otp);
+
+      const withdrawalRequest = await createWithdrawalRequest({
+        walletId: wallet.id,
+        realtorId,
+        amount,
+        email: realtor.user.email,
+        displayName: realtor.user.firstName || realtor.businessName,
+      });
+
+      res.status(201).json({
+        success: true,
+        message:
+          "Withdrawal request submitted successfully. Processing automatically...",
+        data: {
+          withdrawalRequestId: withdrawalRequest.id,
+          amount,
+          status: "PENDING",
+          requestedAt: withdrawalRequest.requestedAt,
+          note: "Your withdrawal is being processed automatically. You'll receive an email notification once completed (usually within minutes). If automatic processing fails, our team will process it manually within 24 hours.",
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * POST /api/wallets/withdraw
- * Request a withdrawal from wallet to bank account
+ * Backward-compatible endpoint (requires OTP)
  */
 router.post(
   "/withdraw",
@@ -147,127 +538,33 @@ router.post(
   authorize(UserRole.REALTOR),
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const realtorId = await getRealtorId(req.user!.id);
-
-      const { amount } = req.body;
+      const amount = normalizeAmount(Number(req.body?.amount));
+      const otp = String(req.body?.otp || "").trim();
 
       if (!amount || amount <= 0) {
         throw new AppError("Invalid withdrawal amount", 400);
       }
 
-      // Get wallet
-      const wallet = await walletService.getOrCreateWallet(
-        WalletOwnerType.REALTOR,
-        realtorId
-      );
-
-      // Get realtor details for Paystack transfer
-      const realtor = await prisma.realtor.findUnique({
-        where: { id: realtorId },
-        select: {
-          id: true,
-          businessName: true,
-          paystackSubAccountCode: true,
-          user: {
-            select: {
-              email: true,
-              firstName: true,
-            },
-          },
-        },
-      });
-
-      if (!realtor) {
-        throw new AppError("Realtor not found", 404);
-      }
-
-      if (!realtor.paystackSubAccountCode) {
+      if (!/^\d{4}$/.test(otp)) {
         throw new AppError(
-          "Paystack subaccount not configured. Please contact support.",
+          "OTP is required. Request a code first via /api/wallets/withdraw/request-otp",
           400
         );
       }
 
-      // Check available balance before withdrawal
-      const currentBalance = await walletService.getWalletBalance(wallet.id);
-      if (currentBalance.available < amount) {
-        throw new AppError(
-          `Insufficient balance. Available: ₦${currentBalance.available.toFixed(
-            2
-          )}, Requested: ₦${amount.toFixed(2)}`,
-          400
-        );
-      }
-
-      // Step 1: Lock funds for withdrawal (available → pending)
-      const withdrawalReference = `WITHDRAWAL_${Date.now()}_${realtorId.slice(
-        -8
-      )}`;
-      await walletService.lockFundsForWithdrawal(
-        wallet.id,
-        amount,
-        withdrawalReference
+      const { wallet, realtorId, realtor } = await getWithdrawalContext(
+        req.user!.id
       );
+      await ensureSufficientWalletBalance(wallet.id, amount);
+      await verifyAndConsumeWithdrawalOtp(req.user!.id, amount, otp);
 
-      // Create withdrawal request record
-      const withdrawalRequest = await prisma.withdrawalRequest.create({
-        data: {
-          walletId: wallet.id,
-          realtorId,
-          amount,
-          status: "PENDING",
-          requestedAt: new Date(),
-          metadata: { reference: withdrawalReference },
-        },
-      });
-
-      logger.info("Withdrawal request created", {
+      const withdrawalRequest = await createWithdrawalRequest({
+        walletId: wallet.id,
         realtorId,
         amount,
-        withdrawalRequestId: withdrawalRequest.id,
+        email: realtor.user.email,
+        displayName: realtor.user.firstName || realtor.businessName,
       });
-
-      // Send withdrawal requested email notification
-      await sendWithdrawalRequestedEmail(
-        realtor.user.email,
-        realtor.user.firstName || realtor.businessName,
-        amount,
-        withdrawalReference
-      ).catch((error) =>
-        logger.error("Failed to send withdrawal requested email", error)
-      );
-
-      // Attempt automatic processing
-      // If it fails, it will be marked as FAILED and admin can manually process
-      logger.info("Attempting automatic withdrawal processing", {
-        withdrawalRequestId: withdrawalRequest.id,
-      });
-
-      // Process asynchronously to not block the response
-      withdrawalService
-        .processWithdrawal(withdrawalRequest.id, false)
-        .then((result) => {
-          if (result.success) {
-            logger.info("Withdrawal processed automatically", {
-              withdrawalRequestId: withdrawalRequest.id,
-              transferReference: result.transferReference,
-            });
-          } else {
-            logger.warn(
-              "Automatic withdrawal processing failed, will require manual processing",
-              {
-                withdrawalRequestId: withdrawalRequest.id,
-                error: result.message,
-              }
-            );
-          }
-        })
-        .catch((error) => {
-          logger.error("Error in automatic withdrawal processing", {
-            withdrawalRequestId: withdrawalRequest.id,
-            error: error.message,
-          });
-        });
 
       res.status(201).json({
         success: true,

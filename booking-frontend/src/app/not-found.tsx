@@ -1,9 +1,33 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Home, ArrowLeft } from "lucide-react";
+import { getSubdomainInfo } from "@/utils/subdomain";
 
 export default function NotFound() {
+  const [homeHref, setHomeHref] = useState("/en");
+  const [homeLabel, setHomeLabel] = useState("Go Home");
+
+  useEffect(() => {
+    const tenant = getSubdomainInfo();
+
+    if (tenant.type === "realtor") {
+      setHomeHref("/dashboard");
+      setHomeLabel("Go to Dashboard");
+      return;
+    }
+
+    if (tenant.type === "admin") {
+      setHomeHref("/admin");
+      setHomeLabel("Go to Admin");
+      return;
+    }
+
+    setHomeHref("/en");
+    setHomeLabel("Go Home");
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full text-center">
@@ -21,11 +45,11 @@ export default function NotFound() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link
-            href="/en"
+            href={homeHref}
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
             <Home className="w-5 h-5" />
-            <span>Go Home</span>
+            <span>{homeLabel}</span>
           </Link>
 
           <button

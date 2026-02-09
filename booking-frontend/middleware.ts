@@ -1,23 +1,41 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const SUBDOMAIN_LOGIN_PATHS = new Set(["/login", "/realtor/login"]);
+
+const getHostname = (hostHeader: string): string => {
+  return hostHeader.split(":")[0].toLowerCase();
+};
+
+const isLocalhostHost = (hostname: string): boolean => {
+  return hostname === "localhost" || hostname.endsWith(".localhost");
+};
+
+const getRootDomain = (hostname: string): string => {
+  if (isLocalhostHost(hostname)) return "localhost";
+
+  const hostParts = hostname.split(".");
+  if (hostParts.length >= 2) {
+    return hostParts.slice(-2).join(".");
+  }
+
+  return hostname;
+};
+
 export function middleware(request: NextRequest) {
-  const hostname = request.headers.get("host") || "";
+  const hostHeader = request.headers.get("host") || request.nextUrl.host;
+  const hostname = getHostname(hostHeader);
   const url = request.nextUrl.clone();
 
-  console.log(`🔍 Middleware: ${hostname} requesting ${url.pathname}`);
-
-  // Parse hostname and subdomain
   const hostParts = hostname.split(".");
-  const isLocalhost = hostname.includes("localhost");
-  const isDev = process.env.NODE_ENV === "development";
+  const isLocalhost = isLocalhostHost(hostname);
 
   let subdomain = "";
   let isSubdomain = false;
   let tenantType = "main";
 
-  if (isLocalhost && isDev) {
-    // Development: subdomain.localhost:3000
+  if (isLocalhost) {
+    // Development: subdomain.localhost
     if (hostParts.length > 1 && hostParts[0] !== "localhost") {
       subdomain = hostParts[0];
       isSubdomain = true;
@@ -30,7 +48,6 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Determine tenant type
   if (isSubdomain) {
     if (subdomain === "admin") {
       tenantType = "admin";
@@ -39,67 +56,43 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  console.log(
-    `🏷️ Parsed: subdomain="${subdomain}", type="${tenantType}", isSubdomain=${isSubdomain}`
-  );
+  // Realtor subdomains should never serve local /login pages.
+  // Redirect gracefully to main-domain realtor login.
+  if (tenantType === "realtor" && SUBDOMAIN_LOGIN_PATHS.has(url.pathname)) {
+    const redirectUrl = url.clone();
+    redirectUrl.hostname = getRootDomain(hostname);
+    redirectUrl.pathname = "/realtor/login";
+    return NextResponse.redirect(redirectUrl, 307);
+  }
 
-  // Create response with tenant information
   const response = NextResponse.next();
   response.headers.set("x-subdomain", subdomain);
   response.headers.set("x-tenant-type", tenantType);
   response.headers.set("x-is-subdomain", isSubdomain.toString());
 
-  // Handle admin subdomain
   if (tenantType === "admin") {
-    console.log(`🔧 Admin subdomain detected: ${subdomain}`);
     response.headers.set("x-admin-subdomain", "true");
-
-    // Admin-specific routing logic can go here
-    if (url.pathname === "/" || url.pathname === "/login") {
-      console.log(`🔧 Admin root/login access on admin subdomain`);
-    }
-  }
-
-  // Handle realtor subdomain
-  else if (tenantType === "realtor") {
-    console.log(`🏢 Realtor subdomain detected: ${subdomain}`);
+  } else if (tenantType === "realtor") {
     response.headers.set("x-realtor-subdomain", subdomain);
 
-    // Set specific page types for realtor subdomain routes
     if (url.pathname === "/") {
       response.headers.set("x-page-type", "realtor-home");
-      console.log(`🏢 Realtor home page: ${subdomain}`);
     } else if (url.pathname === "/login" || url.pathname === "/signup") {
       response.headers.set("x-page-type", "guest-auth");
-      console.log(
-        `🏢 Guest auth on realtor subdomain: ${subdomain}${url.pathname}`
-      );
     } else if (url.pathname.startsWith("/realtor/")) {
       response.headers.set("x-page-type", "realtor-dashboard");
-      console.log(`🏢 Realtor dashboard access: ${subdomain}${url.pathname}`);
     }
-  }
-
-  // Handle main domain
-  else {
-    console.log(`🌐 Main domain access`);
+  } else {
     response.headers.set("x-main-domain", "true");
 
-    // Main domain routing logic
     if (url.pathname.startsWith("/admin/")) {
       response.headers.set("x-page-type", "admin-access");
-      console.log(`🌐 Admin access on main domain`);
     } else if (url.pathname.startsWith("/realtor/")) {
       response.headers.set("x-page-type", "realtor-access");
-      console.log(`🌐 Realtor access on main domain`);
     } else if (url.pathname === "/register") {
       response.headers.set("x-page-type", "realtor-registration");
-      console.log(`🌐 Realtor registration on main domain`);
     }
   }
-
-  // Handle protected routes and redirections
-  // This is where you could add authentication checks if needed
 
   return response;
 }

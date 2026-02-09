@@ -74,9 +74,9 @@ export default function RealtorBookingDetailsPage() {
         showToast.success(
           `Booking Cancelled. Refund processed automatically (${
             refund.tier
-          } tier). Guest receives: â‚¦${
-            totals.customerRefund?.toLocaleString() || 0
-          }, You receive: â‚¦${totals.realtorPortion?.toLocaleString() || 0}`,
+          } tier). Guest receives: ${formatCurrency(
+            totals.customerRefund || 0
+          )}, You receive: ${formatCurrency(totals.realtorPortion || 0)}`,
           { duration: 6000 }
         );
       } else {
@@ -124,6 +124,12 @@ export default function RealtorBookingDetailsPage() {
     }
     refundMutation.mutate({ amount, reason: refundReason });
   };
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+    }).format(amount || 0);
 
   const handleDownloadReceipt = async () => {
     const paymentId = booking?.payment?.id;
@@ -444,7 +450,7 @@ export default function RealtorBookingDetailsPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Booking Amount</span>
                 <span className="font-medium text-gray-900">
-                  â‚¦{(booking.totalPrice || 0).toLocaleString()}
+                  {formatCurrency(booking.totalPrice || 0)}
                 </span>
               </div>
 
@@ -469,7 +475,7 @@ export default function RealtorBookingDetailsPage() {
                   Total Amount
                 </span>
                 <span className="font-bold text-gray-900 text-lg">
-                  â‚¦{(booking.totalPrice || 0).toLocaleString()}
+                  {formatCurrency(booking.totalPrice || 0)}
                 </span>
               </div>
 
@@ -634,7 +640,7 @@ export default function RealtorBookingDetailsPage() {
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Refund Amount (â‚¦)
+                Refund Amount (NGN)
               </label>
               <input
                 type="number"
@@ -645,7 +651,7 @@ export default function RealtorBookingDetailsPage() {
                 max={booking.totalPrice}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Max: â‚¦{booking.totalPrice.toLocaleString()}
+                Max: {formatCurrency(booking.totalPrice || 0)}
               </p>
             </div>
 

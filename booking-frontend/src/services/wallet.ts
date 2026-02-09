@@ -52,6 +52,12 @@ export interface EarningsSummary {
   totalEarnings: number;
 }
 
+export interface WithdrawalOtpChallenge {
+  amount: number;
+  maskedEmail: string;
+  expiresInMinutes: number;
+}
+
 /**
  * Get wallet balance
  */
@@ -84,9 +90,34 @@ export const getWalletTransactions = async (
  * Request a withdrawal
  */
 export const requestWithdrawal = async (
-  amount: number
+  amount: number,
+  otp?: string
 ): Promise<WithdrawalRequest> => {
-  const response = await api.post("/wallets/withdraw", { amount });
+  if (!otp) {
+    throw new Error("OTP is required. Request OTP before confirming withdrawal.");
+  }
+  const response = await api.post("/wallets/withdraw", { amount, otp });
+  return response.data.data;
+};
+
+/**
+ * Request OTP for withdrawal confirmation
+ */
+export const requestWithdrawalOtp = async (
+  amount: number
+): Promise<WithdrawalOtpChallenge> => {
+  const response = await api.post("/wallets/withdraw/request-otp", { amount });
+  return response.data.data;
+};
+
+/**
+ * Confirm withdrawal using OTP
+ */
+export const confirmWithdrawal = async (
+  amount: number,
+  otp: string
+): Promise<WithdrawalRequest> => {
+  const response = await api.post("/wallets/withdraw/confirm", { amount, otp });
   return response.data.data;
 };
 
@@ -118,6 +149,8 @@ const walletService = {
   getWalletBalance,
   getWalletTransactions,
   requestWithdrawal,
+  requestWithdrawalOtp,
+  confirmWithdrawal,
   getWithdrawalHistory,
   getEarningsSummary,
 };

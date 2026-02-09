@@ -293,7 +293,10 @@ export default function RealtorLayout({
 
   // Apply ProtectedRoute for protected pages with sidebar layout
   return (
-    <ProtectedRouteWrapper requiredRole="REALTOR">
+    <ProtectedRouteWrapper
+      requiredRole="REALTOR"
+      redirectTo="/realtor/login"
+    >
       <BrandProvider brand={brandConfig}>
         <div className="flex h-screen bg-white overflow-hidden">
           {/* Left Sidebar - Clean, Flat Design */}

@@ -21,6 +21,8 @@ import {
   ArrowDownRight,
   Filter,
   X,
+  ShieldCheck,
+  Mail,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import walletService, {
@@ -73,6 +75,11 @@ export default function PayoutsPage() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [withdrawStep, setWithdrawStep] = useState<"amount" | "otp">("amount");
+  const [withdrawOtp, setWithdrawOtp] = useState("");
+  const [otpAmount, setOtpAmount] = useState<number | null>(null);
+  const [otpDestination, setOtpDestination] = useState("");
 
   // Transaction filters
   const [txFilter, setTxFilter] = useState<"ALL" | "CREDIT" | "DEBIT">("ALL");
@@ -204,7 +211,9 @@ export default function PayoutsPage() {
     }
 
     showConfirm(
-      `Request withdrawal of ₦${totalPending.toLocaleString()}?\n\nFunds will be transferred to your registered bank account within 24-48 hours.`,
+      `Request withdrawal of ${formatCurrency(
+        totalPending
+      )}?\n\nFunds will be transferred to your registered bank account within 24-48 hours.`,
       async () => {
         try {
           setRequesting(true);
@@ -237,7 +246,16 @@ export default function PayoutsPage() {
     );
   };
 
-  const handleWithdrawFromWallet = async () => {
+  const closeWithdrawModal = () => {
+    setShowWithdrawModal(false);
+    setWithdrawStep("amount");
+    setWithdrawAmount("");
+    setWithdrawOtp("");
+    setOtpAmount(null);
+    setOtpDestination("");
+  };
+
+  const handleRequestWithdrawOtp = async () => {
     const amount = parseFloat(withdrawAmount);
 
     if (!amount || amount <= 0) {
@@ -256,19 +274,41 @@ export default function PayoutsPage() {
     }
 
     try {
+      setIsSendingOtp(true);
+      const response = await walletService.requestWithdrawalOtp(amount);
+      setOtpAmount(amount);
+      setOtpDestination(response.maskedEmail || "");
+      setWithdrawStep("otp");
+      setWithdrawOtp("");
+      showSuccess("A 4-digit OTP has been sent to your email.");
+    } catch (error: any) {
+      showError(error.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleConfirmWithdraw = async () => {
+    if (!otpAmount || otpAmount <= 0) {
+      showError("Please restart withdrawal and request a new OTP.");
+      return;
+    }
+
+    if (!/^\d{4}$/.test(withdrawOtp.trim())) {
+      showError("Enter the 4-digit OTP sent to your email.");
+      return;
+    }
+
+    try {
       setIsWithdrawing(true);
-      await walletService.requestWithdrawal(amount);
+      await walletService.confirmWithdrawal(otpAmount, withdrawOtp.trim());
       showSuccess("Withdrawal request submitted successfully!");
-      setShowWithdrawModal(false);
-      setWithdrawAmount("");
+      closeWithdrawModal();
       await fetchWalletData();
       await loadTransactions();
       await loadWithdrawals();
     } catch (error: any) {
-      
-      showError(
-        error.response?.data?.message || "Failed to request withdrawal"
-      );
+      showError(error.response?.data?.message || "Failed to confirm withdrawal");
     } finally {
       setIsWithdrawing(false);
     }
@@ -442,7 +482,7 @@ export default function PayoutsPage() {
             <div className="text-3xl font-bold mb-1">
               {walletBalance
                 ? formatCurrency(walletBalance.availableBalance)
-                : "₦0.00"}
+                : formatCurrency(0)}
             </div>
             <p className="text-sm opacity-75">Ready to withdraw</p>
           </motion.div>
@@ -463,7 +503,7 @@ export default function PayoutsPage() {
             <div className="text-2xl font-bold text-gray-900 mb-1">
               {walletBalance
                 ? formatCurrency(walletBalance.pendingBalance)
-                : "₦0.00"}
+                : formatCurrency(0)}
             </div>
             <p className="text-sm text-gray-500">Being processed</p>
           </motion.div>
@@ -482,7 +522,7 @@ export default function PayoutsPage() {
               </span>
             </div>
             <div className="text-2xl font-bold text-gray-900 mb-1">
-              {earnings ? formatCurrency(earnings.totalEarnings) : "₦0.00"}
+              {earnings ? formatCurrency(earnings.totalEarnings) : formatCurrency(0)}
             </div>
             <p className="text-sm text-gray-500">All time</p>
           </motion.div>
@@ -501,7 +541,7 @@ export default function PayoutsPage() {
               </span>
             </div>
             <div className="text-2xl font-bold text-gray-900 mb-1">
-              ₦{totalPending.toLocaleString()}
+              {formatCurrency(totalPending)}
             </div>
             <p className="text-sm text-gray-500">
               {pendingPayouts.length} payout(s)
@@ -666,7 +706,7 @@ export default function PayoutsPage() {
                           addSuffix: true,
                         })}
                         {withdrawal.processedAt &&
-                          ` • Processed ${formatDistanceToNow(
+                          ` - Processed ${formatDistanceToNow(
                             new Date(withdrawal.processedAt),
                             { addSuffix: true }
                           )}`}
@@ -684,7 +724,7 @@ export default function PayoutsPage() {
             </div>
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
               <p className="text-xs text-gray-600 text-center">
-                💡 Withdrawals are typically processed within minutes. Failed
+                Tip: Withdrawals are typically processed within minutes. Failed
                 withdrawals are automatically retried.
               </p>
             </div>
@@ -712,7 +752,7 @@ export default function PayoutsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <p className="font-medium text-gray-900">
-                          ₦{payout.amount.toLocaleString()}
+                          {formatCurrency(payout.amount)}
                         </p>
                         {getStatusBadge(payout.status)}
                       </div>
@@ -732,7 +772,7 @@ export default function PayoutsPage() {
                           addSuffix: true,
                         })}
                         {payout.processedAt &&
-                          ` • Processed ${formatDistanceToNow(
+                          ` - Processed ${formatDistanceToNow(
                             new Date(payout.processedAt),
                             { addSuffix: true }
                           )}`}
@@ -752,69 +792,152 @@ export default function PayoutsPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg max-w-md w-full p-6"
+            className="bg-white rounded-2xl max-w-lg w-full p-0 overflow-hidden shadow-2xl"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                Request Withdrawal
-              </h2>
-              <button
-                onClick={() => setShowWithdrawModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Available Balance
-              </label>
-              <div className="text-2xl font-bold text-green-600">
-                {walletBalance
-                  ? formatCurrency(walletBalance.availableBalance)
-                  : "₦0.00"}
+            <div className="px-6 py-5 bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">Secure Withdrawal</h2>
+                    <p className="text-sm text-white/90">
+                      Verify with a 4-digit OTP before transfer
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeWithdrawModal}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Withdrawal Amount
-              </label>
-              <input
-                type="number"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                placeholder="Enter amount"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              />
-            </div>
+            <div className="px-6 py-5 space-y-5">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    withdrawStep === "amount"
+                      ? "bg-orange-100 text-orange-700"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  1. Amount
+                </span>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    withdrawStep === "otp"
+                      ? "bg-orange-100 text-orange-700"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  2. OTP Verification
+                </span>
+              </div>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
-              <p className="text-sm text-yellow-800">
-                ⏱️ Withdrawals typically take 1-3 business days to process
-              </p>
-            </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">
+                  Available Balance
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {walletBalance
+                    ? formatCurrency(walletBalance.availableBalance)
+                    : formatCurrency(0)}
+                </p>
+              </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowWithdrawModal(false);
-                  setWithdrawAmount("");
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                disabled={isWithdrawing}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleWithdrawFromWallet}
-                disabled={isWithdrawing}
-                style={{ backgroundColor: brandColor }}
-                className="flex-1 px-4 py-2 text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isWithdrawing ? "Processing..." : "Withdraw"}
-              </button>
+              {withdrawStep === "amount" ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Withdrawal Amount
+                    </label>
+                    <input
+                      type="number"
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      placeholder="Enter amount"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
+                    <p className="text-sm text-yellow-800">
+                      Withdrawals typically take 1-3 business days to settle in
+                      your bank account.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={closeWithdrawModal}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+                      disabled={isSendingOtp || isWithdrawing}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleRequestWithdrawOtp}
+                      disabled={isSendingOtp || isWithdrawing}
+                      style={{ backgroundColor: brandColor }}
+                      className="flex-1 px-4 py-3 text-white rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    >
+                      {isSendingOtp ? "Sending OTP..." : "Send OTP"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                    <p className="text-sm text-green-700">
+                      OTP sent for{" "}
+                      <strong>{formatCurrency(otpAmount || 0)}</strong>
+                    </p>
+                    <p className="text-xs text-green-700/80 mt-1 flex items-center gap-1">
+                      <Mail className="w-3 h-3" />
+                      Sent to {otpDestination || "your email"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Enter 4-digit OTP
+                    </label>
+                    <input
+                      type="text"
+                      value={withdrawOtp}
+                      onChange={(e) =>
+                        setWithdrawOtp(e.target.value.replace(/\D/g, "").slice(0, 4))
+                      }
+                      placeholder="0000"
+                      inputMode="numeric"
+                      maxLength={4}
+                      className="w-full px-4 py-3 text-center tracking-[0.5em] text-lg font-bold border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setWithdrawStep("amount")}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50"
+                      disabled={isSendingOtp || isWithdrawing}
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleConfirmWithdraw}
+                      disabled={isSendingOtp || isWithdrawing}
+                      style={{ backgroundColor: brandColor }}
+                      className="flex-1 px-4 py-3 text-white rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    >
+                      {isWithdrawing ? "Verifying..." : "Confirm Withdrawal"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         </div>

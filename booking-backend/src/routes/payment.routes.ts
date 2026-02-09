@@ -884,7 +884,7 @@ router.post(
 
       await prisma.notification.create({
         data: {
-          userId: payment.booking.property.realtorId,
+          userId: payment.booking.property.realtor.userId,
           type: "BOOKING_CONFIRMED",
           title: "New Booking",
           message: `New booking confirmed for ${payment.booking.property.title}. Payment held in escrow.`,
@@ -951,7 +951,7 @@ router.get(
     if (userRole === "GUEST") {
       where.booking = { guestId: userId };
     } else if (userRole === "REALTOR") {
-      where.booking = { property: { realtorId: userId } };
+      where.booking = { property: { realtor: { userId } } };
     }
     // ADMIN sees all payments (no filter)
 
@@ -1057,6 +1057,11 @@ router.get(
                 state: true,
                 country: true,
                 realtorId: true,
+                realtor: {
+                  select: {
+                    userId: true,
+                  },
+                },
               },
             },
           },
@@ -1071,7 +1076,8 @@ router.get(
     // Authorization check
     const isGuest = userRole === "GUEST" && payment.booking.guestId === userId;
     const isRealtor =
-      userRole === "REALTOR" && payment.booking.property.realtorId === userId;
+      userRole === "REALTOR" &&
+      payment.booking.property.realtor.userId === userId;
     const isAdmin = userRole === "ADMIN";
 
     if (!isGuest && !isRealtor && !isAdmin) {
@@ -1150,6 +1156,11 @@ router.get(
                 id: true,
                 title: true,
                 realtorId: true,
+                realtor: {
+                  select: {
+                    userId: true,
+                  },
+                },
               },
             },
           },
@@ -1164,7 +1175,8 @@ router.get(
     // Authorization check
     const isGuest = userRole === "GUEST" && payment.booking.guestId === userId;
     const isRealtor =
-      userRole === "REALTOR" && payment.booking.property.realtorId === userId;
+      userRole === "REALTOR" &&
+      payment.booking.property.realtor.userId === userId;
     const isAdmin = userRole === "ADMIN";
 
     if (!isGuest && !isRealtor && !isAdmin) {

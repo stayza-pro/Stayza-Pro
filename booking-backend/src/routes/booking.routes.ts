@@ -447,6 +447,7 @@ router.post(
         realtor: {
           select: {
             id: true,
+            userId: true,
           },
         },
       },
@@ -456,7 +457,7 @@ router.post(
       throw new AppError("Property not found", 404);
     }
 
-    if (property.realtorId === req.user!.id) {
+    if (property.realtor.userId === req.user!.id) {
       throw new AppError("You cannot book your own property", 400);
     }
 
@@ -953,6 +954,7 @@ router.get(
             realtor: {
               select: {
                 id: true,
+                userId: true,
                 businessName: true,
                 user: {
                   select: {
@@ -992,7 +994,7 @@ router.get(
     }
 
     const isOwner = booking.guestId === req.user!.id;
-    const isHost = booking.property.realtor.id === req.user!.id;
+    const isHost = booking.property.realtor.userId === req.user!.id;
     const isAdmin = req.user!.role === "ADMIN";
 
     if (!isOwner && !isHost && !isAdmin) {
@@ -1061,7 +1063,11 @@ router.put(
       include: {
         property: {
           select: {
-            realtorId: true,
+            realtor: {
+              select: {
+                userId: true,
+              },
+            },
           },
         },
       },
@@ -1071,7 +1077,7 @@ router.put(
       throw new AppError("Booking not found", 404);
     }
 
-    const isHost = booking.property.realtorId === req.user!.id;
+    const isHost = booking.property.realtor.userId === req.user!.id;
     const isAdmin = req.user!.role === "ADMIN";
 
     if (!isHost && !isAdmin) {
@@ -1574,7 +1580,15 @@ router.get(
       select: {
         id: true,
         guestId: true,
-        property: { select: { realtorId: true } },
+        property: {
+          select: {
+            realtor: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -1590,7 +1604,7 @@ router.get(
 
     const isAuthorized =
       user.id === booking.guestId ||
-      user.id === booking.property?.realtorId ||
+      user.id === booking.property?.realtor.userId ||
       user.role === "ADMIN";
 
     if (!isAuthorized) {
@@ -1683,7 +1697,17 @@ router.post(
     // Fetch booking
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { property: true },
+      include: {
+        property: {
+          include: {
+            realtor: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!booking) {
@@ -1691,7 +1715,7 @@ router.post(
     }
 
     // Check if user is authorized (guest or realtor)
-    if (booking.guestId !== userId && booking.property.realtorId !== userId) {
+    if (booking.guestId !== userId && booking.property.realtor.userId !== userId) {
       throw new AppError("Not authorized to modify this booking", 403);
     }
 
@@ -1757,7 +1781,9 @@ router.post(
 
     // Create notification for the other party
     const recipientId =
-      userId === booking.guestId ? booking.property.realtorId : booking.guestId;
+      userId === booking.guestId
+        ? booking.property.realtor.userId
+        : booking.guestId;
 
     await prisma.notification.create({
       data: {
@@ -1859,14 +1885,24 @@ router.get(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { property: true },
+      include: {
+        property: {
+          include: {
+            realtor: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!booking) {
       throw new AppError("Booking not found", 404);
     }
 
-    if (booking.guestId !== userId && booking.property.realtorId !== userId) {
+    if (booking.guestId !== userId && booking.property.realtor.userId !== userId) {
       throw new AppError("Not authorized", 403);
     }
 
@@ -1954,7 +1990,17 @@ router.post(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { property: true },
+      include: {
+        property: {
+          include: {
+            realtor: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!booking) {
@@ -2018,7 +2064,7 @@ router.post(
     // Notify realtor
     await prisma.notification.create({
       data: {
-        userId: booking.property.realtorId,
+        userId: booking.property.realtor.userId,
         type: "BOOKING_CONFIRMED",
         title: "Booking Extended",
         message: `Guest extended booking #${booking.id.slice(
@@ -2108,6 +2154,13 @@ router.get(
 
     const property = await prisma.property.findUnique({
       where: { id: propertyId },
+      include: {
+        realtor: {
+          select: {
+            userId: true,
+          },
+        },
+      },
     });
 
     if (!property) {
@@ -2259,13 +2312,20 @@ router.post(
 
     const property = await prisma.property.findUnique({
       where: { id: propertyId },
+      include: {
+        realtor: {
+          select: {
+            userId: true,
+          },
+        },
+      },
     });
 
     if (!property) {
       throw new AppError("Property not found", 404);
     }
 
-    if (property.realtorId !== userId) {
+    if (property.realtor.userId !== userId) {
       throw new AppError("Only property owner can block dates", 403);
     }
 

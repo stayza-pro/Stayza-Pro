@@ -118,7 +118,7 @@ export default function ProtectedRoute({
         } else if (user?.role === "ADMIN") {
           router.push("/admin");
         } else {
-          router.push("/login");
+          router.push(redirectTo);
         }
         return;
       }
