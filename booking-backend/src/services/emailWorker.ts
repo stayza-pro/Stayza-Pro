@@ -43,6 +43,15 @@ const resendClient = config.RESEND_API_KEY
 let smtpTransporter: nodemailer.Transporter | null = null;
 let workerTimer: ReturnType<typeof setInterval> | null = null;
 let workerBusy = false;
+let emailQueueTableMissingLogged = false;
+
+type DeliverableEmail = {
+  id: string;
+  to: string[];
+  subject: string;
+  html: string;
+  attachments?: any;
+};
 
 const normalizeRecipients = (to: string | string[]): string[] =>
   (Array.isArray(to) ? to : [to]).map((item) => String(item).trim()).filter(Boolean);
@@ -128,7 +137,16 @@ const formatError = (error: any) => {
   return error.message || JSON.stringify(error);
 };
 
-const sendViaResend = async (job: EmailJob) => {
+const isMissingEmailQueueTableError = (error: any) => {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    error?.code === "P2021" ||
+    message.includes("email_jobs") ||
+    (message.includes("table") && message.includes("does not exist"))
+  );
+};
+
+const sendViaResend = async (job: DeliverableEmail) => {
   if (!resendClient) {
     throw new Error("Resend is not configured");
   }
@@ -151,7 +169,7 @@ const sendViaResend = async (job: EmailJob) => {
   };
 };
 
-const sendViaSmtp = async (job: EmailJob) => {
+const sendViaSmtp = async (job: DeliverableEmail) => {
   if (!hasSmtpConfig()) {
     throw new Error("SMTP is not configured");
   }
@@ -171,7 +189,7 @@ const sendViaSmtp = async (job: EmailJob) => {
   };
 };
 
-const sendWithProviderFallback = async (job: EmailJob) => {
+const sendWithProviderFallback = async (job: DeliverableEmail) => {
   const errors: string[] = [];
 
   if (resendClient) {
@@ -361,6 +379,27 @@ export const queueEmailJob = async (
   });
 };
 
+export const sendEmailDirect = async (input: QueueEmailInput) => {
+  const recipients = normalizeRecipients(input.to);
+  if (recipients.length === 0) {
+    throw new Error("At least one recipient email is required");
+  }
+
+  const delivery = await sendWithProviderFallback({
+    id: `direct-${Date.now()}`,
+    to: recipients,
+    subject: input.template.subject,
+    html: input.template.html,
+    attachments: sanitizeAttachments(input.attachments),
+  });
+
+  return {
+    success: true,
+    provider: delivery.provider,
+    messageId: delivery.messageId || undefined,
+  };
+};
+
 export const processEmailJobNow = async (
   jobId: string,
 ): Promise<ProcessEmailJobResult> => {
@@ -376,12 +415,33 @@ export const processEmailJobNow = async (
 };
 
 export const queueAndSendEmail = async (input: QueueEmailInput) => {
-  const job = await queueEmailJob(input);
+  let job: EmailJob;
+  try {
+    job = await queueEmailJob(input);
+  } catch (error: any) {
+    if (isMissingEmailQueueTableError(error)) {
+      logger.warn(
+        "Email queue table is missing; falling back to direct email delivery",
+        {
+          error: formatError(error),
+        },
+      );
+      const directResult = await sendEmailDirect(input);
+      return {
+        success: true,
+        queued: false,
+        jobId: undefined,
+        messageId: directResult.messageId,
+      };
+    }
+
+    throw error;
+  }
 
   try {
     const result = await processEmailJobNow(job.id);
     if (!result.success) {
-      return { success: false, queued: true, jobId: job.id };
+      return { success: true, queued: true, jobId: job.id };
     }
 
     return {
@@ -391,9 +451,16 @@ export const queueAndSendEmail = async (input: QueueEmailInput) => {
       messageId: result.messageId,
     };
   } catch (error: any) {
-    throw new Error(
-      `Email send failed and has been queued for retry (job: ${job.id}). ${formatError(error)}`,
-    );
+    logger.warn("Immediate email delivery failed; job queued for retry", {
+      emailJobId: job.id,
+      error: formatError(error),
+    });
+    return {
+      success: true,
+      queued: true,
+      jobId: job.id,
+      messageId: undefined,
+    };
   }
 };
 
@@ -402,7 +469,23 @@ export const runEmailWorkerCycle = async () => {
 
   workerBusy = true;
   try {
-    const jobs = await claimPendingJobs(emailWorkerBatchSize);
+    let jobs: EmailJob[] = [];
+    try {
+      jobs = await claimPendingJobs(emailWorkerBatchSize);
+      emailQueueTableMissingLogged = false;
+    } catch (error: any) {
+      if (isMissingEmailQueueTableError(error)) {
+        if (!emailQueueTableMissingLogged) {
+          emailQueueTableMissingLogged = true;
+          logger.warn(
+            "Email queue table is missing; worker will stay idle until migrations are applied",
+          );
+        }
+        return;
+      }
+      throw error;
+    }
+
     if (jobs.length === 0) {
       return;
     }

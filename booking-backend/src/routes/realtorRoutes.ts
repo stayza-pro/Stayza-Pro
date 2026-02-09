@@ -95,10 +95,25 @@ type PayoutAccountOtpDetails = {
   lastAttemptAt?: string;
 };
 
+const normalizeBankCode = (value: unknown): string =>
+  String(value ?? "")
+    .trim()
+    .toUpperCase();
+
+const getPreferredBankCode = (value: unknown): string => {
+  const normalized = normalizeBankCode(value);
+  const digitsOnly = normalized.replace(/\D/g, "");
+  return digitsOnly || normalized;
+};
+
+const getBankCodeCandidates = (value: unknown): string[] => {
+  const normalized = normalizeBankCode(value);
+  const preferred = getPreferredBankCode(value);
+  return Array.from(new Set([normalized, preferred].filter(Boolean)));
+};
+
 const hashPayoutAccountOtp = (otp: string) =>
-  createHash("sha256")
-    .update(`${otp}:${config.JWT_SECRET}`)
-    .digest("hex");
+  createHash("sha256").update(`${otp}:${config.JWT_SECRET}`).digest("hex");
 
 const hashPayoutAccountPayload = (params: {
   bankCode: string;
@@ -109,12 +124,12 @@ const hashPayoutAccountPayload = (params: {
   createHash("sha256")
     .update(
       [
-        params.bankCode.trim(),
+        getPreferredBankCode(params.bankCode),
         params.bankName.trim().toLowerCase(),
         params.accountNumber.trim(),
         params.accountName.trim().toLowerCase(),
         config.JWT_SECRET,
-      ].join(":")
+      ].join(":"),
     )
     .digest("hex");
 
@@ -127,7 +142,7 @@ const maskEmailAddress = (email: string): string => {
 
 const getLatestPayoutAccountOtpChallenge = async (
   userId: string,
-  realtorId: string
+  realtorId: string,
 ) => {
   const otpAuditLog = await prisma.auditLog.findFirst({
     where: {
@@ -156,7 +171,7 @@ const verifyAndConsumePayoutAccountOtp = async (params: {
 }) => {
   const otpAuditLog = await getLatestPayoutAccountOtpChallenge(
     params.userId,
-    params.realtorId
+    params.realtorId,
   );
 
   const details = (otpAuditLog.details as PayoutAccountOtpDetails) || null;
@@ -167,14 +182,14 @@ const verifyAndConsumePayoutAccountOtp = async (params: {
   if (details.used) {
     throw new AppError(
       "This OTP has already been used. Request a new code.",
-      400
+      400,
     );
   }
 
   if (details.payloadHash !== params.payloadHash) {
     throw new AppError(
       "OTP was generated for different payout details. Request a new code.",
-      400
+      400,
     );
   }
 
@@ -185,7 +200,10 @@ const verifyAndConsumePayoutAccountOtp = async (params: {
 
   const attempts = Number(details.attempts || 0);
   if (attempts >= PAYOUT_ACCOUNT_OTP_MAX_ATTEMPTS) {
-    throw new AppError("Too many invalid OTP attempts. Request a new code.", 400);
+    throw new AppError(
+      "Too many invalid OTP attempts. Request a new code.",
+      400,
+    );
   }
 
   const otpHash = hashPayoutAccountOtp(params.otp.trim());
@@ -205,14 +223,17 @@ const verifyAndConsumePayoutAccountOtp = async (params: {
 
     const remainingAttempts = PAYOUT_ACCOUNT_OTP_MAX_ATTEMPTS - updatedAttempts;
     if (remainingAttempts <= 0) {
-      throw new AppError("Too many invalid OTP attempts. Request a new code.", 400);
+      throw new AppError(
+        "Too many invalid OTP attempts. Request a new code.",
+        400,
+      );
     }
 
     throw new AppError(
       `Invalid OTP. ${remainingAttempts} attempt${
         remainingAttempts === 1 ? "" : "s"
       } remaining.`,
-      400
+      400,
     );
   }
 
@@ -500,7 +521,7 @@ router.get(
         subdomain: normalizedSubdomain,
       },
     });
-  })
+  }),
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -566,7 +587,7 @@ router.post(
     if (!type || !["logo", "temp-logo", "temp-cac"].includes(type as string)) {
       throw new AppError(
         "Invalid type. Must be 'logo', 'temp-logo', or 'temp-cac'",
-        400
+        400,
       );
     }
 
@@ -597,8 +618,8 @@ router.post(
               reject(
                 new AppError(
                   "Authentication required for permanent logo upload",
-                  401
-                )
+                  401,
+                ),
               );
               return;
             }
@@ -700,7 +721,7 @@ router.post(
         }
       });
     });
-  })
+  }),
 );
 
 /**
@@ -791,7 +812,7 @@ router.post(
         }
       });
     });
-  })
+  }),
 );
 
 /**
@@ -883,7 +904,7 @@ router.get(
     if (!subdomainRegex.test(subdomain)) {
       throw new AppError(
         "Subdomain can only contain lowercase letters, numbers, and hyphens",
-        400
+        400,
       );
     }
 
@@ -898,7 +919,7 @@ router.get(
         available: !existingRealtor,
       },
     });
-  })
+  }),
 );
 
 router.post(
@@ -947,7 +968,7 @@ router.post(
     ) {
       throw new AppError(
         "Required fields are missing (including CAC details)",
-        400
+        400,
       );
     }
 
@@ -1063,7 +1084,7 @@ router.post(
       emailVerificationToken,
       "realtor",
       slug,
-      result.user.email
+      result.user.email,
     );
     const dashboardUrl = getDashboardUrl("realtor", slug, false); // Not verified yet
     const registrationSuccessUrl = getRegistrationSuccessUrl("realtor", slug);
@@ -1074,7 +1095,7 @@ router.post(
       firstName,
       agencyName,
       dashboardUrl,
-      verificationUrl
+      verificationUrl,
     ).catch((err) => logger.error("Realtor welcome email failed", err));
 
     // Create admin notification for new realtor registration
@@ -1112,7 +1133,7 @@ router.post(
         dashboard: dashboardUrl,
       },
     });
-  })
+  }),
 );
 router.post(
   "/profile/create",
@@ -1183,7 +1204,7 @@ router.post(
       message: "Realtor profile created successfully",
       data: { realtor },
     });
-  })
+  }),
 );
 
 // Stripe integration removed - using Paystack only
@@ -1298,7 +1319,7 @@ router.get(
       message: "Realtor profile retrieved successfully",
       data: { realtor },
     });
-  })
+  }),
 );
 router.put(
   "/profile",
@@ -1396,7 +1417,7 @@ router.put(
       message: "Realtor profile updated successfully",
       data: { realtor: updatedRealtor },
     });
-  })
+  }),
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1513,7 +1534,7 @@ router.get(
       message = "Your business registration is under review by our admin team.";
       nextSteps.push("Wait for admin approval (usually 1-2 business days)");
       nextSteps.push(
-        "Ensure your business information is complete and accurate"
+        "Ensure your business information is complete and accurate",
       );
     } else if (realtor.cacStatus === "REJECTED") {
       approvalStage = "cac_rejected";
@@ -1568,7 +1589,7 @@ router.get(
         },
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1655,7 +1676,7 @@ router.delete(
         businessName: realtor.businessName,
       },
     });
-  })
+  }),
 );
 
 // Dashboard endpoints - Allow access for pending approval
@@ -1726,7 +1747,7 @@ router.get(
     const lastMonth = new Date(
       now.getFullYear(),
       now.getMonth() - 1,
-      now.getDate()
+      now.getDate(),
     );
 
     // Calculate stats
@@ -1890,7 +1911,7 @@ router.get(
         unreadMessages,
       },
     });
-  })
+  }),
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1960,12 +1981,12 @@ router.get(
           nights: Math.ceil(
             (new Date(booking.checkOutDate).getTime() -
               new Date(booking.checkInDate).getTime()) /
-              (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24),
           ),
         })),
       },
     });
-  })
+  }),
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2067,7 +2088,7 @@ router.post(
         cacNumber: updatedRealtor.corporateRegNumber,
       },
     });
-  })
+  }),
 );
 router.get(
   "/cac/status",
@@ -2112,7 +2133,7 @@ router.get(
         canAppeal: realtor.canAppeal,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -2182,7 +2203,7 @@ router.put(
     if (!realtor.canAppeal) {
       throw new AppError(
         "Please complete the appeal process before resubmitting",
-        400
+        400,
       );
     }
 
@@ -2207,7 +2228,7 @@ router.put(
         cacNumber: updatedRealtor.corporateRegNumber,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -2250,7 +2271,7 @@ router.get(
       if (error.name === "TokenExpiredError") {
         throw new AppError(
           "Appeal link has expired. Please contact support.",
-          410
+          410,
         );
       }
       throw new AppError("Invalid or tampered appeal token", 400);
@@ -2277,7 +2298,7 @@ router.get(
     if (realtor.cacStatus !== "REJECTED") {
       throw new AppError(
         "Appeal only allowed for rejected CAC verification",
-        400
+        400,
       );
     }
 
@@ -2296,7 +2317,7 @@ router.get(
         : `https://${realtor.slug}.stayza.pro/settings?tab=business&appeal=success`;
 
     res.redirect(dashboardUrl);
-  })
+  }),
 );
 
 // CAC Appeal Route (Realtor only) - Old route
@@ -2385,7 +2406,7 @@ router.post(
         realtor: updatedRealtor,
       },
     });
-  })
+  }),
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2476,7 +2497,7 @@ router.get(
 
     const previousPeriodStart = new Date(startDate);
     const daysDifference = Math.ceil(
-      (now.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)
+      (now.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000),
     );
     previousPeriodStart.setDate(previousPeriodStart.getDate() - daysDifference);
 
@@ -2658,10 +2679,10 @@ router.get(
       monthEnd.setMonth(monthEnd.getMonth() + 1);
 
       const monthBookings = monthlyBookings.filter(
-        (b) => b.createdAt >= monthStart && b.createdAt < monthEnd
+        (b) => b.createdAt >= monthStart && b.createdAt < monthEnd,
       );
       const monthRev = monthlyRevenue.filter(
-        (r) => r.createdAt >= monthStart && r.createdAt < monthEnd
+        (r) => r.createdAt >= monthStart && r.createdAt < monthEnd,
       );
 
       monthlyData.push({
@@ -2669,7 +2690,7 @@ router.get(
         bookings: monthBookings.length,
         revenue: monthRev.reduce((sum, r) => sum + Number(r.amount), 0),
         completed: monthBookings.filter(
-          (b) => b.status === BookingStatus.COMPLETED
+          (b) => b.status === BookingStatus.COMPLETED,
         ).length,
       });
     }
@@ -2680,7 +2701,7 @@ router.get(
         property.reviews && property.reviews.length > 0
           ? property.reviews.reduce(
               (sum: number, r: any) => sum + r.rating,
-              0
+              0,
             ) / property.reviews.length
           : 0;
 
@@ -2734,7 +2755,7 @@ router.get(
             total: Number(totalRevenue._sum?.amount ?? 0),
             growth: calculateGrowth(
               Number(totalRevenue._sum?.amount ?? 0),
-              Number(previousRevenue._sum?.amount ?? 0)
+              Number(previousRevenue._sum?.amount ?? 0),
             ),
             average:
               totalBookings > 0
@@ -2762,7 +2783,7 @@ router.get(
         topProperties: topPropertiesWithMetrics,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -2977,7 +2998,7 @@ router.get(
         })),
       },
     });
-  })
+  }),
 );
 
 /**
@@ -3152,7 +3173,7 @@ router.get(
     // Calculate totals (completed bookings + released escrow)
     const completedBookingsTotal = bookings.reduce(
       (sum, booking) => sum + parseFloat(booking.totalPrice.toString()),
-      0
+      0,
     );
 
     const releasedEscrowTotal = releasedEscrowEvents.reduce((sum, event) => {
@@ -3170,7 +3191,7 @@ router.get(
     const previousStartDate = new Date(startDate);
     const previousEndDate = new Date(startDate);
     const daysDiff = Math.ceil(
-      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
     );
     previousStartDate.setDate(previousStartDate.getDate() - daysDiff);
 
@@ -3192,7 +3213,7 @@ router.get(
 
     const previousRevenue = previousBookings.reduce(
       (sum, booking) => sum + parseFloat(booking.totalPrice.toString()),
-      0
+      0,
     );
 
     // Calculate percentage change
@@ -3200,8 +3221,8 @@ router.get(
       previousRevenue > 0
         ? ((totalRevenue - previousRevenue) / previousRevenue) * 100
         : totalRevenue > 0
-        ? 100
-        : 0;
+          ? 100
+          : 0;
 
     res.json({
       success: true,
@@ -3225,7 +3246,7 @@ router.get(
               ],
       },
     });
-  })
+  }),
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3340,7 +3361,7 @@ router.get(
     const propertiesWithRating = realtor.properties.map((property) => {
       const totalRating = property.reviews.reduce(
         (sum, review) => sum + review.rating,
-        0
+        0,
       );
       const averageRating =
         property.reviews.length > 0 ? totalRating / property.reviews.length : 0;
@@ -3362,7 +3383,7 @@ router.get(
         },
       },
     });
-  })
+  }),
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3410,7 +3431,7 @@ router.get(
     } catch (error: any) {
       logger.error(
         "Error fetching banks from Paystack:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
 
       // Return mock bank list for MVP if Paystack is unavailable
@@ -3539,7 +3560,7 @@ router.get(
           "Using cached bank list - Paystack API temporarily unavailable",
       });
     }
-  })
+  }),
 );
 
 /**
@@ -3581,76 +3602,116 @@ router.post(
       throw new AppError("Account number and bank code are required", 400);
     }
 
-    // Normalize account number
     const normalizedAccountNumber = String(accountNumber).trim();
-    
+    const bankCodeCandidates = getBankCodeCandidates(bankCode);
+
     if (!/^\d{10}$/.test(normalizedAccountNumber)) {
       throw new AppError("Account number must be 10 digits", 400);
     }
 
-    logger.info(`Verifying account: ${normalizedAccountNumber} with bank code: ${bankCode}`);
-
-    try {
-      const response = await axios.get(
-        `https://api.paystack.co/bank/resolve`,
-        {
-          params: {
-            account_number: normalizedAccountNumber,
-            bank_code: bankCode,
-          },
-          headers: {
-            Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`,
-          },
-          timeout: 15000, // 15 second timeout for verification
-        }
-      );
-
-      if (response.data.status && response.data.data) {
-        logger.info(`✅ Account verified: ${response.data.data.account_name}`);
-        return res.status(200).json({
-          success: true,
-          data: response.data.data,
-        });
-      }
-
-      throw new AppError("Invalid response from bank verification service", 400);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message;
-      const errorData = error.response?.data;
-      
-      logger.error("Bank account verification failed:", {
-        error: errorMessage,
-        data: errorData,
-        accountNumber: normalizedAccountNumber,
-        bankCode,
-      });
-
-      // Return mock verification for development/testing or API issues
-      if (
-        error.code === "ECONNABORTED" || 
-        error.message.includes("timeout") ||
-        error.response?.status === 503 ||
-        error.response?.status === 500
-      ) {
-        logger.warn("⚠️ Returning mock verification - Paystack API unavailable");
-        return res.status(200).json({
-          success: true,
-          data: {
-            account_number: normalizedAccountNumber,
-            account_name: "Test Account Holder", // Mock name
-            bank_id: parseInt(bankCode),
-          },
-          _mock: true,
-          _message: "Mock verification - Payment provider temporarily unavailable",
-        });
-      }
-
-      throw new AppError(
-        errorMessage || "Failed to verify bank account",
-        400
-      );
+    if (bankCodeCandidates.length === 0) {
+      throw new AppError("Bank code is invalid", 400);
     }
-  })
+
+    logger.info("Verifying payout account", {
+      accountNumber: normalizedAccountNumber,
+      bankCode,
+      candidates: bankCodeCandidates,
+    });
+
+    let lastError: any = null;
+
+    for (const candidate of bankCodeCandidates) {
+      try {
+        const response = await axios.get(
+          `https://api.paystack.co/bank/resolve`,
+          {
+            params: {
+              account_number: normalizedAccountNumber,
+              bank_code: candidate,
+            },
+            headers: {
+              Authorization: `Bearer ${config.PAYSTACK_SECRET_KEY}`,
+            },
+            timeout: 15000,
+          },
+        );
+
+        if (response.data.status && response.data.data) {
+          logger.info("Payout account verified", {
+            accountNumber: normalizedAccountNumber,
+            resolvedBankCode: candidate,
+            accountName: response.data.data.account_name,
+          });
+
+          return res.status(200).json({
+            success: true,
+            data: response.data.data,
+          });
+        }
+
+        throw new AppError(
+          "Invalid response from bank verification service",
+          400,
+        );
+      } catch (error: any) {
+        lastError = error;
+        const statusCode = error?.response?.status;
+        const isLastCandidate =
+          candidate === bankCodeCandidates[bankCodeCandidates.length - 1];
+
+        if (statusCode === 400 && !isLastCandidate) {
+          logger.warn(
+            "Bank resolve failed for bank code candidate, trying fallback",
+            {
+              accountNumber: normalizedAccountNumber,
+              failedBankCode: candidate,
+              providerMessage: error?.response?.data?.message,
+            },
+          );
+          continue;
+        }
+
+        break;
+      }
+    }
+
+    const errorMessage =
+      lastError?.response?.data?.message || lastError?.message;
+    const errorData = lastError?.response?.data;
+
+    logger.error("Bank account verification failed", {
+      error: errorMessage,
+      data: errorData,
+      accountNumber: normalizedAccountNumber,
+      bankCode,
+      attemptedBankCodes: bankCodeCandidates,
+    });
+
+    if (
+      lastError?.code === "ECONNABORTED" ||
+      String(lastError?.message || "")
+        .toLowerCase()
+        .includes("timeout") ||
+      lastError?.response?.status === 503 ||
+      lastError?.response?.status === 500
+    ) {
+      logger.warn("Returning mock verification - Paystack API unavailable");
+      return res.status(200).json({
+        success: true,
+        data: {
+          account_number: normalizedAccountNumber,
+          account_name: "Test Account Holder",
+          bank_id: parseInt(getPreferredBankCode(bankCode), 10) || 0,
+        },
+        _mock: true,
+        _message:
+          "Mock verification - Payment provider temporarily unavailable",
+      });
+    }
+
+    throw new AppError(errorMessage || "Failed to verify bank account", 400);
+  }),
 );
 
 /**
@@ -3681,6 +3742,12 @@ router.post(
     }
 
     const normalizedAccountNumber = String(accountNumber).trim();
+    const normalizedBankCode = getPreferredBankCode(bankCode);
+
+    if (!normalizedBankCode) {
+      throw new AppError("Bank code is invalid", 400);
+    }
+
     if (!/^\d{10}$/.test(normalizedAccountNumber)) {
       throw new AppError("Account number must be 10 digits", 400);
     }
@@ -3705,7 +3772,9 @@ router.post(
 
     // First-time setup does not require OTP.
     if (!hasConfiguredPayoutAccount(realtor)) {
-      logger.info(`First-time setup for realtor ${realtor.id} - OTP not required`);
+      logger.info(
+        `First-time setup for realtor ${realtor.id} - OTP not required`,
+      );
       return res.status(200).json({
         success: true,
         message: "OTP not required for first-time payout setup",
@@ -3716,7 +3785,7 @@ router.post(
     }
 
     const payloadHash = hashPayoutAccountPayload({
-      bankCode: String(bankCode),
+      bankCode: normalizedBankCode,
       bankName: String(bankName),
       accountNumber: normalizedAccountNumber,
       accountName: String(accountName),
@@ -3724,7 +3793,7 @@ router.post(
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const otpExpiresAt = new Date(
-      Date.now() + PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES * 60 * 1000
+      Date.now() + PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES * 60 * 1000,
     );
 
     try {
@@ -3755,14 +3824,15 @@ router.post(
           bankName: String(bankName),
           accountNumber: maskAccountNumber(normalizedAccountNumber),
           accountName: String(accountName),
-        }
+        },
       );
 
       logger.info(`✅ OTP email sent successfully to ${realtor.user.email}`);
 
       return res.status(200).json({
         success: true,
-        message: "OTP sent to your email. Enter the code to confirm account change.",
+        message:
+          "OTP sent to your email. Enter the code to confirm account change.",
         data: {
           otpRequired: true,
           maskedEmail: maskEmailAddress(realtor.user.email),
@@ -3777,7 +3847,7 @@ router.post(
       });
       throw new AppError("Failed to send OTP. Please try again.", 500);
     }
-  })
+  }),
 );
 
 /**
@@ -3835,6 +3905,12 @@ router.post(
     }
 
     const normalizedAccountNumber = String(accountNumber).trim();
+    const normalizedBankCode = getPreferredBankCode(bankCode);
+
+    if (!normalizedBankCode) {
+      throw new AppError("Bank code is invalid", 400);
+    }
+
     if (!/^\d{10}$/.test(normalizedAccountNumber)) {
       throw new AppError("Account number must be 10 digits", 400);
     }
@@ -3859,7 +3935,7 @@ router.post(
       if (!/^\d{4}$/.test(normalizedOtp)) {
         throw new AppError(
           "OTP is required to update payout account. Request OTP first.",
-          403
+          403,
         );
       }
 
@@ -3868,7 +3944,7 @@ router.post(
         realtorId: realtor.id,
         otp: normalizedOtp,
         payloadHash: hashPayoutAccountPayload({
-          bankCode: String(bankCode),
+          bankCode: normalizedBankCode,
           bankName: String(bankName),
           accountNumber: normalizedAccountNumber,
           accountName: String(accountName),
@@ -3881,7 +3957,7 @@ router.post(
         realtorId: realtor.id,
         businessName: realtor.businessName,
         businessEmail: realtor.user.email,
-        bankCode: String(bankCode),
+        bankCode: normalizedBankCode,
         bankName: String(bankName),
         accountNumber: normalizedAccountNumber,
         accountName: String(accountName),
@@ -3905,10 +3981,10 @@ router.post(
       logger.error("Error setting up payout account:", error);
       throw new AppError(
         error.message || "Failed to set up payout account",
-        500
+        500,
       );
     }
-  })
+  }),
 );
 
 /**
@@ -3958,7 +4034,7 @@ router.get(
         otpRequiredForEdit: hasConfiguredPayoutAccount(realtor),
       },
     });
-  })
+  }),
 );
 
 /**
@@ -4031,7 +4107,7 @@ router.get(
     const pendingList = pendingPayouts.filter(
       (event: any) =>
         !event.booking?.payment?.realtorTransferCompleted &&
-        !event.booking?.payment?.realtorTransferInitiated
+        !event.booking?.payment?.realtorTransferInitiated,
     );
 
     // Calculate amounts (realtor gets 90% of room fee, 100% of cleaning fee)
@@ -4060,7 +4136,7 @@ router.get(
         hasPayoutAccount: hasConfiguredPayoutAccount(realtor),
       },
     });
-  })
+  }),
 );
 
 /**
@@ -4170,7 +4246,7 @@ router.get(
         history: formatted,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -4221,7 +4297,7 @@ router.post(
     if (!hasConfiguredPayoutAccount(realtor)) {
       throw new AppError(
         "Please set up your bank account in Settings before requesting a payout",
-        400
+        400,
       );
     }
 
@@ -4261,7 +4337,7 @@ router.post(
     const untransferred = pendingEvents.filter(
       (e: any) =>
         !e.booking?.payment?.realtorTransferCompleted &&
-        !e.booking?.payment?.realtorTransferInitiated
+        !e.booking?.payment?.realtorTransferInitiated,
     );
 
     if (untransferred.length === 0) {
@@ -4280,9 +4356,9 @@ router.post(
     if (amount > totalAvailable) {
       throw new AppError(
         `Requested amount (₦${amount}) exceeds available balance (₦${totalAvailable.toFixed(
-          2
+          2,
         )})`,
-        400
+        400,
       );
     }
 
@@ -4291,7 +4367,9 @@ router.post(
     const transferReference = `manual_payout_${realtor.id}_${Date.now()}`;
 
     try {
-      const recipientCode = await ensureRealtorTransferRecipientCode(realtor.id);
+      const recipientCode = await ensureRealtorTransferRecipientCode(
+        realtor.id,
+      );
 
       // Import paystack service at top if not already imported
       const paystackService = require("../services/paystack");
@@ -4356,7 +4434,7 @@ router.post(
 
       throw new AppError(
         `Transfer failed: ${transferError.message}. Please try again or contact support.`,
-        500
+        500,
       );
     }
 
@@ -4370,7 +4448,7 @@ router.post(
         status: "processing",
       },
     });
-  })
+  }),
 );
 
 export default router;
