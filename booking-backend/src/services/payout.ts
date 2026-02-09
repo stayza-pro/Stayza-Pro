@@ -1,6 +1,7 @@
 import { PrismaClient, PayoutStatus, PaymentStatus } from "@prisma/client";
 import { config } from "../config";
 import axios from "axios";
+import { ensureRealtorTransferRecipientCode } from "./payoutAccountService";
 
 const prisma = new PrismaClient();
 
@@ -164,11 +165,9 @@ export const processBookingPayout = async (bookingId: string) => {
     // For MVP, we'll assume realtors will add this later
     // In production, you'd require bank account before approval
 
-    const recipientCode = booking.property.realtor.paystackSubAccountCode; // Reuse this field or create new one
-
-    if (!recipientCode) {
-      throw new Error("Realtor has no bank account on file");
-    }
+    const recipientCode = await ensureRealtorTransferRecipientCode(
+      booking.property.realtor.id
+    );
 
     // Initiate transfer via Paystack
     const transferReference = `payout-${bookingId}-${Date.now()}`;

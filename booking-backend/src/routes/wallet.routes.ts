@@ -12,6 +12,7 @@ import { config } from "@/config";
 import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
 import { createHash } from "crypto";
+import { hasConfiguredPayoutAccount } from "@/services/payoutAccountService";
 
 const router = Router();
 
@@ -87,7 +88,9 @@ const getWithdrawalContext = async (userId: string) => {
     select: {
       id: true,
       businessName: true,
+      paystackTransferRecipientCode: true,
       paystackSubAccountCode: true,
+      payoutAccountNumber: true,
       user: {
         select: {
           email: true,
@@ -101,9 +104,9 @@ const getWithdrawalContext = async (userId: string) => {
     throw new AppError("Realtor not found", 404);
   }
 
-  if (!realtor.paystackSubAccountCode) {
+  if (!hasConfiguredPayoutAccount(realtor)) {
     throw new AppError(
-      "Paystack subaccount not configured. Please contact support.",
+      "Payout account not configured. Please update your payout settings.",
       400
     );
   }

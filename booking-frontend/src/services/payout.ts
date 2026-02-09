@@ -24,10 +24,19 @@ export interface BankAccountVerification {
 export interface PayoutSettings {
   hasPayoutAccount: boolean;
   subAccountCode?: string;
+  transferRecipientCode?: string;
   bankCode?: string;
   bankName?: string;
   accountNumber?: string;
+  maskedAccountNumber?: string;
   accountName?: string;
+  otpRequiredForEdit?: boolean;
+}
+
+export interface PayoutAccountOtpChallenge {
+  otpRequired: boolean;
+  maskedEmail?: string;
+  expiresInMinutes?: number;
 }
 
 export const payoutService = {
@@ -61,9 +70,23 @@ export const payoutService = {
     bankName: string;
     accountNumber: string;
     accountName: string;
+    otp?: string;
   }) => {
     const response = await api.post("/realtors/payout/account", data);
     return response.data;
+  },
+
+  /**
+   * Request OTP for payout account update
+   */
+  requestPayoutAccountOtp: async (data: {
+    bankCode: string;
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+  }): Promise<PayoutAccountOtpChallenge> => {
+    const response = await api.post("/realtors/payout/account/request-otp", data);
+    return response.data.data;
   },
 
   /**

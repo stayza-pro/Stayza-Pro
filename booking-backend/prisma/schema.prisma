@@ -78,6 +78,11 @@ model Realtor {
    suspendedAt               DateTime?
    suspensionExpiresAt       DateTime?
    paystackSubAccountCode    String?
+   paystackTransferRecipientCode String?
+   payoutBankCode            String?
+   payoutBankName            String?
+   payoutAccountNumber       String?
+   payoutAccountName         String?
    flutterwaveSubAccountCode String?
    averageRating             Decimal?            @default(0) @db.Decimal(3, 2)
    reviewCount               Int                 @default(0)

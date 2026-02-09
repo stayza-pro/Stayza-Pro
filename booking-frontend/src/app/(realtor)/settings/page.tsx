@@ -114,6 +114,12 @@ export default function SettingsPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
   const [hasPayoutAccount, setHasPayoutAccount] = useState(false);
+  const [otpRequiredForPayoutEdit, setOtpRequiredForPayoutEdit] = useState(false);
+  const [isEditingPayoutAccount, setIsEditingPayoutAccount] = useState(false);
+  const [isRequestingPayoutOtp, setIsRequestingPayoutOtp] = useState(false);
+  const [payoutOtpSent, setPayoutOtpSent] = useState(false);
+  const [payoutOtp, setPayoutOtp] = useState("");
+  const [payoutOtpDestination, setPayoutOtpDestination] = useState("");
 
   // Security State
   const [securityData, setSecurityData] = useState({
@@ -177,13 +183,26 @@ export default function SettingsPage() {
 
       setBanks(banksData);
       setHasPayoutAccount(payoutSettings.hasPayoutAccount);
+      setOtpRequiredForPayoutEdit(Boolean(payoutSettings.otpRequiredForEdit));
+      setIsEditingPayoutAccount(false);
+      setPayoutOtpSent(false);
+      setPayoutOtp("");
+      setPayoutOtpDestination("");
 
       if (payoutSettings.bankCode) {
         setPayoutData({
           bankCode: payoutSettings.bankCode,
           bankName: payoutSettings.bankName || "",
-          accountNumber: payoutSettings.accountNumber || "",
+          accountNumber:
+            payoutSettings.accountNumber || payoutSettings.maskedAccountNumber || "",
           accountName: payoutSettings.accountName || "",
+        });
+      } else {
+        setPayoutData({
+          bankCode: "",
+          bankName: "",
+          accountNumber: "",
+          accountName: "",
         });
       }
     } catch (error) {
@@ -323,6 +342,60 @@ export default function SettingsPage() {
     }
   };
 
+  const handleStartEditPayoutAccount = () => {
+    setIsEditingPayoutAccount(true);
+    setPayoutOtp("");
+    setPayoutOtpSent(false);
+    setPayoutOtpDestination("");
+    if (payoutData.accountNumber.includes("*")) {
+      setPayoutData((prev) => ({
+        ...prev,
+        accountNumber: "",
+        accountName: "",
+      }));
+    }
+  };
+
+  const handleCancelEditPayoutAccount = async () => {
+    setIsEditingPayoutAccount(false);
+    setPayoutOtp("");
+    setPayoutOtpSent(false);
+    setPayoutOtpDestination("");
+    await fetchBanksAndPayoutSettings();
+  };
+
+  const handleRequestPayoutUpdateOtp = async () => {
+    if (!payoutData.accountName) {
+      showError("Please verify your account number first");
+      return;
+    }
+
+    try {
+      setIsRequestingPayoutOtp(true);
+      const otpChallenge = await payoutService.requestPayoutAccountOtp({
+        bankCode: payoutData.bankCode,
+        bankName: payoutData.bankName,
+        accountNumber: payoutData.accountNumber,
+        accountName: payoutData.accountName,
+      });
+
+      if (!otpChallenge.otpRequired) {
+        setOtpRequiredForPayoutEdit(false);
+        showSuccess("OTP not required for this payout setup");
+        return;
+      }
+
+      setPayoutOtpSent(true);
+      setPayoutOtp("");
+      setPayoutOtpDestination(otpChallenge.maskedEmail || "");
+      showSuccess("A 4-digit OTP has been sent to your email");
+    } catch (error: any) {
+      showError(error.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setIsRequestingPayoutOtp(false);
+    }
+  };
+
   const handleSaveBankAccount = async () => {
     if (!payoutData.accountName) {
       showError("Please verify your account number first");
@@ -336,11 +409,42 @@ export default function SettingsPage() {
       return;
     }
 
+    if (
+      hasPayoutAccount &&
+      isEditingPayoutAccount &&
+      otpRequiredForPayoutEdit
+    ) {
+      if (!payoutOtpSent) {
+        showError("Please request OTP before updating your payout account");
+        return;
+      }
+
+      if (!/^\d{4}$/.test(payoutOtp.trim())) {
+        showError("Please enter the 4-digit OTP sent to your email");
+        return;
+      }
+    }
+
     try {
       setIsSaving(true);
-      await payoutService.saveBankAccount(payoutData);
-      showSuccess("Bank account set up successfully!");
+      await payoutService.saveBankAccount({
+        ...payoutData,
+        otp:
+          hasPayoutAccount && isEditingPayoutAccount && otpRequiredForPayoutEdit
+            ? payoutOtp.trim()
+            : undefined,
+      });
+      showSuccess(
+        hasPayoutAccount
+          ? "Payout account updated successfully!"
+          : "Bank account set up successfully!"
+      );
       setHasPayoutAccount(true);
+      setIsEditingPayoutAccount(false);
+      setPayoutOtp("");
+      setPayoutOtpSent(false);
+      setPayoutOtpDestination("");
+      await fetchBanksAndPayoutSettings();
     } catch (error: any) {
       showError(error.response?.data?.message || "Failed to save bank account");
     } finally {
@@ -1217,7 +1321,7 @@ export default function SettingsPage() {
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="flex-1">
                     <p className="font-semibold text-green-900 mb-1">
                       Payout Account Active
                     </p>
@@ -1225,6 +1329,25 @@ export default function SettingsPage() {
                       Your bank account is connected and ready to receive
                       payments from bookings.
                     </p>
+                    <div className="mt-3">
+                      {isEditingPayoutAccount ? (
+                        <button
+                          type="button"
+                          onClick={handleCancelEditPayoutAccount}
+                          className="text-sm font-medium text-green-800 hover:text-green-900 underline"
+                        >
+                          Cancel account change
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleStartEditPayoutAccount}
+                          className="text-sm font-medium text-green-800 hover:text-green-900 underline"
+                        >
+                          Change payout account
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1248,7 +1371,8 @@ export default function SettingsPage() {
                   }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={
-                    hasPayoutAccount || cacStatus?.cacStatus !== "APPROVED"
+                    (hasPayoutAccount && !isEditingPayoutAccount) ||
+                    cacStatus?.cacStatus !== "APPROVED"
                   }
                 >
                   <option value="">Select your bank</option>
@@ -1282,7 +1406,8 @@ export default function SettingsPage() {
                     maxLength={10}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={
-                      hasPayoutAccount || cacStatus?.cacStatus !== "APPROVED"
+                      (hasPayoutAccount && !isEditingPayoutAccount) ||
+                      cacStatus?.cacStatus !== "APPROVED"
                     }
                   />
                   <motion.button
@@ -1292,7 +1417,7 @@ export default function SettingsPage() {
                       !payoutData.bankCode ||
                       payoutData.accountNumber.length !== 10 ||
                       isVerifyingAccount ||
-                      hasPayoutAccount ||
+                      (hasPayoutAccount && !isEditingPayoutAccount) ||
                       cacStatus?.cacStatus !== "APPROVED"
                     }
                     whileHover={{ scale: 1.02 }}
@@ -1322,6 +1447,61 @@ export default function SettingsPage() {
                   placeholder="Will be auto-filled after account verification"
                 />
               </div>
+
+              {hasPayoutAccount &&
+                isEditingPayoutAccount &&
+                otpRequiredForPayoutEdit && (
+                  <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-blue-900">
+                          OTP Required for Account Change
+                        </p>
+                        <p className="text-sm text-blue-800">
+                          Send a 4-digit OTP to your email, then enter it below
+                          to confirm this update.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRequestPayoutUpdateOtp}
+                        disabled={
+                          isRequestingPayoutOtp ||
+                          !payoutData.accountName ||
+                          cacStatus?.cacStatus !== "APPROVED"
+                        }
+                        className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isRequestingPayoutOtp
+                          ? "Sending OTP..."
+                          : payoutOtpSent
+                          ? "Resend OTP"
+                          : "Send OTP"}
+                      </button>
+                    </div>
+
+                    {payoutOtpSent && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-blue-800">
+                          OTP sent to {payoutOtpDestination || "your email"}.
+                        </p>
+                        <input
+                          type="text"
+                          value={payoutOtp}
+                          onChange={(e) =>
+                            setPayoutOtp(
+                              e.target.value.replace(/\D/g, "").slice(0, 4)
+                            )
+                          }
+                          inputMode="numeric"
+                          maxLength={4}
+                          placeholder="Enter 4-digit OTP"
+                          className="w-full px-4 py-2 border border-blue-300 rounded-lg text-center tracking-[0.5em] font-semibold focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
 
             <div className="flex justify-end">
@@ -1331,8 +1511,12 @@ export default function SettingsPage() {
                 disabled={
                   !payoutData.accountName ||
                   isSaving ||
-                  hasPayoutAccount ||
-                  cacStatus?.cacStatus !== "APPROVED"
+                  cacStatus?.cacStatus !== "APPROVED" ||
+                  (hasPayoutAccount && !isEditingPayoutAccount) ||
+                  (hasPayoutAccount &&
+                    isEditingPayoutAccount &&
+                    otpRequiredForPayoutEdit &&
+                    (!payoutOtpSent || payoutOtp.length !== 4))
                 }
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -1342,8 +1526,12 @@ export default function SettingsPage() {
                 <Save className="w-4 h-4" />
                 {isSaving
                   ? "Saving..."
-                  : hasPayoutAccount
+                  : hasPayoutAccount && !isEditingPayoutAccount
                   ? "Account Already Set Up"
+                  : hasPayoutAccount && isEditingPayoutAccount
+                  ? otpRequiredForPayoutEdit
+                    ? "Verify OTP & Update Account"
+                    : "Update Bank Account"
                   : "Save Bank Account"}
               </motion.button>
             </div>

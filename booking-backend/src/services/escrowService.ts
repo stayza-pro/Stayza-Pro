@@ -12,6 +12,7 @@ import { prisma } from "@/config/database";
 import { paystackService } from "./paystack";
 import { logger } from "@/utils/logger";
 import walletService from "./walletService";
+import { ensureRealtorTransferRecipientCode } from "./payoutAccountService";
 
 interface FeeBreakdown {
   roomFee: number;
@@ -334,68 +335,58 @@ export const transferCleaningFeeToRealtor = async (
 
     const realtor = booking.property.realtor;
 
-    // Transfer via Paystack if realtor has subaccount
-    if (realtor.paystackSubAccountCode) {
-      try {
-        // Idempotent reference
-        const transferReference = `cleaning_fee_${bookingId}_${paymentId.slice(
-          -8
-        )}`;
+    try {
+      const recipientCode = await ensureRealtorTransferRecipientCode(realtor.id);
 
-        // Check if transfer already exists
-        const existingEvent = await prisma.escrowEvent.findFirst({
-          where: {
-            bookingId,
-            eventType: EscrowEventType.RELEASE_ROOM_FEE_SPLIT,
-            toParty: "REALTOR",
-            transactionReference: transferReference,
-            notes: { contains: "Cleaning fee" },
-          },
+      // Idempotent reference
+      const transferReference = `cleaning_fee_${bookingId}_${paymentId.slice(
+        -8
+      )}`;
+
+      // Check if transfer already exists
+      const existingEvent = await prisma.escrowEvent.findFirst({
+        where: {
+          bookingId,
+          eventType: EscrowEventType.RELEASE_ROOM_FEE_SPLIT,
+          toParty: "REALTOR",
+          transactionReference: transferReference,
+          notes: { contains: "Cleaning fee" },
+        },
+      });
+
+      if (!existingEvent) {
+        // Initiate Paystack transfer
+        const transferResult = await paystackService.initiateTransfer({
+          amount: cleaningFee,
+          recipient: recipientCode,
+          reason: `Cleaning fee for booking ${bookingId}`,
+          reference: transferReference,
         });
 
-        if (!existingEvent) {
-          // Initiate Paystack transfer
-          const transferResult = await paystackService.initiateTransfer({
-            amount: cleaningFee,
-            recipient: realtor.paystackSubAccountCode,
-            reason: `Cleaning fee for booking ${bookingId}`,
-            reference: transferReference,
-          });
-
-          logger.info("Cleaning fee transferred successfully", {
-            bookingId,
-            realtorId: realtor.id,
-            amount: cleaningFee,
-            reference: transferReference,
-            transferId: transferResult.id,
-          });
-
-          return { success: true, transferId: transferResult.id };
-        } else {
-          logger.info("Cleaning fee transfer already processed", {
-            bookingId,
-            reference: transferReference,
-          });
-          return { success: true };
-        }
-      } catch (paystackError: any) {
-        logger.error("Cleaning fee transfer failed", {
+        logger.info("Cleaning fee transferred successfully", {
           bookingId,
           realtorId: realtor.id,
           amount: cleaningFee,
-          error: paystackError.message,
+          reference: transferReference,
+          transferId: transferResult.id,
         });
-        return { success: false, error: paystackError.message };
+
+        return { success: true, transferId: transferResult.id };
       }
-    } else {
-      logger.warn("Realtor missing Paystack subaccount for cleaning fee", {
-        realtorId: realtor.id,
+
+      logger.info("Cleaning fee transfer already processed", {
         bookingId,
+        reference: transferReference,
       });
-      return {
-        success: false,
-        error: "Realtor missing Paystack subaccount",
-      };
+      return { success: true };
+    } catch (paystackError: any) {
+      logger.error("Cleaning fee transfer failed", {
+        bookingId,
+        realtorId: realtor.id,
+        amount: cleaningFee,
+        error: paystackError.message,
+      });
+      return { success: false, error: paystackError.message };
     }
   } catch (error: any) {
     logger.error("Failed to transfer cleaning fee", {
@@ -776,21 +767,19 @@ export const payRealtorFromDeposit = async (
       throw new Error("Cannot process without transaction reference");
     }
 
-    // Transfer to realtor
-    try {
-      if (paymentMethod === PaymentMethod.PAYSTACK) {
-        if (!realtor.paystackSubAccountCode) {
-          throw new Error(
-            `Realtor ${realtor.id} missing Paystack subaccount code`
+      // Transfer to realtor
+      try {
+        if (paymentMethod === PaymentMethod.PAYSTACK) {
+          const recipientCode = await ensureRealtorTransferRecipientCode(
+            realtor.id
           );
-        }
 
-        const transferResult = await paystackService.initiateTransfer({
-          amount: amount * 100, // Convert to kobo
-          recipient: realtor.paystackSubAccountCode,
-          reason: `Deposit claim: ${notes}`,
-          reference: transferReference,
-        });
+          const transferResult = await paystackService.initiateTransfer({
+            amount,
+            recipient: recipientCode,
+            reason: `Deposit claim: ${notes}`,
+            reference: transferReference,
+          });
 
         logger.info("Paystack deposit transfer to realtor initiated", {
           bookingId,
@@ -1050,15 +1039,13 @@ export const refundRoomFeeToCustomer = async (
     if (realtorAmount > 0) {
       try {
         if (paymentMethod === PaymentMethod.PAYSTACK) {
-          if (!realtor.paystackSubAccountCode) {
-            throw new Error(
-              `Realtor ${realtor.id} missing Paystack subaccount code`
-            );
-          }
+          const recipientCode = await ensureRealtorTransferRecipientCode(
+            realtor.id
+          );
 
           const transferResult = await paystackService.initiateTransfer({
-            amount: realtorAmount * 100, // Convert to kobo
-            recipient: realtor.paystackSubAccountCode,
+            amount: realtorAmount,
+            recipient: recipientCode,
             reason: `Partial room fee payout: ${notes}`,
             reference: transferReference,
           });

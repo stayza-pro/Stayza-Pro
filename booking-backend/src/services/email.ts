@@ -1628,6 +1628,85 @@ export const sendWithdrawalOtpEmail = async (
 };
 
 /**
+ * Send payout account update OTP verification email
+ */
+export const sendPayoutAccountOtpEmail = async (
+  to: string,
+  name: string,
+  otp: string,
+  expiresInMinutes: number = 10,
+  accountDetails?: {
+    bankName?: string;
+    accountNumber?: string | null;
+    accountName?: string;
+  }
+) => {
+  const template = {
+    subject: "Payout account update verification code - Stayza Pro",
+    html: getEmailContainer(`
+      <h2 style="color: ${
+        brandColors.primary
+      }; margin: 0 0 20px 0; font-size: 24px;">
+        Confirm payout account update
+      </h2>
+
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        Hi <strong>${name}</strong>,
+      </p>
+
+      <p style="font-size: 16px; margin-bottom: 20px;">
+        Use this 4-digit code to confirm changes to your payout account.
+      </p>
+
+      ${
+        accountDetails
+          ? `
+      <div style="background-color: ${brandColors.neutralLight}; padding: 18px; border-radius: 10px; margin: 24px 0;">
+        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Bank:</strong> ${
+          accountDetails.bankName || "N/A"
+        }</p>
+        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Account Number:</strong> ${
+          accountDetails.accountNumber || "N/A"
+        }</p>
+        <p style="margin: 0; font-size: 14px;"><strong>Account Name:</strong> ${
+          accountDetails.accountName || "N/A"
+        }</p>
+      </div>
+      `
+          : ""
+      }
+
+      <div style="text-align: center; margin: 30px 0;">
+        <div style="display: inline-block; font-size: 42px; letter-spacing: 10px; font-weight: 700; color: ${
+          brandColors.primary
+        }; background: ${brandColors.neutralLight}; padding: 16px 26px; border-radius: 12px;">
+          ${otp}
+        </div>
+      </div>
+
+      ${getInfoBox(
+        "Security Notice",
+        `This code expires in ${expiresInMinutes} minutes. Never share this code with anyone.`,
+        "warning"
+      )}
+
+      <p style="font-size: 15px; margin-top: 28px; color: ${
+        brandColors.neutralDark
+      };">
+        If you did not request this change, ignore this email and contact support immediately.
+      </p>
+
+      <p style="font-size: 16px; margin-top: 20px;">
+        Best regards,<br>
+        <strong>The Stayza Team</strong>
+      </p>
+    `),
+  };
+
+  return sendEmail(to, template);
+};
+
+/**
  * Send withdrawal requested notification email
  */
 export const sendWithdrawalRequestedEmail = async (

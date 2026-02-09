@@ -1,9 +1,8 @@
 import { prisma } from "@/config/database";
 import { logger } from "@/utils/logger";
 import * as paystackService from "@/services/paystack";
-import * as walletService from "@/services/walletService";
+import { ensureRealtorTransferRecipientCode } from "@/services/payoutAccountService";
 import {
-  sendWithdrawalRequestedEmail,
   sendWithdrawalCompletedEmail,
   sendWithdrawalFailedEmail,
 } from "@/services/email";
@@ -58,10 +57,9 @@ export const processWithdrawal = async (
       };
     }
 
-    // Check if realtor has subaccount configured
-    if (!withdrawal.realtor.paystackSubAccountCode) {
-      throw new Error("Realtor subaccount not configured");
-    }
+    const recipientCode = await ensureRealtorTransferRecipientCode(
+      withdrawal.realtorId
+    );
 
     // Generate transfer reference
     const transferReference = `TXN_${Date.now()}_${withdrawal.realtorId.slice(
@@ -79,7 +77,7 @@ export const processWithdrawal = async (
     // Initiate Paystack transfer
     const transferResult = await paystackService.initiateTransfer({
       amount: Number(withdrawal.amount),
-      recipient: withdrawal.realtor.paystackSubAccountCode,
+      recipient: recipientCode,
       reason: `Withdrawal for ${withdrawal.realtor.businessName}`,
       reference: transferReference,
     });
@@ -159,7 +157,8 @@ export const processWithdrawal = async (
         "Insufficient balance in platform account. Please contact support.";
     } else if (
       error.message?.includes("Invalid recipient") ||
-      error.message?.includes("subaccount not configured")
+      error.message?.includes("subaccount not configured") ||
+      error.message?.includes("Payout account is not configured")
     ) {
       userMessage =
         "Bank account details are invalid or not set up. Please update your payout settings.";

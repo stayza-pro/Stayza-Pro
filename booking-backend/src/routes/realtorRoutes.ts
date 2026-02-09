@@ -10,6 +10,7 @@ import {
   sendCacApprovalEmail,
   sendCacRejectionEmail,
   sendEmailVerification,
+  sendPayoutAccountOtpEmail,
   sendRealtorWelcomeEmail,
 } from "@/services/email";
 import {
@@ -23,10 +24,16 @@ import {
   getRegistrationSuccessUrl,
   getDashboardUrl,
 } from "@/utils/domains";
-import { createSubAccount } from "@/services/paystack";
+import {
+  ensureRealtorTransferRecipientCode,
+  hasConfiguredPayoutAccount,
+  maskAccountNumber,
+  upsertRealtorPayoutAccount,
+} from "@/services/payoutAccountService";
 import axios from "axios";
 import jwt from "jsonwebtoken";
 import { logger } from "@/utils/logger";
+import { createHash } from "crypto";
 import {
   authenticate,
   requireRole,
@@ -71,6 +78,154 @@ const generateUniqueSlug = async (businessName: string): Promise<string> => {
   }
 
   return slug;
+};
+
+const PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES = 10;
+const PAYOUT_ACCOUNT_OTP_MAX_ATTEMPTS = 5;
+const PAYOUT_ACCOUNT_OTP_ACTION = "PAYOUT_ACCOUNT_OTP_REQUESTED";
+const PAYOUT_ACCOUNT_OTP_ENTITY_TYPE = "PAYOUT_ACCOUNT_OTP";
+
+type PayoutAccountOtpDetails = {
+  otpHash: string;
+  otpExpiresAt: string;
+  attempts: number;
+  used: boolean;
+  payloadHash: string;
+  verifiedAt?: string;
+  lastAttemptAt?: string;
+};
+
+const hashPayoutAccountOtp = (otp: string) =>
+  createHash("sha256")
+    .update(`${otp}:${config.JWT_SECRET}`)
+    .digest("hex");
+
+const hashPayoutAccountPayload = (params: {
+  bankCode: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}) =>
+  createHash("sha256")
+    .update(
+      [
+        params.bankCode.trim(),
+        params.bankName.trim().toLowerCase(),
+        params.accountNumber.trim(),
+        params.accountName.trim().toLowerCase(),
+        config.JWT_SECRET,
+      ].join(":")
+    )
+    .digest("hex");
+
+const maskEmailAddress = (email: string): string => {
+  const [localPart, domainPart] = email.split("@");
+  if (!localPart || !domainPart) return email;
+  if (localPart.length <= 2) return `${localPart[0]}***@${domainPart}`;
+  return `${localPart.slice(0, 2)}***@${domainPart}`;
+};
+
+const getLatestPayoutAccountOtpChallenge = async (
+  userId: string,
+  realtorId: string
+) => {
+  const otpAuditLog = await prisma.auditLog.findFirst({
+    where: {
+      action: PAYOUT_ACCOUNT_OTP_ACTION,
+      entityType: PAYOUT_ACCOUNT_OTP_ENTITY_TYPE,
+      entityId: realtorId,
+      userId,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!otpAuditLog || !otpAuditLog.details) {
+    throw new AppError("No active OTP challenge. Request a new code.", 400);
+  }
+
+  return otpAuditLog;
+};
+
+const verifyAndConsumePayoutAccountOtp = async (params: {
+  userId: string;
+  realtorId: string;
+  otp: string;
+  payloadHash: string;
+}) => {
+  const otpAuditLog = await getLatestPayoutAccountOtpChallenge(
+    params.userId,
+    params.realtorId
+  );
+
+  const details = (otpAuditLog.details as PayoutAccountOtpDetails) || null;
+  if (!details) {
+    throw new AppError("Invalid OTP challenge data. Request a new code.", 400);
+  }
+
+  if (details.used) {
+    throw new AppError(
+      "This OTP has already been used. Request a new code.",
+      400
+    );
+  }
+
+  if (details.payloadHash !== params.payloadHash) {
+    throw new AppError(
+      "OTP was generated for different payout details. Request a new code.",
+      400
+    );
+  }
+
+  const now = new Date();
+  if (new Date(details.otpExpiresAt) <= now) {
+    throw new AppError("OTP has expired. Request a new code.", 400);
+  }
+
+  const attempts = Number(details.attempts || 0);
+  if (attempts >= PAYOUT_ACCOUNT_OTP_MAX_ATTEMPTS) {
+    throw new AppError("Too many invalid OTP attempts. Request a new code.", 400);
+  }
+
+  const otpHash = hashPayoutAccountOtp(params.otp.trim());
+  if (otpHash !== details.otpHash) {
+    const updatedAttempts = attempts + 1;
+
+    await prisma.auditLog.update({
+      where: { id: otpAuditLog.id },
+      data: {
+        details: {
+          ...details,
+          attempts: updatedAttempts,
+          lastAttemptAt: now.toISOString(),
+        },
+      },
+    });
+
+    const remainingAttempts = PAYOUT_ACCOUNT_OTP_MAX_ATTEMPTS - updatedAttempts;
+    if (remainingAttempts <= 0) {
+      throw new AppError("Too many invalid OTP attempts. Request a new code.", 400);
+    }
+
+    throw new AppError(
+      `Invalid OTP. ${remainingAttempts} attempt${
+        remainingAttempts === 1 ? "" : "s"
+      } remaining.`,
+      400
+    );
+  }
+
+  await prisma.auditLog.update({
+    where: { id: otpAuditLog.id },
+    data: {
+      details: {
+        ...details,
+        used: true,
+        verifiedAt: now.toISOString(),
+      },
+    },
+  });
 };
 
 // ===========================
@@ -3472,9 +3627,122 @@ router.post(
 
 /**
  * @swagger
+ * /api/realtors/payout/account/request-otp:
+ *   post:
+ *     summary: Send OTP to authorize payout account change
+ *     tags: [Realtors]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ */
+router.post(
+  "/payout/account/request-otp",
+  authenticate,
+  requireRole("REALTOR"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { bankCode, bankName, accountNumber, accountName } = req.body;
+
+    if (!req.user) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    if (!bankCode || !bankName || !accountNumber || !accountName) {
+      throw new AppError("All bank account fields are required", 400);
+    }
+
+    const normalizedAccountNumber = String(accountNumber).trim();
+    if (!/^\d{10}$/.test(normalizedAccountNumber)) {
+      throw new AppError("Account number must be 10 digits", 400);
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: { userId: req.user.id },
+      include: {
+        user: {
+          select: {
+            email: true,
+            firstName: true,
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor profile not found", 404);
+    }
+
+    // First-time setup does not require OTP.
+    if (!hasConfiguredPayoutAccount(realtor)) {
+      return res.status(200).json({
+        success: true,
+        message: "OTP not required for first-time payout setup",
+        data: {
+          otpRequired: false,
+        },
+      });
+    }
+
+    const payloadHash = hashPayoutAccountPayload({
+      bankCode: String(bankCode),
+      bankName: String(bankName),
+      accountNumber: normalizedAccountNumber,
+      accountName: String(accountName),
+    });
+
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpExpiresAt = new Date(
+      Date.now() + PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES * 60 * 1000
+    );
+
+    await prisma.auditLog.create({
+      data: {
+        action: PAYOUT_ACCOUNT_OTP_ACTION,
+        entityType: PAYOUT_ACCOUNT_OTP_ENTITY_TYPE,
+        entityId: realtor.id,
+        userId: req.user.id,
+        details: {
+          otpHash: hashPayoutAccountOtp(otp),
+          otpExpiresAt: otpExpiresAt.toISOString(),
+          attempts: 0,
+          used: false,
+          payloadHash,
+        } as PayoutAccountOtpDetails,
+      },
+    });
+
+    await sendPayoutAccountOtpEmail(
+      realtor.user.email,
+      realtor.user.firstName || realtor.businessName,
+      otp,
+      PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES,
+      {
+        bankName: String(bankName),
+        accountNumber: maskAccountNumber(normalizedAccountNumber),
+        accountName: String(accountName),
+      }
+    ).catch((error) =>
+      logger.error("Failed to send payout account OTP email", error)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent to your email. Enter the code to confirm account change.",
+      data: {
+        otpRequired: true,
+        maskedEmail: maskEmailAddress(realtor.user.email),
+        expiresInMinutes: PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES,
+      },
+    });
+  })
+);
+
+/**
+ * @swagger
  * /api/realtors/payout/account:
  *   post:
- *     summary: Save bank account and create Paystack subaccount
+ *     summary: Save bank account and create payout recipient
  *     tags: [Realtors]
  *     security:
  *       - BearerAuth: []
@@ -3509,7 +3777,7 @@ router.post(
   authenticate,
   requireRole("REALTOR"),
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { bankCode, bankName, accountNumber, accountName } = req.body;
+    const { bankCode, bankName, accountNumber, accountName, otp } = req.body;
 
     if (!req.user) {
       throw new AppError("Authentication required", 401);
@@ -3522,6 +3790,11 @@ router.post(
     // Validate required fields
     if (!bankCode || !bankName || !accountNumber || !accountName) {
       throw new AppError("All bank account fields are required", 400);
+    }
+
+    const normalizedAccountNumber = String(accountNumber).trim();
+    if (!/^\d{10}$/.test(normalizedAccountNumber)) {
+      throw new AppError("Account number must be 10 digits", 400);
     }
 
     // Get realtor record
@@ -3537,39 +3810,57 @@ router.post(
     // NOTE: Payout setup is allowed for all registered realtors (PENDING or APPROVED)
     // Only property listing requires CAC approval (handled by requireApprovedRealtor middleware)
 
+    const isUpdate = hasConfiguredPayoutAccount(realtor);
+
+    if (isUpdate) {
+      const normalizedOtp = String(otp || "").trim();
+      if (!/^\d{4}$/.test(normalizedOtp)) {
+        throw new AppError(
+          "OTP is required to update payout account. Request OTP first.",
+          403
+        );
+      }
+
+      await verifyAndConsumePayoutAccountOtp({
+        userId: req.user.id,
+        realtorId: realtor.id,
+        otp: normalizedOtp,
+        payloadHash: hashPayoutAccountPayload({
+          bankCode: String(bankCode),
+          bankName: String(bankName),
+          accountNumber: normalizedAccountNumber,
+          accountName: String(accountName),
+        }),
+      });
+    }
+
     try {
-      // Create Paystack subaccount for realtor withdrawals
-      // All funds are received by Stayza main account.
-      // Escrow logic controls timing and amounts (90% realtor, 10% platform).
-      // Subaccounts are used ONLY for realtor withdrawals, not for payment splits.
-      const subAccountData = await createSubAccount({
-        id: realtor.id,
+      const payoutAccount = await upsertRealtorPayoutAccount({
+        realtorId: realtor.id,
         businessName: realtor.businessName,
         businessEmail: realtor.user.email,
-        bankCode: bankCode,
-        accountNumber: accountNumber,
-      });
-
-      // Save bank details and subaccount code to database
-      const updatedRealtor = await prisma.realtor.update({
-        where: { id: realtor.id },
-        data: {
-          paystackSubAccountCode: subAccountData.subaccount_code,
-        },
+        bankCode: String(bankCode),
+        bankName: String(bankName),
+        accountNumber: normalizedAccountNumber,
+        accountName: String(accountName),
       });
 
       res.status(200).json({
         success: true,
-        message: "Bank account set up successfully",
+        message: isUpdate
+          ? "Payout account updated successfully"
+          : "Bank account set up successfully",
         data: {
-          subAccountCode: subAccountData.subaccount_code,
+          subAccountCode: payoutAccount.subAccountCode,
+          transferRecipientCode: payoutAccount.transferRecipientCode,
           bankName,
-          accountNumber,
+          accountNumber: normalizedAccountNumber,
+          maskedAccountNumber: maskAccountNumber(normalizedAccountNumber),
           accountName,
         },
       });
     } catch (error: any) {
-      logger.error("Error creating subaccount:", error);
+      logger.error("Error setting up payout account:", error);
       throw new AppError(
         error.message || "Failed to set up payout account",
         500
@@ -3614,8 +3905,15 @@ router.get(
     res.status(200).json({
       success: true,
       data: {
-        hasPayoutAccount: !!realtor.paystackSubAccountCode,
+        hasPayoutAccount: hasConfiguredPayoutAccount(realtor),
         subAccountCode: realtor.paystackSubAccountCode,
+        transferRecipientCode: realtor.paystackTransferRecipientCode,
+        bankCode: realtor.payoutBankCode,
+        bankName: realtor.payoutBankName,
+        accountNumber: realtor.payoutAccountNumber,
+        maskedAccountNumber: maskAccountNumber(realtor.payoutAccountNumber),
+        accountName: realtor.payoutAccountName,
+        otpRequiredForEdit: hasConfiguredPayoutAccount(realtor),
       },
     });
   })
@@ -3717,7 +4015,7 @@ router.get(
       data: {
         pendingPayouts: formatted,
         totalPending: Math.round(totalPending * 100) / 100,
-        hasPayoutAccount: !!realtor.paystackSubAccountCode,
+        hasPayoutAccount: hasConfiguredPayoutAccount(realtor),
       },
     });
   })
@@ -3878,7 +4176,7 @@ router.post(
     }
 
     // Check if bank account is set up
-    if (!realtor.paystackSubAccountCode) {
+    if (!hasConfiguredPayoutAccount(realtor)) {
       throw new AppError(
         "Please set up your bank account in Settings before requesting a payout",
         400
@@ -3951,13 +4249,15 @@ router.post(
     const transferReference = `manual_payout_${realtor.id}_${Date.now()}`;
 
     try {
+      const recipientCode = await ensureRealtorTransferRecipientCode(realtor.id);
+
       // Import paystack service at top if not already imported
       const paystackService = require("../services/paystack");
 
       // Initiate Paystack transfer to realtor's bank account
       const transferResult = await paystackService.initiateTransfer({
         amount: amount,
-        recipient: realtor.paystackSubAccountCode!,
+        recipient: recipientCode,
         reason: `Manual payout withdrawal`,
         reference: transferReference,
       });
