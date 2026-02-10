@@ -461,9 +461,19 @@ export class NotificationService {
     notification: any,
   ): Promise<void> {
     try {
-      // Skip email in development if SMTP is not configured
-      if (!config.SMTP_USER || !config.SMTP_PASS) {
-        logger.info("Skipping email notification (SMTP not configured)");
+      const hasResendConfig = Boolean(config.RESEND_API_KEY);
+      const hasSmtpConfig = Boolean(
+        config.SMTP_HOST &&
+          config.SMTP_PORT &&
+          config.SMTP_USER &&
+          config.SMTP_PASS,
+      );
+
+      // Skip email notifications only when neither provider is configured.
+      if (!hasResendConfig && !hasSmtpConfig) {
+        logger.info(
+          "Skipping email notification (no email provider configured)",
+        );
         return;
       }
 

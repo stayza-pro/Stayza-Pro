@@ -137,6 +137,63 @@ const formatError = (error: any) => {
   return error.message || JSON.stringify(error);
 };
 
+const EMAIL_FROM_FALLBACK = "Stayza Pro <noreply@stayza.pro>";
+const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+
+const stripOuterQuotes = (value: string): string => {
+  let next = value.trim();
+  while (
+    (next.startsWith('"') && next.endsWith('"')) ||
+    (next.startsWith("'") && next.endsWith("'"))
+  ) {
+    next = next.slice(1, -1).trim();
+  }
+  return next;
+};
+
+const normalizeEmailFrom = (value?: string | null): string => {
+  const raw = stripOuterQuotes(String(value || "").replace(/[;,]+$/g, "").trim());
+  if (!raw) return EMAIL_FROM_FALLBACK;
+
+  const fromWithNameMatch = raw.match(/^(.*)<\s*([^<>]+)\s*>$/);
+  if (fromWithNameMatch) {
+    const name = stripOuterQuotes(fromWithNameMatch[1] || "").replace(/\s+/g, " ").trim();
+    const email = stripOuterQuotes(fromWithNameMatch[2] || "").trim();
+
+    if (EMAIL_REGEX.test(email)) {
+      return name ? `${name} <${email}>` : email;
+    }
+  }
+
+  const extractedEmail = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+  if (extractedEmail && EMAIL_REGEX.test(extractedEmail)) {
+    return extractedEmail;
+  }
+
+  return EMAIL_FROM_FALLBACK;
+};
+
+const emailFromAddress = normalizeEmailFrom(config.EMAIL_FROM);
+if (emailFromAddress !== String(config.EMAIL_FROM || "").trim()) {
+  logger.warn("EMAIL_FROM value was sanitized before sending", {
+    configuredEmailFrom: config.EMAIL_FROM,
+    resolvedEmailFrom: emailFromAddress,
+  });
+}
+
+const isFatalEmailDeliveryError = (message: string): boolean => {
+  const normalized = String(message || "").toLowerCase();
+  return (
+    normalized.includes("invalid `from` field") ||
+    (normalized.includes("from field") && normalized.includes("invalid")) ||
+    normalized.includes("domain is not verified") ||
+    (normalized.includes("resend: not configured") &&
+      normalized.includes("smtp: not configured")) ||
+    normalized.includes("invalid api key") ||
+    normalized.includes("missing api key")
+  );
+};
+
 const isMissingEmailQueueTableError = (error: any) => {
   const message = String(error?.message || "").toLowerCase();
   return (
@@ -152,7 +209,7 @@ const sendViaResend = async (job: DeliverableEmail) => {
   }
 
   const response = await resendClient.emails.send({
-    from: config.EMAIL_FROM,
+    from: emailFromAddress,
     to: job.to,
     subject: job.subject,
     html: job.html,
@@ -176,7 +233,7 @@ const sendViaSmtp = async (job: DeliverableEmail) => {
 
   const transporter = getSmtpTransporter();
   const info = await transporter.sendMail({
-    from: config.EMAIL_FROM,
+    from: emailFromAddress,
     to: job.to.join(", "),
     subject: job.subject,
     html: job.html,
@@ -198,6 +255,18 @@ const sendWithProviderFallback = async (job: DeliverableEmail) => {
     } catch (error: any) {
       const message = formatError(error);
       errors.push(`Resend: ${message}`);
+
+      if (isFatalEmailDeliveryError(message)) {
+        logger.error(
+          "Resend send failed due to a fatal configuration/provider error; skipping SMTP fallback",
+          {
+            emailJobId: job.id,
+            error: message,
+          },
+        );
+        throw new Error(errors.join(" | "));
+      }
+
       logger.warn("Resend send failed, attempting SMTP fallback", {
         emailJobId: job.id,
         error: message,
@@ -293,7 +362,8 @@ const processClaimedEmailJob = async (
   } catch (error: any) {
     const errorMessage = formatError(error);
     const attempts = job.attempts + 1;
-    const reachedMaxAttempts = attempts >= job.maxAttempts;
+    const isFatal = isFatalEmailDeliveryError(errorMessage);
+    const reachedMaxAttempts = isFatal || attempts >= job.maxAttempts;
 
     await prisma.emailJob.update({
       where: { id: job.id },
@@ -308,7 +378,11 @@ const processClaimedEmailJob = async (
     });
 
     if (reachedMaxAttempts) {
-      logger.error("Email job permanently failed after max retries", {
+      logger.error(
+        isFatal
+          ? "Email job permanently failed due configuration/provider error"
+          : "Email job permanently failed after max retries",
+        {
         emailJobId: job.id,
         attempts,
         maxAttempts: job.maxAttempts,
@@ -451,9 +525,14 @@ export const queueAndSendEmail = async (input: QueueEmailInput) => {
       messageId: result.messageId,
     };
   } catch (error: any) {
+    const errorMessage = formatError(error);
+    if (isFatalEmailDeliveryError(errorMessage)) {
+      throw new Error(errorMessage);
+    }
+
     logger.warn("Immediate email delivery failed; job queued for retry", {
       emailJobId: job.id,
-      error: formatError(error),
+      error: errorMessage,
     });
     return {
       success: true,

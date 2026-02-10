@@ -194,21 +194,32 @@ app.get("/health/detailed", async (req, res) => {
     overallStatus = "unhealthy";
   }
 
-  const requiredEnvVars = [
-    "DATABASE_URL",
-    "JWT_SECRET",
-    "PAYSTACK_SECRET_KEY",
-    "SMTP_HOST",
-  ];
+  const requiredEnvVars = ["DATABASE_URL", "JWT_SECRET", "PAYSTACK_SECRET_KEY"];
   const missingEnvVars = requiredEnvVars.filter(
     (varName) => !process.env[varName]
   );
+  const hasResendConfig = Boolean(process.env.RESEND_API_KEY);
+  const hasSmtpConfig = Boolean(
+    process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
+  );
 
+  const environmentErrors: string[] = [];
   if (missingEnvVars.length > 0) {
+    environmentErrors.push(
+      `Missing environment variables: ${missingEnvVars.join(", ")}`
+    );
+  }
+  if (!hasResendConfig && !hasSmtpConfig) {
+    environmentErrors.push(
+      "Configure email provider: set RESEND_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASS"
+    );
+  }
+
+  if (environmentErrors.length > 0) {
     checks.push({
       service: "environment",
       status: "unhealthy",
-      error: `Missing environment variables: ${missingEnvVars.join(", ")}`,
+      error: environmentErrors.join(" | "),
     });
     overallStatus = "unhealthy";
   } else {
