@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -18,20 +18,9 @@ import {
   ArrowLeft,
   X,
   Sparkles,
-  TrendingUp,
-  Users,
   Calendar,
   DollarSign,
   Upload,
-  Image as ImageIcon,
-  MapPin,
-  Tag,
-  Wifi,
-  Tv,
-  Car,
-  Dumbbell,
-  Wind,
-  Coffee,
   ShieldCheck,
   Mail,
   Lock,
@@ -49,27 +38,108 @@ import { useAuthStore } from "@/store/authStore";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import Link from "next/link";
-import { palette } from "@/app/(marketing)/content";
+
+type AccountData = {
+  fullName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  businessName: string;
+  phoneNumber: string;
+  subdomain: string;
+  cacNumber: string;
+};
+
+type BrandingData = {
+  logoFile: File | null;
+  tagline: string;
+  description: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+};
+
+type PayoutData = {
+  bankCode: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+};
+
+type SetState<T> = React.Dispatch<React.SetStateAction<T>>;
+
+type SubdomainStatus = {
+  state: "idle" | "checking" | "available" | "unavailable" | "error";
+  message: string;
+};
+
+type RealtorUserContext = {
+  role?: string;
+  realtor?: {
+    slug?: string;
+  };
+} | null;
+
+type PasswordStrength = {
+  label: string;
+  score: number;
+  percent: number;
+  color: string;
+};
+
+interface AccountCreationStepProps {
+  accountData: AccountData;
+  setAccountData: SetState<AccountData>;
+  showPassword: boolean;
+  setShowPassword: SetState<boolean>;
+  showConfirmPassword: boolean;
+  setShowConfirmPassword: SetState<boolean>;
+  brandColor: string;
+  passwordStrength: PasswordStrength;
+  subdomainStatus: SubdomainStatus;
+  isCheckingSubdomain: boolean;
+  detectedCountry: CountryCode | undefined;
+  setDetectedCountry: SetState<CountryCode | undefined>;
+  cacFile: File | null;
+  cacFilePreview: string;
+  handleCacFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  removeCacFile: () => void;
+}
+
+interface BrandingStepProps {
+  brandingData: BrandingData;
+  setBrandingData: SetState<BrandingData>;
+  logoPreview: string;
+  setLogoPreview: SetState<string>;
+  brandColor: string;
+}
+
+interface PayoutStepProps {
+  payoutData: PayoutData;
+  setPayoutData: SetState<PayoutData>;
+  isVerifyingAccount: boolean;
+  setIsVerifyingAccount: SetState<boolean>;
+  brandColor: string;
+}
 
 interface OnboardingStep {
   id: string;
   title: string;
   description: string;
-  icon: any;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { autoLogin } = useAuthStore();
 
   // Helper function to redirect to realtor subdomain dashboard
   const redirectToRealtorDashboard = () => {
-    const currentUser = user || useAuthStore.getState().user;
+    const currentUser = (user || useAuthStore.getState().user) as RealtorUserContext;
 
-    if (currentUser?.role === "REALTOR" && (currentUser as any).realtor?.slug) {
+    if (currentUser?.role === "REALTOR" && currentUser.realtor?.slug) {
       // Construct realtor subdomain URL
-      const realtorSlug = (currentUser as any).realtor.slug;
+      const realtorSlug = currentUser.realtor.slug;
       const redirectUrl = `http://${realtorSlug}.${window.location.host}/dashboard`;
 
       
@@ -107,8 +177,6 @@ export default function OnboardingPage() {
   // Use Stayza Pro marketing palette values with CSS var fallbacks for easier theming tweaks
   const brandColor = "var(--marketing-primary, #1E3A8A)";
   const secondaryColor = "var(--marketing-accent, #047857)";
-  const accentColor = "var(--marketing-accent, #F97316)";
-  const surfaceColor = "var(--marketing-surface, " + palette.neutralLight + ")";
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
@@ -118,7 +186,7 @@ export default function OnboardingPage() {
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   // Account creation state
-  const [accountData, setAccountData] = useState({
+  const [accountData, setAccountData] = useState<AccountData>({
     fullName: "",
     email: "",
     password: "",
@@ -137,8 +205,8 @@ export default function OnboardingPage() {
   >("NG");
 
   // Branding customization state
-  const [brandingData, setBrandingData] = useState({
-    logoFile: null as File | null,
+  const [brandingData, setBrandingData] = useState<BrandingData>({
+    logoFile: null,
     tagline: "",
     description: "",
     primaryColor: "#1E3A8A",
@@ -147,41 +215,24 @@ export default function OnboardingPage() {
   });
   const [logoPreview, setLogoPreview] = useState<string>("");
 
-  // Property form state
-  const [propertyData, setPropertyData] = useState({
-    title: "",
-    description: "",
-    address: "",
-    city: "",
-    state: "",
-    pricePerNight: "",
-    bedrooms: 1,
-    bathrooms: 1,
-    maxGuests: 2,
-    amenities: [] as string[],
-    photos: [] as File[],
-  });
-
   // Payout form state
-  const [payoutData, setPayoutData] = useState({
+  const [payoutData, setPayoutData] = useState<PayoutData>({
     bankCode: "",
     bankName: "",
     accountNumber: "",
     accountName: "",
   });
   const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
-
-  const [photoPreview, setPhotoPreview] = useState<string[]>([]);
-  const [passwordStrength, setPasswordStrength] = useState({
+  const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({
     label: "",
     score: 0,
     percent: 0,
     color: "#94A3B8",
   });
-  const [subdomainStatus, setSubdomainStatus] = useState<{
-    state: "idle" | "checking" | "available" | "unavailable" | "error";
-    message: string;
-  }>({ state: "idle", message: "" });
+  const [subdomainStatus, setSubdomainStatus] = useState<SubdomainStatus>({
+    state: "idle",
+    message: "",
+  });
   const [isCheckingSubdomain, setIsCheckingSubdomain] = useState(false);
 
   const evaluatePasswordStrength = useCallback((password: string) => {
@@ -274,19 +325,10 @@ export default function OnboardingPage() {
     },
     {
       id: "complete",
-      title: "You're All Set! 🚀",
+      title: "You're All Set! ðŸš€",
       description: "Your account is ready for bookings",
       icon: CheckCircle,
     },
-  ];
-
-  const commonAmenities = [
-    { id: "wifi", label: "WiFi", icon: Wifi },
-    { id: "tv", label: "TV", icon: Tv },
-    { id: "parking", label: "Free Parking", icon: Car },
-    { id: "gym", label: "Gym", icon: Dumbbell },
-    { id: "ac", label: "Air Conditioning", icon: Wind },
-    { id: "kitchen", label: "Kitchen", icon: Coffee },
   ];
 
   useEffect(() => {
@@ -562,7 +604,14 @@ export default function OnboardingPage() {
       }
 
       // Save branding data (colors, tagline, description)
-      const brandingPayload: any = {
+      const brandingPayload: {
+        tagline: string;
+        description: string;
+        primaryColor: string;
+        secondaryColor: string;
+        accentColor: string;
+        logoUrl?: string;
+      } = {
         tagline: brandingData.tagline || "",
         description: brandingData.description || "",
         primaryColor: brandingData.primaryColor,
@@ -596,50 +645,6 @@ export default function OnboardingPage() {
       
       toast.error(
         "Failed to save branding. You can update it later from settings."
-      );
-    }
-  };
-
-  const submitProperty = async () => {
-    try {
-      const token = localStorage.getItem("accessToken");
-
-      // Skip photo upload for onboarding - photos are optional
-      const photoUrls: string[] = [];
-
-      // Create property
-      const response = await fetch(`${API_URL}/properties`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: propertyData.title,
-          description: propertyData.description || "Beautiful property",
-          address: propertyData.address || "TBD",
-          city: propertyData.city || "Lagos",
-          state: propertyData.state || "Lagos",
-          country: "Nigeria",
-          pricePerNight: parseFloat(propertyData.pricePerNight),
-          bedrooms: propertyData.bedrooms,
-          bathrooms: propertyData.bathrooms,
-          maxGuests: propertyData.maxGuests,
-          amenities: propertyData.amenities,
-          photos: photoUrls.length > 0 ? photoUrls : undefined,
-          status: "AVAILABLE",
-        }),
-      });
-
-      if (response.ok) {
-        toast.success("Property added successfully!");
-      } else {
-        throw new Error("Failed to add property");
-      }
-    } catch (error) {
-      
-      toast.error(
-        "Failed to add property. You can add it later from the dashboard."
       );
     }
   };
@@ -753,54 +758,14 @@ export default function OnboardingPage() {
       if (response.ok) {
         const result = await response.json();
         return result.data.url;
-      } else {
-        const error = await response.json();
-        
-        return null;
       }
+
+      await response.json();
+      return null;
     } catch (error) {
       
       return null;
     }
-  };
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + propertyData.photos.length > 10) {
-      toast.error("Maximum 10 photos allowed");
-      return;
-    }
-
-    setPropertyData((prev) => ({
-      ...prev,
-      photos: [...prev.photos, ...files],
-    }));
-
-    // Create previews
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview((prev) => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removePhoto = (index: number) => {
-    setPropertyData((prev) => ({
-      ...prev,
-      photos: prev.photos.filter((_, i) => i !== index),
-    }));
-    setPhotoPreview((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const toggleAmenity = (amenityId: string) => {
-    setPropertyData((prev) => ({
-      ...prev,
-      amenities: prev.amenities.includes(amenityId)
-        ? prev.amenities.filter((a) => a !== amenityId)
-        : [...prev.amenities, amenityId],
-    }));
   };
 
   const progress = ((currentStep + 1) / steps.length) * 100;
@@ -920,7 +885,7 @@ export default function OnboardingPage() {
                 </h1>
 
                 <p className="text-lg text-white/85 font-normal leading-relaxed">
-                  Guided setup that mirrors the Realtor portal aesthetic—keep
+                  Guided setup that mirrors the Realtor portal aestheticâ€”keep
                   guests impressed from day one.
                 </p>
               </motion.div>
@@ -1215,32 +1180,10 @@ function AccountCreationStep({
   cacFilePreview,
   handleCacFileUpload,
   removeCacFile,
-}: {
-  accountData: any;
-  setAccountData: any;
-  showPassword: boolean;
-  setShowPassword: any;
-  showConfirmPassword: boolean;
-  setShowConfirmPassword: any;
-  brandColor: string;
-  passwordStrength: {
-    label: string;
-    score: number;
-    percent: number;
-    color: string;
-  };
-  subdomainStatus: { state: string; message: string };
-  isCheckingSubdomain: boolean;
-  detectedCountry: CountryCode | undefined;
-  setDetectedCountry: (country: CountryCode | undefined) => void;
-  cacFile: File | null;
-  cacFilePreview: string;
-  handleCacFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  removeCacFile: () => void;
-}) {
+}: AccountCreationStepProps) {
   // Helper function to get flag emoji from country code
   const getFlagEmoji = (countryCode: string) => {
-    if (!countryCode) return "🌍";
+    if (!countryCode) return "ðŸŒ";
     const codePoints = countryCode
       .toUpperCase()
       .split("")
@@ -1394,7 +1337,7 @@ function AccountCreationStep({
             {/* Country Flag Display */}
             <div className="absolute left-10 top-1/2 transform -translate-y-1/2 flex items-center">
               <span className="text-2xl mr-2">
-                {detectedCountry ? getFlagEmoji(detectedCountry) : "🌍"}
+                {detectedCountry ? getFlagEmoji(detectedCountry) : "ðŸŒ"}
               </span>
               <span className="text-sm text-gray-600 font-medium">
                 {detectedCountry &&
@@ -1687,13 +1630,7 @@ function BrandingStep({
   logoPreview,
   setLogoPreview,
   brandColor,
-}: {
-  brandingData: any;
-  setBrandingData: any;
-  logoPreview: string;
-  setLogoPreview: any;
-  brandColor: string;
-}) {
+}: BrandingStepProps) {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1709,7 +1646,7 @@ function BrandingStep({
         return;
       }
 
-      setBrandingData((prev: any) => ({ ...prev, logoFile: file }));
+      setBrandingData((prev) => ({ ...prev, logoFile: file }));
 
       // Create preview
       const reader = new FileReader();
@@ -1721,7 +1658,7 @@ function BrandingStep({
   };
 
   const removeLogo = () => {
-    setBrandingData((prev: any) => ({ ...prev, logoFile: null }));
+    setBrandingData((prev) => ({ ...prev, logoFile: null }));
     setLogoPreview("");
   };
 
@@ -1789,9 +1726,9 @@ function BrandingStep({
               Upload your business logo to appear on your booking site
             </p>
             <ul className="text-xs text-marketing-muted space-y-1">
-              <li>• Recommended: Square image (500x500px)</li>
-              <li>• Max file size: 5MB</li>
-              <li>• Format: JPG, PNG, or SVG</li>
+              <li>â€¢ Recommended: Square image (500x500px)</li>
+              <li>â€¢ Max file size: 5MB</li>
+              <li>â€¢ Format: JPG, PNG, or SVG</li>
             </ul>
           </div>
         </div>
@@ -1807,7 +1744,7 @@ function BrandingStep({
           type="text"
           value={brandingData.tagline}
           onChange={(e) =>
-            setBrandingData((prev: any) => ({
+            setBrandingData((prev) => ({
               ...prev,
               tagline: e.target.value,
             }))
@@ -1830,7 +1767,7 @@ function BrandingStep({
         <textarea
           value={brandingData.description}
           onChange={(e) =>
-            setBrandingData((prev: any) => ({
+            setBrandingData((prev) => ({
               ...prev,
               description: e.target.value,
             }))
@@ -1861,7 +1798,7 @@ function BrandingStep({
                 type="color"
                 value={brandingData.primaryColor}
                 onChange={(e) =>
-                  setBrandingData((prev: any) => ({
+                  setBrandingData((prev) => ({
                     ...prev,
                     primaryColor: e.target.value,
                   }))
@@ -1872,7 +1809,7 @@ function BrandingStep({
                 type="text"
                 value={brandingData.primaryColor}
                 onChange={(e) =>
-                  setBrandingData((prev: any) => ({
+                  setBrandingData((prev) => ({
                     ...prev,
                     primaryColor: e.target.value,
                   }))
@@ -1893,7 +1830,7 @@ function BrandingStep({
                 type="color"
                 value={brandingData.secondaryColor}
                 onChange={(e) =>
-                  setBrandingData((prev: any) => ({
+                  setBrandingData((prev) => ({
                     ...prev,
                     secondaryColor: e.target.value,
                   }))
@@ -1904,7 +1841,7 @@ function BrandingStep({
                 type="text"
                 value={brandingData.secondaryColor}
                 onChange={(e) =>
-                  setBrandingData((prev: any) => ({
+                  setBrandingData((prev) => ({
                     ...prev,
                     secondaryColor: e.target.value,
                   }))
@@ -1925,7 +1862,7 @@ function BrandingStep({
                 type="color"
                 value={brandingData.accentColor}
                 onChange={(e) =>
-                  setBrandingData((prev: any) => ({
+                  setBrandingData((prev) => ({
                     ...prev,
                     accentColor: e.target.value,
                   }))
@@ -1936,7 +1873,7 @@ function BrandingStep({
                 type="text"
                 value={brandingData.accentColor}
                 onChange={(e) =>
-                  setBrandingData((prev: any) => ({
+                  setBrandingData((prev) => ({
                     ...prev,
                     accentColor: e.target.value,
                   }))
@@ -1948,7 +1885,7 @@ function BrandingStep({
           </div>
         </div>
         <p className="text-xs text-marketing-muted mt-3">
-          💡 These colors will be used across your booking site for buttons,
+          ðŸ’¡ These colors will be used across your booking site for buttons,
           headers, and accents
         </p>
       </div>
@@ -2004,7 +1941,7 @@ function BrandingStep({
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>✨ Don't worry!</strong> You can always change these settings
+          <strong>Do not worry.</strong> You can always change these settings
           later from your dashboard.
         </p>
       </div>
@@ -2027,7 +1964,7 @@ function VideoTutorialStep({ brandColor }: { brandColor: string }) {
       </motion.div>
 
       <h1 className="text-4xl font-bold text-gray-100 mb-4">
-        How to Add Your Properties 📹
+        How to Add Your Properties ðŸ“¹
       </h1>
       <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
         Watch this quick tutorial to learn how to add and manage your properties
@@ -2127,191 +2064,6 @@ function VideoTutorialStep({ brandColor }: { brandColor: string }) {
   );
 }
 
-// Property Step Component
-function PropertyStep({
-  propertyData,
-  setPropertyData,
-  photoPreview,
-  handlePhotoUpload,
-  removePhoto,
-  commonAmenities,
-  toggleAmenity,
-  brandColor,
-}: any) {
-  return (
-    <div>
-      <h2 className="text-3xl font-bold text-gray-100 mb-2 text-center">
-        Add Your First Property
-      </h2>
-      <p className="text-gray-600 mb-8 text-center">
-        Don't worry about perfection - you can edit everything later
-      </p>
-
-      <div className="space-y-6">
-        {/* Title */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Property Title <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={propertyData.title}
-            onChange={(e) =>
-              setPropertyData({ ...propertyData, title: e.target.value })
-            }
-            placeholder="e.g., Luxury 2BR Apartment in Lekki"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-          />
-        </div>
-
-        {/* Price */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Price per Night (₦) <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            value={propertyData.pricePerNight}
-            onChange={(e) =>
-              setPropertyData({
-                ...propertyData,
-                pricePerNight: e.target.value,
-              })
-            }
-            placeholder="50000"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
-          />
-        </div>
-
-        {/* Bedrooms & Bathrooms */}
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Bedrooms
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={propertyData.bedrooms}
-              onChange={(e) =>
-                setPropertyData({
-                  ...propertyData,
-                  bedrooms: parseInt(e.target.value) || 1,
-                })
-              }
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Bathrooms
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={propertyData.bathrooms}
-              onChange={(e) =>
-                setPropertyData({
-                  ...propertyData,
-                  bathrooms: parseInt(e.target.value) || 1,
-                })
-              }
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Max Guests
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={propertyData.maxGuests}
-              onChange={(e) =>
-                setPropertyData({
-                  ...propertyData,
-                  maxGuests: parseInt(e.target.value) || 1,
-                })
-              }
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-            />
-          </div>
-        </div>
-
-        {/* Amenities */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Amenities (Select all that apply)
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {commonAmenities.map((amenity: any) => {
-              const Icon = amenity.icon;
-              const isSelected = propertyData.amenities.includes(amenity.id);
-              return (
-                <button
-                  key={amenity.id}
-                  type="button"
-                  onClick={() => toggleAmenity(amenity.id)}
-                  className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                    isSelected
-                      ? "border-current text-white"
-                      : "border-gray-200 text-gray-700 hover:border-gray-300"
-                  }`}
-                  style={
-                    isSelected ? { backgroundColor: brandColor } : undefined
-                  }
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-sm font-medium">{amenity.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Photos */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Photos (Optional - up to 10)
-          </label>
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
-            {photoPreview.map((preview: string, index: number) => (
-              <div key={index} className="relative group">
-                <Image
-                  src={preview}
-                  alt={`Preview ${index + 1}`}
-                  width={200}
-                  height={200}
-                  className="w-full h-24 object-cover rounded-lg"
-                />
-                <button
-                  onClick={() => removePhoto(index)}
-                  className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-            {propertyData.photos.length < 10 && (
-              <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors">
-                <Upload className="h-6 w-6 text-gray-400 mb-1" />
-                <span className="text-xs text-gray-500">Upload</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-              </label>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Payout Step Component
 function PayoutStep({
   payoutData,
@@ -2319,7 +2071,7 @@ function PayoutStep({
   isVerifyingAccount,
   setIsVerifyingAccount,
   brandColor,
-}: any) {
+}: PayoutStepProps) {
   const [banks, setBanks] = useState<Array<{ code: string; name: string }>>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(true);
   const API_URL =
@@ -2391,10 +2143,10 @@ function PayoutStep({
 
         if (response.ok) {
           const data = await response.json();
-          setPayoutData({
-            ...payoutData,
+          setPayoutData((prev) => ({
+            ...prev,
             accountName: data.data.account_name,
-          });
+          }));
         } else {
           const errorData = await response.json();
           const errorMessage =
@@ -2408,18 +2160,17 @@ function PayoutStep({
           ) {
             toast.error(errorMessage);
           }
-          setPayoutData({
-            ...payoutData,
+          setPayoutData((prev) => ({
+            ...prev,
             accountName: "",
-          });
+          }));
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Silently fail for network errors during auto-verification
-        
-        setPayoutData({
-          ...payoutData,
+        setPayoutData((prev) => ({
+          ...prev,
           accountName: "",
-        });
+        }));
       } finally {
         setIsVerifyingAccount(false);
       }
@@ -2431,17 +2182,24 @@ function PayoutStep({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [payoutData.accountNumber, payoutData.bankCode, API_URL]);
+  }, [
+    API_URL,
+    payoutData.accountName,
+    payoutData.accountNumber,
+    payoutData.bankCode,
+    setIsVerifyingAccount,
+    setPayoutData,
+  ]);
 
   const handleBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedBank = banks.find((bank) => bank.code === e.target.value);
     if (selectedBank) {
-      setPayoutData({
-        ...payoutData,
+      setPayoutData((prev) => ({
+        ...prev,
         bankCode: selectedBank.code,
         bankName: selectedBank.name,
         accountName: "", // Reset account name when bank changes
-      });
+      }));
     }
   };
 
@@ -2552,7 +2310,7 @@ function PayoutStep({
               </p>
               <p className="text-xs text-blue-700">
                 <strong>Note:</strong> Payout account setup requires CAC
-                verification approval. If you're just registering, you can
+                verification approval. If you are just registering, you can
                 complete this step later in Settings after your CAC documents
                 are verified.
               </p>
@@ -2581,6 +2339,15 @@ function CompleteStep({
 
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+
+  const extractErrorText = (error: unknown): string => {
+    if (!error || typeof error !== "object") {
+      return "";
+    }
+
+    const maybeError = error as { message?: string };
+    return maybeError.message || "";
+  };
 
   // Cooldown timer
   useEffect(() => {
@@ -2622,14 +2389,16 @@ function CompleteStep({
           "Failed to resend verification email.";
         toast.error(errorMessage);
       }
-    } catch (error: any) {
-      
+    } catch (error: unknown) {
+      const errorText = extractErrorText(error).toLowerCase();
+      const errorCode =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: string }).code || "")
+          : "";
 
-      // Check if it's a timeout or network error
+      // Check if it is a timeout or network error.
       const isTimeoutError =
-        error.message?.includes("timeout") ||
-        error.message?.includes("Timeout") ||
-        error.code === "ETIMEDOUT";
+        errorText.includes("timeout") || errorCode === "ETIMEDOUT";
 
       if (isTimeoutError) {
         toast.error(
@@ -2664,7 +2433,7 @@ function CompleteStep({
         transition={{ delay: 0.3 }}
         className="text-4xl font-bold text-gray-100 mb-4"
       >
-        One More Step! 📧
+        {isCompleting ? "Finalizing setup..." : "One More Step!"}
       </motion.h1>
 
       <motion.p
@@ -2673,7 +2442,7 @@ function CompleteStep({
         transition={{ delay: 0.4 }}
         className="text-lg text-gray-600 mb-6 max-w-2xl mx-auto"
       >
-        We've sent a verification email to{" "}
+        We have sent a verification email to{" "}
         <strong className="text-gray-900">{userEmail || "your email"}</strong>
       </motion.p>
 
@@ -2733,7 +2502,7 @@ function CompleteStep({
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
-          <p className="text-sm text-gray-600">Didn't receive the email?</p>
+          <p className="text-sm text-gray-600">Did not receive the email?</p>
           <button
             onClick={handleResendVerification}
             disabled={isResending || resendCooldown > 0}
@@ -2761,7 +2530,7 @@ function CompleteStep({
         </div>
 
         <p className="text-xs text-gray-500">
-          Check your spam folder if you don't see it in your inbox
+          Check your spam folder if you do not see it in your inbox
         </p>
 
         <Link
@@ -2776,3 +2545,4 @@ function CompleteStep({
     </div>
   );
 }
+

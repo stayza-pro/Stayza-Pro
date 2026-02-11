@@ -3,9 +3,6 @@
 import React, { useState, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { toast } from "react-hot-toast";
 import Link from "next/link";
 import {
@@ -27,34 +24,14 @@ import { useAuthStore } from "@/store/authStore";
 // Force dynamic rendering since this page uses search params
 export const dynamic = "force-dynamic";
 
-// Validation schema
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
+interface LoginRedirectResponse {
+  redirectUrl?: string;
+}
 
-type LoginData = z.infer<typeof loginSchema>;
-
-interface LoginResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    user: {
-      id: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-      role: "GUEST" | "REALTOR" | "ADMIN";
-      realtor?: {
-        status: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
-        businessName: string;
-        slug: string;
-      };
-    };
-    accessToken: string;
-    refreshToken: string;
-  };
-  errors?: string[];
+interface HttpLikeError {
+  response?: { data?: { message?: string } };
+  request?: unknown;
+  message?: string;
 }
 
 function RealtorLoginContent() {
@@ -63,7 +40,7 @@ function RealtorLoginContent() {
   const returnTo = searchParams.get("returnTo") || "/dashboard";
 
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading, error: authError } = useAuthStore();
+  const { login, isLoading } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -90,7 +67,7 @@ function RealtorLoginContent() {
       toast.success(`Welcome back, ${user?.firstName}!`);
 
       // Enhanced multi-domain redirect handling
-      const loginResponse = response as any;
+      const loginResponse = response as LoginRedirectResponse;
       let redirectUrl = returnTo;
 
       // Use backend-provided redirect URL if available
@@ -115,11 +92,11 @@ function RealtorLoginContent() {
         }
       } else if (
         user?.role === "REALTOR" &&
-        (user as any).realtor?.slug &&
+        user?.realtor?.slug &&
         user.isEmailVerified
       ) {
         // Fallback: Construct realtor subdomain URL
-        redirectUrl = `http://${(user as any).realtor.slug}.${
+        redirectUrl = `http://${user.realtor.slug}.${
           window.location.host
         }/dashboard`;
         
@@ -155,30 +132,31 @@ function RealtorLoginContent() {
             
             router.push(redirectUrl);
           }
-        } catch (urlError) {
+        } catch {
           // Fallback for relative URLs
           
           router.push(redirectUrl);
         }
       }, 1000); // Small delay to show success message
-    } catch (error: any) {
+    } catch (error: unknown) {
       
 
       // Handle different types of errors
-      if (error.response) {
+      const httpError = error as HttpLikeError;
+      if (httpError.response) {
         // Server responded with error status
         const message =
-          error.response.data?.message ||
+          httpError.response.data?.message ||
           "Login failed. Please check your credentials.";
         setError(message);
-      } else if (error.request) {
+      } else if (httpError.request) {
         // Network error - server not reachable
         setError(
           "Unable to connect to server. Please check your internet connection and try again."
         );
       } else {
         // Other error
-        setError(error.message || "Login failed. Please try again.");
+        setError(httpError.message || "Login failed. Please try again.");
       }
     }
   };
@@ -556,7 +534,7 @@ function RealtorLoginContent() {
                 className="mt-8 text-center"
               >
                 <p className="text-sm text-marketing-muted">
-                  Don't have a realtor account?{" "}
+                  Don&apos;t have a realtor account?{" "}
                   <Link
                     href="/realtor/onboarding"
                     className="font-semibold text-marketing-accent hover:text-marketing-primary transition-colors"
@@ -601,7 +579,7 @@ function StatCard({
   trend,
   color,
 }: {
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string | number;
   trend: string;

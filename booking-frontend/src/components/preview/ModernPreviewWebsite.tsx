@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState } from "react";
+import { motion } from "framer-motion";
 import Image from "next/image";
 import {
   Search,
@@ -11,12 +11,6 @@ import {
   Star,
   Heart,
   Share2,
-  ChevronLeft,
-  ChevronRight,
-  Wifi,
-  Car,
-  Coffee,
-  Waves,
   Phone,
   Mail,
   MessageCircle,
@@ -37,10 +31,28 @@ interface RealtorRegistrationFormData {
   businessEmail?: string;
   agencyName?: string;
   customSubdomain?: string;
+  phoneNumber?: string;
   primaryColor?: string;
   secondaryColor?: string;
   accentColor?: string;
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+interface FeaturedProperty {
+  id: number;
+  title: string;
+  location: string;
+  price: number;
+  rating: number;
+  reviews: number;
+  images: string[];
+  amenities: string[];
+  category: string;
+  beds: number;
+  baths: number;
+  guests: number;
+  available: boolean;
+  discount?: number;
 }
 
 interface ModernPreviewWebsiteProps {
@@ -53,36 +65,31 @@ interface ModernPreviewWebsiteProps {
 export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
   data,
   logoPreview,
-  language,
   currency,
 }) => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Color scheme with fallbacks - solid colors only
   const primaryColor = data.primaryColor || "#374151";
-  const secondaryColor = data.secondaryColor || "#059669";
-  const accentColor = data.accentColor || "#f97316";
 
   // Currency helper - defaults to Naira
-  const getCurrencySymbol = () => {
+    const getCurrencySymbol = () => {
     switch (currency?.toLowerCase()) {
       case "usd":
         return "$";
       case "eur":
-        return "€";
+        return "EUR ";
       case "gbp":
-        return "£";
+        return "GBP ";
       case "ngn":
       default:
-        return "₦";
+        return "NGN ";
     }
   };
 
   // Phone number with Nigerian format first
-  const getPhoneDisplay = () => {
+  const getPhoneDisplay = (): string => {
     if (data.phoneNumber) {
       // If it doesn't start with +234, add Nigerian prefix
       if (
@@ -97,7 +104,7 @@ export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
   };
 
   // Sample Nigeria-focused properties data
-  const featuredProperties = [
+  const featuredProperties: FeaturedProperty[] = [
     {
       id: 1,
       title: "Executive Penthouse Suite",
@@ -160,7 +167,7 @@ export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
     },
   ];
 
-  const PropertyCard = ({ property }: { property: any }) => {
+  const PropertyCard = ({ property }: { property: FeaturedProperty }) => {
     const [isLiked, setIsLiked] = useState(false);
 
     return (
@@ -219,11 +226,11 @@ export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
           {/* Image Navigation */}
           {property.images.length > 1 && (
             <div className="absolute bottom-4 left-4 right-4 flex justify-center space-x-1">
-              {property.images.map((_: any, idx: number) => (
+              {property.images.map((_: string, idx: number) => (
                 <div
                   key={idx}
                   className={`w-2 h-2 rounded-full ${
-                    idx === currentImageIndex ? "bg-white" : "bg-white/50"
+                    idx === 0 ? "bg-white" : "bg-white/50"
                   }`}
                 />
               ))}
@@ -628,7 +635,7 @@ export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
                 </h3>
               </div>
               <p className="text-gray-300 mb-6 max-w-md">
-                Nigeria's leading platform for short-term accommodation.
+                Nigeria&apos;s leading platform for short-term accommodation.
                 Connecting travelers with verified Nigerian hosts for authentic
                 local experiences.
               </p>
@@ -707,7 +714,7 @@ export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
 
           <div className="border-t border-gray-700 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © 2024 {data.agencyName || "Stayza Pro"}. All rights reserved.
+              (c) 2024 {data.agencyName || "Stayza Pro"}. All rights reserved.
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
               <a
@@ -735,3 +742,4 @@ export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
     </div>
   );
 };
+

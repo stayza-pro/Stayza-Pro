@@ -307,16 +307,16 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
 
         <div className="space-y-2 text-sm text-blue-800">
           <p>
-            â€¢ A confirmation email has been sent to your registered email
+            - A confirmation email has been sent to your registered email
             address
           </p>
-          <p>â€¢ You can cancel free of charge until 48 hours before check-in</p>
-          <p>â€¢ Please bring a valid ID for check-in verification</p>
+          <p>- You can cancel free of charge until 48 hours before check-in</p>
+          <p>- Please bring a valid ID for check-in verification</p>
           <p>
-            â€¢ Contact your host if you need any assistance or have questions
+            - Contact your host if you need any assistance or have questions
           </p>
           <p>
-            â€¢ Check-in instructions will be provided closer to your arrival date
+            - Check-in instructions will be provided closer to your arrival date
           </p>
         </div>
       </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import {
   MapPin,
@@ -21,11 +22,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  X,
 } from "lucide-react";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections";
-import { Card, Button } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { favoritesService } from "@/services";
@@ -33,7 +33,14 @@ import toast from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { PropertyAmenity } from "@/types";
 
-const amenityIcons: Record<PropertyAmenity, any> = {
+type AmenityIcon = React.ComponentType<{ className?: string }> | null;
+
+interface AvailabilityDay {
+  date: string;
+  available: boolean;
+}
+
+const amenityIcons: Record<PropertyAmenity, AmenityIcon> = {
   WIFI: Wifi,
   PARKING: Car,
   POOL: Waves,
@@ -94,6 +101,18 @@ export default function PropertyDetailsPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
 
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (
+      error &&
+      typeof error === "object" &&
+      "message" in error &&
+      typeof (error as { message?: string }).message === "string"
+    ) {
+      return (error as { message?: string }).message || fallback;
+    }
+    return fallback;
+  };
+
   // Debug: Log property data
   React.useEffect(() => {
     if (property) {
@@ -124,8 +143,8 @@ export default function PropertyDetailsPage() {
           if (result.success && result.data?.calendar) {
             // Extract dates that are not available
             const bookedDates = result.data.calendar
-              .filter((day: any) => !day.available)
-              .map((day: any) => day.date);
+              .filter((day: AvailabilityDay) => !day.available)
+              .map((day: AvailabilityDay) => day.date);
             setUnavailableDates(bookedDates);
             
           }
@@ -183,7 +202,7 @@ export default function PropertyDetailsPage() {
     return { nights, total };
   };
 
-  const { nights, total } = calculateBooking();
+  const { nights } = calculateBooking();
 
   const handleBookNow = () => {
     if (!user) {
@@ -216,9 +235,9 @@ export default function PropertyDetailsPage() {
         toast.success("Added to favorites");
       }
       setIsFavorited(!isFavorited);
-    } catch (error: any) {
+    } catch (error: unknown) {
       
-      toast.error(error.message || "Failed to update favorites");
+      toast.error(getErrorMessage(error, "Failed to update favorites"));
     }
   };
 
@@ -507,9 +526,11 @@ export default function PropertyDetailsPage() {
           <div className="relative h-96 md:h-[500px] rounded-lg overflow-hidden bg-gray-200">
             {property.images && property.images.length > 0 ? (
               <>
-                <img
+                <Image
                   src={property.images[selectedImageIndex]?.url || ""}
                   alt={property.title}
+                  fill
+                  unoptimized
                   className="w-full h-full object-cover"
                   crossOrigin="anonymous"
                   onError={(e) => {
@@ -586,9 +607,12 @@ export default function PropertyDetailsPage() {
                       : undefined
                   }
                 >
-                  <img
+                  <Image
                     src={image.url}
                     alt={`${property.title} - ${index + 1}`}
+                    width={96}
+                    height={96}
+                    unoptimized
                     className="w-full h-full object-cover"
                     crossOrigin="anonymous"
                   />
@@ -814,9 +838,12 @@ export default function PropertyDetailsPage() {
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center space-x-2">
                           {review.author?.avatar ? (
-                            <img
+                            <Image
                               src={review.author.avatar}
                               alt={`${review.author.firstName} ${review.author.lastName}`}
+                              width={40}
+                              height={40}
+                              unoptimized
                               className="w-10 h-10 rounded-full object-cover"
                               crossOrigin="anonymous"
                             />
@@ -1087,7 +1114,7 @@ export default function PropertyDetailsPage() {
                   </button>
 
                   <p className="text-xs text-gray-500 text-center">
-                    You won't be charged yet
+                    You won&apos;t be charged yet
                   </p>
                 </div>
               </Card>

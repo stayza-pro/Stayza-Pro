@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { toast } from "react-hot-toast";
 import { getEscrowStatus, EscrowStatusData } from "@/services/escrow";
 import { bookingService } from "@/services/bookings";
@@ -13,6 +14,19 @@ interface BookingWithEscrow {
   loading: boolean;
   error: string | null;
 }
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (!error || typeof error !== "object") {
+    return fallback;
+  }
+
+  const maybeResponse = error as {
+    message?: string;
+    response?: { data?: { message?: string } };
+  };
+
+  return maybeResponse.response?.data?.message || maybeResponse.message || fallback;
+};
 
 export default function RealtorEscrowTracker() {
   const [bookingsWithEscrow, setBookingsWithEscrow] = useState<
@@ -70,21 +84,21 @@ export default function RealtorEscrowTracker() {
             };
             return updated;
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           
           setBookingsWithEscrow((prev) => {
             const updated = [...prev];
             updated[i] = {
               ...updated[i],
               loading: false,
-              error: error.message || "Failed to load escrow data",
+              error: getErrorMessage(error, "Failed to load escrow data"),
             };
             return updated;
           });
         }
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to load bookings");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to load bookings"));
     } finally {
       setLoading(false);
     }
@@ -187,7 +201,7 @@ export default function RealtorEscrowTracker() {
                 {/* Booking Header */}
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 border-b border-gray-200">
                   <div className="flex items-start gap-4">
-                    <img
+                    <Image
                       src={
                         booking.property?.images?.[0]
                           ? typeof booking.property.images[0] === "string"
@@ -197,7 +211,10 @@ export default function RealtorEscrowTracker() {
                           : "/images/stayza.png"
                       }
                       alt={booking.property?.title || "Property"}
+                      width={80}
+                      height={80}
                       className="w-20 h-20 rounded-lg object-cover"
+                      unoptimized
                     />
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">
@@ -460,7 +477,7 @@ export default function RealtorEscrowTracker() {
                     {escrowData.dispute?.hasDispute && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                         <h3 className="text-lg font-semibold text-red-900 mb-2">
-                          âš ï¸ Active Dispute
+                          Active Dispute
                         </h3>
                         <p className="text-sm text-red-700">
                           Status:{" "}

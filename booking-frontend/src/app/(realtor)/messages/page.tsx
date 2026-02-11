@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   MessageCircle,
@@ -10,12 +10,9 @@ import {
   Mic,
   X,
   File,
-  Image as ImageIcon,
   Download,
-  Play,
-  Pause,
 } from "lucide-react";
-import { Card, Input, Button } from "@/components/ui";
+import { Input, Button } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { messageService, type Conversation, type Message } from "@/services";
@@ -25,11 +22,7 @@ import Image from "next/image";
 export default function RealtorMessagesPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useCurrentUser();
-  const {
-    brandColor: primaryColor,
-    secondaryColor,
-    accentColor,
-  } = useRealtorBranding();
+  const { brandColor: primaryColor, accentColor } = useRealtorBranding();
 
   const [selectedConversation, setSelectedConversation] = useState<
     string | null
@@ -65,12 +58,6 @@ export default function RealtorMessagesPage() {
   }, [user]);
 
   useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages();
-    }
-  }, [selectedConversation]);
-
-  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
@@ -83,28 +70,11 @@ export default function RealtorMessagesPage() {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
 
-      
-
-      // Handle different response structures
-      let conversationsData: Conversation[] = [];
-
-      if (response?.data) {
-        if (Array.isArray(response.data)) {
-          // Case 1: data is directly an array
-          conversationsData = response.data;
-        } else if (typeof response.data === "object") {
-          // Case 2: data is an object with conversations property
-          const dataObj = response.data as any;
-          if (Array.isArray(dataObj.conversations)) {
-            conversationsData = dataObj.conversations;
-          }
-        }
-      }
-
-      
+      const conversationsData = Array.isArray(response?.data)
+        ? response.data
+        : [];
       setConversations(conversationsData);
-    } catch (error: any) {
-      
+    } catch {
       toast.error("Failed to load conversations");
       setConversations([]);
     } finally {
@@ -112,7 +82,7 @@ export default function RealtorMessagesPage() {
     }
   };
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!selectedConversation) return;
 
     try {
@@ -123,34 +93,38 @@ export default function RealtorMessagesPage() {
           c.bookingId === selectedConversation
       );
 
-      let response;
-      if (conversation?.bookingId) {
-        response = await messageService.getBookingMessages(
-          conversation.bookingId
-        );
-      } else if (conversation?.propertyId) {
-        response = await messageService.getPropertyMessages(
-          conversation.propertyId
-        );
+      if (!conversation) {
+        setMessages([]);
+        return;
       }
+
+      const response = conversation.bookingId
+        ? await messageService.getBookingMessages(conversation.bookingId)
+        : conversation.propertyId
+        ? await messageService.getPropertyMessages(conversation.propertyId)
+        : null;
 
       if (response) {
         setMessages(response.data || []);
-        // Mark as read
-        if (conversation?.bookingId || conversation?.propertyId) {
+        if (conversation.bookingId || conversation.propertyId) {
           await messageService.markConversationAsRead(
             conversation.propertyId,
             conversation.bookingId
           );
         }
       }
-    } catch (error: any) {
+    } catch {
       toast.error("Failed to load messages");
-      
     } finally {
       setIsLoadingMessages(false);
     }
-  };
+  }, [selectedConversation, conversations]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      void fetchMessages();
+    }
+  }, [selectedConversation, fetchMessages]);
 
   const handleSendMessage = async () => {
     if (
@@ -182,14 +156,13 @@ export default function RealtorMessagesPage() {
         formData.append("voiceNote", audioBlob, `voice_${Date.now()}.webm`);
       }
 
-      let response;
       if (conversation?.bookingId) {
-        response = await messageService.sendBookingMessageWithAttachments(
+        await messageService.sendBookingMessageWithAttachments(
           conversation.bookingId,
           formData
         );
       } else if (conversation?.propertyId) {
-        response = await messageService.sendPropertyInquiryWithAttachments(
+        await messageService.sendPropertyInquiryWithAttachments(
           conversation.propertyId,
           formData
         );
@@ -198,11 +171,19 @@ export default function RealtorMessagesPage() {
       setMessageText("");
       setSelectedFiles([]);
       setAudioBlob(null);
-      fetchMessages();
+      void fetchMessages();
       toast.success("Message sent!");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to send message");
-      
+    } catch (error: unknown) {
+      const message =
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { message?: string } } })
+          .response?.data?.message === "string"
+          ? (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : "Failed to send message";
+      toast.error(message || "Failed to send message");
     } finally {
       setIsSending(false);
     }
@@ -249,7 +230,6 @@ export default function RealtorMessagesPage() {
       }, 1000);
     } catch (error) {
       toast.error("Microphone access denied");
-      
     }
   };
 
@@ -468,7 +448,7 @@ export default function RealtorMessagesPage() {
                             message.attachments.length > 0 && (
                               <div className="mt-2 space-y-2">
                                 {message.attachments.map(
-                                  (attachment: any, index: number) => (
+                                  (attachment, index: number) => (
                                     <div
                                       key={index}
                                       className={`p-2 rounded ${

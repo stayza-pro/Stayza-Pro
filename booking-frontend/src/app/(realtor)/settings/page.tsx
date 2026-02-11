@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import {
   User,
   Palette,
   Building2,
   CreditCard,
-  Bell,
   Shield,
   Camera,
   Upload,
@@ -30,7 +30,7 @@ import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain, buildSubdomainUrl } from "@/utils/subdomain";
 import { buildMainDomainUrl } from "@/utils/domains";
 import { payoutService, Bank } from "@/services/payout";
-import type { Realtor, CacStatus } from "@/types";
+import type { CacStatus } from "@/types";
 
 // API URL for direct backend calls
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050";
@@ -94,13 +94,6 @@ export default function SettingsPage() {
     slug: user?.realtor?.slug || "",
   });
 
-  // Commission & Fees State
-  const [commissionInfo, setCommissionInfo] = useState({
-    platformCommission: 10, // 10% platform fee
-    transactionFee: 1.5, // 1.5% transaction fee
-    realtorShare: 90, // 90% for room fees
-  });
-
   // Branding State
   const [brandingData, setBrandingData] = useState({
     logoUrl: user?.realtor?.logoUrl || "",
@@ -134,6 +127,23 @@ export default function SettingsPage() {
     newPassword: "",
     confirmPassword: "",
   });
+
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (
+      error &&
+      typeof error === "object" &&
+      "response" in error &&
+      typeof (error as { response?: { data?: { message?: string } } }).response
+        ?.data?.message === "string"
+    ) {
+      return (error as { response?: { data?: { message?: string } } }).response
+        ?.data?.message as string;
+    }
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+    return fallback;
+  };
 
   // Check for appeal success from URL
   useEffect(() => {
@@ -173,14 +183,7 @@ export default function SettingsPage() {
     }
   }, [user]);
 
-  // Fetch banks and payout settings
-  useEffect(() => {
-    if (activeTab === "payout") {
-      fetchBanksAndPayoutSettings();
-    }
-  }, [activeTab]);
-
-  const fetchBanksAndPayoutSettings = async () => {
+  const fetchBanksAndPayoutSettings = useCallback(async () => {
     try {
       setIsLoading(true);
       const [banksData, payoutSettings] = await Promise.all([
@@ -218,7 +221,14 @@ export default function SettingsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showError]);
+
+  // Fetch banks and payout settings
+  useEffect(() => {
+    if (activeTab === "payout") {
+      void fetchBanksAndPayoutSettings();
+    }
+  }, [activeTab, fetchBanksAndPayoutSettings]);
 
   const fetchCacStatus = async () => {
     try {
@@ -338,8 +348,8 @@ export default function SettingsPage() {
       }));
 
       showSuccess(`Account verified: ${result.account_name}`);
-    } catch (error: any) {
-      showError(error.response?.data?.message || "Failed to verify account");
+    } catch (error: unknown) {
+      showError(getErrorMessage(error, "Failed to verify account"));
       setPayoutData((prev) => ({
         ...prev,
         accountName: "",
@@ -396,8 +406,8 @@ export default function SettingsPage() {
       setPayoutOtp("");
       setPayoutOtpDestination(otpChallenge.maskedEmail || "");
       showSuccess("A 4-digit OTP has been sent to your email");
-    } catch (error: any) {
-      showError(error.response?.data?.message || "Failed to send OTP");
+    } catch (error: unknown) {
+      showError(getErrorMessage(error, "Failed to send OTP"));
     } finally {
       setIsRequestingPayoutOtp(false);
     }
@@ -452,8 +462,8 @@ export default function SettingsPage() {
       setPayoutOtpSent(false);
       setPayoutOtpDestination("");
       await fetchBanksAndPayoutSettings();
-    } catch (error: any) {
-      showError(error.response?.data?.message || "Failed to save bank account");
+    } catch (error: unknown) {
+      showError(getErrorMessage(error, "Failed to save bank account"));
     } finally {
       setIsSaving(false);
     }
@@ -572,7 +582,12 @@ export default function SettingsPage() {
       }
 
       // Only include fields that should be updated
-      const updatePayload: any = {
+      const updatePayload: {
+        primaryColor: string;
+        secondaryColor: string;
+        accentColor: string;
+        logoUrl?: string;
+      } = {
         primaryColor: brandingData.primaryColor,
         secondaryColor: brandingData.secondaryColor,
         accentColor: brandingData.accentColor,
@@ -868,9 +883,12 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-6">
                   <div className="w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50">
                     {logoPreview || brandingData.logoUrl ? (
-                      <img
+                      <Image
                         src={logoPreview || brandingData.logoUrl}
                         alt="Logo"
+                        width={128}
+                        height={128}
+                        unoptimized
                         className="w-full h-full object-cover"
                       />
                     ) : (

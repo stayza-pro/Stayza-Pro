@@ -1,19 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Percent,
   Save,
   Info,
   TrendingUp,
   Calculator,
-  BarChart3,
-  DollarSign,
-  Users,
   Target,
   AlertCircle,
   CheckCircle,
-  Clock,
   Download,
   Zap,
 } from "lucide-react";
@@ -21,14 +17,24 @@ import {
   PlatformSetting,
   updateCommissionRate,
 } from "@/services/settingsService";
-import { getAnalytics } from "@/services/adminService";
+import { getAnalytics, type PlatformAnalytics } from "@/services/adminService";
 import toast from "react-hot-toast";
 
 interface CommissionSettingsProps {
   settings: PlatformSetting[];
-  onUpdate: (key: string, value: any) => void;
+  onUpdate: (key: string, value: number) => void;
   onSaveSuccess: (message: string) => void;
   onSaveError: (error: string) => void;
+}
+
+interface CommissionImpactAnalysis {
+  currentMonthlyRevenue: number;
+  currentCommission: number;
+  newCommission: number;
+  difference: number;
+  percentageChange: number;
+  averageBookingValue: number;
+  projectedAnnualImpact: number;
 }
 
 const CommissionSettings: React.FC<CommissionSettingsProps> = ({
@@ -38,10 +44,11 @@ const CommissionSettings: React.FC<CommissionSettingsProps> = ({
   onSaveError,
 }) => {
   const [saving, setSaving] = useState(false);
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
   const [showAdvancedCalculator, setShowAdvancedCalculator] = useState(false);
   const [customBookingAmount, setCustomBookingAmount] = useState(50000);
-  const [impactAnalysis, setImpactAnalysis] = useState<any>(null);
+  const [impactAnalysis, setImpactAnalysis] =
+    useState<CommissionImpactAnalysis | null>(null);
 
   // Mini calculator states
   const [calculatorInput, setCalculatorInput] = useState("");
@@ -68,43 +75,46 @@ const CommissionSettings: React.FC<CommissionSettingsProps> = ({
   const commissionAmount = previewBookingAmount * commissionRate;
   const realtorAmount = previewBookingAmount - commissionAmount;
 
-  // Fetch analytics for impact analysis
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
+  const calculateImpactAnalysis = useCallback(
+    (analyticsData: PlatformAnalytics, newRate: number) => {
+      if (!analyticsData?.overview) return;
 
-  const fetchAnalytics = async () => {
+      const totalRevenue = parseFloat(analyticsData.overview.totalRevenue || "0");
+      const totalBookings = analyticsData.overview.totalBookings || 0;
+
+      const currentCommission = totalRevenue * currentRate;
+      const newCommission = totalRevenue * newRate;
+      const difference = newCommission - currentCommission;
+
+      setImpactAnalysis({
+        currentMonthlyRevenue: totalRevenue,
+        currentCommission,
+        newCommission,
+        difference,
+        percentageChange:
+          currentCommission > 0 ? (difference / currentCommission) * 100 : 0,
+        averageBookingValue:
+          totalBookings > 0 ? totalRevenue / totalBookings : 0,
+        projectedAnnualImpact: difference * 12,
+      });
+    },
+    [currentRate]
+  );
+
+  const fetchAnalytics = useCallback(async () => {
     try {
       const data = await getAnalytics("30d");
       setAnalytics(data);
       calculateImpactAnalysis(data, commissionRate);
-    } catch (error) {
+    } catch {
       
     }
-  };
+  }, [calculateImpactAnalysis, commissionRate]);
 
-  // Calculate impact of commission rate changes
-  const calculateImpactAnalysis = (analyticsData: any, newRate: number) => {
-    if (!analyticsData?.overview) return;
-
-    const totalRevenue = parseFloat(analyticsData.overview.totalRevenue || "0");
-    const totalBookings = analyticsData.overview.totalBookings || 0;
-
-    const currentCommission = totalRevenue * currentRate;
-    const newCommission = totalRevenue * newRate;
-    const difference = newCommission - currentCommission;
-
-    setImpactAnalysis({
-      currentMonthlyRevenue: totalRevenue,
-      currentCommission,
-      newCommission,
-      difference,
-      percentageChange:
-        currentCommission > 0 ? (difference / currentCommission) * 100 : 0,
-      averageBookingValue: totalBookings > 0 ? totalRevenue / totalBookings : 0,
-      projectedAnnualImpact: difference * 12,
-    });
-  };
+  // Fetch analytics for impact analysis
+  useEffect(() => {
+    void fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const handleCommissionRateChange = (value: number) => {
     setCommissionRate(value);
@@ -233,8 +243,10 @@ const CommissionSettings: React.FC<CommissionSettingsProps> = ({
       setTimeout(() => {
         fetchAnalytics();
       }, 1000);
-    } catch (error: any) {
-      onSaveError(error.message);
+    } catch (error: unknown) {
+      onSaveError(
+        error instanceof Error ? error.message : "Failed to update commission rate"
+      );
     } finally {
       setSaving(false);
     }
@@ -252,7 +264,7 @@ const CommissionSettings: React.FC<CommissionSettingsProps> = ({
                 Advanced Commission Management
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Optimize your platform's commission rate with real-time impact
+                Optimize your platform&apos;s commission rate with real-time impact
                 analysis
               </p>
             </div>

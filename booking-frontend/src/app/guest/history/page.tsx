@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Calendar,
   MapPin,
   Download,
   Search,
@@ -33,7 +32,6 @@ export default function BookingHistoryPage() {
   const {
     brandColor: primaryColor, // Lighter touch - primary for CTAs
     secondaryColor, // Lighter touch - secondary for accents
-    accentColor, // Lighter touch - accent for highlights
     realtorName,
     logoUrl,
     tagline,
@@ -55,13 +53,45 @@ export default function BookingHistoryPage() {
   }, [isLoading, isAuthenticated, authChecked, router]);
 
   // Fetch completed bookings
-  const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
+  const { data: bookingsData } = useQuery({
     queryKey: ["booking-history"],
     queryFn: () => bookingService.getUserBookings(),
     enabled: !!user,
   });
 
-  const bookings = (bookingsData?.data || []).filter(
+  const toBookingArray = (payload: unknown): Booking[] => {
+    if (Array.isArray(payload)) {
+      return payload as Booking[];
+    }
+
+    if (!payload || typeof payload !== "object") {
+      return [];
+    }
+
+    const typedPayload = payload as {
+      data?: unknown;
+      bookings?: unknown;
+    };
+
+    if (Array.isArray(typedPayload.data)) {
+      return typedPayload.data as Booking[];
+    }
+
+    if (Array.isArray(typedPayload.bookings)) {
+      return typedPayload.bookings as Booking[];
+    }
+
+    if (typedPayload.data && typeof typedPayload.data === "object") {
+      const nested = typedPayload.data as { bookings?: unknown };
+      if (Array.isArray(nested.bookings)) {
+        return nested.bookings as Booking[];
+      }
+    }
+
+    return [];
+  };
+
+  const bookings = toBookingArray(bookingsData).filter(
     (b: Booking) => b.status === "COMPLETED"
   );
   const hasEligibleReceipts = bookings.some((booking: Booking) =>

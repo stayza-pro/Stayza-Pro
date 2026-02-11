@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -8,21 +8,14 @@ import {
   Calendar,
   DollarSign,
   TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  CheckCircle,
   Clock,
   Star,
   ArrowUpRight,
   ArrowDownRight,
-  Eye,
-  MoreHorizontal,
-  Filter,
   Download,
   RefreshCw,
 } from "lucide-react";
 import { User as UserType } from "@/types";
-import Image from "next/image";
 import { getAnalytics, PlatformAnalytics } from "@/services/adminService";
 import AdminActionsWidget from "@/components/admin/AdminActionsWidget";
 import toast from "react-hot-toast";
@@ -41,37 +34,36 @@ export const ModernAdminDashboard: React.FC<ModernAdminDashboardProps> = ({
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch analytics data
-  useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await getAnalytics(timeRange);
       setAnalytics(data);
-    } catch (error: any) {
-      
-      toast.error(
-        error.response?.data?.message || "Failed to load analytics data"
-      );
+    } catch (error: unknown) {
+      const message =
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { message?: string } } })
+          .response?.data?.message === "string"
+          ? (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : "Failed to load analytics data";
+      toast.error(message || "Failed to load analytics data");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    void fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await fetchAnalytics();
     setIsRefreshing(false);
     toast.success("Dashboard refreshed!");
-  };
-
-  // Calculate trends from analytics data
-  const calculateTrend = (current: number, previous: number): number => {
-    if (previous === 0) return 0;
-    return ((current - previous) / previous) * 100;
   };
 
   // Loading state
@@ -116,7 +108,7 @@ export const ModernAdminDashboard: React.FC<ModernAdminDashboardProps> = ({
     title: string;
     value: string | number;
     trend?: number;
-    icon: any;
+    icon: React.ComponentType<{ className?: string }>;
     color: string;
     description?: string;
   }) => (
@@ -183,7 +175,7 @@ export const ModernAdminDashboard: React.FC<ModernAdminDashboardProps> = ({
             Welcome back, {currentUser.firstName}!
           </h1>
           <p className="text-gray-600">
-            Here's what's happening with your platform today.
+            Here&apos;s what&apos;s happening with your platform today.
           </p>
         </div>
 

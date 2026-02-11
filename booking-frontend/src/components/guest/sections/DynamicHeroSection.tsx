@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { apiClient } from "@/services/api";
 import {
   User,
@@ -32,13 +33,28 @@ interface Stats {
   totalGuests: number;
 }
 
-const toPropertyArray = (payload: unknown): any[] => {
+interface HostPropertySummary {
+  status?: string;
+  averageRating?: number;
+  reviewCount?: number;
+}
+
+interface AuthenticatedUser {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
+const toPropertyArray = (payload: unknown): HostPropertySummary[] => {
   if (Array.isArray(payload)) {
     return payload;
   }
 
   if (payload && typeof payload === "object") {
-    const typedPayload = payload as { properties?: any[]; data?: any[] };
+    const typedPayload = payload as {
+      properties?: HostPropertySummary[];
+      data?: HostPropertySummary[];
+    };
     if (Array.isArray(typedPayload.properties)) {
       return typedPayload.properties;
     }
@@ -56,7 +72,6 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
   primaryColor,
   logo,
   realtorId,
-  description,
   stats: propStats,
 }) => {
   const [stats, setStats] = useState<Stats>({
@@ -71,7 +86,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
   const [checkOutDate, setCheckOutDate] = useState("");
 
   // User authentication state
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -87,7 +102,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
 
     if (userData && accessToken) {
       try {
-        const parsedUser = JSON.parse(userData);
+        const parsedUser = JSON.parse(userData) as AuthenticatedUser;
         setUser(parsedUser);
         setIsAuthenticated(true);
       } catch (error) {
@@ -145,17 +160,17 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
     // Otherwise fetch from API (fallback)
     const fetchStats = async () => {
       try {
-        const response = await apiClient.get<any[]>(
+        const response = await apiClient.get<HostPropertySummary[]>(
           `/properties/host/${realtorId}`
         );
         const properties = toPropertyArray(response.data);
         const activeProperties = properties.filter(
-          (p: any) => p.status === "ACTIVE"
+          (property) => property.status === "ACTIVE"
         );
 
         // Calculate average rating
         const ratingsSum = activeProperties.reduce(
-          (sum: number, p: any) => sum + (p.averageRating || 0),
+          (sum, property) => sum + (property.averageRating || 0),
           0
         );
         const avgRating =
@@ -165,7 +180,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
 
         // Calculate total guests from review count (guests who left reviews)
         const totalGuestsSum = activeProperties.reduce(
-          (sum: number, p: any) => sum + (p.reviewCount || 0),
+          (sum, property) => sum + (property.reviewCount || 0),
           0
         );
 
@@ -200,9 +215,12 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
           style={isSticky ? { borderColor: `${primaryColor}40` } : undefined}
         >
           {logo && logo.trim() !== "" ? (
-            <img
+            <Image
               src={logo}
               alt={`${agencyName} Logo`}
+              width={56}
+              height={56}
+              unoptimized
               className="w-full h-full object-cover"
             />
           ) : (
@@ -295,9 +313,6 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
                   <button
                     onClick={() => (window.location.href = "/guest/profile")}
                     className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
-                    style={{
-                      ["--hover-bg" as any]: `${primaryColor}10`,
-                    }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = `${primaryColor}10`;
                     }}

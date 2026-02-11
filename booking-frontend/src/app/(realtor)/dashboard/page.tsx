@@ -7,41 +7,29 @@ import {
   Home,
   Star,
   Calendar,
-  Clock,
   MessageSquare,
-  Activity,
   Loader2,
   AlertCircle,
   BarChart3,
-  Users,
   CheckCircle,
   Package,
-  Copy,
-  Eye,
 } from "lucide-react";
 import { useRealtorStats } from "@/hooks/realtor/useRealtorStats";
 import { useBusinessInsights } from "@/hooks/realtor/useBusinessInsights";
 import { useBookingsData } from "@/hooks/realtor/useBookingsData";
-import { useRevenueData } from "@/hooks/realtor/useRevenueData";
+import { useRevenueData, type RevenueDataPoint } from "@/hooks/realtor/useRevenueData";
 import { useApprovalStatus } from "@/hooks/useApprovalStatus";
-import { useAuth } from "@/context/AuthContext";
-import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
-import { getRealtorSubdomain } from "@/utils/subdomain";
 import { format } from "date-fns";
 import { ApprovalStatusPage } from "@/components/realtor/ApprovalStatusPage";
 
 export default function RealtorDashboardPage() {
-  const { user } = useAuth();
-  const { showSuccess } = useAlert();
   const { branding } = useBranding();
-  const realtorSubdomain = getRealtorSubdomain();
 
   // Check approval status first
   const {
     data: approvalData,
     isLoading: approvalLoading,
-    error: approvalError,
   } = useApprovalStatus();
 
   // Always call hooks (React rules), but conditionally enable them
@@ -68,11 +56,6 @@ export default function RealtorDashboardPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(amount || 0);
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    showSuccess("Copied to clipboard!");
-  };
 
   // Show loading state while checking approval
   if (approvalLoading) {
@@ -220,7 +203,7 @@ export default function RealtorDashboardPage() {
         className="bg-white rounded-2xl p-6 border border-gray-200"
       >
         <h2 className="text-lg font-bold text-gray-900 mb-4">
-          Today's Activity
+          Today&apos;s Activity
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-center gap-3">
@@ -291,9 +274,9 @@ export default function RealtorDashboardPage() {
             </div>
           ) : (
             <div className="h-64 flex items-end justify-between gap-2">
-              {revenueChartData?.map((item: any, index: number) => {
+              {revenueChartData?.map((item: RevenueDataPoint, index: number) => {
                 const maxValue = Math.max(
-                  ...revenueChartData.map((d: any) => d.revenue),
+                  ...revenueChartData.map((d: RevenueDataPoint) => d.revenue),
                   1
                 );
                 const heightPercent = (item.revenue / maxValue) * 100;

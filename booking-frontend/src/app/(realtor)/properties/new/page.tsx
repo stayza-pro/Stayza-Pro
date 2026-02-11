@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { propertyService } from "@/services/properties";
 import { PropertyFormData, PropertyType, PropertyAmenity } from "@/types";
 import toast, { Toaster } from "react-hot-toast";
 import {
-  Building2,
   MapPin,
   DollarSign,
   Users,
@@ -35,22 +34,17 @@ import {
   Shirt,
   Droplet,
   Flame,
-  Snowflake,
   Dog,
   Cigarette,
   Accessibility,
   Shield,
   Clock,
-  MonitorPlay,
   UtensilsCrossed,
   Microwave,
   CupSoda,
   BedDouble,
-  Armchair,
   Sparkles,
   Building,
-  ShowerHead,
-  Refrigerator,
 } from "lucide-react";
 
 type Step =
@@ -107,7 +101,10 @@ const STEP_CONFIG = {
 const AMENITIES_OPTIONS: {
   value: PropertyAmenity;
   label: string;
-  icon: any;
+  icon: React.ComponentType<{
+    className?: string;
+    style?: React.CSSProperties;
+  }>;
   category: string;
 }[] = [
   // Essential Amenities
@@ -228,15 +225,14 @@ const AMENITIES_OPTIONS: {
 
 // Currency symbols mapping
 const CURRENCY_SYMBOLS: { [key: string]: string } = {
-  NGN: "₦",
+  NGN: "NGN",
   USD: "$",
-  EUR: "€",
-  GBP: "£",
+  EUR: "EUR",
+  GBP: "GBP",
 };
 
 export default function AddPropertyPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const { branding } = useBranding();
   const [currentStep, setCurrentStep] = useState<Step>("details");
   const [loading, setLoading] = useState(false);
@@ -266,7 +262,10 @@ export default function AddPropertyPage() {
   const isLastStep = currentStep === "review";
   const isFirstStep = currentStep === "details";
 
-  const updateFormData = (field: keyof PropertyFormData, value: any) => {
+  const updateFormData = <K extends keyof PropertyFormData>(
+    field: K,
+    value: PropertyFormData[K]
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -357,6 +356,23 @@ export default function AddPropertyPage() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const getErrorMessage = (error: unknown): string => {
+    if (
+      error &&
+      typeof error === "object" &&
+      "response" in error &&
+      typeof (error as { response?: { data?: { message?: string } } }).response
+        ?.data?.message === "string"
+    ) {
+      return (error as { response?: { data?: { message?: string } } }).response
+        ?.data?.message as string;
+    }
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+    return "Failed to create property. Please try again.";
+  };
+
   const handleSubmit = async () => {
     try {
       setLoading(true);
@@ -405,15 +421,10 @@ export default function AddPropertyPage() {
         await propertyService.uploadImages(property.id, selectedFiles);
       }
 
-      toast.success("🎉 Property created successfully!");
+      toast.success("Property created successfully!");
       router.push("/properties");
-    } catch (error: any) {
-      
-      toast.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to create property. Please try again."
-      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -590,7 +601,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "bedrooms",
-                      value === "" ? "" : parseInt(value) ?? 0
+                      value === "" ? 0 : parseInt(value, 10) || 0
                     );
                   }}
                   onBlur={(e) => {
@@ -616,7 +627,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "bathrooms",
-                      value === "" ? "" : parseInt(value) ?? 0
+                      value === "" ? 0 : parseInt(value, 10) || 0
                     );
                   }}
                   onBlur={(e) => {
@@ -642,7 +653,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "maxGuests",
-                      value === "" ? "" : parseInt(value) ?? 0
+                      value === "" ? 0 : parseInt(value, 10) || 0
                     );
                   }}
                   onBlur={(e) => {
@@ -727,7 +738,8 @@ export default function AddPropertyPage() {
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
                     Provide accurate location details. This helps guests find
-                    your property easily and improves your listing's visibility.
+                    your property easily and improves your listing&apos;s
+                    visibility.
                   </p>
                 </div>
               </div>
@@ -747,10 +759,10 @@ export default function AddPropertyPage() {
                 onChange={(e) => updateFormData("currency", e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:border-transparent transition-all"
               >
-                <option value="NGN">₦ Nigerian Naira (NGN)</option>
+                <option value="NGN">NGN Nigerian Naira (NGN)</option>
                 <option value="USD">$ US Dollar (USD)</option>
-                <option value="EUR">€ Euro (EUR)</option>
-                <option value="GBP">£ British Pound (GBP)</option>
+                <option value="EUR">EUR Euro (EUR)</option>
+                <option value="GBP">GBP British Pound (GBP)</option>
               </select>
             </div>
 
@@ -779,7 +791,8 @@ export default function AddPropertyPage() {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Set a competitive price based on your property's features and
+                Set a competitive price based on your property&apos;s features
+                and
                 location
               </p>
             </div>
@@ -1155,9 +1168,12 @@ export default function AddPropertyPage() {
                 <div className="grid grid-cols-3 gap-4">
                   {previewUrls.map((url, index) => (
                     <div key={index} className="relative group">
-                      <img
+                      <Image
                         src={url}
                         alt={`Preview ${index + 1}`}
+                        width={400}
+                        height={256}
+                        unoptimized
                         className="w-full h-32 object-cover rounded-lg"
                       />
                       <button
@@ -1202,11 +1218,11 @@ export default function AddPropertyPage() {
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Almost Done! 🎉
+                Almost Done!
               </h3>
               <p className="text-sm text-gray-600">
-                Review your listing details below and click "Publish Property"
-                when you're ready.
+                Review your listing details below and click &quot;Publish
+                Property&quot; when you&apos;re ready.
               </p>
             </div>
 
@@ -1459,3 +1475,5 @@ export default function AddPropertyPage() {
     </div>
   );
 }
+
+

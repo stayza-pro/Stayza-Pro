@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   CheckCircle,
   X,
-  Phone,
   Mail,
   Home,
 } from "lucide-react";
@@ -138,7 +137,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
         <div>
           {onBack && (
             <Button variant="outline" onClick={onBack} className="mb-2">
-              â† Back
+              Back
             </Button>
           )}
           <h1 className="text-2xl font-bold text-gray-900">Booking Details</h1>

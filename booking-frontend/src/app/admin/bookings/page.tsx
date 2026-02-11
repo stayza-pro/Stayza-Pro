@@ -5,16 +5,11 @@ import {
   Calendar,
   Search,
   Filter,
-  MoreVertical,
   Eye,
   Edit,
   Ban,
-  CheckCircle,
-  Clock,
-  XCircle,
   DollarSign,
   Users,
-  TrendingUp,
   AlertTriangle,
 } from "lucide-react";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
@@ -23,7 +18,6 @@ import DisputeResolutionModal from "@/components/admin/DisputeResolutionModal";
 import {
   getAdminBookings,
   getBookingStats,
-  getBookingById,
   updateBookingStatus,
   cancelBooking,
   formatBookingStatus,
@@ -42,15 +36,21 @@ import { getAnalytics, PlatformAnalytics } from "@/services/adminService";
 interface BookingsPageProps {}
 
 const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (!error || typeof error !== "object") {
+      return fallback;
+    }
+
+    const maybeError = error as { message?: string };
+    return maybeError.message || fallback;
+  };
+
   // State management
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [stats, setStats] = useState<BookingStatsResponse["data"] | null>(null);
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(
-    null
-  );
   const [showFilters, setShowFilters] = useState(false);
 
   // Modal states
@@ -76,7 +76,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Fetch bookings data
-  const fetchBookings = async () => {
+  const fetchBookings = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -85,32 +85,32 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
       setCurrentPage(response.data.pagination.currentPage);
       setTotalPages(response.data.pagination.totalPages);
       setTotalItems(response.data.pagination.totalItems);
-    } catch (error: any) {
-      setError(error.message || "Failed to fetch bookings");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to fetch bookings"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   // Fetch stats data
-  const fetchStats = async () => {
+  const fetchStats = React.useCallback(async () => {
     try {
       const response = await getBookingStats(30);
       setStats(response.data);
-    } catch (error: any) {
-      
+    } catch (error: unknown) {
+      // Keep existing stats if refresh fails.
     }
-  };
+  }, []);
 
   // Fetch analytics data for realtor counts
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = React.useCallback(async () => {
     try {
       const data = await getAnalytics("30d");
       setAnalytics(data);
-    } catch (error: any) {
-      
+    } catch (error: unknown) {
+      // Keep existing analytics if refresh fails.
     }
-  };
+  }, []);
 
   // Initial data fetch
   useEffect(() => {
@@ -126,7 +126,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [filters]);
+  }, [fetchAnalytics, fetchBookings, fetchStats]);
 
   // Handle page changes
   const handlePageChange = (page: number) => {
@@ -156,8 +156,8 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
         reason: reason || "",
       });
       await fetchBookings();
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to update booking status"));
     } finally {
       setActionLoading(null);
     }
@@ -177,21 +177,10 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
         : 100;
       await cancelBooking(bookingId, { reason, refundPercentage });
       await fetchBookings();
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to cancel booking"));
     } finally {
       setActionLoading(null);
-    }
-  };
-
-  const handleResolveDispute = async (disputeId: string, resolution: any) => {
-    try {
-      // This would be an API call to resolve the dispute
-      
-      // For now, just refresh the bookings
-      await fetchBookings();
-    } catch (error: any) {
-      setError(error.message);
     }
   };
 

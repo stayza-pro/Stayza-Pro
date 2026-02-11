@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect, Suspense } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowLeft, RefreshCw, Check } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { getRealtorSubdomain } from "@/utils/subdomain";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
@@ -28,8 +28,6 @@ function OTPVerificationContent() {
     brandColor,
     realtorName,
     logoUrl,
-    tagline,
-    isLoading: brandingLoading,
   } = useRealtorBranding();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -38,14 +36,14 @@ function OTPVerificationContent() {
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
 
-  const inputRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-  ];
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+    return fallback;
+  };
 
   // Countdown timer for resend button
   useEffect(() => {
@@ -59,7 +57,7 @@ function OTPVerificationContent() {
 
   // Auto-focus first input on mount
   useEffect(() => {
-    inputRefs[0].current?.focus();
+    inputRefs.current[0]?.focus();
   }, []);
 
   const handleChange = (index: number, value: string) => {
@@ -72,7 +70,7 @@ function OTPVerificationContent() {
 
     // Auto-focus next input
     if (value && index < 5) {
-      inputRefs[index + 1].current?.focus();
+      inputRefs.current[index + 1]?.focus();
     }
 
     // Auto-submit when all 6 digits are entered
@@ -83,7 +81,7 @@ function OTPVerificationContent() {
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
+      inputRefs.current[index - 1]?.focus();
     }
   };
 
@@ -98,7 +96,7 @@ function OTPVerificationContent() {
 
     // Focus the next empty input or the last one
     const nextIndex = Math.min(pastedData.length, 5);
-    inputRefs[nextIndex].current?.focus();
+    inputRefs.current[nextIndex]?.focus();
 
     // Auto-submit if we have 6 digits
     if (pastedData.length === 6) {
@@ -125,7 +123,12 @@ function OTPVerificationContent() {
           ? "/auth/verify-registration"
           : "/auth/verify-login";
 
-      const payload: any = {
+      const payload: {
+        email: string;
+        otp: string;
+        realtorId?: string;
+        referralSource?: string;
+      } = {
         email,
         otp: code,
       };
@@ -197,15 +200,13 @@ function OTPVerificationContent() {
         // Redirect to intended destination
         router.push(returnTo);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       
-      toast.error(
-        error.message || "Invalid verification code. Please try again."
-      );
+      toast.error(getErrorMessage(error, "Invalid verification code. Please try again."));
 
       // Clear OTP inputs on error
       setOtp(["", "", "", "", "", ""]);
-      inputRefs[0].current?.focus();
+      inputRefs.current[0]?.focus();
     } finally {
       setIsLoading(false);
     }
@@ -226,7 +227,15 @@ function OTPVerificationContent() {
           : "/auth/request-otp";
 
       // Build payload based on type
-      let payload: any = { email };
+      let payload: {
+        email: string;
+        type?: string;
+        firstName?: string;
+        lastName?: string;
+        role?: "GUEST";
+        realtorId?: string;
+        referralSource?: string;
+      } = { email };
 
       if (type === "register") {
         // For registration resend, include all required fields
@@ -289,10 +298,10 @@ function OTPVerificationContent() {
 
       // Clear current OTP
       setOtp(["", "", "", "", "", ""]);
-      inputRefs[0].current?.focus();
-    } catch (error: any) {
+      inputRefs.current[0]?.focus();
+    } catch (error: unknown) {
       
-      toast.error(error.message || "Failed to resend code. Please try again.");
+      toast.error(getErrorMessage(error, "Failed to resend code. Please try again."));
     } finally {
       setIsResending(false);
     }
@@ -351,15 +360,12 @@ function OTPVerificationContent() {
             }}
           >
             {logoUrl ? (
-              <img
+              <Image
                 src={logoUrl}
                 alt={realtorName}
-                style={{
-                  height: 40,
-                  width: 40,
-                  borderRadius: 8,
-                  objectFit: "cover",
-                }}
+                width={40}
+                height={40}
+                className="rounded-lg object-cover"
               />
             ) : (
               <div
@@ -440,7 +446,7 @@ function OTPVerificationContent() {
                 lineHeight: 1.6,
               }}
             >
-              We've sent a 6-digit verification code to
+              We&apos;ve sent a 6-digit verification code to
               <br />
               <strong style={{ color: "#1f2937" }}>{email}</strong>
             </p>
@@ -482,7 +488,9 @@ function OTPVerificationContent() {
               {otp.map((digit, index) => (
                 <input
                   key={index}
-                  ref={inputRefs[index]}
+                  ref={(element) => {
+                    inputRefs.current[index] = element;
+                  }}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
@@ -627,7 +635,7 @@ function OTPVerificationContent() {
               marginTop: "1.5rem",
             }}
           >
-            Didn't receive the email? Check your spam folder or try{" "}
+            Didn&apos;t receive the email? Check your spam folder or try{" "}
             <Link
               href={type === "register" ? "/guest/register" : "/guest/login"}
               style={{ color: primaryColor, fontWeight: 600 }}

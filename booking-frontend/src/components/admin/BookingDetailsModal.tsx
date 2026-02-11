@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle,
-  Clock,
   DollarSign,
   Mail,
   MapPin,
@@ -64,6 +63,83 @@ interface BookingDetails {
   propertyAddress: string;
 }
 
+interface RawBookingPayment {
+  id?: string;
+  status?: string;
+  paidAt?: string;
+  platformFeeAmount?: number;
+}
+
+interface RawBookingGuest {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+}
+
+interface RawBookingProperty {
+  title?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  realtor?: {
+    businessPhone?: string;
+    user?: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+    };
+  };
+}
+
+interface RawRefundRequest {
+  id: string;
+  status?: string;
+  reason?: string;
+  createdAt: string;
+}
+
+interface RawBooking {
+  id: string;
+  status?: string;
+  checkInDate: string;
+  checkOutDate: string;
+  totalPrice?: number;
+  currency?: string;
+  createdAt: string;
+  guest?: RawBookingGuest;
+  property?: RawBookingProperty;
+  payment?: RawBookingPayment;
+  refundRequests?: RawRefundRequest[];
+}
+
+interface RawDispute {
+  id: string;
+  disputeSubject?: string;
+  category?: string;
+  writeup?: string;
+  status?: string;
+  openedAt?: string;
+  createdAt: string;
+}
+
+interface BookingByIdResponse {
+  booking?: RawBooking;
+  data?: {
+    booking?: RawBooking;
+    data?: {
+      booking?: RawBooking;
+    };
+  };
+}
+
+interface BookingDisputesResponse {
+  disputes?: RawDispute[];
+  data?: {
+    disputes?: RawDispute[];
+  };
+}
+
 const toArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
 const formatMoney = (amount: number, currency: string) =>
@@ -91,7 +167,7 @@ const getStatusColor = (status: string) => {
   return "bg-gray-100 text-gray-800";
 };
 
-const mapBooking = (rawBooking: Record<string, any>): BookingDetails => {
+const mapBooking = (rawBooking: RawBooking): BookingDetails => {
   const guestName =
     `${rawBooking.guest?.firstName ?? ""} ${rawBooking.guest?.lastName ?? ""}`.trim() ||
     "Guest";
@@ -130,7 +206,7 @@ const mapBooking = (rawBooking: Record<string, any>): BookingDetails => {
 };
 
 const buildTimeline = (
-  rawBooking: Record<string, any>,
+  rawBooking: RawBooking,
   disputes: DisputeInfo[]
 ): TimelineEvent[] => {
   const timeline: TimelineEvent[] = [
@@ -151,7 +227,7 @@ const buildTimeline = (
     });
   }
 
-  toArray<Record<string, any>>(rawBooking.refundRequests).forEach((refund) => {
+  toArray<RawRefundRequest>(rawBooking.refundRequests).forEach((refund) => {
     timeline.push({
       id: refund.id,
       timestamp: refund.createdAt,
@@ -207,24 +283,23 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
 
       try {
         const [bookingResponse, disputesResponse] = await Promise.all([
-          getBookingById(bookingId),
-          apiClient.get<{ disputes?: Record<string, any>[] }>(
+          getBookingById(bookingId) as Promise<BookingByIdResponse>,
+          apiClient.get<BookingDisputesResponse>(
             `/disputes/booking/${bookingId}`
           ),
         ]);
 
         const rawBooking =
-          (bookingResponse as any)?.data?.booking ||
-          (bookingResponse as any)?.booking ||
-          (bookingResponse as any)?.data?.data?.booking;
+          bookingResponse.data?.booking ||
+          bookingResponse.booking ||
+          bookingResponse.data?.data?.booking;
 
         if (!rawBooking) {
           throw new Error("Booking details are unavailable.");
         }
 
-        const mappedDisputes = toArray<Record<string, any>>(
-          (disputesResponse as any)?.disputes ||
-            (disputesResponse as any)?.data?.disputes
+        const mappedDisputes = toArray<RawDispute>(
+          disputesResponse.data?.disputes || disputesResponse.data?.data?.disputes
         ).map((item) => ({
           id: item.id,
           type: item.disputeSubject || item.category || "DISPUTE",

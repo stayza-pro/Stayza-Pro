@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   DollarSign,
@@ -8,16 +8,10 @@ import {
   TrendingDown,
   Calendar,
   Download,
-  Eye,
   CreditCard,
-  Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
-  Clock,
   CheckCircle,
   AlertCircle,
   BarChart3,
-  PieChart,
 } from "lucide-react";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import toast from "react-hot-toast";
@@ -25,11 +19,6 @@ import { format } from "date-fns";
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
-  PieChart as RePieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -92,11 +81,7 @@ export default function EarningsPage() {
   );
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setIsLoading(true);
     try {
       const API_URL =
@@ -118,15 +103,18 @@ export default function EarningsPage() {
       }
 
       const data = await response.json();
-      
+
       setAnalytics(data.data);
-    } catch (error) {
-      
+    } catch {
       toast.error("Failed to load earnings data");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    void fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -194,14 +182,6 @@ export default function EarningsPage() {
     link.remove();
     window.URL.revokeObjectURL(url);
   };
-
-  const COLORS = [
-    brandColor,
-    secondaryColor,
-    accentColor,
-    brandColor + "99", // 60% opacity
-    secondaryColor + "99", // 60% opacity
-  ];
 
   if (isLoading) {
     return (

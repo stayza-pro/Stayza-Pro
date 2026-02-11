@@ -1,22 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import React from "react";
 import { useAlert } from "@/context/AlertContext";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { getRealtorSubdomain } from "@/utils/subdomain";
 import { notificationApiService } from "@/services/notifications";
-import { Notification } from "@/types/notifications";
+import { type Notification } from "@/types/notifications";
 import {
   Bell,
   Check,
-  MessageSquare,
   Calendar,
   Star,
-  Settings,
   X,
-  Copy,
-  Eye,
   Loader2,
   AlertCircle,
   Wallet,
@@ -25,68 +19,81 @@ import { formatDistanceToNow } from "date-fns";
 
 type FilterType = "all" | "unread" | "BOOKING" | "REVIEW" | "PAYMENT";
 
+type NotificationQueryParams = {
+  page?: number;
+  limit?: number;
+  unreadOnly?: boolean;
+  type?: string;
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as { response?: { data?: { message?: string } } }).response
+      ?.data?.message === "string"
+  ) {
+    return (error as { response?: { data?: { message?: string } } }).response
+      ?.data?.message as string;
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
 export default function NotificationsPage() {
-  const { user } = useAuth();
-  const { brandColor, secondaryColor, accentColor } = useRealtorBranding();
+  const { brandColor } = useRealtorBranding();
   const { showSuccess, showError } = useAlert();
 
-  const [mounted, setMounted] = useState(false);
-  const [realtorSubdomain, setRealtorSubdomain] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterType>("all");
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = React.useState<Notification[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [filter, setFilter] = React.useState<FilterType>("all");
+  const [unreadCount, setUnreadCount] = React.useState(0);
 
-  // Only get subdomain on client side
-  useEffect(() => {
-    setMounted(true);
-    setRealtorSubdomain(getRealtorSubdomain());
-  }, []);
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    showSuccess("Copied to clipboard!");
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-    fetchUnreadCount();
-  }, [filter]);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: any = { limit: 50 };
+
+      const params: NotificationQueryParams = { limit: 50 };
       if (filter === "unread") params.unreadOnly = true;
       if (filter !== "all" && filter !== "unread") params.type = filter;
 
       const response = await notificationApiService.getNotifications(params);
       setNotifications(response.notifications || []);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to load notifications");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load notifications"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = React.useCallback(async () => {
     try {
       const count = await notificationApiService.getUnreadCount();
       setUnreadCount(count);
-    } catch (err) {
-      
+    } catch {
+      // Keep UI responsive even if unread count fails.
     }
-  };
+  }, []);
+
+  React.useEffect(() => {
+    void fetchNotifications();
+    void fetchUnreadCount();
+  }, [fetchNotifications, fetchUnreadCount]);
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       await notificationApiService.markAsRead(notificationId);
       await fetchNotifications();
       await fetchUnreadCount();
-    } catch (err: any) {
-      showError(err.response?.data?.message || "Failed to mark as read");
+    } catch (err) {
+      showError(getErrorMessage(err, "Failed to mark as read"));
     }
   };
 
@@ -96,8 +103,8 @@ export default function NotificationsPage() {
       await fetchNotifications();
       await fetchUnreadCount();
       showSuccess("All notifications marked as read!");
-    } catch (err: any) {
-      showError(err.response?.data?.message || "Failed to mark all as read");
+    } catch (err) {
+      showError(getErrorMessage(err, "Failed to mark all as read"));
     }
   };
 
@@ -106,18 +113,26 @@ export default function NotificationsPage() {
       await notificationApiService.deleteNotification(notificationId);
       await fetchNotifications();
       showSuccess("Notification deleted!");
-    } catch (err: any) {
-      showError(err.response?.data?.message || "Failed to delete notification");
+    } catch (err) {
+      showError(getErrorMessage(err, "Failed to delete notification"));
     }
   };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "BOOKING":
+      case "BOOKING_CONFIRMED":
+      case "BOOKING_CANCELLED":
+      case "BOOKING_COMPLETED":
         return <Calendar className="w-5 h-5" style={{ color: brandColor }} />;
       case "REVIEW":
+      case "REVIEW_RECEIVED":
+      case "REVIEW_RESPONSE":
         return <Star className="w-5 h-5 text-yellow-600" />;
       case "PAYMENT":
+      case "PAYMENT_SUCCESSFUL":
+      case "PAYMENT_FAILED":
+      case "PAYMENT_REFUNDED":
         return <Wallet className="w-5 h-5 text-green-600" />;
       default:
         return <Bell className="w-5 h-5 text-gray-600" />;
@@ -126,15 +141,12 @@ export default function NotificationsPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-      {/* Page Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-8">
           <div className="mb-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Notifications
-                </h2>
+                <h2 className="text-2xl font-bold text-gray-900">Notifications</h2>
                 <p className="text-gray-600 mt-1">
                   Stay updated on your property activity
                 </p>
@@ -150,7 +162,6 @@ export default function NotificationsPage() {
             </div>
           </div>
 
-          {/* Filter Tabs */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
             <div className="border-b border-gray-200">
               <nav className="flex space-x-8 px-6" aria-label="Tabs">
@@ -180,7 +191,7 @@ export default function NotificationsPage() {
                       <span
                         className="ml-2 px-2 py-0.5 rounded-full text-xs"
                         style={{
-                          backgroundColor: brandColor + "20",
+                          backgroundColor: `${brandColor}20`,
                           color: brandColor,
                         }}
                       >
@@ -192,7 +203,6 @@ export default function NotificationsPage() {
               </nav>
             </div>
 
-            {/* Loading State */}
             {loading && (
               <div className="p-12">
                 <div className="text-center">
@@ -205,7 +215,6 @@ export default function NotificationsPage() {
               </div>
             )}
 
-            {/* Error State */}
             {error && !loading && (
               <div className="p-8">
                 <div className="text-center">
@@ -215,7 +224,7 @@ export default function NotificationsPage() {
                   </h3>
                   <p className="text-gray-600 mb-4">{error}</p>
                   <button
-                    onClick={fetchNotifications}
+                    onClick={() => void fetchNotifications()}
                     className="px-4 py-2 text-white rounded-lg text-sm"
                     style={{ backgroundColor: brandColor }}
                   >
@@ -225,7 +234,6 @@ export default function NotificationsPage() {
               </div>
             )}
 
-            {/* Empty State */}
             {!loading && !error && notifications.length === 0 && (
               <div className="p-12">
                 <div className="text-center">
@@ -244,16 +252,15 @@ export default function NotificationsPage() {
               </div>
             )}
 
-            {/* Notifications List */}
             {!loading && !error && notifications.length > 0 && (
               <div className="divide-y divide-gray-200">
-                {notifications.map((notification: any) => (
+                {notifications.map((notification) => (
                   <div
                     key={notification.id}
                     className="p-6 hover:bg-gray-50 transition-colors"
                     style={
                       !notification.isRead
-                        ? { backgroundColor: brandColor + "10" }
+                        ? { backgroundColor: `${brandColor}10` }
                         : {}
                     }
                   >
@@ -262,7 +269,7 @@ export default function NotificationsPage() {
                         className="p-2 rounded-lg"
                         style={{
                           backgroundColor: !notification.isRead
-                            ? brandColor + "20"
+                            ? `${brandColor}20`
                             : "#f3f4f6",
                         }}
                       >
@@ -283,23 +290,20 @@ export default function NotificationsPage() {
                             </p>
                             <p className="text-xs text-gray-500 mt-2">
                               {notification.createdAt
-                                ? formatDistanceToNow(
-                                    new Date(notification.createdAt),
-                                    { addSuffix: true }
-                                  )
+                                ? formatDistanceToNow(new Date(notification.createdAt), {
+                                    addSuffix: true,
+                                  })
                                 : "Just now"}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2 ml-4">
                             {!notification.isRead && (
                               <button
-                                onClick={() =>
-                                  handleMarkAsRead(notification.id)
-                                }
+                                onClick={() => void handleMarkAsRead(notification.id)}
                                 className="p-2 rounded-lg transition-colors"
                                 style={{
                                   color: brandColor,
-                                  backgroundColor: brandColor + "10",
+                                  backgroundColor: `${brandColor}10`,
                                 }}
                                 title="Mark as read"
                               >
@@ -307,7 +311,7 @@ export default function NotificationsPage() {
                               </button>
                             )}
                             <button
-                              onClick={() => handleDelete(notification.id)}
+                              onClick={() => void handleDelete(notification.id)}
                               className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                               title="Delete"
                             >

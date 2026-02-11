@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   Loader2,
   DollarSign,
-  Calendar,
   ArrowRight,
   Download,
   ArrowUpRight,
@@ -34,14 +33,6 @@ import walletService, {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
 
-interface PendingPayout {
-  bookingId: string;
-  propertyTitle: string;
-  amount: number;
-  releaseDate: string;
-  eventType: string;
-}
-
 interface PayoutHistory {
   id: string;
   bookingId: string;
@@ -55,14 +46,11 @@ interface PayoutHistory {
 
 export default function PayoutsPage() {
   const { user } = useAuth();
-  const { showSuccess, showError, showConfirm } = useAlert();
+  const { showSuccess, showError } = useAlert();
   const { branding } = useBranding();
 
   const [loading, setLoading] = useState(true);
-  const [requesting, setRequesting] = useState(false);
-  const [pendingPayouts, setPendingPayouts] = useState<PendingPayout[]>([]);
   const [payoutHistory, setPayoutHistory] = useState<PayoutHistory[]>([]);
-  const [totalPending, setTotalPending] = useState(0);
   const [hasPayoutAccount, setHasPayoutAccount] = useState(false);
 
   // Wallet state
@@ -88,26 +76,49 @@ export default function PayoutsPage() {
 
   const brandColor = branding?.primaryColor || "#3B82F6";
 
-  useEffect(() => {
-    fetchPayoutData();
-    fetchWalletData();
-  }, []);
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (
+      error &&
+      typeof error === "object" &&
+      "response" in error &&
+      typeof (error as { response?: { data?: { message?: string } } }).response
+        ?.data?.message === "string"
+    ) {
+      return (error as { response?: { data?: { message?: string } } }).response
+        ?.data?.message as string;
+    }
 
-  useEffect(() => {
-    loadTransactions();
-    loadWithdrawals();
-  }, [txPage, txFilter]);
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
 
-  const loadWithdrawals = async () => {
+    return fallback;
+  };
+
+  const isTimeoutError = (error: unknown): boolean => {
+    if (!error || typeof error !== "object") return false;
+
+    const code =
+      "code" in error ? String((error as { code?: string }).code || "") : "";
+    const message =
+      "message" in error
+        ? String((error as { message?: string }).message || "")
+        : "";
+
+    return (
+      code === "ECONNABORTED" || message.toLowerCase().includes("timeout")
+    );
+  };
+
+  const loadWithdrawals = useCallback(async () => {
     try {
       const data = await walletService.getWithdrawalHistory(1, 10);
       setWithdrawals(data.data);
-    } catch (error: any) {
-      
+    } catch {
     }
-  };
+  }, []);
 
-  const fetchWalletData = async () => {
+  const fetchWalletData = useCallback(async () => {
     try {
       const [balanceData, earningsData] = await Promise.all([
         walletService.getWalletBalance(),
@@ -115,12 +126,11 @@ export default function PayoutsPage() {
       ]);
       setWalletBalance(balanceData);
       setEarnings(earningsData);
-    } catch (error: any) {
-      
+    } catch {
     }
-  };
+  }, []);
 
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
     try {
       const type = txFilter === "ALL" ? undefined : txFilter;
       const response = await walletService.getWalletTransactions(
@@ -130,12 +140,11 @@ export default function PayoutsPage() {
       );
       setTransactions(response.data);
       setTxTotalPages(response.pagination.totalPages);
-    } catch (error: any) {
-      
+    } catch {
     }
-  };
+  }, [txFilter, txPage]);
 
-  const fetchPayoutData = async () => {
+  const fetchPayoutData = useCallback(async () => {
     try {
       setLoading(true);
       const [pendingRes, historyRes, settingsRes] = await Promise.all([
@@ -158,93 +167,44 @@ export default function PayoutsPage() {
 
       if (pendingRes.ok) {
         const data = await pendingRes.json();
-        setPendingPayouts(data.data.pendingPayouts || []);
-        setTotalPending(data.data.totalPending || 0);
         // Check hasPayoutAccount from both endpoints for reliability
         if (data.data.hasPayoutAccount !== undefined) {
           setHasPayoutAccount(data.data.hasPayoutAccount);
         }
       } else {
-        const errorData = await pendingRes.json();
-        
-        
-        
+        await pendingRes.json();
       }
 
       if (historyRes.ok) {
         const data = await historyRes.json();
         setPayoutHistory(data.data.history || []);
       } else {
-        const errorData = await historyRes.json();
-        
-        
-        
+        await historyRes.json();
       }
 
       // Use payout settings as the primary source of truth for hasPayoutAccount
       if (settingsRes.ok) {
         const data = await settingsRes.json();
         setHasPayoutAccount(data.data.hasPayoutAccount || false);
-        
-        
       } else {
-        const errorData = await settingsRes.json();
-        
+        await settingsRes.json();
       }
-    } catch (error) {
-      
+    } catch {
       showError("Failed to load payout information");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
 
-  const handleRequestPayout = async () => {
-    if (!hasPayoutAccount) {
-      showError("Please set up your bank account in Settings first");
-      return;
-    }
+  useEffect(() => {
+    void fetchPayoutData();
+    void fetchWalletData();
+  }, [fetchPayoutData, fetchWalletData]);
 
-    if (totalPending <= 0) {
-      showError("No pending funds available for withdrawal");
-      return;
-    }
-
-    showConfirm(
-      `Request withdrawal of ${formatCurrency(
-        totalPending
-      )}?\n\nFunds will be transferred to your registered bank account within 24-48 hours.`,
-      async () => {
-        try {
-          setRequesting(true);
-          const response = await fetch(`${API_URL}/realtors/payouts/request`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-            body: JSON.stringify({
-              amount: totalPending,
-            }),
-          });
-
-          if (response.ok) {
-            showSuccess("Payout request submitted successfully!");
-            await fetchPayoutData();
-            await fetchWalletData();
-          } else {
-            const error = await response.json();
-            showError(error.message || "Failed to request payout");
-          }
-        } catch (error) {
-          showError("Error requesting payout");
-        } finally {
-          setRequesting(false);
-        }
-      },
-      "Confirm Payout Request"
-    );
-  };
+  useEffect(() => {
+    void loadTransactions();
+    void loadWithdrawals();
+  }, [loadTransactions, loadWithdrawals]);
 
   const closeWithdrawModal = () => {
     setShowWithdrawModal(false);
@@ -294,16 +254,12 @@ export default function PayoutsPage() {
       setWithdrawStep("otp");
       setWithdrawOtp("");
       showSuccess("A 4-digit OTP has been sent to your email.");
-    } catch (error: any) {
-      const isTimeout =
-        error?.code === "ECONNABORTED" ||
-        String(error?.message || "")
-          .toLowerCase()
-          .includes("timeout");
+    } catch (error: unknown) {
+      const isTimeout = isTimeoutError(error);
       showError(
         isTimeout
           ? "Request timed out. Server may be waking up. Please try again."
-          : error.response?.data?.message || "Failed to send OTP"
+          : getErrorMessage(error, "Failed to send OTP")
       );
     } finally {
       setIsSendingOtp(false);
@@ -330,16 +286,12 @@ export default function PayoutsPage() {
       await fetchWalletData();
       await loadTransactions();
       await loadWithdrawals();
-    } catch (error: any) {
-      const isTimeout =
-        error?.code === "ECONNABORTED" ||
-        String(error?.message || "")
-          .toLowerCase()
-          .includes("timeout");
+    } catch (error: unknown) {
+      const isTimeout = isTimeoutError(error);
       showError(
         isTimeout
           ? "Verification timed out. Please try again."
-          : error.response?.data?.message || "Failed to confirm withdrawal"
+          : getErrorMessage(error, "Failed to confirm withdrawal")
       );
     } finally {
       setIsWithdrawing(false);
@@ -614,7 +566,9 @@ export default function PayoutsPage() {
               <select
                 value={txFilter}
                 onChange={(e) => {
-                  setTxFilter(e.target.value as any);
+                  setTxFilter(
+                    e.target.value as "ALL" | "CREDIT" | "DEBIT"
+                  );
                   setTxPage(1);
                 }}
                 className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"

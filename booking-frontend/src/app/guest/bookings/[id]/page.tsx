@@ -17,7 +17,6 @@ import {
   Clock,
   XCircle,
   AlertCircle,
-  RefreshCw,
   FileWarning,
   Send,
 } from "lucide-react";
@@ -33,7 +32,7 @@ import { disputeService } from "@/services/disputes";
 import { paymentService } from "@/services/payments";
 import { BookingStatus } from "@/types";
 import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
-import { DisputeIssueType } from "@/types/dispute";
+import { DisputeIssueType, DisputeMessage } from "@/types/dispute";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
 import { toast } from "react-hot-toast";
 
@@ -70,6 +69,21 @@ export default function BookingDetailsPage() {
     useState<DisputeIssueType>("OTHER");
   const [disputeResponse, setDisputeResponse] = useState("");
 
+  const getApiErrorMessage = (error: unknown, fallback: string): string => {
+    if (!error || typeof error !== "object") {
+      return fallback;
+    }
+
+    const maybeResponse = error as {
+      message?: string;
+      response?: { data?: { message?: string } };
+    };
+
+    return (
+      maybeResponse.response?.data?.message || maybeResponse.message || fallback
+    );
+  };
+
   // Mark auth as checked once we've gotten a result
   React.useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
@@ -92,7 +106,7 @@ export default function BookingDetailsPage() {
   });
 
   // Fetch dispute for this booking
-  const { data: existingDispute, isLoading: disputeLoading } = useQuery({
+  const { data: existingDispute } = useQuery({
     queryKey: ["booking-dispute", bookingId],
     queryFn: () => disputeService.getDisputeByBooking(bookingId),
     enabled: !!user && !!bookingId && !!booking,
@@ -119,20 +133,11 @@ export default function BookingDetailsPage() {
   } = useQuery({
     queryKey: ["cancellation-preview", bookingId],
     queryFn: async () => {
-      
-      try {
-        const result = await bookingService.previewCancellation(bookingId);
-        
-        if (!result) {
-          
-          throw new Error("No preview data received");
-        }
-        return result;
-      } catch (error: any) {
-        
-        
-        throw error;
+      const result = await bookingService.previewCancellation(bookingId);
+      if (!result) {
+        throw new Error("No preview data received");
       }
+      return result;
     },
     enabled: false,
     refetchOnWindowFocus: false,
@@ -146,23 +151,9 @@ export default function BookingDetailsPage() {
   // Fetch preview when modal opens
   React.useEffect(() => {
     if (showCancelModal && bookingId) {
-      
       refetchPreview();
     }
   }, [showCancelModal, bookingId, refetchPreview]);
-
-  // Debug logging
-  React.useEffect(() => {
-    if (showCancelModal) {
-      
-    }
-  }, [
-    showCancelModal,
-    previewLoading,
-    previewError,
-    cancellationPreview,
-    bookingId,
-  ]);
 
   // Cancel booking mutation
   const cancelMutation = useMutation({
@@ -194,11 +185,10 @@ export default function BookingDetailsPage() {
         duration: 5000,
       });
     },
-    onError: (error: any) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to cancel booking",
-        { duration: 4000 }
-      );
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, "Failed to cancel booking"), {
+        duration: 4000,
+      });
     },
   });
 
@@ -239,11 +229,10 @@ export default function BookingDetailsPage() {
         }
       );
     },
-    onError: (error: any) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to create dispute",
-        { duration: 4000 }
-      );
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, "Failed to create dispute"), {
+        duration: 4000,
+      });
     },
   });
 
@@ -260,8 +249,8 @@ export default function BookingDetailsPage() {
       setDisputeResponse("");
       toast.success("Response sent successfully", { duration: 3000 });
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to send response", {
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, "Failed to send response"), {
         duration: 4000,
       });
     },
@@ -457,14 +446,6 @@ export default function BookingDetailsPage() {
     );
   };
 
-  const canRequestRefund = () => {
-    if (!booking) return false;
-    return (
-      (booking.status === "CANCELLED" || booking.status === "COMPLETED") &&
-      booking.paymentStatus !== "REFUNDED"
-    );
-  };
-
   const canReview = () => {
     if (!booking) return false;
     const checkOut = new Date(booking.checkOutDate);
@@ -537,7 +518,7 @@ export default function BookingDetailsPage() {
               Booking Not Found
             </h2>
             <p className="text-gray-600 mb-6">
-              The booking you're looking for doesn't exist or you don't have
+              The booking you&apos;re looking for doesn&apos;t exist or you don&apos;t have
               access to it.
             </p>
             <Button onClick={() => router.push("/guest/bookings")}>
@@ -967,8 +948,7 @@ export default function BookingDetailsPage() {
                   Error loading cancellation details
                 </p>
                 <p className="text-red-600 text-sm mt-1">
-                  {(previewError as any)?.response?.data?.message ||
-                    "Please try again later"}
+                  {getApiErrorMessage(previewError, "Please try again later")}
                 </p>
                 <Button
                   onClick={() => setShowCancelModal(false)}
@@ -1004,7 +984,7 @@ export default function BookingDetailsPage() {
                       <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-red-900 font-bold text-lg mb-1">
-                          âš ï¸ Late Cancellation
+                          Late Cancellation
                         </p>
                         <p className="text-red-800 text-sm">
                           You are cancelling within 12 hours of check-in. Your
@@ -1294,7 +1274,7 @@ export default function BookingDetailsPage() {
                   Report an Issue
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Describe the issue you're experiencing with this booking
+                  Describe the issue you&apos;re experiencing with this booking
                 </p>
               </div>
               <button
@@ -1378,7 +1358,7 @@ export default function BookingDetailsPage() {
                       You can exchange up to 2 messages each to resolve the
                       issue
                     </li>
-                    <li>Our team will review if resolution isn't reached</li>
+                    <li>Our team will review if resolution isn&apos;t reached</li>
                   </ul>
                 </div>
               </div>
@@ -1488,7 +1468,7 @@ export default function BookingDetailsPage() {
                   </h4>
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {existingDispute.messages.map(
-                      (message: any, index: number) => (
+                      (message: DisputeMessage, index: number) => (
                         <div
                           key={index}
                           className={`p-4 rounded-lg ${
@@ -1578,7 +1558,7 @@ export default function BookingDetailsPage() {
                           Maximum responses reached
                         </p>
                         <p className="text-sm text-amber-800">
-                          You've sent the maximum number of responses (2). Our
+                          You&apos;ve sent the maximum number of responses (2). Our
                           support team will review this dispute and contact you
                           if additional information is needed.
                         </p>
@@ -1595,7 +1575,7 @@ export default function BookingDetailsPage() {
                         </p>
                         <p className="text-sm text-blue-800">
                           The host has been notified and will respond soon.
-                          You'll receive a notification when they reply.
+                          You&apos;ll receive a notification when they reply.
                         </p>
                       </div>
                     </div>
