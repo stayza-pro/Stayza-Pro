@@ -40,6 +40,17 @@ export function useRealtorBranding() {
     useState<RealtorBranding | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const mapApiBranding = (data: APIRealtorBranding): RealtorBranding => ({
+    id: data.id,
+    businessName: data.businessName,
+    tagline: data.tagline,
+    primaryColor: data.colors.primary,
+    secondaryColor: data.colors.secondary,
+    accentColor: data.colors.accent,
+    logoUrl: data.logo,
+    description: data.description,
+  });
+
   useEffect(() => {
     const fetchRealtorBranding = async () => {
       // Only run on client side to avoid hydration issues
@@ -62,40 +73,41 @@ export function useRealtorBranding() {
 
           
           if (response.data) {
-            const newBranding = {
-              id: response.data.id, // Include realtor ID
-              businessName: response.data.businessName,
-              tagline: response.data.tagline,
-              primaryColor: response.data.colors.primary,
-              secondaryColor: response.data.colors.secondary,
-              accentColor: response.data.colors.accent,
-              logoUrl: response.data.logo,
-              description: response.data.description,
-            };
-            
-            setRealtorBranding(newBranding);
+            setRealtorBranding(mapApiBranding(response.data));
           }
         } catch (error) {
           
-          // Try fallback method using referredByRealtorId
-          await tryFetchByRealtorId();
+          // Subdomain lookup failed; try authenticated or referral fallback
+          await tryFetchByRealtorContext();
         } finally {
           setIsLoading(false);
         }
       } else {
-        // No subdomain, try using referredByRealtorId
-        await tryFetchByRealtorId();
+        // No subdomain, try authenticated or referral fallback
+        await tryFetchByRealtorContext();
       }
     };
 
-    const tryFetchByRealtorId = async () => {
-      // Skip the API call and go directly to localStorage fallback for now
-      // since we don't have a proper realtorId-based endpoint that returns color data
-      
+    const tryFetchByRealtorContext = async () => {
+      if (user?.role === "REALTOR") {
+        try {
+          const response = await apiClient.get<APIRealtorBranding>(
+            "/branding/me"
+          );
+          if (response.data) {
+            setRealtorBranding(mapApiBranding(response.data));
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          
+        }
+      }
 
       if (user?.referredByRealtor) {
         
         setRealtorBranding({
+          id: user.referredByRealtor.id,
           businessName: user.referredByRealtor.businessName,
           tagline: user.referredByRealtor.tagline,
           primaryColor: user.referredByRealtor.primaryColor,

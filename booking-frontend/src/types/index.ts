@@ -487,10 +487,6 @@ export interface RealtorRegistrationFormData {
   customAccentColor?: string;
   logo?: File | null;
 
-  // Social & Media
-  socials?: Record<string, string>;
-  whatsappType: "personal" | "business";
-
   // Compliance
   termsAccepted: boolean;
   privacyAccepted: boolean;

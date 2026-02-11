@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, Calendar, DollarSign } from "lucide-react";
 import { useBrand } from "../context/BrandContext";
+import { useRevenueData } from "@/hooks/realtor/useRevenueData";
 
 interface ChartDataPoint {
   date: string;
@@ -24,40 +25,28 @@ export default function RevenueChart({
   const [activeTab, setActiveTab] = useState<"7days" | "30days" | "alltime">(
     "30days"
   );
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-
-  // Mock data generator
-  const generateMockData = (period: "7days" | "30days" | "alltime") => {
-    const days = period === "7days" ? 7 : period === "30days" ? 30 : 90;
-    const data: ChartDataPoint[] = [];
-
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-
-      // Generate realistic revenue data with some randomness
-      const baseRevenue = 150 + Math.sin(i / 7) * 50; // Weekly pattern
-      const randomFactor = 0.7 + Math.random() * 0.6; // ±30% variation
-
-      data.push({
-        date: date.toISOString().split("T")[0],
-        revenue: Math.floor(baseRevenue * randomFactor),
-        bookings: Math.floor(
-          ((baseRevenue * randomFactor) / 100) * (2 + Math.random() * 3)
-        ),
-      });
-    }
-
-    return data;
-  };
+  const { data, isLoading, setTimeFilter } = useRevenueData("30d");
 
   useEffect(() => {
-    setChartData(generateMockData(activeTab));
-  }, [activeTab]);
+    const filter =
+      activeTab === "7days" ? "7d" : activeTab === "30days" ? "30d" : "all";
+    setTimeFilter(filter);
+  }, [activeTab, setTimeFilter]);
 
-  const maxRevenue = Math.max(...chartData.map((d) => d.revenue));
+  const chartData = useMemo<ChartDataPoint[]>(
+    () =>
+      data.map((point) => ({
+        date: point.date,
+        revenue: point.revenue || 0,
+        bookings: point.bookings || 0,
+      })),
+    [data]
+  );
+
+  const maxRevenue = Math.max(1, ...chartData.map((d) => d.revenue));
   const totalRevenue = chartData.reduce((sum, d) => sum + d.revenue, 0);
-  const avgRevenue = Math.floor(totalRevenue / chartData.length);
+  const avgRevenue =
+    chartData.length > 0 ? Math.floor(totalRevenue / chartData.length) : 0;
 
   const tabs = [
     { id: "7days" as const, label: "7 Days" },
@@ -65,15 +54,14 @@ export default function RevenueChart({
     { id: "alltime" as const, label: "All Time" },
   ];
 
-  // SVG Chart Component
   const Chart = () => {
     const width = 100;
     const height = 60;
     const padding = 5;
+    const denominator = Math.max(chartData.length - 1, 1);
 
     const points = chartData.map((point, index) => {
-      const x =
-        (index / (chartData.length - 1)) * (width - padding * 2) + padding;
+      const x = (index / denominator) * (width - padding * 2) + padding;
       const y =
         height -
         (point.revenue / maxRevenue) * (height - padding * 2) -
@@ -96,7 +84,6 @@ export default function RevenueChart({
           className="w-full h-full"
           preserveAspectRatio="none"
         >
-          {/* Background grid */}
           <defs>
             <pattern
               id="grid"
@@ -125,7 +112,6 @@ export default function RevenueChart({
 
           <rect width={width} height={height} fill="url(#grid)" />
 
-          {/* Area under curve */}
           <path
             d={`${pathData} L ${
               points[points.length - 1]?.x || width - padding
@@ -135,7 +121,6 @@ export default function RevenueChart({
             fill="url(#areaGradient)"
           />
 
-          {/* Main line */}
           <motion.path
             d={pathData}
             fill="none"
@@ -148,7 +133,6 @@ export default function RevenueChart({
             transition={{ duration: 1.5, ease: "easeInOut" }}
           />
 
-          {/* Data points */}
           {points.map((point, index) => {
             const { x, y } = point;
 
@@ -168,7 +152,6 @@ export default function RevenueChart({
           })}
         </svg>
 
-        {/* Hover overlay for interactivity */}
         <div className="absolute inset-0 flex items-end justify-between px-2 pb-2">
           {chartData.map((point, index) => (
             <div
@@ -181,7 +164,6 @@ export default function RevenueChart({
                 style={{ height: `${(point.revenue / maxRevenue) * 100}%` }}
               />
 
-              {/* Tooltip */}
               <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                 ${point.revenue}
               </div>
@@ -199,7 +181,6 @@ export default function RevenueChart({
       transition={{ duration: 0.6, delay: 0.3 }}
       className={`bg-white rounded-2xl p-6 shadow-md border border-gray-100 ${className}`}
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-xl font-bold text-gray-900">{title}</h3>
@@ -208,7 +189,6 @@ export default function RevenueChart({
           </p>
         </div>
 
-        {/* Tab Selector */}
         <div className="flex bg-gray-100 rounded-xl p-1">
           {tabs.map((tab) => (
             <button
@@ -230,7 +210,6 @@ export default function RevenueChart({
         </div>
       </div>
 
-      {/* Stats Row */}
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-2">
@@ -263,8 +242,17 @@ export default function RevenueChart({
         </div>
       </div>
 
-      {/* Chart */}
-      <Chart />
+      {isLoading && chartData.length === 0 ? (
+        <div className="h-48 rounded-lg bg-gray-50 animate-pulse" />
+      ) : (
+        <Chart />
+      )}
+
+      {!isLoading && chartData.length === 0 && (
+        <div className="mt-4 text-sm text-gray-500 text-center">
+          No revenue data available for this period.
+        </div>
+      )}
     </motion.div>
   );
 }

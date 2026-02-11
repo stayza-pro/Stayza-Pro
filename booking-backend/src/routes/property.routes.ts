@@ -1176,17 +1176,86 @@ router.get(
       limit = "10",
       sortBy = "createdAt",
       sortOrder = "desc",
+      location,
+      checkIn,
+      checkOut,
     } = req.query as PropertySearchQuery;
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
+    const where: any = { realtorId };
+
+    if (location) {
+      where.OR = [
+        { title: { contains: location, mode: "insensitive" } },
+        { address: { contains: location, mode: "insensitive" } },
+        { city: { contains: location, mode: "insensitive" } },
+        { state: { contains: location, mode: "insensitive" } },
+        { country: { contains: location, mode: "insensitive" } },
+      ];
+    }
+
+    if (checkIn && checkOut) {
+      const checkInDate = new Date(checkIn);
+      const checkOutDate = new Date(checkOut);
+
+      if (Number.isNaN(checkInDate.getTime()) || Number.isNaN(checkOutDate.getTime())) {
+        throw new AppError("Invalid check-in or check-out date", 400);
+      }
+
+      if (checkOutDate <= checkInDate) {
+        throw new AppError("Check-out date must be after check-in date", 400);
+      }
+
+      where.AND = [
+        {
+          bookings: {
+            none: {
+              AND: [
+                { status: { in: ["ACTIVE", "PENDING"] } },
+                {
+                  OR: [
+                    {
+                      AND: [
+                        { checkInDate: { lte: checkInDate } },
+                        { checkOutDate: { gt: checkInDate } },
+                      ],
+                    },
+                    {
+                      AND: [
+                        { checkInDate: { lt: checkOutDate } },
+                        { checkOutDate: { gte: checkOutDate } },
+                      ],
+                    },
+                    {
+                      AND: [
+                        { checkInDate: { gte: checkInDate } },
+                        { checkOutDate: { lte: checkOutDate } },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        {
+          unavailableDates: {
+            none: {
+              date: {
+                gte: checkInDate,
+                lt: checkOutDate,
+              },
+            },
+          },
+        },
+      ];
+    }
 
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
-        where: {
-          realtorId,
-        },
+        where,
         include: {
           realtor: {
             select: {
@@ -1221,9 +1290,7 @@ router.get(
         take: limitNum,
       }),
       prisma.property.count({
-        where: {
-          realtorId,
-        },
+        where,
       }),
     ]);
 

@@ -112,6 +112,31 @@ const calculateDepositDisputeAmounts = (
   };
 };
 
+const mapIssueTypeToCategory = (issueType: string): DisputeCategory => {
+  const normalized = issueType.trim().toUpperCase();
+
+  if (
+    Object.values(DisputeCategory).includes(normalized as DisputeCategory)
+  ) {
+    return normalized as DisputeCategory;
+  }
+
+  switch (normalized) {
+    case "SAFETY_CONCERNS":
+      return DisputeCategory.SAFETY_UNINHABITABLE;
+    case "PROPERTY_CONDITION":
+      return DisputeCategory.MAJOR_MISREPRESENTATION;
+    case "CLEANLINESS":
+    case "AMENITIES_MISSING":
+      return DisputeCategory.MISSING_AMENITIES_CLEANLINESS;
+    case "BOOKING_ISSUES":
+    case "PAYMENT_DISPUTE":
+    case "OTHER":
+    default:
+      return DisputeCategory.MINOR_INCONVENIENCE;
+  }
+};
+
 /**
  * Open a ROOM_FEE dispute (Guest opens within 1hr of check-in)
  */
@@ -1021,13 +1046,15 @@ export const createNewDispute = async (
     throw new Error("A dispute already exists for this booking");
   }
 
+  const category = mapIssueTypeToCategory(issueType);
+
   // For the new system, we'll use room fee dispute as default
   // and store the conversation in attachments as JSON
   const dispute = await prisma.dispute.create({
     data: {
       bookingId,
       disputeSubject: DisputeSubject.ROOM_FEE,
-      category: DisputeCategory.OTHER_DEPOSIT_CLAIM, // Using as placeholder
+      category,
       openedBy: guestId,
       writeup: `${subject}\n\n${description}`,
       maxRefundPercent: 0,

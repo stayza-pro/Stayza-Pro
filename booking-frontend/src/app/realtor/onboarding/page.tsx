@@ -480,7 +480,7 @@ export default function OnboardingPage() {
           corporateRegNumber: accountData.cacNumber,
           cacDocumentUrl: cacDocumentUrl,
           tagline: `${accountData.businessName} - Property Management`,
-          businessAddress: "Nigeria", // Default for MVP
+          businessAddress: "Nigeria",
         }),
       });
 
@@ -2041,26 +2041,30 @@ function VideoTutorialStep({ brandColor }: { brandColor: string }) {
         transition={{ delay: 0.3 }}
         className="relative aspect-video max-w-4xl mx-auto mb-8 rounded-xl overflow-hidden shadow-2xl bg-gray-900"
       >
-        {/* Placeholder for video - replace with actual video URL */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <PlayCircle className="h-20 w-20 text-white mb-4 mx-auto" />
-            <p className="text-white text-lg font-medium">
-              Video Tutorial Coming Soon
-            </p>
-            <p className="text-gray-300 text-sm mt-2">
-              This is where your tutorial video will be embedded
-            </p>
+        <div className="absolute inset-0 p-6 md:p-10 text-left flex flex-col justify-center">
+          <h3 className="text-white text-2xl font-bold mb-6">
+            Quick setup walkthrough
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {[
+              "Add a clear property title and full address",
+              "Upload at least one high-quality photo",
+              "Set nightly price, capacity, and house rules",
+              "Publish the listing when all required fields are complete",
+            ].map((item) => (
+              <div
+                key={item}
+                className="rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-sm text-white"
+              >
+                {item}
+              </div>
+            ))}
           </div>
+          <p className="text-gray-300 text-sm mt-6">
+            You can complete this flow now or return to your dashboard and add
+            properties anytime.
+          </p>
         </div>
-        {/* Uncomment and add your video URL when ready:
-        <iframe
-          src="YOUR_VIDEO_URL_HERE"
-          className="absolute inset-0 w-full h-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        ></iframe>
-        */}
       </motion.div>
 
       {/* Quick Tips */}

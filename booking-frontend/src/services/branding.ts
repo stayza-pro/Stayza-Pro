@@ -34,10 +34,6 @@ export interface RealtorProfile {
   accentColor?: string;
   logoUrl?: string;
   websiteUrl?: string;
-  instagramUrl?: string;
-  twitterUrl?: string;
-  linkedinUrl?: string;
-  facebookUrl?: string;
   user: {
     id?: string;
     firstName: string;

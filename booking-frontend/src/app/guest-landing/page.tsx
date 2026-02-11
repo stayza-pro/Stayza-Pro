@@ -179,6 +179,7 @@ export default function GuestLandingPage() {
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
         accentColor={accentColor}
+        realtorId={realtorData.id}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Property } from "../../types";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,7 +10,6 @@ import {
   Maximize2,
   Minimize2,
   Navigation,
-  Filter,
   DollarSign,
 } from "lucide-react";
 import { Card } from "../ui";
@@ -34,6 +33,58 @@ interface MapMarkerProps {
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }
+
+const TILE_SIZE = 256;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 19;
+const MAX_LATITUDE = 85.05112878;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
+const clampLatitude = (lat: number) => clamp(lat, -MAX_LATITUDE, MAX_LATITUDE);
+
+const normalizeLongitude = (lng: number) => {
+  const normalized = ((lng + 180) % 360 + 360) % 360;
+  return normalized - 180;
+};
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const latLngToWorld = (lat: number, lng: number, zoom: number) => {
+  const scale = 2 ** zoom;
+  const safeLat = clampLatitude(lat);
+  const safeLng = normalizeLongitude(lng);
+  const x = ((safeLng + 180) / 360) * scale * TILE_SIZE;
+  const sinLat = Math.sin((safeLat * Math.PI) / 180);
+  const y =
+    (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) *
+    scale *
+    TILE_SIZE;
+  return { x, y };
+};
+
+const worldToLatLng = (x: number, y: number, zoom: number) => {
+  const scale = 2 ** zoom;
+  const lng = (x / (scale * TILE_SIZE)) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * y) / (scale * TILE_SIZE);
+  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return {
+    lat: clampLatitude(lat),
+    lng: normalizeLongitude(lng),
+  };
+};
 
 const MapMarker: React.FC<MapMarkerProps> = ({
   property,
@@ -77,7 +128,6 @@ const MapMarker: React.FC<MapMarkerProps> = ({
           ${property.pricePerNight.toLocaleString()}
         </div>
 
-        {/* Pointer/Arrow */}
         <div
           className={`
             absolute left-1/2 transform -translate-x-1/2 top-full
@@ -110,7 +160,6 @@ const PropertyPreviewCard: React.FC<{
     >
       <Card className="p-4 bg-white shadow-xl">
         <div className="flex items-start space-x-4">
-          {/* Property Image */}
           <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
             {property.images && property.images.length > 0 ? (
               <img
@@ -125,7 +174,6 @@ const PropertyPreviewCard: React.FC<{
             )}
           </div>
 
-          {/* Property Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
               <div>
@@ -157,8 +205,9 @@ const PropertyPreviewCard: React.FC<{
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close preview"
               >
-                ×
+                x
               </button>
             </div>
 
@@ -187,7 +236,7 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
   onPropertySelect,
   onPropertyHover,
   className = "",
-  center = { lat: 6.5244, lng: 3.3792 }, // Lagos, Nigeria default
+  center = { lat: 6.5244, lng: 3.3792 },
   zoom = 12,
   showFilters = true,
 }) => {
@@ -195,74 +244,188 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoveredProperty, setHoveredProperty] = useState<Property | null>(null);
   const [mapCenter, setMapCenter] = useState(center);
-  const [mapZoom, setMapZoom] = useState(zoom);
+  const [mapZoom, setMapZoom] = useState(clamp(zoom, MIN_ZOOM, MAX_ZOOM));
+  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
-  // Mock map bounds - in real implementation, this would come from the map library
-  const mapBounds = {
-    north: mapCenter.lat + 0.1,
-    south: mapCenter.lat - 0.1,
-    east: mapCenter.lng + 0.1,
-    west: mapCenter.lng - 0.1,
-  };
+  useEffect(() => {
+    setMapCenter(center);
+  }, [center]);
 
-  // Filter properties within map bounds
-  const visibleProperties = properties.filter((property) => {
-    if (!property.latitude || !property.longitude) return false;
+  useEffect(() => {
+    setMapZoom(clamp(zoom, MIN_ZOOM, MAX_ZOOM));
+  }, [zoom]);
 
-    return (
-      property.latitude >= mapBounds.south &&
-      property.latitude <= mapBounds.north &&
-      property.longitude >= mapBounds.west &&
-      property.longitude <= mapBounds.east
-    );
-  });
+  useEffect(() => {
+    if (!mapRef.current || typeof ResizeObserver === "undefined") {
+      return;
+    }
 
-  const handlePropertyClick = (property: Property) => {
-    onPropertySelect?.(property);
-  };
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (!rect) {
+        return;
+      }
+
+      setMapSize({
+        width: Math.max(1, Math.floor(rect.width)),
+        height: Math.max(1, Math.floor(rect.height)),
+      });
+    });
+
+    observer.observe(mapRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isFullscreen]);
+
+  const viewport = useMemo(() => {
+    const width = Math.max(mapSize.width, 1);
+    const height = Math.max(mapSize.height, 1);
+    const centerWorld = latLngToWorld(mapCenter.lat, mapCenter.lng, mapZoom);
+    const topLeftX = centerWorld.x - width / 2;
+    const topLeftY = centerWorld.y - height / 2;
+
+    return {
+      width,
+      height,
+      topLeftX,
+      topLeftY,
+      centerWorld,
+    };
+  }, [mapCenter.lat, mapCenter.lng, mapSize.height, mapSize.width, mapZoom]);
+
+  const mapTiles = useMemo(() => {
+    const tileZoom = clamp(mapZoom, MIN_ZOOM, MAX_ZOOM);
+    const worldTileCount = 2 ** tileZoom;
+    const maxTileY = worldTileCount - 1;
+    const startX = Math.floor(viewport.topLeftX / TILE_SIZE);
+    const endX = Math.floor((viewport.topLeftX + viewport.width) / TILE_SIZE);
+    const startY = Math.floor(viewport.topLeftY / TILE_SIZE);
+    const endY = Math.floor((viewport.topLeftY + viewport.height) / TILE_SIZE);
+    const tiles: Array<{
+      id: string;
+      left: number;
+      top: number;
+      url: string;
+    }> = [];
+
+    for (let y = startY; y <= endY; y += 1) {
+      if (y < 0 || y > maxTileY) {
+        continue;
+      }
+
+      for (let x = startX; x <= endX; x += 1) {
+        const wrappedX = ((x % worldTileCount) + worldTileCount) % worldTileCount;
+        tiles.push({
+          id: `${tileZoom}-${x}-${y}`,
+          left: x * TILE_SIZE - viewport.topLeftX,
+          top: y * TILE_SIZE - viewport.topLeftY,
+          url: `https://tile.openstreetmap.org/${tileZoom}/${wrappedX}/${y}.png`,
+        });
+      }
+    }
+
+    return tiles;
+  }, [mapZoom, viewport.height, viewport.topLeftX, viewport.topLeftY, viewport.width]);
+
+  const visibleProperties = useMemo(() => {
+    return properties
+      .map((property) => {
+        const lat = toNumber(property.latitude);
+        const lng = toNumber(property.longitude);
+        if (lat === null || lng === null) {
+          return null;
+        }
+
+        const world = latLngToWorld(lat, lng, mapZoom);
+        const x = world.x - viewport.topLeftX;
+        const y = world.y - viewport.topLeftY;
+        if (x < 0 || y < 0 || x > viewport.width || y > viewport.height) {
+          return null;
+        }
+
+        return {
+          property,
+          x,
+          y,
+        };
+      })
+      .filter(
+        (
+          marker
+        ): marker is {
+          property: Property;
+          x: number;
+          y: number;
+        } => Boolean(marker)
+      );
+  }, [mapZoom, properties, viewport.height, viewport.topLeftX, viewport.topLeftY, viewport.width]);
 
   const handlePropertyHover = (property: Property | null) => {
     setHoveredProperty(property);
     onPropertyHover?.(property);
   };
 
+  const handlePropertyClick = (property: Property) => {
+    onPropertySelect?.(property);
+  };
+
   const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
+    setIsFullscreen((prev) => !prev);
   };
 
   const centerOnUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setMapCenter({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-          setMapZoom(14);
-        },
-        (error) => {
-          
-        }
-      );
+    if (!navigator.geolocation) {
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setMapCenter({
+          lat: clampLatitude(position.coords.latitude),
+          lng: normalizeLongitude(position.coords.longitude),
+        });
+        setMapZoom((currentZoom) => Math.max(currentZoom, 14));
+      },
+      () => {
+        // Keep existing center if geolocation fails.
+      }
+    );
   };
 
-  // Convert property coordinates to pixel positions (mock implementation)
-  const getPropertyPosition = (property: Property) => {
-    if (!property.latitude || !property.longitude) return { x: 0, y: 0 };
-
-    // Mock conversion - in real implementation, use map library's projection
-    const x =
-      ((property.longitude - mapBounds.west) /
-        (mapBounds.east - mapBounds.west)) *
-      100;
-    const y =
-      ((mapBounds.north - property.latitude) /
-        (mapBounds.north - mapBounds.south)) *
-      100;
-
-    return { x: `${x}%`, y: `${y}%` };
+  const zoomIn = () => {
+    setMapZoom((currentZoom) => clamp(currentZoom + 1, MIN_ZOOM, MAX_ZOOM));
   };
+
+  const zoomOut = () => {
+    setMapZoom((currentZoom) => clamp(currentZoom - 1, MIN_ZOOM, MAX_ZOOM));
+  };
+
+  const currentBounds = useMemo(() => {
+    const northWest = worldToLatLng(viewport.topLeftX, viewport.topLeftY, mapZoom);
+    const southEast = worldToLatLng(
+      viewport.topLeftX + viewport.width,
+      viewport.topLeftY + viewport.height,
+      mapZoom
+    );
+
+    return {
+      north: northWest.lat,
+      west: northWest.lng,
+      south: southEast.lat,
+      east: southEast.lng,
+    };
+  }, [mapZoom, viewport.height, viewport.topLeftX, viewport.topLeftY, viewport.width]);
 
   return (
     <div
@@ -270,19 +433,33 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
         isFullscreen ? "fixed inset-0 z-50" : "h-96"
       } ${className}`}
     >
-      {/* Map Container */}
       <div
         ref={mapRef}
         className="w-full h-full bg-gray-200 rounded-lg overflow-hidden relative"
       >
-        {/* Mock Map Tiles */}
-        <div className="absolute inset-0 bg-blue-50 opacity-40" />
+        <div className="absolute inset-0">
+          {mapTiles.map((tile) => (
+            <img
+              key={tile.id}
+              src={tile.url}
+              alt=""
+              draggable={false}
+              className="absolute select-none pointer-events-none"
+              style={{
+                left: tile.left,
+                top: tile.top,
+                width: TILE_SIZE,
+                height: TILE_SIZE,
+              }}
+            />
+          ))}
+        </div>
 
-        {/* Map Controls */}
         <div className="absolute top-4 right-4 z-20 space-y-2">
           <button
             onClick={toggleFullscreen}
             className="p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+            aria-label={isFullscreen ? "Exit fullscreen map" : "Open fullscreen map"}
           >
             {isFullscreen ? (
               <Minimize2 className="h-4 w-4" />
@@ -294,14 +471,13 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
           <button
             onClick={centerOnUserLocation}
             className="p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+            aria-label="Center map on your location"
           >
             <Navigation className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Property Markers */}
-        {visibleProperties.map((property) => {
-          const position = getPropertyPosition(property);
+        {visibleProperties.map(({ property, x, y }) => {
           const isSelected = selectedProperty?.id === property.id;
           const isHovered = hoveredProperty?.id === property.id;
 
@@ -310,8 +486,8 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
               key={property.id}
               className="absolute"
               style={{
-                left: position.x,
-                top: position.y,
+                left: x,
+                top: y,
               }}
             >
               <MapMarker
@@ -326,7 +502,6 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
           );
         })}
 
-        {/* Property Count Badge */}
         <div className="absolute top-4 left-4 z-20">
           <div className="bg-white rounded-lg shadow-md px-3 py-2">
             <div className="flex items-center space-x-2 text-sm">
@@ -339,66 +514,78 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
           </div>
         </div>
 
-        {/* Zoom Controls */}
         <div className="absolute bottom-4 right-4 z-20">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <button
-              onClick={() => setMapZoom(Math.min(mapZoom + 1, 18))}
+              onClick={zoomIn}
               className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors border-b border-gray-200"
+              aria-label="Zoom in"
             >
               +
             </button>
             <button
-              onClick={() => setMapZoom(Math.max(mapZoom - 1, 1))}
+              onClick={zoomOut}
               className="w-8 h-8 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              aria-label="Zoom out"
             >
-              −
+              -
             </button>
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="absolute bottom-4 left-4 z-20">
-          <Card className="p-3 bg-white shadow-md">
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-4 bg-white border border-gray-300 rounded flex items-center justify-center">
-                  <DollarSign className="h-2 w-2" />
+        {showFilters && (
+          <div className="absolute bottom-4 left-4 z-20">
+            <Card className="p-3 bg-white shadow-md">
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-4 bg-white border border-gray-300 rounded flex items-center justify-center">
+                    <DollarSign className="h-2 w-2" />
+                  </div>
+                  <span>Available</span>
                 </div>
-                <span>Available</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-4 bg-blue-600 rounded flex items-center justify-center">
-                  <DollarSign className="h-2 w-2 text-white" />
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-4 bg-blue-600 rounded flex items-center justify-center">
+                    <DollarSign className="h-2 w-2 text-white" />
+                  </div>
+                  <span>Selected</span>
                 </div>
-                <span>Selected</span>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
+        )}
+
+        <div className="absolute bottom-2 right-2 z-10 bg-white/80 text-[10px] px-2 py-1 rounded">
+          <a
+            href="https://www.openstreetmap.org/copyright"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-700 hover:text-gray-900"
+          >
+            OpenStreetMap contributors
+          </a>
         </div>
       </div>
 
-      {/* Property Preview Card */}
       <AnimatePresence>
         {selectedProperty && (
           <PropertyPreviewCard
             property={selectedProperty}
             onClose={() => onPropertySelect?.(null)}
             onViewDetails={() => {
-              // Navigate to property details
               window.location.href = `/browse/${selectedProperty.id}`;
             }}
           />
         )}
       </AnimatePresence>
 
-      {/* Fullscreen Overlay */}
       {isFullscreen && (
         <div className="absolute top-4 left-4 z-40">
           <Card className="p-4 bg-white shadow-xl">
-            <h2 className="text-lg font-semibold mb-2">Property Map</h2>
+            <h2 className="text-lg font-semibold mb-1">Property Map</h2>
             <p className="text-sm text-gray-600">
-              Click on price markers to view property details
+              Zoom: {mapZoom} | Bounds: {currentBounds.north.toFixed(2)},
+              {currentBounds.west.toFixed(2)} to {currentBounds.south.toFixed(2)},
+              {currentBounds.east.toFixed(2)}
             </p>
           </Card>
         </div>

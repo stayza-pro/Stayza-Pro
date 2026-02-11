@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
+import { buildMainDomainUrl } from "@/utils/domains";
 import { RealtorDashboard } from "@/components/dashboard/RealtorDashboard";
 import {
   Building2,
@@ -61,7 +62,7 @@ const MVP_FEATURES: MVPFeature[] = [
     description:
       "Track revenue, commission breakdown, and downloadable receipts",
     icon: DollarSign,
-    href: "/payments",
+    href: "/dashboard/payments",
     status: "complete",
     color: "bg-purple-50 border-purple-200 text-purple-700",
   },
@@ -151,18 +152,21 @@ export default function EnhancedRealtorDashboard() {
     secondary: "#1E40AF",
     accent: "#F59E0B",
   };
+  const previewUrl = realtorSubdomain
+    ? `https://${realtorSubdomain}.stayza.pro`
+    : user?.realtor?.slug
+    ? buildMainDomainUrl(`/guest/preview/${user.realtor.slug}`)
+    : null;
 
   const copyWebsiteLink = () => {
-    if (!mounted) return;
-    const url = `https://${realtorSubdomain || "yourcompany"}.stayza.pro`;
-    navigator.clipboard.writeText(url);
+    if (!mounted || !previewUrl) return;
+    navigator.clipboard.writeText(previewUrl);
     toast.success("Website link copied to clipboard!");
   };
 
   const openWebsite = () => {
-    if (!mounted) return;
-    const url = `https://${realtorSubdomain || "yourcompany"}.stayza.pro`;
-    window.open(url, "_blank");
+    if (!mounted || !previewUrl) return;
+    window.open(previewUrl, "_blank");
   };
 
   return (

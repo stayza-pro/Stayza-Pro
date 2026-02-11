@@ -64,41 +64,7 @@ export default function AnalyticsPage() {
     } catch (error: any) {
       
       toast.error(error.response?.data?.message || "Failed to load analytics");
-
-      // Fallback mock data to prevent NaN values
-      setAnalytics({
-        overview: {
-          totalUsers: 0,
-          totalRealtors: 0,
-          activeRealtors: 0,
-          pendingRealtors: 0,
-          suspendedRealtors: 0,
-          totalProperties: 0,
-          activeProperties: 0,
-          inactiveProperties: 0,
-          totalBookings: 0,
-          completedBookings: 0,
-          pendingBookings: 0,
-          cancelledBookings: 0,
-          totalRevenue: "0",
-          revenueGrowth: 0,
-          averageRating: 0,
-          totalReviews: 0,
-          occupancyRate: 0,
-          conversionRate: 0,
-        },
-        trends: {
-          monthlyBookings: [],
-          monthlyRevenue: [],
-          completedBookings: [],
-        },
-        breakdowns: {
-          propertyTypes: [],
-          topLocations: [],
-          bookingStatus: [],
-          topRealtors: [],
-        },
-      });
+      setAnalytics(null);
     } finally {
       setIsLoading(false);
     }
@@ -138,31 +104,32 @@ export default function AnalyticsPage() {
       : fallback;
   };
 
+  const monthlyRevenue = Array.isArray(analytics?.trends?.monthlyRevenue)
+    ? analytics.trends.monthlyRevenue
+    : [];
+  const monthlyBookings = Array.isArray(analytics?.trends?.monthlyBookings)
+    ? analytics.trends.monthlyBookings
+    : [];
+
   // Prepare revenue data from backend with fallbacks
-  const revenueData = analytics?.trends.monthlyRevenue?.map((trend) => {
-    const bookingData = analytics.trends.monthlyBookings?.find(
-      (b) => b.month === trend.month
-    );
+  const revenueData = monthlyRevenue.map((trend) => {
+    const bookingData = monthlyBookings.find((b) => b.month === trend.month);
     return {
       name: trend.month || "Unknown",
       revenue: safeValue(parseFloat(trend.revenue?.toString() || "0"), 0),
       bookings: safeValue(bookingData?.bookings, 0),
     };
-  }) || [
-    { name: "Jan", revenue: 0, bookings: 0 },
-    { name: "Feb", revenue: 0, bookings: 0 },
-    { name: "Mar", revenue: 0, bookings: 0 },
-  ];
+  });
 
   // Prepare status data with fallbacks
-  const statusData = analytics?.breakdowns.bookingStatus?.map((status) => ({
+  const statusData = (
+    Array.isArray(analytics?.breakdowns?.bookingStatus)
+      ? analytics.breakdowns.bookingStatus
+      : []
+  ).map((status) => ({
     name: status.status || "Pending",
     value: safeValue(status.count, 0),
-  })) || [
-    { name: "Pending", value: 0 },
-    { name: "Completed", value: 0 },
-    { name: "Cancelled", value: 0 },
-  ];
+  }));
 
   // Calculate all growth metrics from real data
   const revenueGrowth = safeValue(analytics?.overview.revenueGrowth, 0);

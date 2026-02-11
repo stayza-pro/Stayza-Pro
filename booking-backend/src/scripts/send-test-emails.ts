@@ -64,7 +64,7 @@ async function sendAllTestEmails() {
     await sendPasswordReset(
       TEST_EMAIL,
       "John Doe",
-      "https://stayza.pro/reset-password?token=sample-reset-token"
+      "https://stayza.pro/realtor/reset-password?token=sample-reset-token"
     );
     
 

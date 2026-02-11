@@ -145,7 +145,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       <Card className="p-6">
         <div className="flex items-start space-x-4">
           <Image
-            src={property.images?.[0]?.url || "/placeholder-image.jpg"}
+            src={property.images?.[0]?.url || "/images/stayza.png"}
             alt={property.title}
             width={80}
             height={80}

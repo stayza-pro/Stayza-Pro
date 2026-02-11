@@ -178,7 +178,7 @@ export function JoinWaitlistClient() {
                 variants={itemVariants}
               >
                 <Rocket className="w-4 h-4" />
-                Coming Soon
+                Early Access Open
               </motion.div>
 
               <motion.h1

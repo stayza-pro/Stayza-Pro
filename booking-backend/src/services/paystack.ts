@@ -315,6 +315,47 @@ export const initializePaystackTransaction = async (data: {
 };
 
 /**
+ * Charge a previously authorized card for additional payments.
+ * Used for booking extensions where the guest has already completed an initial payment.
+ */
+export const chargeAuthorization = async (data: {
+  authorizationCode: string;
+  email: string;
+  amount: number;
+  reference: string;
+  metadata?: any;
+}) => {
+  try {
+    const payload = {
+      authorization_code: data.authorizationCode,
+      email: data.email,
+      amount: data.amount, // kobo
+      reference: data.reference,
+      metadata: data.metadata,
+    };
+
+    const response = await withPaymentRetry(
+      () => paystackClient.post("/transaction/charge_authorization", payload),
+      "chargeAuthorization",
+      "paystack"
+    );
+
+    return response.data;
+  } catch (error: any) {
+    logger.error("Paystack charge authorization error", {
+      error: error.response?.data || error.message,
+      reference: data.reference,
+      amount: data.amount,
+      stack: error.stack,
+    });
+
+    throw new Error(
+      error.response?.data?.message || "Failed to charge saved payment method"
+    );
+  }
+};
+
+/**
  * Verify Paystack transaction
  */
 export const verifyPaystackTransaction = async (reference: string) => {
@@ -428,6 +469,7 @@ export const paystackService = {
   createSubAccount,
   initializeSplitPayment,
   initializePaystackTransaction,
+  chargeAuthorization,
   verifyTransaction,
   verifyPaystackTransaction,
   processRefund,

@@ -65,8 +65,8 @@ export const calculateRefundSplit = (
     // NONE: After check-in time (no refund)
     tier = RefundTier.NONE;
     customerPercent = 0;
-    realtorPercent = 0;
-    stayzaPercent = 0;
+    realtorPercent = 90;
+    stayzaPercent = 10;
   }
 
   // Calculate room fee splits (tier-based)

@@ -840,7 +840,7 @@ router.post(
     const resetToken = generateRandomToken();
     const resetUrl = `${
       config.FRONTEND_URL
-    }/reset-password?token=${resetToken}&email=${encodeURIComponent(
+    }/realtor/reset-password?token=${resetToken}&email=${encodeURIComponent(
       user.email,
     )}`;
 

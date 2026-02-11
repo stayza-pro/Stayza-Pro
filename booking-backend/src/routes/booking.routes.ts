@@ -1981,10 +1981,10 @@ router.post(
   authenticate,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
-    const { additionalNights } = req.body;
+    const parsedAdditionalNights = Number(req.body?.additionalNights);
     const userId = req.user!.id;
 
-    if (!additionalNights || additionalNights < 1) {
+    if (!Number.isInteger(parsedAdditionalNights) || parsedAdditionalNights < 1) {
       throw new AppError("Invalid additional nights", 400);
     }
 
@@ -1998,6 +1998,26 @@ router.post(
                 userId: true,
               },
             },
+          },
+        },
+        guest: {
+          select: {
+            email: true,
+          },
+        },
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            method: true,
+            roomFeeInEscrow: true,
+            amount: true,
+            metadata: true,
+          },
+        },
+        escrow: {
+          select: {
+            id: true,
           },
         },
       },
@@ -2018,20 +2038,46 @@ router.post(
       );
     }
 
+    if (!booking.payment) {
+      throw new AppError("No payment found for this booking", 400);
+    }
+
+    if (booking.payment.method !== PaymentMethod.PAYSTACK) {
+      throw new AppError("Only Paystack extensions are currently supported", 400);
+    }
+
+    if (
+      booking.payment.status !== PaymentStatus.HELD ||
+      !booking.payment.roomFeeInEscrow
+    ) {
+      throw new AppError(
+        "Booking extension is only available while payment is held in escrow",
+        400
+      );
+    }
+
     // Calculate new check-out date
     const newCheckOut = new Date(booking.checkOutDate);
-    newCheckOut.setDate(newCheckOut.getDate() + additionalNights);
+    newCheckOut.setDate(newCheckOut.getDate() + parsedAdditionalNights);
 
     // Check for conflicts
     const conflicts = await prisma.booking.findMany({
       where: {
         propertyId: booking.propertyId,
         id: { not: id },
-        status: { in: ["ACTIVE"] },
-        checkInDate: {
-          lt: newCheckOut,
-          gte: booking.checkOutDate,
-        },
+        status: { in: ["ACTIVE", "PENDING"] },
+        AND: [
+          {
+            checkInDate: {
+              lt: newCheckOut,
+            },
+          },
+          {
+            checkOutDate: {
+              gt: booking.checkOutDate,
+            },
+          },
+        ],
       },
     });
 
@@ -2042,23 +2088,196 @@ router.post(
       );
     }
 
-    // Calculate additional cost
-    const additionalCost =
-      additionalNights * Number(booking.property.pricePerNight);
-    const serviceFee = additionalCost * 0.02; // 2% guest service fee
-    const totalAdditionalCost = additionalCost + serviceFee;
+    const additionalRoomFee =
+      parsedAdditionalNights * Number(booking.property.pricePerNight);
+    const additionalServiceFee = Number((additionalRoomFee * 0.02).toFixed(2));
+    const additionalPlatformFee = Number((additionalRoomFee * 0.1).toFixed(2));
+    const totalAdditionalCost = Number(
+      (additionalRoomFee + additionalServiceFee).toFixed(2)
+    );
 
-    // Here you would integrate with payment to charge the additional amount
-    // For now, we'll just update the booking
+    const paymentMetadata =
+      (booking.payment.metadata as Record<string, any> | null) ?? {};
+    const authorizationCode =
+      paymentMetadata?.providerResponse?.authorization?.authorization_code ||
+      paymentMetadata?.authorizationCode;
 
-    const updatedBooking = await prisma.booking.update({
-      where: { id },
-      data: {
-        checkOutDate: newCheckOut,
-        totalPrice: {
-          increment: totalAdditionalCost,
-        },
+    if (!authorizationCode || typeof authorizationCode !== "string") {
+      throw new AppError(
+        "Unable to charge extension automatically for this booking",
+        400
+      );
+    }
+
+    const extensionReference = `EXT-${booking.id.slice(-6)}-${Date.now()}`;
+    const chargeResult = await paystackService.chargeAuthorization({
+      authorizationCode,
+      email: booking.guest.email,
+      amount: Math.round(totalAdditionalCost * 100), // Paystack expects kobo
+      reference: extensionReference,
+      metadata: {
+        bookingId: id,
+        additionalNights: parsedAdditionalNights,
+        additionalRoomFee,
+        additionalServiceFee,
       },
+    });
+
+    const chargeData = chargeResult?.data || {};
+    const paymentSuccessful =
+      chargeResult?.status === true && chargeData?.status === "success";
+
+    if (!paymentSuccessful) {
+      throw new AppError(
+        `Extension payment failed: ${
+          chargeResult?.message || chargeData?.gateway_response || "unknown error"
+        }`,
+        400
+      );
+    }
+
+    const extensionChargeEntry = {
+      reference: extensionReference,
+      amount: totalAdditionalCost,
+      roomFee: additionalRoomFee,
+      serviceFee: additionalServiceFee,
+      platformFee: additionalPlatformFee,
+      additionalNights: parsedAdditionalNights,
+      chargedAt: new Date().toISOString(),
+      providerId: chargeData?.id?.toString?.() || null,
+    };
+
+    const existingExtensionCharges = Array.isArray(
+      paymentMetadata.extensionCharges
+    )
+      ? paymentMetadata.extensionCharges
+      : [];
+
+    const updatedBooking = await prisma.$transaction(async (tx) => {
+      const bookingUpdate = await tx.booking.update({
+        where: { id },
+        data: {
+          checkOutDate: newCheckOut,
+          totalPrice: {
+            increment: totalAdditionalCost,
+          },
+          roomFee: {
+            increment: additionalRoomFee,
+          },
+          serviceFee: {
+            increment: additionalServiceFee,
+          },
+          platformFee: {
+            increment: additionalPlatformFee,
+          },
+        },
+      });
+
+      await tx.payment.update({
+        where: { id: booking.payment!.id },
+        data: {
+          amount: {
+            increment: totalAdditionalCost,
+          },
+          roomFeeAmount: {
+            increment: additionalRoomFee,
+          },
+          serviceFeeAmount: {
+            increment: additionalServiceFee,
+          },
+          platformFeeAmount: {
+            increment: additionalPlatformFee,
+          },
+          metadata: {
+            ...paymentMetadata,
+            extensionCharges: [...existingExtensionCharges, extensionChargeEntry],
+            lastExtensionCharge: extensionChargeEntry,
+          },
+        },
+      });
+
+      if (additionalServiceFee > 0) {
+        const platformWallet = await tx.wallet.upsert({
+          where: {
+            ownerType_ownerId: {
+              ownerType: "PLATFORM",
+              ownerId: "platform",
+            },
+          },
+          update: {
+            balanceAvailable: {
+              increment: new Prisma.Decimal(additionalServiceFee),
+            },
+          },
+          create: {
+            ownerType: "PLATFORM",
+            ownerId: "platform",
+            balanceAvailable: new Prisma.Decimal(additionalServiceFee),
+            balancePending: new Prisma.Decimal(0),
+          },
+        });
+
+        await tx.walletTransaction.create({
+          data: {
+            walletId: platformWallet.id,
+            type: "CREDIT",
+            source: "SERVICE_FEE",
+            amount: new Prisma.Decimal(additionalServiceFee),
+            referenceId: id,
+            status: "COMPLETED",
+            metadata: {
+              bookingId: id,
+              paymentId: booking.payment!.id,
+              extensionReference,
+            },
+          },
+        });
+
+        await tx.escrowEvent.create({
+          data: {
+            bookingId: id,
+            eventType: "COLLECT_SERVICE_FEE",
+            amount: new Prisma.Decimal(additionalServiceFee),
+            fromParty: "CUSTOMER",
+            toParty: "PLATFORM_WALLET",
+            transactionReference: extensionReference,
+            notes: `Service fee of ${additionalServiceFee.toFixed(
+              2
+            )} collected immediately for extension`,
+            triggeredBy: userId,
+            providerResponse: chargeData,
+          },
+        });
+      }
+
+      if (booking.escrow) {
+        await tx.escrow.update({
+          where: { bookingId: id },
+          data: {
+            roomFeeHeld: {
+              increment: additionalRoomFee,
+            },
+          },
+        });
+
+        await tx.escrowEvent.create({
+          data: {
+            bookingId: id,
+            eventType: "HOLD_ROOM_FEE",
+            amount: new Prisma.Decimal(additionalRoomFee),
+            fromParty: "CUSTOMER",
+            toParty: "ESCROW",
+            transactionReference: extensionReference,
+            notes: `Additional room fee of ${additionalRoomFee.toFixed(
+              2
+            )} held in escrow for extension`,
+            triggeredBy: userId,
+            providerResponse: chargeData,
+          },
+        });
+      }
+
+      return bookingUpdate;
     });
 
     // Notify realtor
@@ -2069,14 +2288,15 @@ router.post(
         title: "Booking Extended",
         message: `Guest extended booking #${booking.id.slice(
           -6
-        )} by ${additionalNights} night(s)`,
+        )} by ${parsedAdditionalNights} night(s)`,
         bookingId: id,
         priority: "normal",
         isRead: false,
         data: {
           bookingId: id,
-          additionalNights,
+          additionalNights: parsedAdditionalNights,
           additionalCost: totalAdditionalCost,
+          paymentReference: extensionReference,
           newCheckOut,
         },
       },
@@ -2090,26 +2310,30 @@ router.post(
         entityId: id,
         entityType: "Booking",
         details: {
-          additionalNights,
+          additionalNights: parsedAdditionalNights,
           oldCheckOut: booking.checkOutDate,
           newCheckOut,
           additionalCost: totalAdditionalCost,
+          paymentReference: extensionReference,
+          providerTransactionId: chargeData?.id?.toString?.() || null,
         },
       },
     });
 
     logger.info("Booking extended", {
       bookingId: id,
-      additionalNights,
+      additionalNights: parsedAdditionalNights,
       newCheckOut,
+      paymentReference: extensionReference,
     });
 
     return res.json({
       success: true,
-      message: `Booking extended by ${additionalNights} night(s)`,
+      message: `Booking extended by ${parsedAdditionalNights} night(s)`,
       data: {
         newCheckOutDate: newCheckOut,
         additionalCost: totalAdditionalCost,
+        paymentReference: extensionReference,
         booking: updatedBooking,
       },
     });
@@ -2310,9 +2534,15 @@ router.post(
     const { startDate, endDate, reason } = req.body;
     const userId = req.user!.id;
 
+    if (!startDate || !endDate || !reason) {
+      throw new AppError("startDate, endDate, and reason are required", 400);
+    }
+
     const property = await prisma.property.findUnique({
       where: { id: propertyId },
-      include: {
+      select: {
+        id: true,
+        currency: true,
         realtor: {
           select: {
             userId: true,
@@ -2331,6 +2561,15 @@ router.post(
 
     const start = new Date(startDate);
     const end = new Date(endDate);
+    const reasonText = String(reason).trim();
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new AppError("Invalid startDate or endDate", 400);
+    }
+
+    if (!reasonText) {
+      throw new AppError("Reason is required", 400);
+    }
 
     if (end <= start) {
       throw new AppError("End date must be after start date", 400);
@@ -2340,11 +2579,13 @@ router.post(
     const conflicts = await prisma.booking.findMany({
       where: {
         propertyId,
-        status: { in: ["ACTIVE"] },
-        OR: [
+        status: { in: ["ACTIVE", "PENDING"] },
+        AND: [
           {
-            checkInDate: { lte: end },
-            checkOutDate: { gte: start },
+            checkInDate: { lt: end },
+          },
+          {
+            checkOutDate: { gt: start },
           },
         ],
       },
@@ -2357,8 +2598,32 @@ router.post(
       );
     }
 
-    // Create a "blocked" booking (we'll use a special guestId or flag)
-    // For now, we'll create an audit log entry
+    const blockedBooking = await prisma.booking.create({
+      data: {
+        propertyId,
+        guestId: userId,
+        checkInDate: start,
+        checkOutDate: end,
+        totalGuests: 1,
+        totalPrice: new Prisma.Decimal(0),
+        currency: property.currency,
+        status: BookingStatus.ACTIVE,
+        paymentStatus: null,
+        roomFee: new Prisma.Decimal(0),
+        cleaningFee: new Prisma.Decimal(0),
+        securityDeposit: new Prisma.Decimal(0),
+        serviceFee: new Prisma.Decimal(0),
+        platformFee: new Prisma.Decimal(0),
+        specialRequests: `[SYSTEM_BLOCKED_DATES] ${reasonText}`,
+      },
+      select: {
+        id: true,
+        checkInDate: true,
+        checkOutDate: true,
+        status: true,
+      },
+    });
+
     await prisma.auditLog.create({
       data: {
         action: "DATES_BLOCKED",
@@ -2368,7 +2633,8 @@ router.post(
         details: {
           startDate,
           endDate,
-          reason,
+          reason: reasonText,
+          blockedBookingId: blockedBooking.id,
         },
       },
     });
@@ -2377,16 +2643,15 @@ router.post(
       propertyId,
       startDate,
       endDate,
-      reason,
+      reason: reasonText,
+      blockedBookingId: blockedBooking.id,
     });
 
     return res.json({
       success: true,
       message: "Dates blocked successfully",
       data: {
-        startDate,
-        endDate,
-        reason,
+        blockedBooking,
       },
     });
   })

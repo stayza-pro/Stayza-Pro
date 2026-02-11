@@ -9,6 +9,7 @@ import { BookingStatus, PaymentStatus } from "@prisma/client";
 import {
   sendCacApprovalEmail,
   sendCacRejectionEmail,
+  sendEmail,
   sendEmailVerification,
   sendPayoutAccountOtpEmail,
   sendRealtorWelcomeEmail,
@@ -80,6 +81,14 @@ const generateUniqueSlug = async (businessName: string): Promise<string> => {
 
   return slug;
 };
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 const PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES = 10;
 const PAYOUT_ACCOUNT_OTP_MAX_ATTEMPTS = 5;
@@ -953,8 +962,6 @@ router.post(
       secondaryColor,
       accentColor,
       brandColorHex, // Legacy support
-      // Social media (removed for MVP)
-      socials,
       // File uploads (URLs from temporary storage)
       logoUrl,
       cacDocumentUrl,
@@ -1056,8 +1063,6 @@ router.post(
           cacDocumentUrl: cacDocumentUrl,
           // Generate website URL from subdomain
           websiteUrl: `https://${slug}.stayza.pro`,
-          // Social media URLs
-          // Social URLs and WhatsApp removed for MVP
         },
         include: {
           user: {
@@ -1341,12 +1346,6 @@ router.put(
       secondaryColor,
       accentColor,
       websiteUrl,
-      instagramUrl,
-      twitterUrl,
-      linkedinUrl,
-      facebookUrl,
-      youtubeUrl,
-      whatsappType,
     } = req.body;
 
     const realtor = await prisma.realtor.findUnique({
@@ -1380,14 +1379,8 @@ router.put(
       updateData.corporateRegNumber = corporateRegNumber;
     if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
 
-    // Social media URLs
+    // Public website URL
     if (websiteUrl !== undefined) updateData.websiteUrl = websiteUrl;
-    if (instagramUrl !== undefined) updateData.instagramUrl = instagramUrl;
-    if (twitterUrl !== undefined) updateData.twitterUrl = twitterUrl;
-    if (linkedinUrl !== undefined) updateData.linkedinUrl = linkedinUrl;
-    if (facebookUrl !== undefined) updateData.facebookUrl = facebookUrl;
-    if (youtubeUrl !== undefined) updateData.youtubeUrl = youtubeUrl;
-    if (whatsappType !== undefined) updateData.whatsappType = whatsappType;
 
     // Support both old brandColorHex and new color system
     if (brandColorHex) updateData.primaryColor = brandColorHex;
@@ -1748,25 +1741,48 @@ router.get(
     }
 
     const now = new Date();
-    const lastMonth = new Date(
-      now.getFullYear(),
-      now.getMonth() - 1,
-      now.getDate(),
-    );
+    const periodDays = 30;
+    const currentPeriodStart = new Date(now);
+    currentPeriodStart.setDate(currentPeriodStart.getDate() - periodDays);
+    const previousPeriodStart = new Date(currentPeriodStart);
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - periodDays);
 
-    // Calculate stats
-    const totalBookings = await prisma.booking.count({
-      where: {
-        property: {
-          realtorId: realtor.id,
-        },
-      },
-    });
+    const calculatePercentageChange = (current: number, previous: number) => {
+      if (previous <= 0) {
+        return {
+          value: current > 0 ? 100 : 0,
+          type: "increase" as const,
+        };
+      }
+
+      const deltaPercent = ((current - previous) / previous) * 100;
+      return {
+        value: Number(Math.abs(deltaPercent).toFixed(1)),
+        type: (deltaPercent >= 0 ? "increase" : "decrease") as
+          | "increase"
+          | "decrease",
+      };
+    };
+
+    const calculatePointChange = (current: number, previous: number) => {
+      const delta = current - previous;
+      return {
+        value: Number(Math.abs(delta).toFixed(1)),
+        type: (delta >= 0 ? "increase" : "decrease") as
+          | "increase"
+          | "decrease",
+      };
+    };
 
     const activeBookings = await prisma.booking.count({
       where: {
         property: {
           realtorId: realtor.id,
+        },
+        NOT: {
+          specialRequests: {
+            startsWith: "[SYSTEM_BLOCKED_DATES]",
+          },
         },
         status: {
           in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED],
@@ -1822,18 +1838,92 @@ router.get(
       Number(releasedCleaningFees._sum?.amount || 0) +
       Number(releasedRoomFees._sum?.amount || 0) * 0.9; // Realtor gets 90% of room fee
 
-    const lastMonthRevenue = await prisma.booking.aggregate({
+    const currentPeriodRevenue = await prisma.booking.aggregate({
       where: {
         property: {
           realtorId: realtor.id,
         },
         status: BookingStatus.COMPLETED,
         createdAt: {
-          gte: lastMonth,
+          gte: currentPeriodStart,
         },
       },
       _sum: {
         totalPrice: true,
+      },
+    });
+
+    const previousPeriodRevenue = await prisma.booking.aggregate({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        status: BookingStatus.COMPLETED,
+        createdAt: {
+          gte: previousPeriodStart,
+          lt: currentPeriodStart,
+        },
+      },
+      _sum: {
+        totalPrice: true,
+      },
+    });
+
+    const currentPeriodActiveBookings = await prisma.booking.count({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        NOT: {
+          specialRequests: {
+            startsWith: "[SYSTEM_BLOCKED_DATES]",
+          },
+        },
+        status: {
+          in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED],
+        },
+        createdAt: {
+          gte: currentPeriodStart,
+        },
+      },
+    });
+
+    const previousPeriodActiveBookings = await prisma.booking.count({
+      where: {
+        property: {
+          realtorId: realtor.id,
+        },
+        NOT: {
+          specialRequests: {
+            startsWith: "[SYSTEM_BLOCKED_DATES]",
+          },
+        },
+        status: {
+          in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED],
+        },
+        createdAt: {
+          gte: previousPeriodStart,
+          lt: currentPeriodStart,
+        },
+      },
+    });
+
+    const currentPeriodProperties = await prisma.property.count({
+      where: {
+        realtorId: realtor.id,
+        createdAt: {
+          gte: currentPeriodStart,
+        },
+      },
+    });
+
+    const previousPeriodProperties = await prisma.property.count({
+      where: {
+        realtorId: realtor.id,
+        createdAt: {
+          gte: previousPeriodStart,
+          lt: currentPeriodStart,
+        },
       },
     });
 
@@ -1846,12 +1936,60 @@ router.get(
           },
         },
       },
+      select: {
+        rating: true,
+      },
     });
 
     const averageRating =
       allReviews.length > 0
         ? allReviews.reduce((sum, review) => sum + review.rating, 0) /
           allReviews.length
+        : 0;
+
+    const currentPeriodReviews = await prisma.review.findMany({
+      where: {
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+        },
+        createdAt: {
+          gte: currentPeriodStart,
+        },
+      },
+      select: {
+        rating: true,
+      },
+    });
+
+    const previousPeriodReviews = await prisma.review.findMany({
+      where: {
+        booking: {
+          property: {
+            realtorId: realtor.id,
+          },
+        },
+        createdAt: {
+          gte: previousPeriodStart,
+          lt: currentPeriodStart,
+        },
+      },
+      select: {
+        rating: true,
+      },
+    });
+
+    const currentPeriodRating =
+      currentPeriodReviews.length > 0
+        ? currentPeriodReviews.reduce((sum, review) => sum + review.rating, 0) /
+          currentPeriodReviews.length
+        : 0;
+
+    const previousPeriodRating =
+      previousPeriodReviews.length > 0
+        ? previousPeriodReviews.reduce((sum, review) => sum + review.rating, 0) /
+          previousPeriodReviews.length
         : 0;
 
     // Today's stats
@@ -1865,6 +2003,11 @@ router.get(
         property: {
           realtorId: realtor.id,
         },
+        NOT: {
+          specialRequests: {
+            startsWith: "[SYSTEM_BLOCKED_DATES]",
+          },
+        },
         createdAt: {
           gte: today,
           lt: tomorrow,
@@ -1877,6 +2020,11 @@ router.get(
         property: {
           realtorId: realtor.id,
         },
+        NOT: {
+          specialRequests: {
+            startsWith: "[SYSTEM_BLOCKED_DATES]",
+          },
+        },
         checkInDate: {
           gte: today,
           lt: tomorrow,
@@ -1884,32 +2032,41 @@ router.get(
       },
     });
 
-    // Mock unread messages for now
-    const unreadMessages = 0;
+    const unreadMessages = await prisma.message.count({
+      where: {
+        recipientId: userId,
+        isRead: false,
+      },
+    });
+
+    const currentRevenueValue = Number(currentPeriodRevenue._sum?.totalPrice || 0);
+    const previousRevenueValue = Number(
+      previousPeriodRevenue._sum?.totalPrice || 0,
+    );
 
     return res.json({
       success: true,
       data: {
         totalRevenue: parseFloat(totalRevenue.toFixed(2)),
-        revenueChange: {
-          value: 12.5, // Calculate actual percentage change
-          type: "increase",
-        },
+        revenueChange: calculatePercentageChange(
+          currentRevenueValue,
+          previousRevenueValue,
+        ),
         activeBookings,
-        bookingsChange: {
-          value: 8.3,
-          type: "increase",
-        },
+        bookingsChange: calculatePercentageChange(
+          currentPeriodActiveBookings,
+          previousPeriodActiveBookings,
+        ),
         propertiesCount: realtor?.properties?.length || 0,
-        propertiesChange: {
-          value: 2,
-          type: "increase",
-        },
+        propertiesChange: calculatePercentageChange(
+          currentPeriodProperties,
+          previousPeriodProperties,
+        ),
         averageRating,
-        ratingChange: {
-          value: 0.2,
-          type: "increase",
-        },
+        ratingChange: calculatePointChange(
+          currentPeriodRating,
+          previousPeriodRating,
+        ),
         todayBookings,
         todayCheckIns,
         unreadMessages,
@@ -1947,6 +2104,11 @@ router.get(
       where: {
         property: {
           realtorId: realtor.id,
+        },
+        NOT: {
+          specialRequests: {
+            startsWith: "[SYSTEM_BLOCKED_DATES]",
+          },
         },
       },
       include: {
@@ -3309,6 +3471,78 @@ router.get(
  *       404:
  *         description: Realtor not found or not approved
  */
+router.post(
+  "/:realtorId/contact",
+  asyncHandler(async (req: Request, res: Response) => {
+    const { realtorId } = req.params;
+    const name = String(req.body?.name ?? "").trim();
+    const email = String(req.body?.email ?? "")
+      .trim()
+      .toLowerCase();
+    const message = String(req.body?.message ?? "").trim();
+
+    if (name.length < 2) {
+      throw new AppError("Name must be at least 2 characters", 400);
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new AppError("A valid email address is required", 400);
+    }
+
+    if (message.length < 10) {
+      throw new AppError("Message must be at least 10 characters", 400);
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: {
+        id: realtorId,
+        isActive: true,
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!realtor) {
+      throw new AppError("Realtor not found", 404);
+    }
+
+    const recipient = realtor.user?.email;
+    if (!recipient) {
+      throw new AppError("Realtor contact email is not configured", 503);
+    }
+
+    const safeRealtorName = escapeHtml(realtor.businessName);
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safeMessage = escapeHtml(message).replace(/\n/g, "<br/>");
+
+    await sendEmail(recipient, {
+      subject: `New guest inquiry for ${realtor.businessName}`,
+      html: `
+        <h2>New inquiry from your booking site</h2>
+        <p>You received a new guest message.</p>
+        <ul>
+          <li><strong>Guest name:</strong> ${safeName}</li>
+          <li><strong>Guest email:</strong> ${safeEmail}</li>
+          <li><strong>Realtor:</strong> ${safeRealtorName}</li>
+        </ul>
+        <p><strong>Message</strong></p>
+        <p>${safeMessage}</p>
+      `,
+    });
+
+    res.status(202).json({
+      success: true,
+      message: "Message sent successfully",
+    });
+  }),
+);
+
 router.get(
   "/:slug",
   asyncHandler(async (req: Request, res: Response) => {

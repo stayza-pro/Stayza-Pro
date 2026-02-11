@@ -52,6 +52,27 @@ const nextConfig = {
         destination: '/en',
         permanent: true,
       },
+      // Legacy route cleanup redirects
+      {
+        source: '/guest/browse/:id',
+        destination: '/browse/:id',
+        permanent: true,
+      },
+      {
+        source: '/realtor/verify-email',
+        destination: '/verify-email',
+        permanent: true,
+      },
+      {
+        source: '/payments',
+        destination: '/dashboard/payments',
+        permanent: true,
+      },
+      {
+        source: '/reset-password',
+        destination: '/realtor/reset-password',
+        permanent: true,
+      },
     ];
   },
   

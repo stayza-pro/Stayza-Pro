@@ -644,7 +644,7 @@ enum RefundTier {
    EARLY // 24+ hours before check-in (90% customer / 7% realtor / 3% platform)
    MEDIUM // 12-24 hours before check-in (70% customer / 20% realtor / 10% platform)
    LATE // 0-12 hours before check-in (0% customer / 80% realtor / 20% platform)
-   NONE // After check-in - no room fee refund (TBD split)
+   NONE // After check-in - no customer room-fee refund; remaining room fee follows 90/10 realtor/platform
 }
 
 enum PaymentStatus {

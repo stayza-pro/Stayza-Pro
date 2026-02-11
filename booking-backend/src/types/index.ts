@@ -35,6 +35,7 @@ export interface PaginationQuery {
 }
 
 export interface PropertySearchQuery extends PaginationQuery {
+  location?: string;
   city?: string;
   country?: string;
   type?: string;

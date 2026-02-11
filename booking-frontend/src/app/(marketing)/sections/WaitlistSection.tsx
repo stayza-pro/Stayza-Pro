@@ -45,7 +45,7 @@ export function WaitlistSection() {
             style={{ backgroundColor: `${palette.accent}40` }}
           >
             <Rocket className="w-4 h-4" />
-            Coming Soon
+            Early Access Open
           </div>
 
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">

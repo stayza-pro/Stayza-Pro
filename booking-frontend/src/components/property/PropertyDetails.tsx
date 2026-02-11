@@ -77,7 +77,7 @@ export const PropertyDetails: React.FC<PropertyDetailsProps> = ({
                 <Image
                   src={
                     property.images[selectedImageIndex]?.url ||
-                    "/placeholder-image.jpg"
+                    "/images/stayza.png"
                   }
                   alt={property.title}
                   fill

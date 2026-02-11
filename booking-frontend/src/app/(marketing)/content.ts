@@ -218,7 +218,7 @@ export const integrationBadges = [
 export const caseStudies = [
   {
     company: "Pre-Launch Platform",
-    industry: "Coming Soon",
+    industry: "Early Access",
     result: "100+ Realtors on Waitlist",
     delta:
       "Join early and be among the first to launch your branded booking site with escrow-protected payments",
@@ -275,6 +275,6 @@ export const faqItems = [
   {
     question: "Are there property limits or subscription fees?",
     answer:
-      "Currently free for all realtors with unlimited property listings. Platform earns only through the 10% commission on completed bookings. Paid plans with lower commission rates coming soon.",
+      "Realtors can list unlimited properties. Stayza currently charges a 10% commission on completed bookings with no subscription fee.",
   },
 ] as const;

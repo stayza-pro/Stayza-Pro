@@ -50,6 +50,29 @@ interface RealtorWebsiteProps {
   realtorId: string;
 }
 
+const toPropertyArray = (payload: unknown): Property[] => {
+  if (Array.isArray(payload)) {
+    return payload as Property[];
+  }
+
+  if (payload && typeof payload === "object") {
+    const typedPayload = payload as {
+      properties?: Property[];
+      data?: Property[];
+    };
+
+    if (Array.isArray(typedPayload.properties)) {
+      return typedPayload.properties;
+    }
+
+    if (Array.isArray(typedPayload.data)) {
+      return typedPayload.data;
+    }
+  }
+
+  return [];
+};
+
 export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
   data,
   logoPreview,
@@ -102,12 +125,12 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
     const fetchProperties = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.get<{ properties: Property[] }>(
+        const response = await apiClient.get<Property[]>(
           `/properties/host/${realtorId}`
         );
 
         // Only show ACTIVE properties to guests
-        const activeProperties = response.data.properties.filter(
+        const activeProperties = toPropertyArray(response.data).filter(
           (p: Property) => p.status === "ACTIVE"
         );
 

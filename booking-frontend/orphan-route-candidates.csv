@@ -1,0 +1,10 @@
+orphan_route,orphan_file,likely_replacement_route,replacement_file,replacement_reference_count,similarity_score,notes
+/admin/system-health,app/admin/system-health/page.tsx,,,,,no confident replacement
+/admin/waitlist,app/admin/waitlist/page.tsx,,,,,no confident replacement
+/booking/payment/success,app/booking/payment/success/page.tsx,,,,,no confident replacement
+/dashboard/payments,app/(realtor)/dashboard/payments/page.tsx,/payments,app/(realtor)/payments/page.tsx,14,5.500,auto-match suffix=1; jaccard=0.50
+/demo/realtor,app/demo/realtor/page.tsx,/realtor,app/realtor/page.tsx,49,2.500,auto-match suffix=1; jaccard=0.50
+/guest/notifications,app/guest/notifications/page.tsx,/notifications,app/(realtor)/notifications/page.tsx,15,5.500,auto-match suffix=1; jaccard=0.50
+/guest/preview/:realtorId,app/guest/preview/[realtorId]/page.tsx,,,,,no confident replacement
+/realtor/check-email,app/realtor/check-email/page.tsx,,,,,no confident replacement
+/realtor/reset-password,app/realtor/reset-password/page.tsx,,,,,no confident replacement

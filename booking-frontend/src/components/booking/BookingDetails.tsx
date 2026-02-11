@@ -175,7 +175,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           <div className="flex-shrink-0">
             <Image
               src={
-                booking.property?.images?.[0]?.url || "/placeholder-image.jpg"
+                booking.property?.images?.[0]?.url || "/images/stayza.png"
               }
               alt={booking.property?.title || "Property"}
               width={128}

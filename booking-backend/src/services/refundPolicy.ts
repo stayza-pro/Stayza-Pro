@@ -43,7 +43,9 @@ const TIER_SPLITS = {
   EARLY: { customer: 0.9, realtor: 0.07, platform: 0.03 },
   MEDIUM: { customer: 0.7, realtor: 0.2, platform: 0.1 },
   LATE: { customer: 0.0, realtor: 0.8, platform: 0.2 },
-  NONE: { customer: 0.0, realtor: 0.0, platform: 0.0 }, // TBD - after check-in
+  // After check-in, customer gets no room-fee refund.
+  // If an admin/system flow applies this tier, room-fee ownership defaults to normal 90/10 split.
+  NONE: { customer: 0.0, realtor: 0.9, platform: 0.1 },
 };
 
 /**

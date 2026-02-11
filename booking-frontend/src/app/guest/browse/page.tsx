@@ -28,6 +28,7 @@ export default function BrowsePropertiesPage() {
     logoUrl,
     tagline,
     description,
+    realtorId,
   } = useRealtorBranding(); // 60-30-10 color rule
 
   const { data: propertiesResponse, isLoading } = useProperties(filters, {
@@ -136,6 +137,7 @@ export default function BrowsePropertiesPage() {
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
         accentColor={accentColor}
+        realtorId={realtorId || undefined}
       />
     </div>
   );

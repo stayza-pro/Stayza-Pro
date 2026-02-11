@@ -193,8 +193,8 @@ export default function RealtorEscrowTracker() {
                           ? typeof booking.property.images[0] === "string"
                             ? booking.property.images[0]
                             : booking.property.images[0]?.url ||
-                              "/images/placeholder.jpg"
-                          : "/images/placeholder.jpg"
+                              "/images/stayza.png"
+                          : "/images/stayza.png"
                       }
                       alt={booking.property?.title || "Property"}
                       className="w-20 h-20 rounded-lg object-cover"

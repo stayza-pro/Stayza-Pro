@@ -57,23 +57,9 @@ const router = express.Router();
  *             accent:
  *               type: string
  *               description: Accent brand color (hex)
- *         social:
- *           type: object
- *           properties:
- *             website:
- *               type: string
- *             instagram:
- *               type: string
- *             twitter:
- *               type: string
- *             linkedin:
- *               type: string
- *             facebook:
- *               type: string
- *             youtube:
- *               type: string
- *             whatsappType:
- *               type: string
+ *         websiteUrl:
+ *           type: string
+ *           description: Public business website URL
  *         stats:
  *           type: object
  *           properties:
@@ -223,9 +209,7 @@ router.get(
         secondary: realtor.secondaryColor || "#10B981",
         accent: realtor.accentColor || "#F59E0B",
       },
-      social: {
-        website: realtor.websiteUrl,
-      },
+      websiteUrl: realtor.websiteUrl,
       stats: {
         totalProperties: properties.length,
         totalGuests: uniqueGuests.length,
@@ -288,23 +272,8 @@ router.get(
  *                           type: string
  *                         accent:
  *                           type: string
- *                     social:
- *                       type: object
- *                       properties:
- *                         website:
- *                           type: string
- *                         instagram:
- *                           type: string
- *                         twitter:
- *                           type: string
- *                         linkedin:
- *                           type: string
- *                         facebook:
- *                           type: string
- *                         youtube:
- *                           type: string
- *                         whatsappType:
- *                           type: string
+ *                     websiteUrl:
+ *                       type: string
  *                     status:
  *                       type: string
  *                     isActive:
@@ -362,9 +331,7 @@ router.get(
         secondary: realtor.secondaryColor || "#10B981",
         accent: realtor.accentColor || "#F59E0B",
       },
-      social: {
-        website: realtor.websiteUrl,
-      },
+      websiteUrl: realtor.websiteUrl,
       status: realtor.status,
       isActive: realtor.isActive,
     };

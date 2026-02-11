@@ -77,7 +77,6 @@ export const realtorRegisterSchema = Joi.object({
     "string.empty": "CAC certificate document is required",
     "any.required": "CAC certificate document is required",
   }),
-  socials: Joi.object().optional(),
 });
 
 // Property validation schemas

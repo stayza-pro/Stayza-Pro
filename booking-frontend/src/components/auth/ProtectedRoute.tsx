@@ -53,7 +53,7 @@ export default function ProtectedRoute({
           useAuthStore.setState({
             accessToken: tokenFromUrl,
             refreshToken: refreshFromUrl,
-            isAuthenticated: true, // Assume authenticated for now
+            isAuthenticated: false,
           });
 
           

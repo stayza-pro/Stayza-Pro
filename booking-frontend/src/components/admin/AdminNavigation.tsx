@@ -21,6 +21,8 @@ import {
   LogOut,
   ChevronDown,
   Calendar,
+  Activity,
+  UserPlus,
 } from "lucide-react";
 import { getMainDomainUrl } from "@/utils/subdomain";
 import { deleteCookie } from "@/utils/cookies";
@@ -34,10 +36,12 @@ import { format } from "date-fns";
 const navigationItems = [
   { name: "Dashboard", href: "/admin", icon: Home },
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
+  { name: "Waitlist", href: "/admin/waitlist", icon: UserPlus },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: DollarSign },
   { name: "Commission", href: "/admin/commission", icon: DollarSign },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { name: "System Health", href: "/admin/system-health", icon: Activity },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

@@ -28,6 +28,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain, buildSubdomainUrl } from "@/utils/subdomain";
+import { buildMainDomainUrl } from "@/utils/domains";
 import { payoutService, Bank } from "@/services/payout";
 import type { Realtor, CacStatus } from "@/types";
 
@@ -55,7 +56,13 @@ export default function SettingsPage() {
   const { checkAuth } = useAuthStore();
   const { showSuccess, showError, showConfirm } = useAlert();
   const { branding } = useBranding();
+  const realtorSubdomain = getRealtorSubdomain();
   const brandColor = branding?.primaryColor || "#3B82F6";
+  const previewSiteUrl = user?.realtor?.slug
+    ? realtorSubdomain
+      ? buildSubdomainUrl(user.realtor.slug)
+      : buildMainDomainUrl(`/guest/preview/${user.realtor.slug}`)
+    : null;
 
   const [activeTab, setActiveTab] = useState<TabId>("profile");
   const [isLoading, setIsLoading] = useState(false);
@@ -1693,8 +1700,8 @@ export default function SettingsPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
-                    if (user.realtor) {
-                      copyToClipboard(buildSubdomainUrl(user.realtor.slug));
+                    if (previewSiteUrl) {
+                      copyToClipboard(previewSiteUrl);
                     }
                   }}
                   className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -1705,7 +1712,7 @@ export default function SettingsPage() {
                 <motion.a
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  href={buildSubdomainUrl(user.realtor.slug)}
+                  href={previewSiteUrl || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"

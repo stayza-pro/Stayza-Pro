@@ -132,7 +132,14 @@ export const Header: React.FC = () => {
                 )}
 
                 {/* Notification Bell */}
-                <NotificationBell iconColor={brandColor} />
+                <NotificationBell
+                  iconColor={brandColor}
+                  viewAllHref={
+                    user?.role === "GUEST"
+                      ? "/guest/notifications"
+                      : "/notifications"
+                  }
+                />
 
                 {/* User Menu */}
                 <div className="relative group">
@@ -235,6 +242,12 @@ export const Header: React.FC = () => {
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           Messages
+                        </Link>
+                        <Link
+                          href="/guest/notifications"
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Notifications
                         </Link>
                       </>
                     )}

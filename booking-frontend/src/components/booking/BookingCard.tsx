@@ -91,7 +91,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         {/* Property Image and Basic Info */}
         <div className="flex items-start space-x-4 flex-1">
           <Image
-            src={booking.property?.images?.[0]?.url || "/placeholder-image.jpg"}
+            src={booking.property?.images?.[0]?.url || "/images/stayza.png"}
             alt={booking.property?.title || "Property"}
             width={80}
             height={80}

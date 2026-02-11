@@ -84,7 +84,7 @@ export default function PaymentsPage() {
         status: selectedStatus === "ALL" ? undefined : selectedStatus,
       });
 
-      const paymentsData = response.data || [];
+      const paymentsData = Array.isArray(response.data) ? response.data : [];
       setPayments(paymentsData);
       setTotalPages(response.pagination?.totalPages || 1);
 
@@ -169,7 +169,8 @@ export default function PaymentsPage() {
     }
   };
 
-  const filteredPayments = payments.filter((payment) => {
+  const filteredPayments = (Array.isArray(payments) ? payments : []).filter(
+    (payment) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -177,7 +178,8 @@ export default function PaymentsPage() {
       payment.booking?.property?.title?.toLowerCase().includes(query) ||
       payment.booking?.guest?.email?.toLowerCase().includes(query)
     );
-  });
+    }
+  );
 
   const monthlyChange =
     stats.lastMonth > 0
@@ -375,7 +377,8 @@ export default function PaymentsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredPayments.map((payment) => {
                   const StatusIcon =
-                    STATUS_ICONS[payment.status as keyof typeof STATUS_ICONS];
+                    STATUS_ICONS[payment.status as keyof typeof STATUS_ICONS] ||
+                    Clock;
                   return (
                     <tr key={payment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

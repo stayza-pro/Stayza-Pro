@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
+import { buildMainDomainUrl } from "@/utils/domains";
 import { propertyService } from "@/services/properties";
 import { Property, PropertyStatus } from "@/types";
 import { useAlert } from "@/context/AlertContext";
@@ -30,6 +31,11 @@ export default function PropertiesPage() {
   const { branding } = useBranding();
   const { showSuccess, showError, showConfirm } = useAlert();
   const realtorSubdomain = getRealtorSubdomain();
+  const previewUrl = realtorSubdomain
+    ? `https://${realtorSubdomain}.stayza.pro`
+    : user?.realtor?.slug
+    ? buildMainDomainUrl(`/guest/preview/${user.realtor.slug}`)
+    : null;
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,23 +146,24 @@ export default function PropertiesPage() {
           </div>
           <div className="flex items-center space-x-3">
             <button
-              onClick={() =>
-                copyToClipboard(
-                  `https://${realtorSubdomain || "yourcompany"}.stayza.pro`
-                )
-              }
+              onClick={() => {
+                if (previewUrl) {
+                  copyToClipboard(previewUrl);
+                }
+              }}
+              disabled={!previewUrl}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center space-x-2"
             >
               <Copy className="w-4 h-4" />
               <span>Copy Link</span>
             </button>
             <button
-              onClick={() =>
-                window.open(
-                  `https://${realtorSubdomain || "yourcompany"}.stayza.pro`,
-                  "_blank"
-                )
-              }
+              onClick={() => {
+                if (previewUrl) {
+                  window.open(previewUrl, "_blank");
+                }
+              }}
+              disabled={!previewUrl}
               className="px-4 py-2 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all flex items-center space-x-2"
               style={{ backgroundColor: brandColors.primary }}
             >

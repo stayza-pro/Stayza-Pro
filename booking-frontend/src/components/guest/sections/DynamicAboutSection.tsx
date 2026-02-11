@@ -25,6 +25,24 @@ interface Stats {
   totalReviews: number;
 }
 
+const toPropertyArray = (payload: unknown): any[] => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (payload && typeof payload === "object") {
+    const typedPayload = payload as { properties?: any[]; data?: any[] };
+    if (Array.isArray(typedPayload.properties)) {
+      return typedPayload.properties;
+    }
+    if (Array.isArray(typedPayload.data)) {
+      return typedPayload.data;
+    }
+  }
+
+  return [];
+};
+
 export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
   agencyName,
   primaryColor,
@@ -60,7 +78,7 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
         const response = await apiClient.get<any[]>(
           `/properties/host/${realtorId}`
         );
-        const properties = response.data || [];
+        const properties = toPropertyArray(response.data);
         const activeProperties = properties.filter(
           (p: any) => p.status === "ACTIVE"
         );

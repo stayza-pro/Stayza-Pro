@@ -12,11 +12,36 @@ interface DynamicPropertiesSectionProps {
 }
 
 // Helper function to get image URL
-const getImageUrl = (image: any): string => {
+const getImageUrl = (
+  image: string | { url?: string | null } | null | undefined
+): string => {
   if (typeof image === "string") {
     return image;
   }
   return image?.url || "";
+};
+
+const toPropertyArray = (payload: unknown): Property[] => {
+  if (Array.isArray(payload)) {
+    return payload as Property[];
+  }
+
+  if (payload && typeof payload === "object") {
+    const typedPayload = payload as {
+      properties?: Property[];
+      data?: Property[];
+    };
+
+    if (Array.isArray(typedPayload.properties)) {
+      return typedPayload.properties;
+    }
+
+    if (Array.isArray(typedPayload.data)) {
+      return typedPayload.data;
+    }
+  }
+
+  return [];
 };
 
 export const DynamicPropertiesSection: React.FC<
@@ -25,6 +50,8 @@ export const DynamicPropertiesSection: React.FC<
   const [properties, setProperties] = useState<Property[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [filterError, setFilterError] = useState("");
   const [searchFilters, setSearchFilters] = useState({
     location: "",
     checkIn: "",
@@ -37,24 +64,17 @@ export const DynamicPropertiesSection: React.FC<
         const response = await apiClient.get<Property[]>(
           `/properties/host/${realtorId}`
         );
-        
 
         // Filter only ACTIVE properties
-        const activeProperties = (response.data || []).filter(
+        const activeProperties = toPropertyArray(response.data).filter(
           (p: Property) => p.status === "ACTIVE"
         );
-        
-
-        // Log first property images for debugging
-        if (activeProperties.length > 0 && activeProperties[0].images) {
-          
-          
-        }
 
         setProperties(activeProperties);
+        setFilteredProperties(activeProperties);
       } catch (error) {
-        
         setProperties([]);
+        setFilteredProperties([]);
       } finally {
         setLoading(false);
       }
@@ -67,42 +87,108 @@ export const DynamicPropertiesSection: React.FC<
 
   // Listen for search events from hero section
   useEffect(() => {
-    const handleSearch = (event: any) => {
-      const { location, checkIn, checkOut } = event.detail;
-      setSearchFilters({ location, checkIn, checkOut });
+    const handleSearch = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        location?: string;
+        checkIn?: string;
+        checkOut?: string;
+      }>;
+      const { location, checkIn, checkOut } = customEvent.detail || {};
+      setSearchFilters({
+        location: location || "",
+        checkIn: checkIn || "",
+        checkOut: checkOut || "",
+      });
     };
 
     window.addEventListener("propertySearch", handleSearch);
     return () => window.removeEventListener("propertySearch", handleSearch);
   }, []);
 
-  // Filter properties when search filters or properties change
+  const hasActiveFilters = Boolean(
+    searchFilters.location || searchFilters.checkIn || searchFilters.checkOut
+  );
+
+  // Fetch filtered properties from backend whenever search filters change.
   useEffect(() => {
-    if (!properties.length) {
-      setFilteredProperties([]);
+    if (!realtorId) {
       return;
     }
 
-    let filtered = [...properties];
-
-    // Filter by location (search in title, address, city, state)
-    if (searchFilters.location) {
-      const searchTerm = searchFilters.location.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.title.toLowerCase().includes(searchTerm) ||
-          p.address?.toLowerCase().includes(searchTerm) ||
-          p.city?.toLowerCase().includes(searchTerm) ||
-          p.state?.toLowerCase().includes(searchTerm) ||
-          p.country?.toLowerCase().includes(searchTerm)
-      );
+    if (!hasActiveFilters) {
+      setFilteredProperties(properties);
+      setFilterError("");
+      return;
     }
 
-    // Note: Date filtering would require checking bookings to see if property is available
-    // For now, we just filter by location. Date filtering needs backend support.
+    let isStale = false;
 
-    setFilteredProperties(filtered);
-  }, [properties, searchFilters]);
+    const fetchFilteredProperties = async () => {
+      setIsFiltering(true);
+      setFilterError("");
+
+      try {
+        const params = new URLSearchParams();
+        params.append("limit", "100");
+        if (searchFilters.location) {
+          params.append("location", searchFilters.location);
+        }
+        if (searchFilters.checkIn) {
+          params.append("checkIn", searchFilters.checkIn);
+        }
+        if (searchFilters.checkOut) {
+          params.append("checkOut", searchFilters.checkOut);
+        }
+
+        const response = await apiClient.get<Property[]>(
+          `/properties/host/${realtorId}?${params.toString()}`
+        );
+
+        if (isStale) {
+          return;
+        }
+
+        const activeProperties = toPropertyArray(response.data).filter(
+          (property) => property.status === "ACTIVE"
+        );
+        setFilteredProperties(activeProperties);
+      } catch (error) {
+        if (isStale) {
+          return;
+        }
+
+        setFilterError(
+          "We could not apply all filters right now. Showing locally filtered results."
+        );
+
+        const searchTerm = searchFilters.location.toLowerCase();
+        const localFallback = properties.filter((property) => {
+          if (!searchTerm) {
+            return true;
+          }
+
+          return (
+            property.title.toLowerCase().includes(searchTerm) ||
+            property.address?.toLowerCase().includes(searchTerm) ||
+            property.city?.toLowerCase().includes(searchTerm) ||
+            property.state?.toLowerCase().includes(searchTerm) ||
+            property.country?.toLowerCase().includes(searchTerm)
+          );
+        });
+        setFilteredProperties(localFallback);
+      } finally {
+        if (!isStale) {
+          setIsFiltering(false);
+        }
+      }
+    };
+
+    fetchFilteredProperties();
+
+    return () => {
+      isStale = true;
+    };
+  }, [hasActiveFilters, properties, realtorId, searchFilters]);
 
   // Currency formatter
   const formatPrice = (price: number) => {
@@ -203,10 +289,7 @@ export const DynamicPropertiesSection: React.FC<
     );
   }
 
-  const displayProperties =
-    filteredProperties.length > 0 ? filteredProperties : properties;
-  const hasActiveFilters =
-    searchFilters.location || searchFilters.checkIn || searchFilters.checkOut;
+  const displayProperties = hasActiveFilters ? filteredProperties : properties;
 
   return (
     <section
@@ -265,6 +348,18 @@ export const DynamicPropertiesSection: React.FC<
                 }`}
           </p>
 
+          {isFiltering && (
+            <p style={{ marginTop: "0.75rem", color: `${secondaryColor}99` }}>
+              Applying availability filters...
+            </p>
+          )}
+
+          {!isFiltering && filterError && (
+            <p style={{ marginTop: "0.75rem", color: "#B45309" }}>
+              {filterError}
+            </p>
+          )}
+
           {/* Clear filters button */}
           {hasActiveFilters && (
             <button
@@ -317,7 +412,7 @@ export const DynamicPropertiesSection: React.FC<
                 marginBottom: "4rem",
               }}
             >
-              {displayProperties.slice(0, 6).map((property, idx) => (
+              {displayProperties.slice(0, 6).map((property) => (
                 <div
                   key={property.id}
                   className="group"

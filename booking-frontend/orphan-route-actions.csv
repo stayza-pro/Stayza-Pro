@@ -1,0 +1,12 @@
+route,file,action,target_route,reason
+/admin/system-health,app/admin/system-health/page.tsx,keep,,admin utility route; not linked in nav but still functional
+/admin/waitlist,app/admin/waitlist/page.tsx,keep,,admin utility route; not linked in nav but still functional
+/booking/payment/success,app/booking/payment/success/page.tsx,keep,,backend callback_url targets this route
+/dashboard/payments,app/(realtor)/dashboard/payments/page.tsx,keep,,feature-rich page; /payments currently placeholder
+/demo/realtor,app/demo/realtor/page.tsx,manual-review,,demo page exists but currently unlinked
+/guest/notifications,app/guest/notifications/page.tsx,keep,,guest-facing variant differs from realtor /notifications
+/guest/preview/:realtorId,app/guest/preview/[realtorId]/page.tsx,keep,,dynamic preview route used by direct URL entry
+/realtor/check-email,app/realtor/check-email/page.tsx,keep,,backend and domain utils link to this route
+/realtor/reset-password,app/realtor/reset-password/page.tsx,keep,,only existing reset-password page route in app
+/guest/browse/:id,app/guest/browse/[id]/page.tsx,redirected+deleted,/browse/:id,duplicate page removed; canonical route kept
+/realtor/verify-email,app/realtor/verify-email/page.tsx,redirected+deleted,/verify-email,legacy route replaced by canonical verifier

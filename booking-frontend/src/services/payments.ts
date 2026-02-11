@@ -36,6 +36,69 @@ export interface VerifyByBookingResponse {
   booking?: any;
 }
 
+interface NormalizedPagination {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+const normalizePagination = (raw: any): NormalizedPagination | undefined => {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+
+  const currentPage =
+    Number(raw.currentPage ?? raw.page ?? raw.current ?? 1) || 1;
+  const totalPages = Number(raw.totalPages ?? raw.pages ?? 1) || 1;
+  const totalItems = Number(raw.totalItems ?? raw.total ?? raw.count ?? 0) || 0;
+
+  return {
+    currentPage,
+    totalPages,
+    totalItems,
+    hasNext:
+      typeof raw.hasNext === "boolean"
+        ? raw.hasNext
+        : typeof raw.hasNextPage === "boolean"
+        ? raw.hasNextPage
+        : currentPage < totalPages,
+    hasPrev:
+      typeof raw.hasPrev === "boolean"
+        ? raw.hasPrev
+        : typeof raw.hasPrevPage === "boolean"
+        ? raw.hasPrevPage
+        : currentPage > 1,
+  };
+};
+
+const normalizePaymentsList = (
+  payload: any
+): { data: Payment[]; pagination?: NormalizedPagination } => {
+  if (Array.isArray(payload)) {
+    return { data: payload };
+  }
+
+  if (payload && typeof payload === "object") {
+    if (Array.isArray(payload.payments)) {
+      return {
+        data: payload.payments,
+        pagination: normalizePagination(payload.pagination),
+      };
+    }
+
+    if (Array.isArray(payload.data)) {
+      return {
+        data: payload.data,
+        pagination: normalizePagination(payload.pagination),
+      };
+    }
+  }
+
+  return { data: [] };
+};
+
 export const paymentService = {
   // Initialize Paystack split payment for a booking
   initializePaystackPayment: async (
@@ -125,14 +188,20 @@ export const paymentService = {
 
   // Fetch a single payment by id
   getPayment: async (id: string): Promise<Payment> => {
-    const response = await apiClient.get<Payment>(`/payments/${id}`);
-    return response.data;
+    const response = await apiClient.get<any>(`/payments/${id}`);
+    const payload = response?.data;
+
+    if (payload && typeof payload === "object" && payload.payment) {
+      return payload.payment as Payment;
+    }
+
+    return payload as Payment;
   },
 
   // Fetch current user's payments
   getUserPayments: async (): Promise<Payment[]> => {
-    const response = await apiClient.get<Payment[]>("/payments");
-    return response.data;
+    const response = await apiClient.get<any>("/payments");
+    return normalizePaymentsList(response?.data).data;
   },
 
   // Fetch host's payments with pagination
@@ -158,8 +227,13 @@ export const paymentService = {
     const queryString = params.toString();
     const url = queryString ? `/payments?${queryString}` : "/payments";
 
-    const response = await apiClient.get<Payment[]>(url);
-    return response as any; // Type assertion for paginated response
+    const response = await apiClient.get<any>(url);
+    const normalized = normalizePaymentsList(response?.data);
+
+    return {
+      data: normalized.data,
+      pagination: normalized.pagination,
+    };
   },
 
   // Request a refund for a payment

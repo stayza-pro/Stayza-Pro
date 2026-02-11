@@ -178,7 +178,7 @@ export const emailTemplates = {
             <div class="header" style="background: linear-gradient(135deg, #FFFFFF 0%, #F3F4F6 100%); padding: 48px 24px; text-align: center; border-bottom: 4px solid #1E3A8A;">
               <img class="header-logo" src="https://res.cloudinary.com/dpffxy2bo/image/upload/v1768516276/stayza-branding/stayza-logo.png" alt="Stayza Pro" style="height: 150px; width: auto; margin-bottom: 24px; max-width: 100%;" />
               <h1 class="header-title" style="color: #1E3A8A; font-size: 32px; font-weight: 700; margin: 0 0 12px 0; letter-spacing: -0.5px;">You're on the Waitlist!</h1>
-              <p class="header-subtitle" style="color: #111827; font-size: 18px; margin: 0; font-weight: 400;">Your branded booking site is coming soon</p>
+              <p class="header-subtitle" style="color: #111827; font-size: 18px; margin: 0; font-weight: 400;">Your branded booking site is queued for launch</p>
             </div>
 
             <!-- Main Content -->

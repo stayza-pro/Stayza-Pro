@@ -63,7 +63,7 @@ router.get(
       case "password-reset":
         htmlContent = emailTemplates.passwordReset(
           "John Doe",
-          "http://localhost:3000/reset-password?token=sample-token&email=john@example.com"
+          "http://localhost:3000/realtor/reset-password?token=sample-token&email=john@example.com"
         ).html;
         break;
       case "realtor-approved":

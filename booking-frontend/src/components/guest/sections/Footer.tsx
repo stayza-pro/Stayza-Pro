@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MessageCircle, HelpCircle, X, Send } from "lucide-react";
+import { apiClient } from "@/services/api";
+import { getRealtorSubdomain } from "@/utils/subdomain";
 
 interface FooterProps {
   realtorName: string;
@@ -11,6 +13,7 @@ interface FooterProps {
   primaryColor: string; // 60% - Used for border top accent and primary buttons
   secondaryColor?: string; // 30% - Used for text and secondary elements
   accentColor?: string; // 10% - Used for CTAs and highlights
+  realtorId?: string;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -21,6 +24,7 @@ export const Footer: React.FC<FooterProps> = ({
   primaryColor,
   secondaryColor = "#10B981", // Default secondary color
   accentColor = "#F59E0B", // Default accent color
+  realtorId,
 }) => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactType, setContactType] = useState<"realtor" | "support" | null>(
@@ -31,6 +35,9 @@ export const Footer: React.FC<FooterProps> = ({
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [resolvedRealtorId, setResolvedRealtorId] = useState(realtorId || "");
+  const activeRealtorId = realtorId || resolvedRealtorId;
 
   const navLinks = [
     { label: "Home", href: "#hero" },
@@ -40,10 +47,38 @@ export const Footer: React.FC<FooterProps> = ({
     { label: "Support", href: "#support" },
   ];
 
+  useEffect(() => {
+    if (realtorId) {
+      setResolvedRealtorId(realtorId);
+      return;
+    }
+
+    const subdomain = getRealtorSubdomain();
+    if (!subdomain) {
+      return;
+    }
+
+    const resolveRealtorId = async () => {
+      try {
+        const response = await apiClient.get<{ id?: string }>(
+          `/branding/subdomain/${subdomain}`
+        );
+        if (response.data?.id) {
+          setResolvedRealtorId(response.data.id);
+        }
+      } catch (error) {
+        setResolvedRealtorId("");
+      }
+    };
+
+    resolveRealtorId();
+  }, [realtorId]);
+
   const handleContactClick = () => {
     setShowContactModal(true);
     setContactType(null);
     setSubmitSuccess(false);
+    setSubmitError("");
   };
 
   const handleContactTypeSelect = (type: "realtor" | "support") => {
@@ -52,6 +87,7 @@ export const Footer: React.FC<FooterProps> = ({
       window.location.href =
         "mailto:support@stayza.com?subject=Support Request";
       setShowContactModal(false);
+      setSubmitError("");
     } else {
       setContactType(type);
     }
@@ -60,21 +96,48 @@ export const Footer: React.FC<FooterProps> = ({
   const handleSubmitMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError("");
 
-    // Simulate sending message (replace with actual API call)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      if (activeRealtorId) {
+        await apiClient.post<unknown, { name: string; email: string; message: string }>(
+          `/realtors/${activeRealtorId}/contact`,
+          {
+            name: name.trim(),
+            email: email.trim(),
+            message: message.trim(),
+          }
+        );
+      } else {
+        const subject = encodeURIComponent(`Guest inquiry for ${realtorName}`);
+        const body = encodeURIComponent(
+          `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`
+        );
+        window.location.href = `mailto:support@stayza.com?subject=${subject}&body=${body}`;
+      }
 
-    setIsSubmitting(false);
-    setSubmitSuccess(true);
-    setMessage("");
-    setName("");
-    setEmail("");
+      setSubmitSuccess(true);
+      setMessage("");
+      setName("");
+      setEmail("");
 
-    setTimeout(() => {
-      setShowContactModal(false);
-      setSubmitSuccess(false);
-      setContactType(null);
-    }, 2000);
+      setTimeout(() => {
+        setShowContactModal(false);
+        setSubmitSuccess(false);
+        setContactType(null);
+      }, 2000);
+    } catch (error: unknown) {
+      const apiError = error as {
+        response?: { data?: { message?: string; error?: string } };
+      };
+      const apiMessage =
+        apiError.response?.data?.message ||
+        apiError.response?.data?.error ||
+        "Unable to send your message right now. Please try again.";
+      setSubmitError(apiMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleScroll = (href: string) => {
@@ -171,7 +234,7 @@ export const Footer: React.FC<FooterProps> = ({
                 Get in Touch
               </h4>
               <p className="text-gray-400 text-sm mb-4">
-                Have questions or need assistance? We're here to help.
+                Have questions or need assistance? We are here to help.
               </p>
               <button
                 onClick={handleContactClick}
@@ -324,6 +387,10 @@ export const Footer: React.FC<FooterProps> = ({
                       placeholder="Tell us how we can help..."
                     />
                   </div>
+
+                  {submitError && (
+                    <p className="text-sm text-red-600">{submitError}</p>
+                  )}
 
                   <div className="flex gap-3">
                     <button

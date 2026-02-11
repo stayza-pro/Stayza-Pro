@@ -135,6 +135,11 @@ export default function RealtorLayout({
       currentPath.includes("/revenue")
     ) {
       setActiveNav("earnings");
+    } else if (
+      currentPath.includes("/dashboard/payments") ||
+      currentPath.includes("/payments")
+    ) {
+      setActiveNav("payments");
     } else if (currentPath.includes("/wallet")) {
       setActiveNav("wallet");
     } else if (currentPath.includes("/payouts")) {
@@ -276,6 +281,12 @@ export default function RealtorLayout({
       icon: BarChart3,
       href: "/earnings",
     },
+    {
+      id: "payments",
+      label: "Payments",
+      icon: Wallet,
+      href: "/dashboard/payments",
+    },
     { id: "payouts", label: "Payouts", icon: DollarSign, href: "/payouts" },
     {
       id: "notifications",
@@ -394,7 +405,10 @@ export default function RealtorLayout({
           <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
             {/* Top Bar with Notification Bell */}
             <div className="flex items-center justify-end px-8 py-4 bg-white border-b border-gray-200">
-              <NotificationBell iconColor={brandColors.primary} />
+              <NotificationBell
+                iconColor={brandColors.primary}
+                viewAllHref="/notifications"
+              />
             </div>
 
             <main className="flex-1 overflow-y-auto p-8">

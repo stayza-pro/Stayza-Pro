@@ -6,6 +6,7 @@ import {
   User,
   Calendar,
   Heart,
+  Bell,
   HelpCircle,
   LogOut,
   ChevronDown,
@@ -222,6 +223,22 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                     >
                       <Heart size={18} style={{ color: primaryColor }} />
                       <span>Favourites</span>
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        (window.location.href = "/guest/notifications")
+                      }
+                      className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <Bell size={18} style={{ color: primaryColor }} />
+                      <span>Notifications</span>
                     </button>
 
                     <button

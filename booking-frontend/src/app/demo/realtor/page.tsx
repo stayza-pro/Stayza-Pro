@@ -254,13 +254,13 @@ export default function RealtorDemoPage() {
               </div>
 
               <h3 className="text-3xl font-bold text-marketing-text mb-6">
-                Coming Soon: Interactive Demo
+                Interactive Demo Preview
               </h3>
 
               <p className="text-xl text-marketing-text-muted mb-8 max-w-2xl mx-auto">
-                We're building an immersive demo experience where you can
-                explore every feature, from client booking to revenue tracking.
-                Get notified when it launches.
+                Explore a guided walk-through of the booking journey, dashboard
+                operations, and revenue tracking flow while we continue shipping
+                new demo scenarios.
               </p>
 
               <div className="bg-marketing-primary/5 rounded-2xl p-8 mb-8">

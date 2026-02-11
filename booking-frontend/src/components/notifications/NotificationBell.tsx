@@ -22,11 +22,13 @@ import toast from "react-hot-toast";
 interface NotificationBellProps {
   className?: string;
   iconColor?: string;
+  viewAllHref?: string;
 }
 
 export function NotificationBell({
   className = "",
   iconColor = "#374151",
+  viewAllHref = "/notifications",
 }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -177,7 +179,7 @@ export function NotificationBell({
     if (notification.bookingId) return `/bookings/${notification.bookingId}`;
     if (notification.propertyId)
       return `/properties/${notification.propertyId}`;
-    if (notification.paymentId) return `/payments/${notification.paymentId}`;
+    if (notification.paymentId) return "/dashboard/payments";
     if (notification.reviewId) return `/reviews/${notification.reviewId}`;
     return "#";
   };
@@ -298,7 +300,7 @@ export function NotificationBell({
           {notifications.length > 0 && (
             <div className="border-t border-gray-200 px-4 py-3">
               <Link
-                href="/notifications"
+                href={viewAllHref}
                 onClick={() => setIsOpen(false)}
                 className="block text-center text-sm text-blue-600 hover:text-blue-700 font-medium"
               >

@@ -48,90 +48,10 @@ export default function RecentBookings({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Mock data generator
-  const generateMockBookings = (): Booking[] => {
-    const mockBookings: Booking[] = [
-      {
-        id: "BK001",
-        guestName: "Sarah Johnson",
-        guestEmail: "sarah.j@email.com",
-        property: "Luxury 2BR Apartment",
-        propertyLocation: "Lagos, VI",
-        checkIn: "2025-11-15",
-        checkOut: "2025-11-18",
-        status: "confirmed",
-        amount: "₦25,000",
-        nights: 3,
-      },
-      {
-        id: "BK002",
-        guestName: "Michael Chen",
-        guestEmail: "m.chen@email.com",
-        property: "Cozy Studio",
-        propertyLocation: "Abuja, Wuse",
-        checkIn: "2025-11-20",
-        checkOut: "2025-11-25",
-        status: "pending",
-        amount: "₦18,000",
-        nights: 5,
-      },
-      {
-        id: "BK003",
-        guestName: "Emily Davis",
-        guestEmail: "emily.d@email.com",
-        property: "3BR Family Home",
-        propertyLocation: "Lagos, Lekki",
-        checkIn: "2025-11-12",
-        checkOut: "2025-11-14",
-        status: "completed",
-        amount: "₦32,000",
-        nights: 2,
-      },
-      {
-        id: "BK004",
-        guestName: "James Wilson",
-        guestEmail: "j.wilson@email.com",
-        property: "Modern Loft",
-        propertyLocation: "Lagos, Ikeja",
-        checkIn: "2025-11-25",
-        checkOut: "2025-11-30",
-        status: "confirmed",
-        amount: "₦22,000",
-        nights: 5,
-      },
-      {
-        id: "BK005",
-        guestName: "Lisa Anderson",
-        guestEmail: "lisa.a@email.com",
-        property: "Beachfront Villa",
-        propertyLocation: "Lagos, Ajah",
-        checkIn: "2025-12-01",
-        checkOut: "2025-12-07",
-        status: "cancelled",
-        amount: "₦45,000",
-        nights: 6,
-      },
-    ];
-
-    return mockBookings.slice(0, maxItems);
-  };
-
   useEffect(() => {
-    if (propBookings) {
-      // Use provided bookings data
-      setBookings(propBookings.slice(0, maxItems));
-      setLoading(false);
-    } else {
-      // Fallback to mock data if no bookings provided
-      const timer = setTimeout(() => {
-        setBookings(generateMockBookings());
-        setLoading(false);
-      }, 800);
-
-      return () => clearTimeout(timer);
-    }
+    setBookings((propBookings || []).slice(0, maxItems));
+    setLoading(false);
   }, [propBookings, maxItems]);
-
   const getStatusConfig = (status: Booking["status"]) => {
     switch (status) {
       case "confirmed":

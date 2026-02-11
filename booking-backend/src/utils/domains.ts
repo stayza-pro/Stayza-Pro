@@ -1,4 +1,5 @@
 import { config } from "../config";
+import { prisma } from "@/config/database";
 
 /**
  * Domain utility functions for multi-tenant architecture in the backend
@@ -176,10 +177,32 @@ export function extractSubdomain(host: string): string | null {
 export async function validateRealtorSubdomain(
   subdomain: string
 ): Promise<boolean> {
-  // This would typically query the database to check if the realtor exists
-  // For now, return true - implement actual validation as needed
-  
-  return true;
+  try {
+    const normalized = subdomain.trim().toLowerCase();
+
+    if (!normalized || ["www", "admin", "localhost"].includes(normalized)) {
+      return false;
+    }
+
+    const realtor = await prisma.realtor.findUnique({
+      where: {
+        slug: normalized,
+      },
+      select: {
+        id: true,
+        status: true,
+        isActive: true,
+      },
+    });
+
+    if (!realtor) {
+      return false;
+    }
+
+    return realtor.isActive && realtor.status === "APPROVED";
+  } catch (error) {
+    return false;
+  }
 }
 
 /**
