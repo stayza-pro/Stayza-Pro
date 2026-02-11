@@ -141,7 +141,7 @@ const CommissionSettings: React.FC<CommissionSettingsProps> = ({
     try {
       // Handle percentage calculations
       // Convert "x% of y" or "x% * y" format
-      let processedExpression = expression
+      const processedExpression = expression
         .replace(
           /(\d+(?:\.\d+)?)%\s*(?:of|×|\*)\s*(\d+(?:\.\d+)?)/g,
           "($1/100)*$2"

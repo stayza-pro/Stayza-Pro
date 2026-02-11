@@ -1,5 +1,6 @@
 import * as jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { randomBytes } from "crypto";
 import { config } from "@/config";
 import { JWTPayload } from "@/types";
 
@@ -43,6 +44,5 @@ export const comparePassword = async (
 
 export const generateRandomToken = (): string => {
   // Use crypto.randomBytes for cryptographically secure tokens
-  const crypto = require("crypto");
-  return crypto.randomBytes(32).toString("hex").substring(0, 26);
+  return randomBytes(32).toString("hex").substring(0, 26);
 };

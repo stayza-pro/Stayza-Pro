@@ -5,6 +5,9 @@ import { prisma } from "@/config/database";
 import { config } from "@/config";
 import { asyncHandler } from "@/middleware/errorHandler";
 import { logger } from "@/utils/logger";
+import { createAdminNotification } from "@/services/notificationService";
+import { ensureRealtorTransferRecipientCode } from "@/services/payoutAccountService";
+import { initiateTransfer, verifyTransfer } from "@/services/paystack";
 
 const router = express.Router();
 
@@ -416,9 +419,7 @@ async function handleTransferFailed(transferReference: string, data: any) {
       reference: transferReference,
       reason: data.message,
     });
-
-    // TODO: Send notification to admin
-    // TODO: Trigger automatic retry or escalation
+    await retryOrEscalateCriticalTransfer(escrowEvent.id, transferReference, data, "FAILED");
   } else {
     logger.warn(`Transfer failed`, {
       bookingId: escrowEvent.bookingId,
@@ -465,7 +466,197 @@ async function handleTransferReversed(transferReference: string, data: any) {
     reason: data.message,
   });
 
-  // TODO: Handle reversal - may need to retry or escalate to admin
+  await retryOrEscalateCriticalTransfer(escrowEvent.id, transferReference, data, "REVERSED");
+}
+
+async function notifyAdminsTransferIncident(params: {
+  title: string;
+  message: string;
+  bookingId: string;
+  eventType: string;
+  reference: string;
+  reason?: string;
+  severity?: "high" | "urgent";
+  metadata?: Record<string, unknown>;
+}) {
+  await createAdminNotification({
+    type: "SYSTEM_ALERT",
+    title: params.title,
+    message: params.message,
+    priority: params.severity || "high",
+    data: {
+      bookingId: params.bookingId,
+      eventType: params.eventType,
+      reference: params.reference,
+      reason: params.reason,
+      ...params.metadata,
+    },
+  });
+}
+
+async function retryOrEscalateCriticalTransfer(
+  escrowEventId: string,
+  originalReference: string,
+  data: any,
+  incidentType: "FAILED" | "REVERSED"
+) {
+  const escrowEvent = await prisma.escrowEvent.findUnique({
+    where: { id: escrowEventId },
+    include: {
+      booking: {
+        include: {
+          property: {
+            include: {
+              realtor: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!escrowEvent || !escrowEvent.booking) {
+    logger.error("Critical transfer incident: escrow event or booking missing", {
+      escrowEventId,
+      originalReference,
+      incidentType,
+    });
+    return;
+  }
+
+  const providerResponse = (escrowEvent.providerResponse as Record<string, any>) || {};
+  const retryAttempts = Number(providerResponse.transferRetryAttempts || 0);
+  const maxRetries = 2;
+
+  await notifyAdminsTransferIncident({
+    title:
+      incidentType === "FAILED"
+        ? "Critical Transfer Failed"
+        : "Critical Transfer Reversed",
+    message: `Escrow transfer ${incidentType.toLowerCase()} for booking ${escrowEvent.bookingId}.`,
+    bookingId: escrowEvent.bookingId,
+    eventType: escrowEvent.eventType,
+    reference: originalReference,
+    reason: data?.message,
+    metadata: {
+      retryAttempts,
+      maxRetries,
+    },
+  });
+
+  try {
+    const verification = await verifyTransfer(originalReference);
+    const verificationStatus = String(verification?.status || "").toLowerCase();
+
+    if (verificationStatus === "success") {
+      await prisma.escrowEvent.update({
+        where: { id: escrowEvent.id },
+        data: {
+          providerResponse: {
+            ...providerResponse,
+            transferConfirmed: true,
+            transferConfirmedAt: new Date().toISOString(),
+            verificationRecovered: true,
+            verificationPayload: verification,
+          },
+        },
+      });
+
+      await notifyAdminsTransferIncident({
+        title: "Transfer Recovered by Verification",
+        message: `Transfer ${originalReference} was confirmed successful during verification.`,
+        bookingId: escrowEvent.bookingId,
+        eventType: escrowEvent.eventType,
+        reference: originalReference,
+      });
+      return;
+    }
+  } catch (verificationError: any) {
+    logger.warn("Transfer verification check failed after webhook incident", {
+      reference: originalReference,
+      error: verificationError?.message,
+    });
+  }
+
+  if (retryAttempts >= maxRetries) {
+    await notifyAdminsTransferIncident({
+      title: "Transfer Escalation Required",
+      message: `Transfer for booking ${escrowEvent.bookingId} exceeded retry limit and requires manual intervention.`,
+      bookingId: escrowEvent.bookingId,
+      eventType: escrowEvent.eventType,
+      reference: originalReference,
+      reason: data?.message,
+      severity: "urgent",
+      metadata: {
+        escalated: true,
+        retryAttempts,
+      },
+    });
+
+    await prisma.escrowEvent.update({
+      where: { id: escrowEvent.id },
+      data: {
+        providerResponse: {
+          ...providerResponse,
+          transferEscalated: true,
+          transferEscalatedAt: new Date().toISOString(),
+          transferEscalationReason:
+            data?.message || `Exceeded ${maxRetries} automatic retries`,
+        },
+      },
+    });
+    return;
+  }
+
+  const realtorId = escrowEvent.booking.property?.realtor?.id;
+  if (!realtorId) {
+    await notifyAdminsTransferIncident({
+      title: "Transfer Escalation Required",
+      message: `Unable to retry transfer for booking ${escrowEvent.bookingId} because realtor payout profile is missing.`,
+      bookingId: escrowEvent.bookingId,
+      eventType: escrowEvent.eventType,
+      reference: originalReference,
+      severity: "urgent",
+    });
+    return;
+  }
+
+  const recipient = await ensureRealtorTransferRecipientCode(realtorId);
+  const retryReference = `${originalReference}_retry_${retryAttempts + 1}`;
+  const retryResult = await initiateTransfer({
+    amount: Number(escrowEvent.amount),
+    recipient,
+    reason: `Retry payout for ${escrowEvent.eventType} (${escrowEvent.bookingId})`,
+    reference: retryReference,
+  });
+
+  await prisma.escrowEvent.update({
+    where: { id: escrowEvent.id },
+    data: {
+      transactionReference: retryReference,
+      providerResponse: {
+        ...providerResponse,
+        transferRetryAttempts: retryAttempts + 1,
+        lastRetryAt: new Date().toISOString(),
+        previousReference: originalReference,
+        retryReference,
+        retryTransferId: retryResult?.id || retryResult?.transfer_code,
+        retryPayload: retryResult,
+      },
+    },
+  });
+
+  await notifyAdminsTransferIncident({
+    title: "Automatic Transfer Retry Initiated",
+    message: `Automatic transfer retry #${retryAttempts + 1} was initiated for booking ${escrowEvent.bookingId}.`,
+    bookingId: escrowEvent.bookingId,
+    eventType: escrowEvent.eventType,
+    reference: retryReference,
+    metadata: {
+      previousReference: originalReference,
+      retryAttempts: retryAttempts + 1,
+    },
+  });
 }
 
 export default router;

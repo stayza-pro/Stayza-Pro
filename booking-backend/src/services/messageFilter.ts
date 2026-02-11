@@ -1,3 +1,5 @@
+import { logger } from "@/utils/logger";
+
 /**
  * Message Content Filtering Service
  *
@@ -32,7 +34,7 @@ export class MessageFilterService {
       /\b(whatsapp|telegram|signal|wechat|line|viber|snapchat|instagram\s*dm|facebook\s*messenger)\b/gi,
 
     // URLs (to prevent external booking links)
-    urls: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi,
+    urls: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/gi,
 
     // Social media handles
     socialHandles: /@[a-zA-Z0-9_]+/g,
@@ -128,7 +130,9 @@ export class MessageFilterService {
 
     // Log violations for monitoring
     if (result.violations.length > 0) {
-      
+      logger.warn("Message sanitized due policy violations", {
+        violations: result.violations,
+      });
     }
 
     return result.filteredContent;

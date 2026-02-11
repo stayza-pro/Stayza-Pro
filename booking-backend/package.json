@@ -17,8 +17,8 @@
     "postinstall": "prisma generate",
     "test": "jest",
     "test:watch": "jest --watch",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
+    "lint": "eslint \"src/**/*.ts\" --ignore-pattern \"**/*.test.ts\" --ignore-pattern \"**/*.spec.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix --ignore-pattern \"**/*.test.ts\" --ignore-pattern \"**/*.spec.ts\"",
     "cron:complete-bookings": "tsx src/jobs/runBookingCompletion.ts"
   },
   "keywords": [

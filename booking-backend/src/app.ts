@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
+import cron from "node-cron";
 import { config } from "@/config";
 import {
   errorHandler,
@@ -11,6 +12,14 @@ import {
 } from "@/middleware/errorHandler";
 import { apiLimiter } from "@/middleware/rateLimiter";
 import { swaggerSpec } from "@/config/swagger";
+import { logger } from "@/utils/logger";
+import { NotificationService } from "@/services/notificationService";
+import { startPayoutCron } from "@/jobs/payoutCron";
+import { startUnpaidBookingCron } from "@/jobs/unpaidBookingCron";
+import { initializeScheduledJobs } from "@/jobs/scheduler";
+import { processRoomFeeRelease } from "@/jobs/roomFeeReleaseJob";
+import { processDepositRefunds } from "@/jobs/depositRefundJob";
+import { processCheckinFallbacks } from "@/jobs/checkinFallbackJob";
 
 // Import routes
 import authRoutes from "@/routes/auth.routes";
@@ -99,10 +108,12 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Request logging middleware
 app.use((req, res, next) => {
-  
   if (req.path.includes("/payments/") || req.path.includes("/bookings")) {
-    
-    
+    logger.debug("Incoming booking/payment request", {
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+    });
   }
   next();
 });
@@ -321,67 +332,48 @@ if (require.main === module) {
   setupGlobalErrorHandlers();
 
   const server = app.listen(PORT, () => {
-    
-    
-    
+    logger.info(`Server started on port ${PORT}`);
   });
 
   // Initialize NotificationService with Socket.io
-  const { NotificationService } = require("@/services/notificationService");
   NotificationService.initialize(server);
-  
 
   // Start CRON jobs
-  const { startPayoutCron } = require("@/jobs/payoutCron");
   startPayoutCron();
-  
 
   // Start unpaid booking auto-cancellation cron
-  const { startUnpaidBookingCron } = require("@/jobs/unpaidBookingCron");
   startUnpaidBookingCron();
 
   // Start escrow job scheduler
-  const { initializeScheduledJobs } = require("@/jobs/scheduler");
   initializeScheduledJobs();
-  
 
   // Start new commission flow timer jobs
-  const cron = require("node-cron");
-  const roomFeeReleaseJob = require("@/jobs/roomFeeReleaseJob");
-  const depositRefundJob = require("@/jobs/depositRefundJob");
-  const checkinFallbackJob = require("@/jobs/checkinFallbackJob");
-
   // Room Fee Release Job (every 5 minutes)
   cron.schedule("*/5 * * * *", async () => {
     try {
-      
-      await roomFeeReleaseJob.default.processRoomFeeRelease();
+      await processRoomFeeRelease();
     } catch (error) {
-      
+      logger.error("Room Fee Release Job failed", { error });
     }
   });
 
   // Deposit Refund Job (every 5 minutes)
   cron.schedule("*/5 * * * *", async () => {
     try {
-      
-      await depositRefundJob.default.processDepositRefunds();
+      await processDepositRefunds();
     } catch (error) {
-      
+      logger.error("Deposit Refund Job failed", { error });
     }
   });
 
   // Check-in Fallback Job (every 5 minutes)
   cron.schedule("*/5 * * * *", async () => {
     try {
-      
-      await checkinFallbackJob.default.processCheckinFallbacks();
+      await processCheckinFallbacks();
     } catch (error) {
-      
+      logger.error("Check-in Fallback Job failed", { error });
     }
   });
-
-  
 }
 
 export default app;

@@ -2,6 +2,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import { AppError } from "@/middleware/errorHandler";
 import { PaymentStatus } from "@prisma/client";
+import { logger } from "@/utils/logger";
 
 // NEW COMMISSION STRUCTURE
 export const PLATFORM_FEE_RATE = 0.1; // 10% of room fee only
@@ -313,7 +314,11 @@ export const processRealtorPayout = async (
       payment.bookingId
     );
   } catch (emailError) {
-      }
+    logger.warn("Failed to send realtor payout email", {
+      paymentId,
+      error: emailError instanceof Error ? emailError.message : emailError,
+    });
+  }
 };
 
 /**

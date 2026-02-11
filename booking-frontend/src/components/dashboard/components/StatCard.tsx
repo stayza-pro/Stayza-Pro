@@ -44,7 +44,7 @@ export default function StatCard({
     setMounted(true);
     if (!isNaN(numericValue)) {
       const timer = setTimeout(() => {
-        let start = 0;
+        const start = 0;
         const end = numericValue;
         const duration = 1000;
         const startTime = Date.now();

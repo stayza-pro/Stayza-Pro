@@ -2,6 +2,7 @@ import { prisma } from "@/config/database";
 import { auditLogger } from "@/services/auditLogger";
 import { config } from "@/config";
 import { PaymentStatus, BookingStatus } from "@prisma/client";
+import { logger } from "@/utils/logger";
 
 /**
  * Marks bookings as COMPLETED when their checkout date has passed
@@ -48,7 +49,11 @@ export async function completePastBookings(now: Date = new Date()) {
         })
         .catch(() => {});
     } catch (err) {
-          }
+      logger.error("Failed to auto-complete booking", {
+        bookingId: b.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   return { processed: processedIds.length, bookings: processedIds };
@@ -123,7 +128,11 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
         })
         .catch(() => {});
     } catch (err) {
-          }
+      logger.error("Failed to auto-cancel stale pending booking", {
+        bookingId: booking.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   return { processed: cancelledIds.length, bookings: cancelledIds };
@@ -133,7 +142,7 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
  * Simple runner you could call manually (e.g. from a cron process script)
  */
 export async function runCompletionJob() {
-    const completion = await completePastBookings();
+  const completion = await completePastBookings();
   const cancellations = await cancelStalePendingBookings();
-    return { completion, cancellations };
+  return { completion, cancellations };
 }

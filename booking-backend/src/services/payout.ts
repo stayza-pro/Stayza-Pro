@@ -63,17 +63,13 @@ export const createTransferRecipient = async (
 export const initiateTransfer = async (
   transferData: TransferRequest
 ): Promise<any> => {
-  try {
-    const response = await paystackClient.post("/transfer", transferData);
+  const response = await paystackClient.post("/transfer", transferData);
 
-    if (!response.data.status) {
-      throw new Error(response.data.message || "Transfer failed");
-    }
-
-    return response.data.data;
-  } catch (error: any) {
-        throw error;
+  if (!response.data.status) {
+    throw new Error(response.data.message || "Transfer failed");
   }
+
+  return response.data.data;
 };
 
 /**

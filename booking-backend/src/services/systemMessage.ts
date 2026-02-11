@@ -16,6 +16,7 @@
  */
 
 import { PrismaClient, PaymentStatus } from "@prisma/client";
+import { logger } from "@/utils/logger";
 
 const prisma = new PrismaClient();
 
@@ -37,6 +38,7 @@ interface SystemMessageData {
   propertyId: string;
   guestId: string;
   realtorId: string;
+  realtorUserId: string;
   propertyData: {
     title: string;
     address: string;
@@ -55,6 +57,8 @@ interface SystemMessageData {
     guestName: string;
   };
 }
+
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 export class SystemMessageService {
   /**
@@ -242,24 +246,83 @@ Thank you for staying with us! We'd love to hear about your experience - please 
         throw new Error(`Unknown system message type: ${type}`);
     }
 
-    // Create message in database
-    // Note: You'll need to add a Message model to your Prisma schema
-    
-    // TODO: Uncomment after adding Message model to schema
-    /*
     await prisma.message.create({
       data: {
         bookingId: data.bookingId,
-        senderId: "system", // System user ID
+        senderId: data.realtorUserId,
         recipientId: data.guestId,
         content,
-        isSystemMessage: true,
-        messageType: type,
+        type: "SYSTEM",
         isRead: false,
         createdAt: new Date(),
+        wasFiltered: false,
+        violations: [],
       },
     });
-    */
+
+    logger.info("System message sent", {
+      bookingId: data.bookingId,
+      recipientId: data.guestId,
+      type,
+    });
+  }
+
+  static getScheduledMessageTimes(checkInDate: Date, checkOutDate: Date) {
+    return {
+      checkInInstructionsAt: new Date(
+        new Date(checkInDate).getTime() - 24 * 60 * 60 * 1000
+      ),
+      checkOutReminderAt: new Date(
+        new Date(checkOutDate).getTime() - 24 * 60 * 60 * 1000
+      ),
+      checkOutInstructionsAt: new Date(checkOutDate),
+    };
+  }
+
+  private static async scheduleMessageDispatch(params: {
+    bookingId: string;
+    type: SystemMessageType;
+    data: SystemMessageData;
+    runAt: Date;
+  }) {
+    const delayMs = params.runAt.getTime() - Date.now();
+
+    await prisma.auditLog.create({
+      data: {
+        action: "SYSTEM_MESSAGE_SCHEDULED",
+        entityType: "BOOKING",
+        entityId: params.bookingId,
+        details: {
+          type: params.type,
+          runAt: params.runAt.toISOString(),
+          delayMs,
+        },
+      },
+    });
+
+    if (delayMs <= 0) {
+      await this.sendSystemMessage(params.type, params.data);
+      return;
+    }
+
+    if (delayMs > MAX_TIMEOUT_MS) {
+      logger.warn("System message schedule exceeds timer limit; skipping", {
+        bookingId: params.bookingId,
+        type: params.type,
+        runAt: params.runAt.toISOString(),
+      });
+      return;
+    }
+
+    setTimeout(() => {
+      this.sendSystemMessage(params.type, params.data).catch((error) => {
+        logger.error("Failed to send scheduled system message", {
+          bookingId: params.bookingId,
+          type: params.type,
+          error: error instanceof Error ? error.message : error,
+        });
+      });
+    }, delayMs);
   }
 
   /**
@@ -288,6 +351,7 @@ Thank you for staying with us! We'd love to hear about your experience - please 
       propertyId: booking.propertyId,
       guestId: booking.guestId,
       realtorId: booking.property.realtorId,
+      realtorUserId: booking.property.realtor.userId,
       propertyData: {
         title: booking.property.title,
         address: booking.property.address,
@@ -319,9 +383,30 @@ Thank you for staying with us! We'd love to hear about your experience - please 
       await this.sendSystemMessage(SystemMessageType.HOUSE_RULES, data);
     }
 
-    // TODO: Schedule future messages using a job queue
-    // - Check-in instructions (24 hours before)
-    // - Check-out reminder (24 hours before)
-    // - Check-out instructions (on checkout day)
+    const schedule = this.getScheduledMessageTimes(
+      booking.checkInDate,
+      booking.checkOutDate
+    );
+
+    await this.scheduleMessageDispatch({
+      bookingId: booking.id,
+      type: SystemMessageType.CHECKIN_INSTRUCTIONS,
+      data,
+      runAt: schedule.checkInInstructionsAt,
+    });
+
+    await this.scheduleMessageDispatch({
+      bookingId: booking.id,
+      type: SystemMessageType.CHECKOUT_REMINDER,
+      data,
+      runAt: schedule.checkOutReminderAt,
+    });
+
+    await this.scheduleMessageDispatch({
+      bookingId: booking.id,
+      type: SystemMessageType.CHECKOUT_INSTRUCTIONS,
+      data,
+      runAt: schedule.checkOutInstructionsAt,
+    });
   }
 }

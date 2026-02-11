@@ -105,7 +105,7 @@ export const logVerificationSuccess = (
   const originalJson = res.json;
   res.json = function (data: any) {
     if (data && data.success) {
-      
+      void data;
     }
     return originalJson.call(this, data);
   };

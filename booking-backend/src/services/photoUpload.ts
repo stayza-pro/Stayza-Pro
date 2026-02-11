@@ -195,12 +195,7 @@ export const generateImageVariants = (url: string) => {
 // Batch delete multiple images
 export const deleteMultipleImages = async (urls: string[]): Promise<void> => {
   const deletePromises = urls.map((url) => deleteCloudinaryImage(url));
-
-  try {
-    await Promise.allSettled(deletePromises);
-  } catch (error) {
-    
-  }
+  await Promise.allSettled(deletePromises);
 };
 
 // =====================================================

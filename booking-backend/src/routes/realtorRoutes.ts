@@ -30,6 +30,7 @@ import {
   maskAccountNumber,
   upsertRealtorPayoutAccount,
 } from "@/services/payoutAccountService";
+import { initiateTransfer } from "@/services/paystack";
 import axios from "axios";
 import jwt from "jsonwebtoken";
 import { logger } from "@/utils/logger";
@@ -767,7 +768,7 @@ router.post(
 
         try {
           let resourceType = "auto";
-          let config: any = {
+          const uploadConfig: any = {
             folder: "temp-cac-certificates",
             public_id: `temp-cac-${Date.now()}`,
           };
@@ -775,7 +776,7 @@ router.post(
           // Configure based on file type
           if (req.file.mimetype.startsWith("image/")) {
             resourceType = "image";
-            config.transformation = [
+            uploadConfig.transformation = [
               {
                 width: 1200,
                 height: 1600,
@@ -788,13 +789,16 @@ router.post(
             resourceType = "raw";
           }
 
-          config.resource_type = resourceType;
+          uploadConfig.resource_type = resourceType;
 
           // Upload to Cloudinary
           const base64Data = `data:${
             req.file.mimetype
           };base64,${req.file.buffer.toString("base64")}`;
-          const result = await cloudinary.uploader.upload(base64Data, config);
+          const result = await cloudinary.uploader.upload(
+            base64Data,
+            uploadConfig,
+          );
 
           res.json({
             success: true,
@@ -1508,7 +1512,7 @@ router.get(
 
     let approvalStage = "pending";
     let message = "";
-    let nextSteps = [];
+    const nextSteps = [];
 
     if (isPermanentlySuspended) {
       approvalStage = "suspended";
@@ -3433,132 +3437,10 @@ router.get(
         "Error fetching banks from Paystack:",
         error.response?.data || error.message,
       );
-
-      // Return mock bank list for MVP if Paystack is unavailable
-      const mockBanks = [
-        {
-          id: 1,
-          name: "Access Bank",
-          code: "044",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 2,
-          name: "Guaranty Trust Bank",
-          code: "058",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 3,
-          name: "United Bank For Africa",
-          code: "033",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 4,
-          name: "Zenith Bank",
-          code: "057",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 5,
-          name: "First Bank of Nigeria",
-          code: "011",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 6,
-          name: "Fidelity Bank",
-          code: "070",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 7,
-          name: "Stanbic IBTC Bank",
-          code: "221",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 8,
-          name: "Union Bank of Nigeria",
-          code: "032",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 9,
-          name: "Wema Bank",
-          code: "035",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 10,
-          name: "Ecobank Nigeria",
-          code: "050",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 11,
-          name: "Polaris Bank",
-          code: "076",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 12,
-          name: "Sterling Bank",
-          code: "232",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 13,
-          name: "Kuda Bank",
-          code: "50211",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 14,
-          name: "ALAT by WEMA",
-          code: "035A",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 15,
-          name: "Opay",
-          code: "999992",
-          active: true,
-          country: "Nigeria",
-        },
-        {
-          id: 16,
-          name: "PalmPay",
-          code: "999991",
-          active: true,
-          country: "Nigeria",
-        },
-      ];
-
-      logger.info("⚠️ Returning mock bank list - Paystack API unavailable");
-
-      res.status(200).json({
-        success: true,
-        data: mockBanks,
-        _mock: true,
-        _message:
-          "Using cached bank list - Paystack API temporarily unavailable",
-      });
+      throw new AppError(
+        "Unable to fetch bank list from payment provider. Please try again shortly.",
+        503,
+      );
     }
   }),
 );
@@ -3696,18 +3578,10 @@ router.post(
       lastError?.response?.status === 503 ||
       lastError?.response?.status === 500
     ) {
-      logger.warn("Returning mock verification - Paystack API unavailable");
-      return res.status(200).json({
-        success: true,
-        data: {
-          account_number: normalizedAccountNumber,
-          account_name: "Test Account Holder",
-          bank_id: parseInt(getPreferredBankCode(bankCode), 10) || 0,
-        },
-        _mock: true,
-        _message:
-          "Mock verification - Payment provider temporarily unavailable",
-      });
+      throw new AppError(
+        "Bank verification service is temporarily unavailable. Please try again shortly.",
+        503,
+      );
     }
 
     throw new AppError(errorMessage || "Failed to verify bank account", 400);
@@ -4371,11 +4245,8 @@ router.post(
         realtor.id,
       );
 
-      // Import paystack service at top if not already imported
-      const paystackService = require("../services/paystack");
-
       // Initiate Paystack transfer to realtor's bank account
-      const transferResult = await paystackService.initiateTransfer({
+      const transferResult = await initiateTransfer({
         amount: amount,
         recipient: recipientCode,
         reason: `Manual payout withdrawal`,
@@ -4452,3 +4323,4 @@ router.post(
 );
 
 export default router;
+

@@ -1,6 +1,8 @@
 import { prisma } from "@/config/database";
 import { logger } from "@/utils/logger";
 import escrowService from "@/services/escrowService";
+import { ensureRealtorTransferRecipientCode } from "@/services/payoutAccountService";
+import { initiateTransfer } from "@/services/paystack";
 import { Decimal } from "@prisma/client/runtime/library";
 
 /**
@@ -102,20 +104,18 @@ const processBookingRoomFeeRelease = async (booking: any): Promise<void> => {
     `Releasing room fee for booking ${booking.id}: Realtor ₦${realtorAmount}, Platform ₦${platformAmount}`
   );
 
-  // In a real implementation, this would call Paystack API
-  // to transfer funds to realtor's subaccount
-  // For now, we'll simulate the release and update database
-
   try {
-    // TODO: Implement actual payment gateway transfer
-    // const transferResult = await paystackService.transferToSubAccount({
-    //   subaccountCode: property.realtor.paystackSubAccountCode,
-    //   amount: realtorAmount.toNumber() * 100, // Convert to kobo
-    //   reference: `ROOM_FEE_SPLIT_${booking.id}_${Date.now()}`,
-    // });
-
     const releaseReference = `ROOM_FEE_SPLIT_${booking.id}_${Date.now()}`;
     const now = new Date();
+    const realtorTransferRecipientCode =
+      await ensureRealtorTransferRecipientCode(property.realtor.id);
+
+    const transferResult = await initiateTransfer({
+      amount: Number(realtorAmount),
+      recipient: realtorTransferRecipientCode,
+      reason: `Room fee split payout for booking ${booking.id}`,
+      reference: releaseReference,
+    });
 
     // Update payment record
     await prisma.payment.update({
@@ -126,6 +126,18 @@ const processBookingRoomFeeRelease = async (booking: any): Promise<void> => {
         roomFeeSplitPlatformAmount: platformAmount,
         roomFeeSplitReleaseReference: releaseReference,
         roomFeeReleasedAt: now,
+        realtorTransferInitiated: now,
+        realtorTransferReference: releaseReference,
+        transferFailed: false,
+        metadata: {
+          ...((payment.metadata as object) || {}),
+          roomFeeSplitTransfer: {
+            recipientCode: realtorTransferRecipientCode,
+            transferId: transferResult?.id || transferResult?.transfer_code,
+            providerStatus: transferResult?.status,
+            transferCode: transferResult?.transfer_code,
+          },
+        },
         status: "PARTIALLY_RELEASED", // Room fee out, deposit still in escrow
       },
     });

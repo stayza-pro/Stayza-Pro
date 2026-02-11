@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { logError } from "@/utils/errorLogger";
 
 export interface RevenueData {
   period: string;
@@ -35,56 +36,16 @@ export function useRevenueData(): RevenueChartData {
 
   const { accessToken } = useAuthStore();
 
-  const generateMockData = (
-    period: "7d" | "30d" | "90d" | "1y"
-  ): RevenueData[] => {
-    const now = new Date();
-    const data: RevenueData[] = [];
-    let days = 7;
-    let format = "MMM dd";
-
-    switch (period) {
-      case "7d":
-        days = 7;
-        format = "MMM dd";
-        break;
-      case "30d":
-        days = 30;
-        format = "MMM dd";
-        break;
-      case "90d":
-        days = 90;
-        format = "MMM dd";
-        break;
-      case "1y":
-        days = 365;
-        format = "MMM yyyy";
-        break;
-    }
-
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-
-      // Generate realistic revenue data with some randomization
-      const baseAmount =
-        50000 + Math.sin(i * 0.1) * 20000 + Math.random() * 30000;
-
-      data.push({
-        period: date.toLocaleDateString("en-US", {
-          month: "short",
-          day: period === "1y" ? undefined : "numeric",
-          year: period === "1y" ? "numeric" : undefined,
-        }),
-        amount: Math.round(baseAmount),
-        date: date.toISOString().split("T")[0],
-      });
-    }
-
-    return data;
-  };
-
   const fetchRevenueData = async () => {
+    if (!accessToken) {
+      setData([]);
+      setTotalRevenue(0);
+      setPeriodChange({ value: 0, type: "increase" });
+      setError("Sign in to view revenue analytics");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -108,33 +69,28 @@ export function useRevenueData(): RevenueChartData {
         setTotalRevenue(result.totalRevenue || 0);
         setPeriodChange(result.periodChange || { value: 0, type: "increase" });
       } else {
-        throw new Error("Failed to fetch revenue data");
+        const responseText = await response.text();
+        throw new Error(
+          responseText || `Failed to fetch revenue data (${response.status})`
+        );
       }
     } catch (err) {
-      
+      logError(err, {
+        component: "useRevenueData",
+        action: "fetch_revenue_data",
+        metadata: { selectedPeriod },
+      });
       setError("Failed to load revenue data");
-
-      // Use mock data as fallback
-      const mockData = generateMockData(selectedPeriod);
-      setData(mockData);
-      setTotalRevenue(mockData.reduce((sum, item) => sum + item.amount, 0));
-      setPeriodChange({ value: 12.5, type: "increase" });
+      setData([]);
+      setTotalRevenue(0);
+      setPeriodChange({ value: 0, type: "increase" });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (accessToken) {
-      fetchRevenueData();
-    } else {
-      // Use mock data when no accessToken
-      const mockData = generateMockData(selectedPeriod);
-      setData(mockData);
-      setTotalRevenue(mockData.reduce((sum, item) => sum + item.amount, 0));
-      setPeriodChange({ value: 12.5, type: "increase" });
-      setLoading(false);
-    }
+    fetchRevenueData();
   }, [selectedPeriod, accessToken]);
 
   const setPeriod = (period: "7d" | "30d" | "90d" | "1y") => {

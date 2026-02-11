@@ -1,147 +1,174 @@
-/**
- * Error logging utility
- * Can be easily upgraded to use Sentry, LogRocket, or similar service
- * For now, provides structured logging to console with optional future integration
- */
-
 interface ErrorContext {
   userId?: string;
   component?: string;
   action?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+}
+
+type LogLevel = "error" | "warning" | "info";
+
+type AnalyticsClient = {
+  capture?: (event: string, properties?: Record<string, unknown>) => void;
+  identify?: (id: string, properties?: Record<string, unknown>) => void;
+  reset?: () => void;
+};
+
+type VercelAnalyticsClient = {
+  track?: (event: string, data?: Record<string, unknown>) => void;
+};
+
+type LogPayload = {
+  timestamp: string;
+  environment: string | undefined;
+  url: string | undefined;
+  userAgent: string | undefined;
+  userId?: string;
+  component?: string;
+  action?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+declare global {
+  interface Window {
+    posthog?: AnalyticsClient;
+    va?: VercelAnalyticsClient;
+  }
 }
 
 class ErrorLogger {
-  private isProduction = process.env.NODE_ENV === "production";
-  private sentryEnabled = false; // Set to true after integrating Sentry
+  private readonly isProduction = process.env.NODE_ENV === "production";
+  private readonly logEndpoint = process.env.NEXT_PUBLIC_CLIENT_LOG_ENDPOINT;
+  private userContext: { userId: string; email?: string; role?: string } | null =
+    null;
 
-  /**
-   * Log an error with context
-   */
-  logError(error: Error | unknown, context?: ErrorContext): void {
-    const errorData = {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
+  private basePayload(context?: ErrorContext): LogPayload {
+    return {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
       url: typeof window !== "undefined" ? window.location.href : undefined,
       userAgent:
         typeof navigator !== "undefined" ? navigator.userAgent : undefined,
-      ...context,
+      userId: context?.userId || this.userContext?.userId,
+      component: context?.component,
+      action: context?.action,
+      metadata: context?.metadata,
     };
-
-    // Log to console in development
-    if (!this.isProduction) {
-      
-    }
-
-    // In production, send to error tracking service
-    if (this.isProduction && this.sentryEnabled) {
-      // TODO: Send to Sentry or other error tracking service
-      // Example with Sentry:
-      // Sentry.captureException(error, {
-      //   contexts: { custom: context },
-      // });
-    }
-
-    // Always log to console for now
-    
   }
 
-  /**
-   * Log a warning
-   */
+  private analyticsClients():
+    | { posthog?: AnalyticsClient; vercel?: VercelAnalyticsClient }
+    | undefined {
+    if (typeof window === "undefined") return undefined;
+
+    return {
+      posthog: window.posthog,
+      vercel: window.va,
+    };
+  }
+
+  private sendToEndpoint(level: LogLevel, payload: LogPayload): void {
+    if (!this.logEndpoint || typeof window === "undefined") return;
+
+    fetch(this.logEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ level, ...payload }),
+      keepalive: true,
+    }).catch(() => {
+      // Avoid recursive logging if endpoint itself fails.
+    });
+  }
+
+  private capture(event: string, payload: LogPayload): void {
+    const clients = this.analyticsClients();
+    clients?.posthog?.capture?.(event, payload);
+    clients?.vercel?.track?.(event, payload);
+  }
+
+  logError(error: Error | unknown, context?: ErrorContext): void {
+    const payload: LogPayload = {
+      ...this.basePayload(context),
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+
+    if (!this.isProduction) {
+      console.error("[errorLogger] error", payload);
+    }
+
+    this.capture("frontend_error", payload);
+    this.sendToEndpoint("error", payload);
+  }
+
   logWarning(message: string, context?: ErrorContext): void {
-    const warningData = {
+    const payload: LogPayload = {
+      ...this.basePayload(context),
       message,
       level: "warning",
-      timestamp: new Date().toISOString(),
-      ...context,
     };
 
-    
-
-    if (this.isProduction && this.sentryEnabled) {
-      // TODO: Send to Sentry
-      // Sentry.captureMessage(message, {
-      //   level: 'warning',
-      //   contexts: { custom: context },
-      // });
+    if (!this.isProduction) {
+      console.warn("[errorLogger] warning", payload);
     }
+
+    this.capture("frontend_warning", payload);
+    this.sendToEndpoint("warning", payload);
   }
 
-  /**
-   * Log info (for tracking important events)
-   */
-  logInfo(message: string, metadata?: Record<string, any>): void {
-    const infoData = {
+  logInfo(message: string, metadata?: Record<string, unknown>): void {
+    const payload: LogPayload = {
+      ...this.basePayload({ metadata }),
       message,
       level: "info",
-      timestamp: new Date().toISOString(),
-      ...metadata,
     };
 
-    
-
-    // Can send to analytics service
-    if (this.isProduction) {
-      // TODO: Send to analytics (Google Analytics, Mixpanel, etc.)
+    if (!this.isProduction) {
+      console.info("[errorLogger] info", payload);
     }
+
+    this.capture("frontend_info", payload);
+    this.sendToEndpoint("info", payload);
   }
 
-  /**
-   * Track user action for analytics
-   */
   trackAction(
     action: string,
     category: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): void {
-    const actionData = {
+    const payload: LogPayload = {
+      ...this.basePayload({ action, metadata }),
       action,
       category,
-      timestamp: new Date().toISOString(),
-      ...metadata,
     };
 
-    
-
-    if (this.isProduction) {
-      // TODO: Send to analytics service
-      // Example with Google Analytics:
-      // gtag('event', action, {
-      //   event_category: category,
-      //   ...metadata,
-      // });
+    if (!this.isProduction) {
+      console.info("[errorLogger] action", payload);
     }
+
+    this.capture(`action_${category}`, payload);
   }
 
-  /**
-   * Set user context for error tracking
-   */
   setUserContext(userId: string, email?: string, role?: string): void {
-    if (this.sentryEnabled) {
-      // TODO: Set Sentry user context
-      // Sentry.setUser({
-      //   id: userId,
-      //   email,
-      //   role,
-      // });
-    }
+    this.userContext = { userId, email, role };
 
-    
+    const clients = this.analyticsClients();
+    clients?.posthog?.identify?.(userId, { email, role });
+
+    if (!this.isProduction) {
+      console.info("[errorLogger] user context set", this.userContext);
+    }
   }
 
-  /**
-   * Clear user context (on logout)
-   */
   clearUserContext(): void {
-    if (this.sentryEnabled) {
-      // TODO: Clear Sentry user context
-      // Sentry.setUser(null);
-    }
+    this.userContext = null;
 
-    
+    const clients = this.analyticsClients();
+    clients?.posthog?.reset?.();
+
+    if (!this.isProduction) {
+      console.info("[errorLogger] user context cleared");
+    }
   }
 }
 

@@ -377,7 +377,7 @@ router.patch(
         message = "Realtor application rejected";
         break;
 
-      case "suspend":
+      case "suspend": {
         if (!realtor.isActive) {
           throw new AppError("Realtor is already suspended", 400);
         }
@@ -496,8 +496,9 @@ router.patch(
           notificationsSent: activeBookings.length,
         };
         break;
+      }
 
-      case "reinstate":
+      case "reinstate": {
         if (realtor.isActive) {
           throw new AppError("Realtor is already active", 400);
         }
@@ -572,6 +573,7 @@ router.patch(
           reactivatedProperties: reactivatedCount.count,
         };
         break;
+      }
 
       default:
         throw new AppError("Invalid action", 400);

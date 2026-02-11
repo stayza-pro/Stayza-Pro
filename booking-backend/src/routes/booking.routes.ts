@@ -2188,7 +2188,7 @@ router.get(
 
     if (format === "ical") {
       // Generate iCal format
-      let ical = [
+      const ical = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
         "PRODID:-//Stayza//Booking Calendar//EN",

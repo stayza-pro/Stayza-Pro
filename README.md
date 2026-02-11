@@ -1071,8 +1071,8 @@ Growth Targets:
 - Multi-currency support and international expansion
 - Advanced CRM features for realtors
 - Automated check-in/check-out systems
-- Paid subscription tiers and pricing plans
-- Multi-language support (i18n)
+- Flexible monetization experiments for enterprise accounts
+- Expanded locale coverage and translation quality improvements
 ```
 
 ### **Phase 3: Market Expansion (Q4 2026 - 2027)**
@@ -1165,7 +1165,7 @@ GitHub Issues: https://github.com/stayza/platform/issues
 Discord Server: https://discord.gg/stayza
 Blog: https://blog.stayza.com
 
-Note: Social media integration is not yet enabled. 
+Social media profile links are enabled through branding settings.
 Follow us on our main channels for updates.
 ```
 

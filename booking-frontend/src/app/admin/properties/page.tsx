@@ -27,6 +27,7 @@ import {
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(
@@ -42,6 +43,7 @@ export default function PropertiesPage() {
   const fetchProperties = async () => {
     try {
       setLoading(true);
+      setFetchError(null);
       const response = await getAllProperties({
         status: statusFilter === "ALL" ? undefined : statusFilter,
         search: searchQuery || undefined,
@@ -50,39 +52,10 @@ export default function PropertiesPage() {
 
       setProperties(response.properties);
     } catch (error) {
-      
+      const message = "Failed to load properties. Please try again.";
+      setFetchError(message);
+      setProperties([]);
       toast.error("Failed to load properties. Please try again.");
-
-      // Fallback to mock data if API fails
-      const mockProperties: Property[] = [
-        {
-          id: "prop_1",
-          title: "Luxury 3BR Apartment in Victoria Island",
-          address: "15 Ozumba Mbadiwe Avenue",
-          city: "Lagos",
-          state: "Lagos",
-          pricePerNight: 45000,
-          images: ["/images/property1.jpg"],
-          status: "PENDING",
-          createdAt: new Date(
-            Date.now() - 2 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          updatedAt: new Date().toISOString(),
-          amenities: ["WiFi", "Pool", "Gym", "Parking"],
-          description: "Stunning 3-bedroom apartment with ocean view",
-          bedrooms: 3,
-          bathrooms: 2,
-          maxGuests: 6,
-          realtor: {
-            id: "realtor_1",
-            businessName: "John Smith Realty",
-            user: {
-              email: "john.smith@example.com",
-            },
-          },
-        },
-      ];
-      setProperties(mockProperties);
     } finally {
       setLoading(false);
     }
@@ -233,6 +206,12 @@ export default function PropertiesPage() {
             </div>
           </div>
         </div>
+
+        {fetchError && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+            <p className="text-sm text-red-700">{fetchError}</p>
+          </div>
+        )}
 
         {/* Properties Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

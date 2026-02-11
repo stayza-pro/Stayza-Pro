@@ -100,7 +100,7 @@ const logError = async (
         req,
       });
     } catch (auditError) {
-      
+      void auditError;
     }
   }
 };

@@ -299,10 +299,11 @@ export const getWithdrawalsForAdmin = async (filters?: {
     "CANCELLED",
   ]);
 
-  const normalizedStatuses = (Array.isArray(filters?.status)
-    ? filters?.status
-    : filters?.status
-      ? [filters.status]
+  const statusFilter = filters?.status;
+  const normalizedStatuses = (Array.isArray(statusFilter)
+    ? statusFilter
+    : statusFilter
+      ? [statusFilter]
       : []
   )
     .flatMap((value) => String(value).split(","))

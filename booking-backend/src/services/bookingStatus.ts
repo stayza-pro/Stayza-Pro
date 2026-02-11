@@ -1,6 +1,7 @@
 import { prisma } from "@/config/database";
 import { BookingStatus } from "@prisma/client";
 import { auditLogger } from "./auditLogger";
+import { logger } from "@/utils/logger";
 
 export class BookingStatusConflictError extends Error {
   constructor(
@@ -223,7 +224,10 @@ export async function transitionBookingStatus(
       },
     });
   } catch (auditError) {
-    
+    logger.warn("Failed to write booking status audit log", {
+      bookingId,
+      error: auditError instanceof Error ? auditError.message : auditError,
+    });
   }
 
   return updatedBooking;

@@ -20,28 +20,26 @@ const TEST_EMAIL = "soputa42@gmail.com";
 async function sendAllTestEmails() {
   
   
+  // 1. Welcome Email
+  
+  await sendEmail(TEST_EMAIL, emailTemplates.welcome("John Doe"));
+  
 
-  try {
-    // 1. Welcome Email
-    
-    await sendEmail(TEST_EMAIL, emailTemplates.welcome("John Doe"));
-    
+  // Wait a bit between emails to avoid rate limiting
+  await delay(1000);
 
-    // Wait a bit between emails to avoid rate limiting
-    await delay(1000);
+  // 2. Realtor Welcome Email (with verification)
+  
+  await sendRealtorWelcomeEmail(
+    TEST_EMAIL,
+    "Jane Smith",
+    "Premium Properties Ltd",
+    "https://premium-properties.stayza.pro/dashboard",
+    "https://stayza.pro/verify-email?token=sample-verification-token"
+  );
+  
 
-    // 2. Realtor Welcome Email (with verification)
-    
-    await sendRealtorWelcomeEmail(
-      TEST_EMAIL,
-      "Jane Smith",
-      "Premium Properties Ltd",
-      "https://premium-properties.stayza.pro/dashboard",
-      "https://stayza.pro/verify-email?token=sample-verification-token"
-    );
-    
-
-    await delay(1000);
+  await delay(1000);
 
     // 3. Email Verification (with link)
     
@@ -237,24 +235,20 @@ async function sendAllTestEmails() {
 
     await delay(1000);
 
-    // 18. Refund Processed to Guest
-    
-    await sendRefundProcessedToGuest(TEST_EMAIL, "John Doe", {
-      amount: 50000,
-      currency: "NGN",
-      propertyTitle: "Luxury 3-Bedroom Apartment in Lekki",
-      processedAt: new Date(),
-      paymentMethod: "Paystack",
-    });
-    
+  // 18. Refund Processed to Guest
+  
+  await sendRefundProcessedToGuest(TEST_EMAIL, "John Doe", {
+    amount: 50000,
+    currency: "NGN",
+    propertyTitle: "Luxury 3-Bedroom Apartment in Lekki",
+    processedAt: new Date(),
+    paymentMethod: "Paystack",
+  });
+  
 
-    
-    
-    
-  } catch (error) {
-    
-    throw error;
-  }
+  
+  
+  
 }
 
 function delay(ms: number) {

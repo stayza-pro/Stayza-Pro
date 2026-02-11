@@ -1011,13 +1011,11 @@ export const sendRealtorWelcomeEmail = async (
 ) => {
   // Log verification URL in development for easy access
   if (process.env.NODE_ENV === "development" && verificationUrl) {
-    
-    
-    
-    
-    
-    
-    
+    logger.info("Realtor verification URL generated", {
+      to,
+      businessName,
+      verificationUrl,
+    });
   }
 
   const template = emailTemplates.realtorWelcome(
@@ -1037,12 +1035,11 @@ export const sendEmailVerification = async (
 ) => {
   // Log verification URL in development for easy access
   if (process.env.NODE_ENV === "development" && !tokenOrUrl.match(/^\d{6}$/)) {
-    
-    
-    
-    
-    
-    
+    logger.info("Email verification URL generated", {
+      to,
+      name,
+      verificationUrl: tokenOrUrl,
+    });
   }
 
   // Check if it's an OTP (6 digits) or a URL

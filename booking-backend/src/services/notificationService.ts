@@ -159,7 +159,7 @@ export class NotificationService {
 
   private async authenticateSocket(
     socket: AuthenticatedSocket,
-    next: Function,
+    next: (error?: Error) => void,
   ): Promise<void> {
     try {
       const token =
@@ -291,7 +291,12 @@ export class NotificationService {
           logger.error(`Failed to send email notification: ${error.message}`);
         });
       }
-    } catch (error) {}
+    } catch (error) {
+      logger.error("Failed to create and send notification", {
+        userId: data.userId,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
   }
 
   // Mark notification as read
@@ -313,7 +318,13 @@ export class NotificationService {
       // Send updated unread count
       const unreadCount = await this.getUnreadCount(userId);
       this.io.to(`user:${userId}`).emit("unread_count", unreadCount);
-    } catch (error) {}
+    } catch (error) {
+      logger.warn("Failed to mark notification as read", {
+        notificationId,
+        userId,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
   }
 
   // Mark all notifications as read for user
@@ -330,7 +341,12 @@ export class NotificationService {
       });
 
       this.io.to(`user:${userId}`).emit("unread_count", 0);
-    } catch (error) {}
+    } catch (error) {
+      logger.warn("Failed to mark all notifications as read", {
+        userId,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
   }
 
   // Get unread notification count
@@ -452,7 +468,12 @@ export class NotificationService {
 
         this.io.to(`user:${userId}`).emit("notification", notificationData);
       });
-    } catch (error) {}
+    } catch (error) {
+      logger.warn("Failed to send pending notifications", {
+        userId,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
   }
 
   // Send email notification
@@ -583,7 +604,11 @@ export class NotificationService {
           },
         },
       });
-    } catch (error) {}
+    } catch (error) {
+      logger.warn("Failed to cleanup expired notifications", {
+        error: error instanceof Error ? error.message : error,
+      });
+    }
   }
 }
 
@@ -881,8 +906,16 @@ export async function createAdminNotification(data: {
             createdAt: new Date(),
           });
       }
-    } catch (wsError) {}
-  } catch (error) {}
+    } catch (wsError) {
+      logger.warn("Failed to broadcast admin notification via websocket", {
+        error: wsError instanceof Error ? wsError.message : wsError,
+      });
+    }
+  } catch (error) {
+    logger.error("Failed to create admin notifications", {
+      error: error instanceof Error ? error.message : error,
+    });
+  }
 }
 
 export default NotificationService;
