@@ -11,6 +11,11 @@ export default function RootPage() {
     permanentRedirect("/admin/login");
   }
 
+  // Realtor subdomain -> guest landing page
+  if (tenantType === "realtor") {
+    permanentRedirect("/guest-landing");
+  }
+
   // All other domains -> marketing site (server-side redirect)
   permanentRedirect("/en");
 }

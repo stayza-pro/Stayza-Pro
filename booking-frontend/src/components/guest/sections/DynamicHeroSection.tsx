@@ -204,10 +204,10 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
 
   // Navbar component - can be used in hero and sticky
   const NavbarContent = ({ isSticky = false }: { isSticky?: boolean }) => (
-    <div className="flex items-center justify-between px-8 py-4 max-w-[1400px] mx-auto transition-all duration-500 ease-out">
-      <div className="flex items-center gap-5">
+    <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 lg:px-8 max-w-[1400px] mx-auto transition-all duration-500 ease-out">
+      <div className="flex items-center gap-3 sm:gap-5 min-w-0">
         <div
-          className={`w-14 h-14 rounded-2xl overflow-hidden transition-all duration-500 ease-out ${
+          className={`w-11 h-11 sm:w-14 sm:h-14 rounded-2xl overflow-hidden transition-all duration-500 ease-out shrink-0 ${
             isSticky
               ? "border-2 shadow-md hover:shadow-lg"
               : "border-2 border-white/30 bg-white/10 backdrop-blur-[10px] hover:border-white/50"
@@ -225,7 +225,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
             />
           ) : (
             <div
-              className={`w-full h-full flex items-center justify-center font-bold text-xl transition-all duration-500 ${
+              className={`w-full h-full flex items-center justify-center font-bold text-base sm:text-xl transition-all duration-500 ${
                 isSticky ? "text-white" : ""
               }`}
               style={isSticky ? { backgroundColor: primaryColor } : undefined}
@@ -234,9 +234,9 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
             </div>
           )}
         </div>
-        <div className="transition-all duration-500">
+        <div className="transition-all duration-500 min-w-0">
           <h2
-            className={`text-xl font-bold m-0 transition-all duration-500 ${
+            className={`text-base sm:text-xl font-bold m-0 transition-all duration-500 truncate ${
               isSticky ? "" : "text-white"
             }`}
             style={isSticky ? { color: primaryColor } : undefined}
@@ -244,7 +244,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
             {agencyName}
           </h2>
           <p
-            className={`text-sm m-0 transition-all duration-500 ${
+            className={`hidden sm:block text-sm m-0 transition-all duration-500 truncate ${
               isSticky ? "text-gray-600" : "text-white/80"
             }`}
           >
@@ -255,20 +255,20 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 ml-2">
         {isAuthenticated && user ? (
           // User Menu
           <div ref={menuRef} className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className={`flex items-center gap-3 px-5 py-3 rounded-full font-semibold border cursor-pointer text-sm transition-all duration-300 ease-out ${
+              className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 rounded-full font-semibold border cursor-pointer text-xs sm:text-sm transition-all duration-300 ease-out ${
                 isSticky
                   ? "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md shadow-sm"
                   : "bg-white/10 backdrop-blur-[10px] text-white border-white/30 hover:bg-white/20 hover:border-white/40"
               }`}
             >
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
                   isSticky ? "text-white" : "bg-white/20"
                 }`}
                 style={isSticky ? { backgroundColor: primaryColor } : undefined}
@@ -282,7 +282,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
             </button>
 
             {showUserMenu && (
-              <div className="absolute top-[calc(100%+0.75rem)] right-0 min-w-[260px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-[calc(100%+0.75rem)] right-0 min-w-[240px] sm:min-w-[260px] max-w-[90vw] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
                 {/* User Info Header */}
                 <div
                   className="p-5 border-b transition-colors duration-300"
@@ -384,7 +384,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
           // Login/Signup Buttons (when not authenticated)
           <>
             <button
-              className={`px-6 py-3 rounded-xl font-semibold border cursor-pointer text-sm transition-all duration-300 ease-out transform ${
+              className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold border cursor-pointer text-xs sm:text-sm transition-all duration-300 ease-out transform ${
                 isSticky
                   ? "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md shadow-sm hover:scale-105"
                   : "bg-white/10 backdrop-blur-[10px] text-white border-white/30 hover:bg-white/20 hover:border-white/40 hover:scale-105"
@@ -394,7 +394,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
               Login
             </button>
             <button
-              className={`px-6 py-3 rounded-xl font-semibold border-none cursor-pointer text-sm transition-all duration-300 ease-out transform hover:scale-105 ${
+              className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold border-none cursor-pointer text-xs sm:text-sm transition-all duration-300 ease-out transform hover:scale-105 ${
                 isSticky
                   ? "text-white shadow-md hover:shadow-xl"
                   : "bg-white text-gray-800 shadow-[0_10px_25px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_35px_rgba(0,0,0,0.15)]"
@@ -426,14 +426,15 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
       {/* Hero Section */}
       <div
         ref={heroRef}
+        id="hero"
         className="relative min-h-[90vh] text-white overflow-hidden"
         style={{ background: heroGradient }}
       >
         {/* Background Elements */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 right-20 w-96 h-96 bg-white/5 rounded-full blur-[3rem]" />
-          <div className="absolute bottom-20 left-20 w-80 h-80 bg-white/10 rounded-full blur-[2rem]" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[37.5rem] h-[37.5rem] bg-white/5 rounded-full blur-[3rem]" />
+          <div className="absolute top-16 right-4 sm:right-10 lg:right-20 w-56 h-56 sm:w-80 sm:h-80 lg:w-96 lg:h-96 bg-white/5 rounded-full blur-[3rem]" />
+          <div className="absolute bottom-10 left-4 sm:left-10 lg:left-20 w-44 h-44 sm:w-64 sm:h-64 lg:w-80 lg:h-80 bg-white/10 rounded-full blur-[2rem]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-[28rem] sm:h-[28rem] lg:w-[37.5rem] lg:h-[37.5rem] bg-white/5 rounded-full blur-[3rem]" />
         </div>
 
         {/* Header Navigation in Hero */}
@@ -442,45 +443,45 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
         </div>
 
         {/* Main Content */}
-        <div className="relative z-10 grid grid-cols-[1fr_auto] gap-12 items-center min-h-[90vh] p-12 max-w-[1400px] mx-auto">
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_24rem] gap-8 lg:gap-12 items-start lg:items-center min-h-[90vh] px-4 sm:px-6 lg:px-12 pt-28 sm:pt-32 lg:pt-24 pb-10 max-w-[1400px] mx-auto">
           {/* Left Content */}
-          <div className="max-w-[600px] pt-24">
-            <div className="inline-block px-4 py-2 bg-white/10 my-4 backdrop-blur-[10px] rounded-full border border-white/20 text-sm font-medium">
+          <div className="max-w-[600px]">
+            <div className="inline-block px-3 sm:px-4 py-2 bg-white/10 my-4 backdrop-blur-[10px] rounded-full border border-white/20 text-xs sm:text-sm font-medium">
               🏆 Premium Short-Let Specialist
             </div>
 
-            <h1 className="text-6xl font-bold leading-tight mb-6 m-0">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6 m-0">
               Find Your Perfect Stay
             </h1>
 
             {/* Dynamic Stats */}
-            <div className="grid grid-cols-3 gap-8 mb-8 py-8 border-b border-white/10">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-8 mb-8 py-6 sm:py-8 border-b border-white/10">
               <div className="text-center">
-                <div className="text-[2.5rem] font-bold mb-2">
+                <div className="text-3xl sm:text-[2.5rem] font-bold mb-2">
                   {stats.propertiesCount}+
                 </div>
-                <div className="text-white/70 text-sm">Properties</div>
+                <div className="text-white/70 text-xs sm:text-sm">Properties</div>
               </div>
               <div className="text-center">
-                <div className="text-[2.5rem] font-bold mb-2">
+                <div className="text-3xl sm:text-[2.5rem] font-bold mb-2">
                   {stats.totalGuests}
                 </div>
-                <div className="text-white/70 text-sm">Happy Guests</div>
+                <div className="text-white/70 text-xs sm:text-sm">Happy Guests</div>
               </div>
-              <div className="text-center">
-                <div className="text-[2.5rem] font-bold mb-2">
+              <div className="text-center col-span-2 sm:col-span-1">
+                <div className="text-3xl sm:text-[2.5rem] font-bold mb-2">
                   {stats.averageRating > 0
                     ? `${stats.averageRating.toFixed(1)}★`
                     : "0★"}
                 </div>
-                <div className="text-white/70 text-sm">Avg Rating</div>
+                <div className="text-white/70 text-xs sm:text-sm">Avg Rating</div>
               </div>
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-12">
               <button
-                className="px-8 py-4 bg-white text-gray-800 rounded-2xl font-semibold border-none text-lg shadow-[0_20px_40px_rgba(0,0,0,0.1)] cursor-pointer translate-y-0 transition-all duration-200 hover:translate-y-[-2px] hover:shadow-[0_25px_50px_rgba(0,0,0,0.15)]"
+                className="px-6 sm:px-8 py-3.5 sm:py-4 bg-white text-gray-800 rounded-2xl font-semibold border-none text-base sm:text-lg shadow-[0_20px_40px_rgba(0,0,0,0.1)] cursor-pointer translate-y-0 transition-all duration-200 hover:translate-y-[-2px] hover:shadow-[0_25px_50px_rgba(0,0,0,0.15)]"
                 onClick={() => {
                   const propertiesSection =
                     document.getElementById("properties");
@@ -492,7 +493,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
                 Explore Properties
               </button>
               <button
-                className="px-8 py-4 bg-white/10 backdrop-blur-[10px] text-white rounded-2xl font-semibold border border-white/20 text-lg cursor-pointer"
+                className="px-6 sm:px-8 py-3.5 sm:py-4 bg-white/10 backdrop-blur-[10px] text-white rounded-2xl font-semibold border border-white/20 text-base sm:text-lg cursor-pointer"
                 onClick={() => {
                   const aboutSection = document.getElementById("about");
                   if (aboutSection) {
@@ -506,16 +507,16 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
           </div>
 
           {/* Right Content - Search Card */}
-          <div className="w-[400px]">
+          <div className="w-full lg:w-[400px] max-w-[420px] mx-auto lg:mx-0">
             <div
               style={{ background: meshGradient }}
-              className="backdrop-blur-[20px] border border-white/20 rounded-3xl p-8 shadow-[0_25px_50px_rgba(0,0,0,0.1)]"
+              className="backdrop-blur-[20px] border border-white/20 rounded-3xl p-5 sm:p-8 shadow-[0_25px_50px_rgba(0,0,0,0.1)]"
             >
-              <h3 className="text-2xl font-bold text-center mb-8 m-0">
+              <h3 className="text-xl sm:text-2xl font-bold text-center mb-6 sm:mb-8 m-0">
                 Book Your Stay
               </h3>
 
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-5 sm:gap-6">
                 <div>
                   <label className="block font-medium mb-2 text-white/90 text-sm">
                     Location
@@ -523,12 +524,12 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
                   <input
                     value={searchLocation}
                     onChange={(e) => setSearchLocation(e.target.value)}
-                    className="w-full p-4 bg-white/10 backdrop-blur-[10px] border border-white/20 rounded-xl text-white text-sm box-border placeholder:text-white/50"
+                    className="w-full p-3.5 sm:p-4 bg-white/10 backdrop-blur-[10px] border border-white/20 rounded-xl text-white text-sm box-border placeholder:text-white/50"
                     placeholder="Where would you like to stay?"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-medium mb-2 text-white/90 text-sm">
                       Check In
@@ -538,7 +539,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
                       value={checkInDate}
                       onChange={(e) => setCheckInDate(e.target.value)}
                       min={new Date().toISOString().split("T")[0]}
-                      className="w-full p-4 bg-white/10 backdrop-blur-[10px] border border-white/20 rounded-xl text-white text-sm box-border [color-scheme:dark]"
+                      className="w-full p-3.5 sm:p-4 bg-white/10 backdrop-blur-[10px] border border-white/20 rounded-xl text-white text-sm box-border [color-scheme:dark]"
                     />
                   </div>
                   <div>
@@ -552,13 +553,13 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
                       min={
                         checkInDate || new Date().toISOString().split("T")[0]
                       }
-                      className="w-full p-4 bg-white/10 backdrop-blur-[10px] border border-white/20 rounded-xl text-white text-sm box-border [color-scheme:dark]"
+                      className="w-full p-3.5 sm:p-4 bg-white/10 backdrop-blur-[10px] border border-white/20 rounded-xl text-white text-sm box-border [color-scheme:dark]"
                     />
                   </div>
                 </div>
 
                 <button
-                  className="w-full px-6 py-4 bg-white text-gray-800 rounded-xl font-semibold border-none text-base shadow-[0_10px_25px_rgba(0,0,0,0.1)] cursor-pointer mt-2"
+                  className="w-full px-6 py-3.5 sm:py-4 bg-white text-gray-800 rounded-xl font-semibold border-none text-sm sm:text-base shadow-[0_10px_25px_rgba(0,0,0,0.1)] cursor-pointer mt-2"
                   onClick={() => {
                     // Build search query string
                     const params = new URLSearchParams();

@@ -204,7 +204,7 @@ export const DynamicPropertiesSection: React.FC<
     return (
       <section
         style={{
-          padding: "6rem 3rem",
+          padding: "clamp(3rem, 6vw, 6rem) clamp(1rem, 4vw, 3rem)",
           background: `${primaryColor}08`, // 60% - Primary color with very light opacity for main background
         }}
       >
@@ -238,7 +238,7 @@ export const DynamicPropertiesSection: React.FC<
       <section
         id="properties"
         style={{
-          padding: "6rem 3rem",
+          padding: "clamp(3rem, 6vw, 6rem) clamp(1rem, 4vw, 3rem)",
           background: `${primaryColor}08`, // 60% - Primary color background
         }}
       >
@@ -265,7 +265,7 @@ export const DynamicPropertiesSection: React.FC<
           </div>
           <h2
             style={{
-              fontSize: "3.5rem",
+              fontSize: "clamp(2rem, 6vw, 3.5rem)",
               fontWeight: 700,
               color: secondaryColor, // 30% - Secondary color for text
               marginBottom: "1.5rem",
@@ -276,7 +276,7 @@ export const DynamicPropertiesSection: React.FC<
           </h2>
           <p
             style={{
-              fontSize: "1.25rem",
+              fontSize: "clamp(1rem, 2.5vw, 1.25rem)",
               color: `${secondaryColor}99`, // 30% - Secondary color for descriptive text
               maxWidth: "768px",
               margin: "0 auto 3rem",
@@ -295,13 +295,18 @@ export const DynamicPropertiesSection: React.FC<
     <section
       id="properties"
       style={{
-        padding: "6rem 3rem",
+        padding: "clamp(3rem, 6vw, 6rem) clamp(1rem, 4vw, 3rem)",
         background: `${primaryColor}08`, // 60% - Primary color background
       }}
     >
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         {/* Section Header */}
-        <div style={{ textAlign: "center", marginBottom: "4rem" }}>
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: "clamp(2.5rem, 5vw, 4rem)",
+          }}
+        >
           <div
             style={{
               display: "inline-block",
@@ -318,7 +323,7 @@ export const DynamicPropertiesSection: React.FC<
           </div>
           <h2
             style={{
-              fontSize: "3.5rem",
+              fontSize: "clamp(2rem, 6vw, 3.5rem)",
               fontWeight: 700,
               color: secondaryColor, // 30% - Secondary color for headings
               marginBottom: "1.5rem",
@@ -329,7 +334,7 @@ export const DynamicPropertiesSection: React.FC<
           </h2>
           <p
             style={{
-              fontSize: "1.25rem",
+              fontSize: "clamp(1rem, 2.5vw, 1.25rem)",
               color: `${secondaryColor}99`, // 30% - Secondary color for text
               maxWidth: "768px",
               margin: "0 auto",
@@ -407,9 +412,10 @@ export const DynamicPropertiesSection: React.FC<
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))",
-                gap: "2.5rem",
-                marginBottom: "4rem",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
+                gap: "clamp(1rem, 3vw, 2.5rem)",
+                marginBottom: "clamp(2.5rem, 5vw, 4rem)",
               }}
             >
               {displayProperties.slice(0, 6).map((property) => (
@@ -442,7 +448,7 @@ export const DynamicPropertiesSection: React.FC<
                   {/* Property Image */}
                   <div
                     style={{
-                      height: 240,
+                      height: "clamp(200px, 35vw, 240px)",
                       position: "relative",
                       overflow: "hidden",
                       backgroundColor: "#f3f4f6",
@@ -629,10 +635,10 @@ export const DynamicPropertiesSection: React.FC<
                   </div>
 
                   {/* Property Details */}
-                  <div style={{ padding: "2rem" }}>
+                  <div style={{ padding: "clamp(1rem, 3vw, 2rem)" }}>
                     <h3
                       style={{
-                        fontSize: "1.375rem",
+                        fontSize: "clamp(1.125rem, 3vw, 1.375rem)",
                         fontWeight: 700,
                         color: secondaryColor, // 30% - Secondary color for headings
                         marginBottom: "0.75rem",
@@ -677,7 +683,8 @@ export const DynamicPropertiesSection: React.FC<
                     <div
                       style={{
                         display: "flex",
-                        gap: "1.5rem",
+                        flexWrap: "wrap",
+                        gap: "0.75rem 1.25rem",
                         marginBottom: "1.5rem",
                         paddingBottom: "1.5rem",
                         borderBottom: `1px solid ${primaryColor}20`, // 60% - Primary color for subtle borders
@@ -726,7 +733,7 @@ export const DynamicPropertiesSection: React.FC<
                     >
                       <span
                         style={{
-                          fontSize: "2rem",
+                          fontSize: "clamp(1.5rem, 4vw, 2rem)",
                           fontWeight: 700,
                           color: secondaryColor, // 30% - Secondary color for price
                         }}
@@ -786,13 +793,13 @@ export const DynamicPropertiesSection: React.FC<
               <div style={{ textAlign: "center" }}>
                 <button
                   style={{
-                    padding: "1.25rem 2.5rem",
+                    padding: "1rem clamp(1.5rem, 4vw, 2.5rem)",
                     borderRadius: 16,
                     fontWeight: 600,
                     color: "white",
                     border: "none",
                     backgroundColor: primaryColor, // 60% - Primary color for main action button
-                    fontSize: "1.125rem",
+                    fontSize: "clamp(1rem, 2.5vw, 1.125rem)",
                     boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
                     cursor: "pointer",
                   }}

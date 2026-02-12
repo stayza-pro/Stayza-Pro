@@ -134,14 +134,19 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
   return (
     <section
       style={{
-        padding: "6rem 3rem",
+        padding: "clamp(3rem, 6vw, 6rem) clamp(1rem, 4vw, 3rem)",
         background: `linear-gradient(135deg, ${primaryColor}05, ${primaryColor}08, ${primaryColor}05)`, // 60% - Primary color gradient background
         overflow: "hidden",
       }}
     >
       <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
         {/* Section Header */}
-        <div style={{ textAlign: "center", marginBottom: "4rem" }}>
+        <div
+          style={{
+            textAlign: "center",
+            marginBottom: "clamp(2.5rem, 5vw, 4rem)",
+          }}
+        >
           <div
             style={{
               display: "inline-block",
@@ -158,7 +163,7 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
           </div>
           <h2
             style={{
-              fontSize: "3.5rem",
+              fontSize: "clamp(2rem, 6vw, 3.5rem)",
               fontWeight: 700,
               color: secondaryColor, // 30% - Secondary color for headings
               marginBottom: "1rem",
@@ -169,7 +174,7 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
           </h2>
           <p
             style={{
-              fontSize: "1.25rem",
+              fontSize: "clamp(1rem, 2.5vw, 1.25rem)",
               color: `${secondaryColor}CC`, // 30% - Secondary color for text with opacity
               maxWidth: "768px",
               margin: "0 auto",
@@ -186,8 +191,9 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "5rem",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
+            gap: "clamp(2rem, 5vw, 5rem)",
             alignItems: "center",
           }}
         >
@@ -195,7 +201,7 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
           <div>
             <h3
               style={{
-                fontSize: "2.5rem",
+                fontSize: "clamp(1.75rem, 5vw, 2.5rem)",
                 fontWeight: 700,
                 color: secondaryColor, // 30% - Secondary color for headings
                 marginBottom: "1.5rem",
@@ -207,7 +213,7 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
             </h3>
             <p
               style={{
-                fontSize: "1.125rem",
+                fontSize: "clamp(1rem, 2.5vw, 1.125rem)",
                 color: `${secondaryColor}99`, // 30% - Secondary color for body text
                 lineHeight: 1.8,
                 marginBottom: "2.5rem",
@@ -221,8 +227,9 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1.5rem",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+                gap: "clamp(0.75rem, 2.5vw, 1.5rem)",
                 marginBottom: "3rem",
               }}
             >
@@ -250,16 +257,18 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
             {/* Call to Action */}
             <button
               style={{
-                padding: "1.25rem 2.5rem",
+                padding: "1rem clamp(1.5rem, 4vw, 2.5rem)",
                 borderRadius: 16,
                 fontWeight: 600,
                 color: "white",
                 border: "none",
                 backgroundColor: accentColor, // 10% - Accent color for CTA button
-                fontSize: "1.125rem",
+                fontSize: "clamp(1rem, 2.5vw, 1.125rem)",
                 boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
                 cursor: "pointer",
                 transition: "all 0.3s ease",
+                width: "100%",
+                maxWidth: "22rem",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-2px)";
@@ -288,7 +297,7 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
               style={{
                 background: `linear-gradient(135deg, ${primaryColor}10, ${primaryColor}15)`, // 60% - Primary color gradient
                 borderRadius: 32,
-                padding: "3rem",
+                padding: "clamp(1.25rem, 4vw, 3rem)",
                 border: `1px solid ${primaryColor}30`, // 60% - Primary color border
                 position: "relative",
                 overflow: "hidden",
@@ -340,8 +349,9 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "2rem",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
+                      gap: "clamp(0.75rem, 2.5vw, 2rem)",
                     }}
                   >
                     {dynamicStats.map((stat, idx) => (
@@ -359,7 +369,7 @@ export const DynamicAboutSection: React.FC<DynamicAboutSectionProps> = ({
                       >
                         <div
                           style={{
-                            fontSize: "2.5rem",
+                            fontSize: "clamp(1.75rem, 4vw, 2.5rem)",
                             fontWeight: 700,
                             color: accentColor, // 10% - Accent color for stat numbers
                             marginBottom: "0.5rem",
