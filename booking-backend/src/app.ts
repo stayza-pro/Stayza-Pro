@@ -259,7 +259,13 @@ app.get("/health/detailed", async (req, res) => {
     overallStatus = "unhealthy";
   }
 
-  const requiredEnvVars = ["DATABASE_URL", "JWT_SECRET", "PAYSTACK_SECRET_KEY"];
+  const requiredEnvVars = [
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "PAYSTACK_SECRET_KEY",
+    "PAYSTACK_PUBLIC_KEY",
+    "PAYSTACK_WEBHOOK_SECRET",
+  ];
   const missingEnvVars = requiredEnvVars.filter(
     (varName) => !process.env[varName]
   );

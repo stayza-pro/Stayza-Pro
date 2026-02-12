@@ -111,7 +111,7 @@ export function useBusinessInsights(
                 title: data.topProperties[0].title,
                 image:
                   data.topProperties[0].images?.[0] ||
-                  "/images/property-placeholder.jpg",
+                  "/images/stayza.png",
                 revenue: data.topProperties[0].totalRevenue || 0,
                 bookings: data.topProperties[0].totalBookings || 0,
                 occupancyRate: data.topProperties[0].occupancyRate || 0,
