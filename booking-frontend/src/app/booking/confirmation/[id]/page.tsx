@@ -153,7 +153,7 @@ export default function BookingConfirmationPage() {
           currentPage="profile"
           searchPlaceholder="Search location..."
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-64 bg-gray-200 rounded-lg"></div>
           </div>
@@ -176,8 +176,8 @@ export default function BookingConfirmationPage() {
           currentPage="profile"
           searchPlaceholder="Search location..."
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="p-8 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <Card className="p-4 sm:p-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Booking Not Found
             </h2>
@@ -212,7 +212,7 @@ export default function BookingConfirmationPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Indicator */}
         <div className="mb-8">
-          <div className="flex items-center justify-center space-x-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <div className="flex items-center">
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
@@ -220,12 +220,12 @@ export default function BookingConfirmationPage() {
               >
                 <Check className="h-6 w-6" />
               </div>
-              <span className="ml-2 font-medium text-gray-900">
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
                 Guest Details
               </span>
             </div>
             <div
-              className="w-16 h-1"
+              className="hidden sm:block w-16 h-1"
               style={{ backgroundColor: brandColor }}
             ></div>
             <div className="flex items-center">
@@ -235,10 +235,12 @@ export default function BookingConfirmationPage() {
               >
                 <Check className="h-6 w-6" />
               </div>
-              <span className="ml-2 font-medium text-gray-900">Payment</span>
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
+                Payment
+              </span>
             </div>
             <div
-              className="w-16 h-1"
+              className="hidden sm:block w-16 h-1"
               style={{ backgroundColor: brandColor }}
             ></div>
             <div className="flex items-center">
@@ -248,7 +250,7 @@ export default function BookingConfirmationPage() {
               >
                 <Check className="h-6 w-6" />
               </div>
-              <span className="ml-2 font-medium text-gray-900">
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
                 Confirmation
               </span>
             </div>
@@ -270,7 +272,7 @@ export default function BookingConfirmationPage() {
             />
           </div>
           <h1
-            className="text-3xl font-bold mb-2"
+            className="text-2xl sm:text-3xl font-bold mb-2"
             style={{ color: secondaryColor }}
           >
             Booking Confirmed!
@@ -408,7 +410,7 @@ export default function BookingConfirmationPage() {
           {/* Booking Summary Sidebar */}
           <div className="lg:col-span-1">
             <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm sticky top-8"
+              className="p-6 border border-gray-200 !bg-white shadow-sm sticky top-4 lg:top-8"
               style={{ backgroundColor: "#ffffff", color: "#111827" }}
             >
               <h2

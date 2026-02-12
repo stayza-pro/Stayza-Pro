@@ -488,7 +488,7 @@ export default function BookingDetailsPage() {
           currentPage="bookings"
           searchPlaceholder="Search your bookings..."
         />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-200 rounded w-1/3"></div>
             <div className="h-96 bg-gray-200 rounded"></div>
@@ -512,8 +512,8 @@ export default function BookingDetailsPage() {
           currentPage="bookings"
           searchPlaceholder="Search your bookings..."
         />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="p-8 text-center">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <Card className="p-4 sm:p-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Booking Not Found
             </h2>
@@ -612,7 +612,7 @@ export default function BookingDetailsPage() {
               </div>
 
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
                   {booking.property?.title || "Booking Details"}
                 </h1>
                 <div className="flex items-center text-gray-600">
@@ -634,7 +634,7 @@ export default function BookingDetailsPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="rounded-lg border border-gray-200 p-3 bg-transparent">
                   <p className="text-xs text-gray-500">Check-in</p>
                   <p className="text-sm font-semibold text-gray-900">

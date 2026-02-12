@@ -105,7 +105,7 @@ export default function FavoritesPage() {
           currentPage="favorites"
           searchPlaceholder="Search properties..."
         />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-100 rounded w-1/3"></div>
             <div className="h-64 bg-gray-100 rounded"></div>
@@ -126,7 +126,7 @@ export default function FavoritesPage() {
         searchPlaceholder="Search properties..."
       />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         {/* Hero Header Section */}
         <div className="mb-16 text-center">
           <div
@@ -135,7 +135,7 @@ export default function FavoritesPage() {
           >
             <Heart className="h-8 w-8" style={{ color: primaryColor }} />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
             My Favorites
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -156,7 +156,7 @@ export default function FavoritesPage() {
               >
                 <Heart className="h-6 w-6" style={{ color: primaryColor }} />
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 {favorites.length}
               </p>
               <p className="text-sm text-gray-600">Saved Properties</p>
@@ -175,7 +175,7 @@ export default function FavoritesPage() {
                   style={{ color: secondaryColor || "#059669" }}
                 />
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 {new Set(favorites.map((f) => f.property.city)).size}
               </p>
               <p className="text-sm text-gray-600">Cities</p>
@@ -194,7 +194,7 @@ export default function FavoritesPage() {
                   style={{ color: accentColor || "#D97706" }}
                 />
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 {favorites.length > 0
                   ? (
                       favorites.reduce(
@@ -334,3 +334,4 @@ export default function FavoritesPage() {
     </div>
   );
 }
+

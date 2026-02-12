@@ -634,7 +634,7 @@ export default function PaymentPage() {
           currentPage="profile"
           searchPlaceholder="Search location..."
         />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-64 bg-gray-200 rounded-lg"></div>
             <div className="h-48 bg-gray-200 rounded-lg"></div>
@@ -661,7 +661,7 @@ export default function PaymentPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Indicator */}
         <div className="mb-8">
-          <div className="flex items-center justify-center space-x-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <div className="flex items-center">
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
@@ -669,12 +669,12 @@ export default function PaymentPage() {
               >
                 1
               </div>
-              <span className="ml-2 font-medium text-gray-900">
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
                 Guest Details
               </span>
             </div>
             <div
-              className="w-16 h-1"
+              className="hidden sm:block w-16 h-1"
               style={{ backgroundColor: brandColor }}
             ></div>
             <div className="flex items-center">
@@ -684,14 +684,16 @@ export default function PaymentPage() {
               >
                 2
               </div>
-              <span className="ml-2 font-medium text-gray-900">Payment</span>
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
+                Payment
+              </span>
             </div>
-            <div className="w-16 h-1 bg-gray-300"></div>
+            <div className="hidden sm:block w-16 h-1 bg-gray-300"></div>
             <div className="flex items-center">
               <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold bg-gray-200 text-gray-600">
                 3
               </div>
-              <span className="ml-2 font-medium text-gray-500">
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-500">
                 Confirmation
               </span>
             </div>
@@ -702,7 +704,7 @@ export default function PaymentPage() {
         {paymentStatus === "success" && (
           <div className="max-w-2xl mx-auto">
             <Card
-              className="p-8 border border-gray-200 !bg-white shadow-sm"
+              className="p-4 sm:p-8 border border-gray-200 !bg-white shadow-sm"
               style={{ backgroundColor: "#ffffff", color: "#111827" }}
             >
               <div className="text-center">
@@ -720,7 +722,7 @@ export default function PaymentPage() {
                     />
                   </div>
                   <h2
-                    className="text-3xl font-bold mb-2"
+                    className="text-2xl sm:text-3xl font-bold mb-2"
                     style={{ color: secondaryColor }}
                   >
                     Payment Successful!
@@ -742,7 +744,7 @@ export default function PaymentPage() {
         {paymentStatus === "failed" && (
           <div className="max-w-2xl mx-auto">
             <Card
-              className="p-8 border border-gray-200 !bg-white shadow-sm"
+              className="p-4 sm:p-8 border border-gray-200 !bg-white shadow-sm"
               style={{ backgroundColor: "#ffffff", color: "#111827" }}
             >
               <div className="text-center">
@@ -782,7 +784,7 @@ export default function PaymentPage() {
               <div className="lg:col-span-2 space-y-6">
                 <div>
                   <h1
-                    className="text-3xl font-bold mb-2"
+                    className="text-2xl sm:text-3xl font-bold mb-2"
                     style={{ color: secondaryColor }}
                   >
                     Complete Your Payment
@@ -842,7 +844,7 @@ export default function PaymentPage() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
                       <div className="flex items-start">
                         <Calendar className="h-5 w-5 mr-2 mt-0.5 text-gray-400" />
                         <div>

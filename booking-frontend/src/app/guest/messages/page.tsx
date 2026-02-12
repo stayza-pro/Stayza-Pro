@@ -403,7 +403,7 @@ function MessagesContent() {
   if (!authChecked || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-100 rounded w-1/3"></div>
             <div className="h-64 bg-gray-100 rounded"></div>
@@ -421,8 +421,8 @@ function MessagesContent() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-start justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
           <p className="text-xs text-gray-400 mt-1">Powered by Stayza Pro</p>
         </div>
 
@@ -446,14 +446,14 @@ function MessagesContent() {
             {/* Conversation List */}
             <div className="flex-1 overflow-y-auto">
               {isLoadingConversations ? (
-                <div className="p-8 text-center">
+                <div className="p-4 sm:p-8 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
                   <p className="text-gray-600 text-sm">
                     Loading conversations...
                   </p>
                 </div>
               ) : conversations.length === 0 ? (
-                <div className="p-8 text-center">
+                <div className="p-4 sm:p-8 text-center">
                   <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-600">No conversations yet</p>
                 </div>
@@ -598,12 +598,12 @@ function MessagesContent() {
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {isLoadingMessages ? (
-                    <div className="text-center py-12">
+                    <div className="text-center py-8 sm:py-12">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
                       <p className="text-gray-600">Loading messages...</p>
                     </div>
                   ) : messages.length === 0 ? (
-                    <div className="text-center py-12">
+                    <div className="text-center py-8 sm:py-12">
                       <p className="text-gray-600">No messages yet</p>
                       <p className="text-sm text-gray-500 mt-1">
                         Start a conversation
@@ -620,7 +620,7 @@ function MessagesContent() {
                         }`}
                       >
                         <div
-                          className="max-w-[70%] rounded-lg px-4 py-2"
+                          className="max-w-[85%] sm:max-w-[70%] rounded-lg px-4 py-2"
                           style={
                             message.senderId === user?.id
                               ? {
@@ -848,3 +848,4 @@ export default function MessagesPage() {
     </Suspense>
   );
 }
+

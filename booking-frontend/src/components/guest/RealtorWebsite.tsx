@@ -240,7 +240,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
         </div>
 
         {/* Property Details */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div className="mb-4">
             <h3
               className="text-lg font-semibold text-gray-900 mb-1 transition-colors line-clamp-1 group-hover:opacity-80"
@@ -263,8 +263,8 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
           </div>
 
           {/* Property Stats */}
-          <div className="flex items-center justify-between mb-4 text-sm text-gray-600">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 text-sm text-gray-600">
+            <div className="flex items-center flex-wrap gap-3">
               <span className="flex items-center">
                 <Users className="w-4 h-4 mr-1" />
                 {property.maxGuests}
@@ -283,16 +283,16 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
           </div>
 
           {/* Price and Book Button */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-baseline space-x-1">
-              <span className="text-2xl font-bold text-gray-900">
+              <span className="text-xl sm:text-2xl font-bold text-gray-900">
                 {getCurrencySymbol()}
                 {Number(property.pricePerNight || 0).toLocaleString()}
               </span>
               <span className="text-gray-600 text-sm">/night</span>
             </div>
             <button
-              className="px-6 py-2 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+              className="w-full sm:w-auto px-4 sm:px-6 py-2 text-sm sm:text-base text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
               style={{ backgroundColor: primaryColor }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -312,10 +312,10 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Logo and Brand */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
+              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
                 {logoPreview ? (
                   <Image
                     src={logoPreview}
@@ -334,10 +334,10 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
                   </div>
                 )}
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">
+                  <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
                     {data.agencyName || "Stayza Pro"}
                   </h1>
-                  <p className="text-xs text-gray-500">
+                  <p className="hidden sm:block text-xs text-gray-500 truncate">
                     {data.customSubdomain || "your-domain"}.stayza.pro
                   </p>
                 </div>
@@ -367,13 +367,13 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
             </nav>
 
             {/* Action Buttons */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <button className="p-2 text-gray-600 hover:text-gray-900 rounded-lg">
                 <Globe className="w-5 h-5" />
               </button>
               <button
                 onClick={() => router.push("/guest/login")}
-                className="px-4 py-2 text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+                className="px-3 py-2 sm:px-4 text-sm sm:text-base text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: primaryColor }}
               >
                 Sign In
@@ -384,11 +384,11 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
       </header>
 
       {/* Hero Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      <section className="relative py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <motion.h1
-              className="text-4xl md:text-6xl font-bold text-gray-900 mb-6"
+              className="text-3xl sm:text-4xl lg:text-6xl font-bold text-gray-900 mb-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
@@ -397,7 +397,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
               <span style={{ color: primaryColor }}>Stay</span>
             </motion.h1>
             <motion.p
-              className="text-xl text-gray-600 max-w-3xl mx-auto"
+              className="text-base sm:text-xl text-gray-600 max-w-3xl mx-auto"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
@@ -413,8 +413,8 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex gap-4">
+            <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <div className="flex-1 relative">
                   <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -426,7 +426,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
                   />
                 </div>
                 <button
-                  className="px-8 py-3 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center space-x-2"
+                  className="w-full sm:w-auto px-4 sm:px-8 py-3 text-sm sm:text-base text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center space-x-2"
                   style={{ backgroundColor: primaryColor }}
                 >
                   <Search className="w-5 h-5" />
@@ -439,12 +439,12 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
       </section>
 
       {/* Properties Section */}
-      <section id="properties" className="py-20 px-4 sm:px-6 lg:px-8">
+      <section id="properties" className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
-          <div className="flex items-center justify-between mb-12">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8 sm:mb-12">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
                 {properties.length > 0 ? "Our Properties" : "Properties"}
               </h2>
               <p className="text-gray-600">
@@ -454,7 +454,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
             </div>
 
             {/* View Controls */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 rounded-lg p-1 self-start sm:self-auto">
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-2 rounded-md transition-colors ${
@@ -503,7 +503,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
           {/* Properties Grid */}
           {!loading && filteredProperties.length > 0 && (
             <div
-              className={`grid gap-8 ${
+              className={`grid gap-5 sm:gap-8 ${
                 viewMode === "grid"
                   ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
                   : "grid-cols-1"
@@ -518,9 +518,9 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
       </section>
 
       {/* Trust Indicators */}
-      <section className="py-16 bg-white">
+      <section className="py-12 sm:py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 sm:gap-8 text-center">
             {[
               {
                 icon: Shield,
@@ -564,9 +564,9 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
       </section>
 
       {/* Footer */}
-      <footer id="contact" className="bg-gray-900 text-white py-16">
+      <footer id="contact" className="bg-gray-900 text-white py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {/* Company Info */}
             <div className="md:col-span-1">
               <div className="flex items-center space-x-3 mb-6">

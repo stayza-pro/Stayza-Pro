@@ -131,7 +131,7 @@ export default function HelpPage() {
         searchPlaceholder="Search help topics..."
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         {/* Header Section */}
         <div className="mb-16 text-center">
           <div
@@ -140,7 +140,7 @@ export default function HelpPage() {
           >
             <HelpCircle className="h-8 w-8" style={{ color: accentColor }} />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
             How can we help you?
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -149,7 +149,7 @@ export default function HelpPage() {
         </div>
 
         {/* Quick Contact */}
-        <Card className="p-8 mb-12 border-2 border-gray-200">
+        <Card className="p-4 sm:p-8 mb-12 border-2 border-gray-200">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Need immediate assistance?
@@ -234,7 +234,7 @@ export default function HelpPage() {
         </div>
 
         {/* Additional Resources */}
-        <Card className="p-8 bg-white">
+        <Card className="p-4 sm:p-8 bg-white">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
             Additional Resources
           </h2>
@@ -285,7 +285,7 @@ export default function HelpPage() {
       {/* Redirect Confirmation Modal */}
       {showRedirectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-8 animate-in fade-in zoom-in duration-200">
+          <Card className="max-w-md w-full p-4 sm:p-8 animate-in fade-in zoom-in duration-200">
             <div className="text-center mb-6">
               <div
                 className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
@@ -343,3 +343,4 @@ export default function HelpPage() {
     </div>
   );
 }
+

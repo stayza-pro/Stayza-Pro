@@ -181,10 +181,12 @@ function GuestLoginContent() {
           style={{
             maxWidth: "1200px",
             margin: "0 auto",
-            padding: "1.5rem 2rem",
+            padding: "1rem clamp(0.75rem, 4vw, 2rem)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            gap: "0.75rem",
+            flexWrap: "wrap",
           }}
         >
           {/* Logo/Brand */}
@@ -193,8 +195,9 @@ function GuestLoginContent() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "1rem",
+              gap: "0.75rem",
               textDecoration: "none",
+              minWidth: 0,
             }}
           >
             {logo && logo.trim() !== "" ? (
@@ -202,8 +205,8 @@ function GuestLoginContent() {
                 src={logo}
                 alt={businessName}
                 style={{
-                  height: 48,
-                  width: 48,
+                  height: "clamp(2.25rem, 8vw, 3rem)",
+                  width: "clamp(2.25rem, 8vw, 3rem)",
                   borderRadius: 12,
                   objectFit: "cover",
                 }}
@@ -211,8 +214,8 @@ function GuestLoginContent() {
             ) : (
               <div
                 style={{
-                  width: 48,
-                  height: 48,
+                  width: "clamp(2.25rem, 8vw, 3rem)",
+                  height: "clamp(2.25rem, 8vw, 3rem)",
                   borderRadius: 12,
                   background: primaryColor,
                   display: "flex",
@@ -229,7 +232,7 @@ function GuestLoginContent() {
             <div>
               <h1
                 style={{
-                  fontSize: "1.25rem",
+                  fontSize: "clamp(1rem, 3.5vw, 1.25rem)",
                   fontWeight: 700,
                   color: secondaryColor, // 30% - Secondary for brand name
                   margin: 0,
@@ -254,15 +257,17 @@ function GuestLoginContent() {
             href="/guest/register"
             style={{
               color: accentColor, // 10% - Accent for CTA link
-              fontSize: "0.875rem",
+              fontSize: "0.8125rem",
               fontWeight: 600,
               textDecoration: "none",
-              padding: "0.5rem 1rem",
+              padding: "0.5rem 0.75rem",
               borderRadius: 8,
               transition: "all 0.2s",
+              whiteSpace: "nowrap",
             }}
           >
-            Don't have an account? Sign up
+            <span className="sm:hidden">Sign up</span>
+            <span className="hidden sm:inline">Don&apos;t have an account? Sign up</span>
           </Link>
         </div>
       </div>
@@ -271,42 +276,35 @@ function GuestLoginContent() {
       <div
         style={{
           maxWidth: "480px",
+          width: "100%",
           margin: "0 auto",
-          padding: "3rem 1.5rem",
+          padding: "2rem 1rem 3rem",
         }}
       >
         {/* Title Section */}
-        <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-          <div
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <h2
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "start",
-              marginBottom: "1rem",
+              fontSize: "clamp(1.625rem, 7vw, 2rem)",
+              fontWeight: 700,
+              color: secondaryColor, // 30% - Secondary for heading
+              marginBottom: "0.75rem",
             }}
           >
-            <div>
-              <h2
-                style={{
-                  fontSize: "2rem",
-                  fontWeight: 700,
-                  color: secondaryColor, // 30% - Secondary for heading
-                  marginBottom: "0.75rem",
-                }}
-              >
-                Welcome Back
-              </h2>
-              <p
-                style={{ color: `${secondaryColor}80`, fontSize: "0.9375rem" }}
-              >
-                {" "}
-                {/* 30% - Secondary with opacity */}
-                {isClient && realtorSubdomain
-                  ? `Sign in to continue booking with ${businessName}`
-                  : "Sign in to your guest account"}
-              </p>
-            </div>
-          </div>
+            Welcome Back
+          </h2>
+          <p
+            style={{
+              color: `${secondaryColor}80`,
+              fontSize: "0.9375rem",
+              margin: 0,
+            }}
+          >
+            {/* 30% - Secondary with opacity */}
+            {isClient && realtorSubdomain
+              ? `Sign in to continue booking with ${businessName}`
+              : "Sign in to your guest account"}
+          </p>
           {isClient && realtorSubdomain && (
             <div
               style={{
@@ -333,7 +331,7 @@ function GuestLoginContent() {
           style={{
             background: "white",
             borderRadius: 20,
-            padding: "2.5rem",
+            padding: "clamp(1rem, 4vw, 2.5rem)",
             boxShadow:
               "0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
             border: "1px solid rgba(0, 0, 0, 0.05)",

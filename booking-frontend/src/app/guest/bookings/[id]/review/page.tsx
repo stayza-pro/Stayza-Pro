@@ -226,7 +226,7 @@ export default function WriteReviewPage() {
             padding: "1rem 1rem 3rem",
           }}
         >
-          <Card className="p-8 text-center">
+          <Card className="p-4 sm:p-8 text-center">
             <h2
               style={{
                 fontSize: "1.5rem",

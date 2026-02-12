@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -219,7 +219,7 @@ export default function GuestBookingsPage() {
           currentPage="bookings"
           searchPlaceholder="Search your bookings..."
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-200 rounded w-1/3"></div>
             <div className="h-64 bg-gray-200 rounded"></div>
@@ -247,7 +247,7 @@ export default function GuestBookingsPage() {
         searchPlaceholder="Search your bookings..."
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         {/* Clean Header Section */}
         <div className="mb-16 text-center">
           <div
@@ -259,7 +259,7 @@ export default function GuestBookingsPage() {
               style={{ color: primaryColor }} // Lighter touch - primary for key icon
             />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
             My Bookings
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -283,7 +283,7 @@ export default function GuestBookingsPage() {
                   style={{ color: primaryColor }} // Lighter touch - primary for stat icon
                 />
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 {bookings.length}
               </p>
               <p className="text-sm text-gray-600">Total Bookings</p>
@@ -302,7 +302,7 @@ export default function GuestBookingsPage() {
                   style={{ color: secondaryColor || "#059669" }}
                 />
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 {
                   bookings.filter(
                     (b: Booking) =>
@@ -326,7 +326,7 @@ export default function GuestBookingsPage() {
                   style={{ color: accentColor || "#D97706" }}
                 />
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 {bookings.filter((b: Booking) => b.status === "PENDING").length}
               </p>
               <p className="text-sm text-gray-600">Pending</p>
@@ -345,7 +345,7 @@ export default function GuestBookingsPage() {
                   style={{ color: primaryColor }} // Lighter touch - primary for stat icon
                 />
               </div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 {
                   bookings.filter((b: Booking) => {
                     const now = new Date();
@@ -467,7 +467,7 @@ export default function GuestBookingsPage() {
                 placeholder="Search bookings..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full lg:w-80 border bg-gray-50"
+                className="pl-10 pr-4 py-2 w-full sm:w-80 lg:w-80 border bg-gray-50"
               />
             </div>
           </div>
@@ -526,7 +526,7 @@ export default function GuestBookingsPage() {
                 >
                   <div className="flex flex-col lg:flex-row">
                     {/* Property Image */}
-                    <div className="relative lg:w-80 h-64 lg:h-auto flex-shrink-0 overflow-hidden">
+                    <div className="relative w-full sm:w-80 lg:w-80 h-64 lg:h-auto flex-shrink-0 overflow-hidden">
                       {booking.property?.images?.[0]?.url ? (
                         <Image
                           src={booking.property.images[0].url}
@@ -586,7 +586,7 @@ export default function GuestBookingsPage() {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 p-8">
+                    <div className="flex-1 p-4 sm:p-8">
                       <div className="mb-6">
                         <h3 className="text-2xl font-bold text-gray-900 mb-2">
                           {booking.property?.title || "Property"}
@@ -742,7 +742,7 @@ export default function GuestBookingsPage() {
         {/* Support Section */}
         {bookings.length > 0 && (
           <Card
-            className="p-8 mt-8 border border-gray-200 !bg-white shadow-sm"
+            className="p-4 sm:p-8 mt-8 border border-gray-200 !bg-white shadow-sm"
             style={{ backgroundColor: "#ffffff", color: "#111827" }}
           >
             <div className="text-center max-w-2xl mx-auto">
@@ -805,5 +805,6 @@ export default function GuestBookingsPage() {
     </div>
   );
 }
+
 
 

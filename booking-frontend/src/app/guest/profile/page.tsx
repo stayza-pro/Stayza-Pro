@@ -209,7 +209,7 @@ export default function GuestProfilePage() {
   if (!authChecked || isLoading) {
     return (
       <div className="min-h-screen bg-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-100 rounded w-1/3"></div>
             <div className="h-64 bg-gray-100 rounded"></div>
@@ -229,7 +229,7 @@ export default function GuestProfilePage() {
         searchPlaceholder="Search location..."
       />
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         {/* Hero Header with Brand Color */}
         <div
           className="relative rounded-3xl overflow-hidden mb-12 shadow-lg"
@@ -242,7 +242,7 @@ export default function GuestProfilePage() {
             <div className="absolute bottom-10 left-10 w-32 h-32 bg-white rounded-full blur-2xl" />
           </div>
 
-          <div className="relative px-8 py-12">
+          <div className="relative px-4 sm:px-8 py-8 sm:py-12">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-6">
                 {/* Profile Picture */}
@@ -276,7 +276,7 @@ export default function GuestProfilePage() {
                 </div>
 
                 <div className="text-white">
-                  <h1 className="text-4xl font-bold mb-2">
+                  <h1 className="text-3xl sm:text-4xl font-bold mb-2">
                     {user?.firstName} {user?.lastName}
                   </h1>
                   <p className="text-white/80 text-lg mb-3 flex items-center gap-2">
@@ -301,7 +301,7 @@ export default function GuestProfilePage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Personal Information Card */}
             <Card
-              className="p-8 border-2 border-gray-100 !bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300"
+              className="p-4 sm:p-8 border-2 border-gray-100 !bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300"
               style={{ backgroundColor: "#ffffff", color: "#111827" }}
             >
               <div className="flex items-center gap-3 mb-6">
@@ -452,7 +452,7 @@ export default function GuestProfilePage() {
         {showDeleteModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
             <Card
-              className="max-w-md w-full p-8 border-2 border-gray-100 !bg-white rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
+              className="max-w-md w-full p-4 sm:p-8 border-2 border-gray-100 !bg-white rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
               style={{ backgroundColor: "#ffffff", color: "#111827" }}
             >
               <div className="flex items-start gap-4 mb-6">
@@ -540,3 +540,4 @@ export default function GuestProfilePage() {
     </div>
   );
 }
+

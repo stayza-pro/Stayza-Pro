@@ -81,7 +81,7 @@ export default function BrowsePropertiesPage() {
         searchPlaceholder="Search location..."
       />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 animate-in fade-in duration-500">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16 animate-in fade-in duration-500">
         <div className="space-y-8">
           {/* Hero Header Section */}
           <div className="text-center mb-16">
@@ -104,7 +104,7 @@ export default function BrowsePropertiesPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
               Browse Properties
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -142,3 +142,4 @@ export default function BrowsePropertiesPage() {
     </div>
   );
 }
+

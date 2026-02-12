@@ -104,7 +104,7 @@ export default function BookingHistoryPage() {
   if (!authChecked || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-100 rounded w-1/3"></div>
             <div className="h-64 bg-gray-100 rounded"></div>
@@ -308,7 +308,7 @@ export default function BookingHistoryPage() {
           currentPage="history"
           searchPlaceholder="Search bookings..."
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-200 rounded w-1/3"></div>
             <div className="h-64 bg-gray-200 rounded"></div>
@@ -337,7 +337,7 @@ export default function BookingHistoryPage() {
         <div className="mb-8">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
                 Booking History
               </h1>
               <p className="text-gray-600">
@@ -352,7 +352,7 @@ export default function BookingHistoryPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <Card className="p-6 text-center">
             <p
-              className="text-3xl font-bold mb-2"
+              className="text-2xl sm:text-3xl font-bold mb-2"
               style={{ color: primaryColor }} // Lighter touch - primary for stat
             >
               {bookings.length}
@@ -362,7 +362,7 @@ export default function BookingHistoryPage() {
 
           <Card className="p-6 text-center">
             <p
-              className="text-3xl font-bold mb-2"
+              className="text-2xl sm:text-3xl font-bold mb-2"
               style={{ color: secondaryColor }}
             >
               {formatPrice(totalSpent)}
@@ -549,3 +549,4 @@ export default function BookingHistoryPage() {
     </div>
   );
 }
+

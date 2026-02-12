@@ -424,7 +424,7 @@ const PaymentSuccessContent = () => {
               <AlertCircle className="h-8 w-8 text-red-600" />
             </div>
             <h1
-              className="text-3xl font-bold mb-2"
+              className="text-2xl sm:text-3xl font-bold mb-2"
               style={{ color: secondaryColor }}
             >
               Missing payment reference
@@ -442,7 +442,7 @@ const PaymentSuccessContent = () => {
             <div className="text-center mb-8">
               {getStatusIcon()}
               <h1
-                className="text-3xl font-bold mb-2"
+                className="text-2xl sm:text-3xl font-bold mb-2"
                 style={{ color: secondaryColor }}
               >
                 {statusMessage.title}
@@ -556,3 +556,4 @@ export default function PaymentSuccessPage() {
     </Suspense>
   );
 }
+

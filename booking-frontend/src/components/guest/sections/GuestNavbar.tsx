@@ -94,10 +94,10 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
         isSticky ? "sticky" : ""
       } top-0 left-0 right-0 z-[60] transition-all duration-500 ease-out backdrop-blur-md bg-white/95 shadow-lg`}
     >
-      <div className="flex items-center justify-between px-8 py-4 max-w-[1400px] mx-auto transition-all duration-500 ease-out">
-        <div className="flex items-center gap-5">
+      <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-6 sm:py-4 max-w-[1400px] mx-auto transition-all duration-500 ease-out">
+        <div className="flex items-center gap-2 sm:gap-5 min-w-0">
           <div
-            className="w-14 h-14 rounded-2xl overflow-hidden transition-all duration-500 ease-out border-2 shadow-md hover:shadow-lg"
+            className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl overflow-hidden transition-all duration-500 ease-out border-2 shadow-md hover:shadow-lg shrink-0"
             style={{ borderColor: `${primaryColor}40` }}
           >
             <Link href="/">
@@ -109,7 +109,7 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                 />
               ) : (
                 <div
-                  className="w-full h-full flex items-center justify-center font-bold text-xl text-white transition-all duration-500"
+                  className="w-full h-full flex items-center justify-center font-bold text-base sm:text-xl text-white transition-all duration-500"
                   style={{ backgroundColor: primaryColor }}
                 >
                   {agencyName.charAt(0).toUpperCase()}
@@ -117,14 +117,14 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
               )}
             </Link>
           </div>
-          <div className="transition-all duration-500">
+          <div className="transition-all duration-500 min-w-0">
             <h2
-              className="text-xl font-bold m-0 transition-all duration-500"
+              className="text-base sm:text-xl font-bold m-0 transition-all duration-500 truncate"
               style={{ color: primaryColor }}
             >
               {agencyName}
             </h2>
-            <p className="text-sm m-0 text-gray-600 transition-all duration-500">
+            <p className="hidden sm:block text-sm m-0 text-gray-600 transition-all duration-500 truncate">
               {tagline && tagline.trim() !== ""
                 ? tagline
                 : "Premium short-let properties"}
@@ -132,13 +132,13 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {isAuthenticated && user ? (
             // User Menu
             <div ref={menuRef} className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-3 px-5 py-3 rounded-full font-semibold border cursor-pointer text-sm transition-all duration-300 ease-out bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md shadow-sm"
+                className="flex items-center gap-2 sm:gap-3 px-3 py-2 sm:px-5 sm:py-3 rounded-full font-semibold border cursor-pointer text-sm transition-all duration-300 ease-out bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md shadow-sm"
               >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white transition-all duration-300"
@@ -153,7 +153,7 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
               </button>
 
               {showUserMenu && (
-                <div className="absolute top-[calc(100%+0.75rem)] right-0 min-w-[260px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-[calc(100%+0.75rem)] right-0 w-[calc(100vw-1rem)] sm:w-auto sm:min-w-[260px] max-w-sm bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
                   {/* User Info Header */}
                   <div
                     className="p-5 border-b transition-colors duration-300"
@@ -273,13 +273,13 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
             // Login/Signup Buttons (when not authenticated)
             <>
               <button
-                className="px-6 py-3 rounded-xl font-semibold border cursor-pointer text-sm transition-all duration-300 ease-out transform bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md shadow-sm hover:scale-105"
+                className="px-3 py-2 sm:px-6 sm:py-3 rounded-xl font-semibold border cursor-pointer text-xs sm:text-sm transition-all duration-300 ease-out transform bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md shadow-sm hover:scale-105"
                 onClick={() => (window.location.href = "/guest/login")}
               >
                 Login
               </button>
               <button
-                className="px-6 py-3 rounded-xl font-semibold border-none cursor-pointer text-sm transition-all duration-300 ease-out transform hover:scale-105 text-white shadow-md hover:shadow-xl"
+                className="px-3 py-2 sm:px-6 sm:py-3 rounded-xl font-semibold border-none cursor-pointer text-xs sm:text-sm transition-all duration-300 ease-out transform hover:scale-105 text-white shadow-md hover:shadow-xl"
                 style={{ backgroundColor: primaryColor }}
                 onClick={() => (window.location.href = "/guest/register")}
               >

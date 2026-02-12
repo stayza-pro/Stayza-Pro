@@ -279,7 +279,7 @@ export default function BookingCheckoutPage() {
           currentPage="profile"
           searchPlaceholder="Search location..."
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-8">
             <div className="h-64 bg-gray-200 rounded-lg"></div>
             <div className="h-96 bg-gray-200 rounded-lg"></div>
@@ -311,7 +311,7 @@ export default function BookingCheckoutPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Indicator */}
         <div className="mb-8">
-          <div className="flex items-center justify-center space-x-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <div className="flex items-center">
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
@@ -319,23 +319,25 @@ export default function BookingCheckoutPage() {
               >
                 1
               </div>
-              <span className="ml-2 font-medium text-gray-900">
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
                 Guest Details
               </span>
             </div>
-            <div className="w-16 h-1 bg-gray-300"></div>
+            <div className="hidden sm:block w-16 h-1 bg-gray-300"></div>
             <div className="flex items-center">
               <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold bg-gray-200 text-gray-600">
                 2
               </div>
-              <span className="ml-2 font-medium text-gray-500">Payment</span>
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-500">
+                Payment
+              </span>
             </div>
-            <div className="w-16 h-1 bg-gray-300"></div>
+            <div className="hidden sm:block w-16 h-1 bg-gray-300"></div>
             <div className="flex items-center">
               <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold bg-gray-200 text-gray-600">
                 3
               </div>
-              <span className="ml-2 font-medium text-gray-500">
+              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-500">
                 Confirmation
               </span>
             </div>
@@ -357,7 +359,7 @@ export default function BookingCheckoutPage() {
           <div className="lg:col-span-2 space-y-6">
             <div>
               <h1
-                className="text-3xl font-bold mb-2"
+                className="text-2xl sm:text-3xl font-bold mb-2"
                 style={{ color: secondaryColor }}
               >
                 Confirm and pay
@@ -615,8 +617,8 @@ export default function BookingCheckoutPage() {
                   Booking Summary
                 </h2>
 
-                <div className="flex items-start space-x-4 mb-4">
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
+                <div className="flex flex-col sm:flex-row items-start sm:space-x-4 space-y-4 sm:space-y-0 mb-4">
+                  <div className="relative w-full sm:w-24 h-48 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
                     {property.images &&
                     property.images.length > 0 &&
                     property.images[0]?.url ? (

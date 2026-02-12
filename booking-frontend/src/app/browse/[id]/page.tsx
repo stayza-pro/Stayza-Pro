@@ -493,7 +493,7 @@ export default function PropertyDetailsPage() {
     }
 
     return (
-      <div className="r z-50 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-80">
+      <div className="z-50 mt-2 w-full sm:w-80 max-w-sm bg-white rounded-xl shadow-2xl border border-gray-200 p-4">
         {/* Calendar Header */}
         <div className="flex items-center justify-between mb-4">
           <button
@@ -698,7 +698,7 @@ export default function PropertyDetailsPage() {
               style={{ backgroundColor: "#ffffff", color: "#111827" }}
             >
               <h1
-                className="text-3xl font-bold mb-2"
+                className="text-2xl sm:text-3xl font-bold mb-2"
                 style={{ color: secondaryColor }}
               >
                 {property.title}
@@ -968,7 +968,7 @@ export default function PropertyDetailsPage() {
                 <div className="mb-6">
                   <div className="flex items-baseline">
                     <span
-                      className="text-3xl font-bold"
+                      className="text-2xl sm:text-3xl font-bold"
                       style={{ color: accentColor }}
                     >
                       {formatPrice(property.pricePerNight)}

@@ -283,7 +283,7 @@ export default function CheckoutPage() {
               </h2>
 
               {/* Property Info */}
-              <div className="flex space-x-4 mb-6 pb-6 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0 mb-6 pb-6 border-b border-gray-200">
                 {booking.property.images?.[0] && (
                   <Image
                     src={booking.property.images[0]}
