@@ -542,6 +542,14 @@ export default function BookingDetailsPage() {
   const nights = calculateNights();
   const ongoing = isOngoing();
   const secondaryBrand = secondaryColor || primaryColor;
+  const sensitiveDetailsUnlocked =
+    booking.sensitiveDetailsUnlocked ??
+    ["HELD", "PARTIALLY_RELEASED", "SETTLED"].includes(
+      String(booking.paymentStatus || "")
+    );
+  const bookingVerificationCode =
+    booking.bookingVerificationCode ||
+    `STZ-${booking.id}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -614,9 +622,14 @@ export default function BookingDetailsPage() {
                     {booking.property?.state || "-"}
                   </span>
                 </div>
-                {booking.property?.address && (
+                {sensitiveDetailsUnlocked && booking.property?.address && (
                   <p className="text-sm text-gray-500 mt-1">
                     {booking.property.address}
+                  </p>
+                )}
+                {!sensitiveDetailsUnlocked && (
+                  <p className="text-sm text-amber-700 mt-1">
+                    Exact address unlocks after payment confirmation.
                   </p>
                 )}
               </div>
@@ -687,7 +700,11 @@ export default function BookingDetailsPage() {
                 <div className="space-y-3 text-sm text-gray-700">
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-                    <span>{booking.property?.address || "Address not available"}</span>
+                    <span>
+                      {sensitiveDetailsUnlocked
+                        ? booking.property?.address || "Address not available"
+                        : "Address hidden until payment is confirmed"}
+                    </span>
                   </div>
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-2 text-gray-400" />
@@ -714,11 +731,17 @@ export default function BookingDetailsPage() {
                   <p className="font-semibold text-gray-900">
                     {booking.property?.realtor?.businessName || "Host"}
                   </p>
-                  {booking.property?.realtor?.businessEmail && (
+                  {sensitiveDetailsUnlocked &&
+                    booking.property?.realtor?.businessEmail && (
                     <div className="flex items-center text-sm text-gray-600 mt-2">
                       <Mail className="h-4 w-4 mr-2" />
                       <span>{booking.property.realtor.businessEmail}</span>
                     </div>
+                    )}
+                  {!sensitiveDetailsUnlocked && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      Host direct contact unlocks after payment confirmation.
+                    </p>
                   )}
                 </div>
               </div>
@@ -811,6 +834,38 @@ export default function BookingDetailsPage() {
               </div>
             </Card>
 
+            <Card className="p-6 border border-gray-200 shadow-sm bg-transparent">
+              <h2
+                className="text-xl font-semibold text-gray-900 mb-4"
+                style={{ color: secondaryBrand }}
+              >
+                Verified Booking Artifact
+              </h2>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Official Stayza Pro confirmation code
+                  </p>
+                  <p className="font-mono text-lg text-gray-900 mt-1">
+                    {bookingVerificationCode}
+                  </p>
+                </div>
+                <span
+                  className="text-xs font-semibold px-3 py-1 rounded-full"
+                  style={{
+                    backgroundColor: sensitiveDetailsUnlocked
+                      ? "#DCFCE7"
+                      : "#FEF3C7",
+                    color: sensitiveDetailsUnlocked ? "#166534" : "#92400E",
+                  }}
+                >
+                  {sensitiveDetailsUnlocked
+                    ? "Secure Payment Verified"
+                    : "Pending Payment Verification"}
+                </span>
+              </div>
+            </Card>
+
             {(booking.status === "ACTIVE" ||
               booking.status === "DISPUTED" ||
               booking.status === "COMPLETED") && (
@@ -834,6 +889,7 @@ export default function BookingDetailsPage() {
                   <Button
                     onClick={handleContactHost}
                     className="w-full text-white"
+                    disabled={!sensitiveDetailsUnlocked}
                     style={{ backgroundColor: primaryColor }}
                   >
                     <MessageCircle className="h-4 w-4 mr-2" />
@@ -898,7 +954,9 @@ export default function BookingDetailsPage() {
                   )}
                 </div>
                 <p className="text-xs text-gray-500 mt-4">
-                  Receipts are available after payment release.
+                  {!sensitiveDetailsUnlocked
+                    ? "Contact and full property details unlock after payment confirmation."
+                    : "Receipts are available after payment release."}
                 </p>
               </Card>
 

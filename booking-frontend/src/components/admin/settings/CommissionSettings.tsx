@@ -1,41 +1,353 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Percent,
-  Save,
-  Info,
-  TrendingUp,
-  Calculator,
-  Target,
   AlertCircle,
-  CheckCircle,
-  Download,
-  Zap,
+  Percent,
+  Plus,
+  Save,
+  Trash2,
+  Wallet,
+  TrendingUp,
 } from "lucide-react";
-import {
-  PlatformSetting,
-  updateCommissionRate,
-} from "@/services/settingsService";
-import { getAnalytics, type PlatformAnalytics } from "@/services/adminService";
-import toast from "react-hot-toast";
+import { PlatformSetting, updateSetting } from "@/services/settingsService";
 
 interface CommissionSettingsProps {
   settings: PlatformSetting[];
-  onUpdate: (key: string, value: number) => void;
+  onUpdate: (key: string, value: any) => void;
   onSaveSuccess: (message: string) => void;
   onSaveError: (error: string) => void;
 }
 
-interface CommissionImpactAnalysis {
-  currentMonthlyRevenue: number;
-  currentCommission: number;
-  newCommission: number;
-  difference: number;
-  percentageChange: number;
-  averageBookingValue: number;
-  projectedAnnualImpact: number;
+interface CommissionTier {
+  min: number;
+  max: number | null;
+  rate: number;
 }
+
+interface MonthlyDiscount {
+  volume: number;
+  reductionRate: number;
+}
+
+interface FeeComponent {
+  percent: number;
+  fixed: number;
+  capVariable?: number;
+  capTrigger?: number;
+  noCap?: boolean;
+}
+
+interface WithdrawalFeeConfig {
+  percent: number;
+  cap: number;
+  minimumWithdrawal: number;
+}
+
+interface FinanceConfigForm {
+  tiers: CommissionTier[];
+  monthlyDiscounts: MonthlyDiscount[];
+  monthlyDiscountCapRate: number;
+  stayzaFee: FeeComponent;
+  localProcessingFee: FeeComponent;
+  internationalProcessingFee: FeeComponent;
+  withdrawalFee: WithdrawalFeeConfig;
+}
+
+const FINANCE_KEYS = {
+  tiers: "finance.commission.tiers.v1",
+  monthlyDiscounts: "finance.commission.monthly_discounts.v1",
+  monthlyDiscountCapRate: "finance.commission.monthly_discount_cap_rate",
+  stayzaFee: "finance.service_fee.stayza.v1",
+  localProcessingFee: "finance.service_fee.processing.local.v1",
+  internationalProcessingFee: "finance.service_fee.processing.international.v1",
+  withdrawalFee: "finance.withdrawal_fee.v1",
+} as const;
+
+const DEFAULT_FORM: FinanceConfigForm = {
+  tiers: [
+    { min: 0, max: 500000, rate: 0.1 },
+    { min: 500001, max: 2000000, rate: 0.07 },
+    { min: 2000001, max: null, rate: 0.05 },
+  ],
+  monthlyDiscounts: [
+    { volume: 5000000, reductionRate: 0.005 },
+    { volume: 10000000, reductionRate: 0.01 },
+    { volume: 20000000, reductionRate: 0.015 },
+  ],
+  monthlyDiscountCapRate: 0.02,
+  stayzaFee: {
+    percent: 0.01,
+    fixed: 100,
+    capVariable: 1333,
+    capTrigger: 133333,
+  },
+  localProcessingFee: {
+    percent: 0.015,
+    fixed: 100,
+    capVariable: 2000,
+    capTrigger: 133333,
+  },
+  internationalProcessingFee: {
+    percent: 0.039,
+    fixed: 100,
+    noCap: true,
+  },
+  withdrawalFee: {
+    percent: 0.003,
+    cap: 3000,
+    minimumWithdrawal: 1000,
+  },
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+const parseTierEntry = (entry: unknown): CommissionTier | null => {
+  if (!isRecord(entry)) return null;
+
+  const min = toNumber(entry.min, Number.NaN);
+  const maxRaw = entry.max;
+  const max =
+    maxRaw === null || maxRaw === undefined
+      ? null
+      : toNumber(maxRaw, Number.NaN);
+  const rate = toNumber(entry.rate, Number.NaN);
+
+  if (!Number.isNaN(min) && !Number.isNaN(rate)) {
+    return { min, max, rate };
+  }
+
+  const keys = Object.keys(entry);
+  if (keys.length === 1) {
+    const key = keys[0];
+    const valueRate = toNumber(entry[key], Number.NaN);
+    const [rawMin, rawMax] = key.split("-");
+    const parsedMin = toNumber(rawMin, Number.NaN);
+    const parsedMax = rawMax ? toNumber(rawMax, Number.NaN) : null;
+
+    if (!Number.isNaN(parsedMin) && !Number.isNaN(valueRate)) {
+      return {
+        min: parsedMin,
+        max: parsedMax,
+        rate: valueRate,
+      };
+    }
+  }
+
+  return null;
+};
+
+const parseDiscountEntry = (entry: unknown): MonthlyDiscount | null => {
+  if (!isRecord(entry)) return null;
+
+  const volume = toNumber(entry.volume, Number.NaN);
+  const reductionRate = toNumber(entry.reductionRate, Number.NaN);
+
+  if (!Number.isNaN(volume) && !Number.isNaN(reductionRate)) {
+    return { volume, reductionRate };
+  }
+
+  const keys = Object.keys(entry);
+  if (keys.length === 1) {
+    const key = keys[0];
+    const parsedVolume = toNumber(key, Number.NaN);
+    const parsedRate = toNumber(entry[key], Number.NaN);
+    if (!Number.isNaN(parsedVolume) && !Number.isNaN(parsedRate)) {
+      return {
+        volume: parsedVolume,
+        reductionRate: parsedRate,
+      };
+    }
+  }
+
+  return null;
+};
+
+const parseFeeComponent = (value: unknown, fallback: FeeComponent): FeeComponent => {
+  if (!isRecord(value)) return fallback;
+
+  return {
+    percent: toNumber(value.percent, fallback.percent),
+    fixed: toNumber(value.fixed, fallback.fixed),
+    capVariable:
+      value.capVariable === undefined
+        ? fallback.capVariable
+        : toNumber(value.capVariable, fallback.capVariable || 0),
+    capTrigger:
+      value.capTrigger === undefined
+        ? fallback.capTrigger
+        : toNumber(value.capTrigger, fallback.capTrigger || 0),
+    noCap: value.noCap === true,
+  };
+};
+
+const parseFinanceState = (settings: PlatformSetting[]): FinanceConfigForm => {
+  const byKey = settings.reduce<Record<string, unknown>>((acc, item) => {
+    acc[item.key] = item.value;
+    return acc;
+  }, {});
+
+  const tiersRaw = byKey[FINANCE_KEYS.tiers];
+  const tiers = Array.isArray(tiersRaw)
+    ? tiersRaw
+        .map((entry) => parseTierEntry(entry))
+        .filter((entry): entry is CommissionTier => Boolean(entry))
+    : DEFAULT_FORM.tiers;
+
+  const monthlyRaw = byKey[FINANCE_KEYS.monthlyDiscounts];
+  const monthlyDiscounts = Array.isArray(monthlyRaw)
+    ? monthlyRaw
+        .map((entry) => parseDiscountEntry(entry))
+        .filter((entry): entry is MonthlyDiscount => Boolean(entry))
+    : DEFAULT_FORM.monthlyDiscounts;
+
+  const monthlyDiscountCapRate = toNumber(
+    byKey[FINANCE_KEYS.monthlyDiscountCapRate],
+    DEFAULT_FORM.monthlyDiscountCapRate
+  );
+
+  const stayzaFee = parseFeeComponent(
+    byKey[FINANCE_KEYS.stayzaFee],
+    DEFAULT_FORM.stayzaFee
+  );
+  const localProcessingFee = parseFeeComponent(
+    byKey[FINANCE_KEYS.localProcessingFee],
+    DEFAULT_FORM.localProcessingFee
+  );
+  const internationalProcessingFee = parseFeeComponent(
+    byKey[FINANCE_KEYS.internationalProcessingFee],
+    DEFAULT_FORM.internationalProcessingFee
+  );
+
+  const withdrawalRaw = byKey[FINANCE_KEYS.withdrawalFee];
+  const withdrawalFee = isRecord(withdrawalRaw)
+    ? {
+        percent: toNumber(withdrawalRaw.percent, DEFAULT_FORM.withdrawalFee.percent),
+        cap: toNumber(withdrawalRaw.cap, DEFAULT_FORM.withdrawalFee.cap),
+        minimumWithdrawal: toNumber(
+          withdrawalRaw.minimumWithdrawal,
+          DEFAULT_FORM.withdrawalFee.minimumWithdrawal
+        ),
+      }
+    : DEFAULT_FORM.withdrawalFee;
+
+  return {
+    tiers: tiers.length > 0 ? tiers : DEFAULT_FORM.tiers,
+    monthlyDiscounts:
+      monthlyDiscounts.length > 0 ? monthlyDiscounts : DEFAULT_FORM.monthlyDiscounts,
+    monthlyDiscountCapRate,
+    stayzaFee,
+    localProcessingFee,
+    internationalProcessingFee,
+    withdrawalFee,
+  };
+};
+
+const validateFinanceState = (state: FinanceConfigForm): string[] => {
+  const errors: string[] = [];
+
+  const sortedTiers = [...state.tiers].sort((a, b) => a.min - b.min);
+  if (sortedTiers.length === 0) {
+    errors.push("At least one commission tier is required.");
+  } else {
+    if (sortedTiers[0].min !== 0) {
+      errors.push("Commission tiers must start at 0.");
+    }
+
+    sortedTiers.forEach((tier, index) => {
+      if (tier.min < 0) errors.push("Commission tier minimum cannot be negative.");
+      if (tier.max !== null && tier.max < tier.min) {
+        errors.push("Commission tier max must be greater than or equal to min.");
+      }
+      if (tier.rate < 0 || tier.rate > 0.25) {
+        errors.push("Commission tier rates must be between 0% and 25%.");
+      }
+
+      if (index > 0) {
+        const previous = sortedTiers[index - 1];
+        if (previous.max === null) {
+          errors.push("Only the final tier can have open-ended max.");
+        } else if (tier.min !== previous.max + 1) {
+          errors.push("Commission tiers must be contiguous and non-overlapping.");
+        }
+      }
+    });
+
+    if (sortedTiers[sortedTiers.length - 1].max !== null) {
+      errors.push("Final commission tier must have no max.");
+    }
+  }
+
+  const sortedDiscounts = [...state.monthlyDiscounts].sort(
+    (a, b) => a.volume - b.volume
+  );
+  let previousVolume = -1;
+  sortedDiscounts.forEach((item) => {
+    if (item.volume <= previousVolume) {
+      errors.push("Monthly discount thresholds must be strictly increasing.");
+    }
+    previousVolume = item.volume;
+
+    if (item.volume <= 0) {
+      errors.push("Monthly discount thresholds must be greater than zero.");
+    }
+    if (item.reductionRate < 0 || item.reductionRate > 0.25) {
+      errors.push("Monthly discount rates must be between 0% and 25%.");
+    }
+  });
+
+  if (state.monthlyDiscountCapRate < 0 || state.monthlyDiscountCapRate > 0.05) {
+    errors.push("Monthly discount cap must be between 0% and 5%.");
+  }
+
+  const validateComponent = (component: FeeComponent, label: string) => {
+    if (component.percent < 0 || component.percent > 0.25) {
+      errors.push(`${label} percent must be between 0% and 25%.`);
+    }
+    if (component.fixed < 0) {
+      errors.push(`${label} fixed fee cannot be negative.`);
+    }
+    if (!component.noCap) {
+      if ((component.capVariable || 0) < 0) {
+        errors.push(`${label} cap variable cannot be negative.`);
+      }
+      if ((component.capTrigger || 0) <= 0) {
+        errors.push(`${label} cap trigger must be greater than zero.`);
+      }
+    }
+  };
+
+  validateComponent(state.stayzaFee, "Stayza fee");
+  validateComponent(state.localProcessingFee, "Local processing fee");
+  validateComponent(state.internationalProcessingFee, "International processing fee");
+
+  if (state.withdrawalFee.percent < 0 || state.withdrawalFee.percent > 0.25) {
+    errors.push("Withdrawal fee percent must be between 0% and 25%.");
+  }
+  if (state.withdrawalFee.cap <= 0) {
+    errors.push("Withdrawal fee cap must be greater than zero.");
+  }
+  if (state.withdrawalFee.minimumWithdrawal <= 0) {
+    errors.push("Minimum withdrawal must be greater than zero.");
+  }
+
+  return Array.from(new Set(errors));
+};
 
 const CommissionSettings: React.FC<CommissionSettingsProps> = ({
   settings,
@@ -44,764 +356,579 @@ const CommissionSettings: React.FC<CommissionSettingsProps> = ({
   onSaveError,
 }) => {
   const [saving, setSaving] = useState(false);
-  const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
-  const [showAdvancedCalculator, setShowAdvancedCalculator] = useState(false);
-  const [customBookingAmount, setCustomBookingAmount] = useState(50000);
-  const [impactAnalysis, setImpactAnalysis] =
-    useState<CommissionImpactAnalysis | null>(null);
-
-  // Mini calculator states
-  const [calculatorInput, setCalculatorInput] = useState("");
-  const [calculatorResult, setCalculatorResult] = useState<number | null>(null);
-
-  // Get commission rate setting
-  const commissionSetting = settings.find((s) => s.key === "commission_rate");
-  const currentRate = commissionSetting
-    ? Number(commissionSetting.value)
-    : 0.07;
-  const [commissionRate, setCommissionRate] = useState(() => {
-    // Initialize state with current rate only once
-    return commissionSetting ? Number(commissionSetting.value) : 0.07;
-  });
-
-  // Check if commission rate has changed (with tolerance for floating point precision)
-  const hasChanges = Math.abs(commissionRate - currentRate) > 0.01;
-
-  // Debug logging
-  
-
-  // Calculate preview values
-  const previewBookingAmount = 50000; // ₦50,000 sample booking
-  const commissionAmount = previewBookingAmount * commissionRate;
-  const realtorAmount = previewBookingAmount - commissionAmount;
-
-  const calculateImpactAnalysis = useCallback(
-    (analyticsData: PlatformAnalytics, newRate: number) => {
-      if (!analyticsData?.overview) return;
-
-      const totalRevenue = parseFloat(analyticsData.overview.totalRevenue || "0");
-      const totalBookings = analyticsData.overview.totalBookings || 0;
-
-      const currentCommission = totalRevenue * currentRate;
-      const newCommission = totalRevenue * newRate;
-      const difference = newCommission - currentCommission;
-
-      setImpactAnalysis({
-        currentMonthlyRevenue: totalRevenue,
-        currentCommission,
-        newCommission,
-        difference,
-        percentageChange:
-          currentCommission > 0 ? (difference / currentCommission) * 100 : 0,
-        averageBookingValue:
-          totalBookings > 0 ? totalRevenue / totalBookings : 0,
-        projectedAnnualImpact: difference * 12,
-      });
-    },
-    [currentRate]
+  const [formState, setFormState] = useState<FinanceConfigForm>(DEFAULT_FORM);
+  const [originalState, setOriginalState] = useState<FinanceConfigForm>(
+    DEFAULT_FORM
   );
 
-  const fetchAnalytics = useCallback(async () => {
-    try {
-      const data = await getAnalytics("30d");
-      setAnalytics(data);
-      calculateImpactAnalysis(data, commissionRate);
-    } catch {
-      
-    }
-  }, [calculateImpactAnalysis, commissionRate]);
-
-  // Fetch analytics for impact analysis
   useEffect(() => {
-    void fetchAnalytics();
-  }, [fetchAnalytics]);
+    const parsed = parseFinanceState(settings);
+    setFormState(parsed);
+    setOriginalState(parsed);
+  }, [settings]);
 
-  const handleCommissionRateChange = (value: number) => {
-    setCommissionRate(value);
-    onUpdate("commission_rate", value);
-    if (analytics) {
-      calculateImpactAnalysis(analytics, value);
-    }
+  const validationErrors = useMemo(() => {
+    return validateFinanceState(formState);
+  }, [formState]);
+
+  const hasChanges = useMemo(() => {
+    return JSON.stringify(formState) !== JSON.stringify(originalState);
+  }, [formState, originalState]);
+
+  const updateTier = (
+    index: number,
+    field: keyof CommissionTier,
+    value: number | null
+  ) => {
+    setFormState((prev) => {
+      const next = [...prev.tiers];
+      next[index] = {
+        ...next[index],
+        [field]: value,
+      };
+      return { ...prev, tiers: next };
+    });
   };
 
-  // Preset commission rates for quick selection
-  const presetRates = [
-    { rate: 0.05, label: "5% - Low", description: "Attract more realtors" },
-    { rate: 0.07, label: "7% - Standard", description: "Industry standard" },
-    { rate: 0.1, label: "10% - Premium", description: "High value service" },
-    {
-      rate: 0.12,
-      label: "12% - Enterprise",
-      description: "Full-service platform",
-    },
-  ];
-
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    if (amount >= 1000000) {
-      return `₦${(amount / 1000000).toFixed(2)}M`;
-    } else if (amount >= 1000) {
-      return `₦${(amount / 1000).toFixed(0)}K`;
-    }
-    return `₦${amount.toLocaleString()}`;
+  const updateDiscount = (
+    index: number,
+    field: keyof MonthlyDiscount,
+    value: number
+  ) => {
+    setFormState((prev) => {
+      const next = [...prev.monthlyDiscounts];
+      next[index] = {
+        ...next[index],
+        [field]: value,
+      };
+      return { ...prev, monthlyDiscounts: next };
+    });
   };
 
-  // Mini percentage calculator functions
-  const calculatePercentage = (expression: string) => {
-    try {
-      // Handle percentage calculations
-      // Convert "x% of y" or "x% * y" format
-      const processedExpression = expression
-        .replace(
-          /(\d+(?:\.\d+)?)%\s*(?:of|×|\*)\s*(\d+(?:\.\d+)?)/g,
-          "($1/100)*$2"
-        )
-        .replace(
-          /(\d+(?:\.\d+)?)\s*(?:of|×|\*)\s*(\d+(?:\.\d+)?)%/g,
-          "$1*($2/100)"
-        )
-        .replace(/(\d+(?:\.\d+)?)%/g, "($1/100)");
-
-      // Evaluate the expression safely
-      const result = Function(
-        '"use strict"; return (' + processedExpression + ")"
-      )();
-      return Number(result);
-    } catch (error) {
-      throw new Error("Invalid calculation");
-    }
-  };
-
-  const handleCalculatorInput = (value: string) => {
-    if (value === "C") {
-      setCalculatorInput("");
-      setCalculatorResult(null);
-    } else if (value === "=") {
-      try {
-        const result = calculatePercentage(calculatorInput);
-        setCalculatorResult(result);
-        toast.success(`Result: ${result}`);
-      } catch (error) {
-        toast.error("Invalid calculation");
-        setCalculatorResult(null);
-      }
-    } else {
-      setCalculatorInput((prev) => prev + value);
-    }
-  };
-
-  // Export commission analysis
-  const exportAnalysis = () => {
-    if (!impactAnalysis) return;
-
-    const csvContent = [
-      "Commission Rate Analysis Report",
-      `Generated: ${new Date().toLocaleString()}`,
-      "",
-      "Current Settings",
-      `Current Rate,${(currentRate * 100).toFixed(2)}%`,
-      `New Rate,${(commissionRate * 100).toFixed(2)}%`,
-      `Current Monthly Commission,${impactAnalysis.currentCommission}`,
-      `New Monthly Commission,${impactAnalysis.newCommission}`,
-      `Monthly Difference,${impactAnalysis.difference}`,
-      `Percentage Change,${impactAnalysis.percentageChange.toFixed(2)}%`,
-      `Projected Annual Impact,${impactAnalysis.projectedAnnualImpact}`,
-      "",
-      "Market Context",
-      `Current Monthly Revenue,${impactAnalysis.currentMonthlyRevenue}`,
-      `Average Booking Value,${impactAnalysis.averageBookingValue}`,
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `commission-analysis-${
-      new Date().toISOString().split("T")[0]
-    }.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast.success("Commission analysis exported!");
+  const updateFeeComponent = (
+    key: "stayzaFee" | "localProcessingFee" | "internationalProcessingFee",
+    field: keyof FeeComponent,
+    value: number | boolean | undefined
+  ) => {
+    setFormState((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [field]: value,
+      },
+    }));
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      await updateCommissionRate(commissionRate);
 
-      // Update the local settings to reflect the change
-      onUpdate("commission_rate", commissionRate);
+      const updates: Array<[string, unknown]> = [
+        [FINANCE_KEYS.tiers, formState.tiers],
+        [FINANCE_KEYS.monthlyDiscounts, formState.monthlyDiscounts],
+        [FINANCE_KEYS.monthlyDiscountCapRate, formState.monthlyDiscountCapRate],
+        [FINANCE_KEYS.stayzaFee, formState.stayzaFee],
+        [FINANCE_KEYS.localProcessingFee, formState.localProcessingFee],
+        [FINANCE_KEYS.internationalProcessingFee, formState.internationalProcessingFee],
+        [FINANCE_KEYS.withdrawalFee, formState.withdrawalFee],
+      ];
 
-      onSaveSuccess(
-        `Commission rate updated to ${(commissionRate * 100).toFixed(1)}%`
-      );
+      for (const [key, value] of updates) {
+        await updateSetting(key, { value });
+        onUpdate(key, value);
+      }
 
-      // Refresh analytics to get updated projections
-      setTimeout(() => {
-        fetchAnalytics();
-      }, 1000);
-    } catch (error: unknown) {
+      setOriginalState(formState);
+      onSaveSuccess("Finance configuration updated successfully.");
+    } catch (error) {
       onSaveError(
-        error instanceof Error ? error.message : "Failed to update commission rate"
+        error instanceof Error
+          ? error.message
+          : "Failed to save finance configuration"
       );
     } finally {
       setSaving(false);
     }
   };
 
+  const sampleRoomFee = 500000;
+  const sampleCleaningFee = 50000;
+  const sampleSubtotal = sampleRoomFee + sampleCleaningFee;
+  const sampleMonthlyVolume = 10000000;
+
+  const sortedTiers = [...formState.tiers].sort((a, b) => a.min - b.min);
+  const tier =
+    sortedTiers.find((item) => {
+      const maxOk = item.max === null || sampleRoomFee <= item.max;
+      return sampleRoomFee >= item.min && maxOk;
+    }) || sortedTiers[0];
+
+  const sortedDiscounts = [...formState.monthlyDiscounts].sort(
+    (a, b) => a.volume - b.volume
+  );
+  let volumeReduction = 0;
+  sortedDiscounts.forEach((item) => {
+    if (sampleMonthlyVolume >= item.volume) {
+      volumeReduction = item.reductionRate;
+    }
+  });
+
+  const effectiveRate = Math.max(
+    tier.rate - Math.min(volumeReduction, formState.monthlyDiscountCapRate),
+    0
+  );
+
+  const commissionAmount = sampleRoomFee * effectiveRate;
+  const realtorRoomPayout = sampleRoomFee - commissionAmount;
+
+  const stayzaVariable = Math.min(
+    sampleSubtotal * formState.stayzaFee.percent,
+    formState.stayzaFee.capVariable || Number.POSITIVE_INFINITY
+  );
+  const stayzaTotal = stayzaVariable + formState.stayzaFee.fixed;
+
+  const localProcessingVariable = formState.localProcessingFee.noCap
+    ? sampleSubtotal * formState.localProcessingFee.percent
+    : Math.min(
+        sampleSubtotal * formState.localProcessingFee.percent,
+        formState.localProcessingFee.capVariable || Number.POSITIVE_INFINITY
+      );
+  const localProcessingTotal =
+    localProcessingVariable + formState.localProcessingFee.fixed;
+
+  const withdrawalSample = 1000000;
+  const withdrawalFee = Math.min(
+    withdrawalSample * formState.withdrawalFee.percent,
+    formState.withdrawalFee.cap
+  );
+  const withdrawalNet = withdrawalSample - withdrawalFee;
+
   return (
     <div className="space-y-6">
-      {/* Enhanced Header with Action Buttons */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <Percent className="h-6 w-6 text-blue-600 mr-3" />
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Advanced Commission Management
-              </h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Optimize your platform&apos;s commission rate with real-time impact
-                analysis
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowAdvancedCalculator(!showAdvancedCalculator)}
-              className={`flex items-center px-3 py-2 text-sm border rounded-lg transition-colors ${
-                showAdvancedCalculator
-                  ? "bg-purple-50 border-purple-300 text-purple-700"
-                  : "bg-white border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              <Calculator className="h-4 w-4 mr-1" />
-              {showAdvancedCalculator ? "Hide Calculator" : "Calculator"}
-            </button>
-            <button
-              onClick={exportAnalysis}
-              disabled={!impactAnalysis}
-              className="flex items-center px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-            >
-              <Download className="h-4 w-4 mr-1" />
-              Export
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Preset Rates */}
-        <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-700 mb-3">
-            Quick Presets
-          </h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {presetRates.map((preset) => (
-              <button
-                key={preset.rate}
-                onClick={() => handleCommissionRateChange(preset.rate)}
-                className={`p-3 rounded-lg border-2 text-left transition-all ${
-                  Math.abs(commissionRate - preset.rate) < 0.001
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 bg-white hover:border-gray-300"
-                }`}
-              >
-                <div className="font-semibold text-sm">{preset.label}</div>
-                <div className="text-xs text-gray-600 mt-1">
-                  {preset.description}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Enhanced Rate Input with Slider */}
-          <div>
-            <label
-              htmlFor="commission-rate"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Commission Rate (%)
-            </label>
-
-            {/* Slider Input */}
-            <div className="mb-4">
-              <input
-                type="range"
-                min="1"
-                max="15"
-                step="0.1"
-                value={commissionRate * 100}
-                onChange={(e) =>
-                  handleCommissionRateChange(Number(e.target.value) / 100)
-                }
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>1%</span>
-                <span>15%</span>
-              </div>
-            </div>
-
-            {/* Numeric Input */}
-            <div className="relative mb-4">
-              <input
-                type="number"
-                id="commission-rate"
-                min="1"
-                max="15"
-                step="0.1"
-                value={(commissionRate * 100).toFixed(1)}
-                onChange={(e) =>
-                  handleCommissionRateChange(Number(e.target.value) / 100)
-                }
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold"
-                placeholder="7.0"
-              />
-              <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 font-medium">
-                %
-              </span>
-            </div>
-
-            {/* Rate Impact Indicator */}
-            <div className="mb-4 p-3 rounded-lg bg-gray-50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">Rate Change</span>
-                <span
-                  className={`text-sm font-medium ${
-                    commissionRate > currentRate
-                      ? "text-red-600"
-                      : commissionRate < currentRate
-                      ? "text-green-600"
-                      : "text-gray-600"
-                  }`}
-                >
-                  {commissionRate === currentRate
-                    ? "No change"
-                    : commissionRate > currentRate
-                    ? `+${((commissionRate - currentRate) * 100).toFixed(1)}%`
-                    : `${((commissionRate - currentRate) * 100).toFixed(1)}%`}
-                </span>
-              </div>
-              <div className="text-xs text-gray-500">
-                Rate must be between 1% and 15%
-              </div>
-            </div>
-
-            {/* Save Button */}
-            <button
-              onClick={handleSave}
-              disabled={saving || !hasChanges}
-              className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center ${
-                hasChanges
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  {hasChanges ? "Apply Changes" : "No Changes"}
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Enhanced Live Preview with Impact Analysis */}
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
-            <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
-              <TrendingUp className="h-4 w-4 mr-2 text-green-600" />
-              Real-Time Impact Analysis
-            </h4>
-
-            {/* Sample Booking Preview */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <div className="text-xs text-gray-500 mb-2">
-                Example booking: ₦{previewBookingAmount.toLocaleString()}
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">
-                    Platform Commission
-                  </span>
-                  <span className="font-medium text-blue-600">
-                    ₦{commissionAmount.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">
-                    Realtor Earnings
-                  </span>
-                  <span className="font-medium text-green-600">
-                    ₦{realtorAmount.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Platform Impact */}
-            {impactAnalysis && (
-              <div className="space-y-3">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="text-xs font-medium text-blue-900 mb-1">
-                    Monthly Impact
-                  </div>
-                  <div className="text-sm">
-                    <span
-                      className={`font-semibold ${
-                        impactAnalysis.difference >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {impactAnalysis.difference >= 0 ? "+" : ""}
-                      {formatCurrency(impactAnalysis.difference)}
-                    </span>
-                    <span className="text-gray-600 ml-2">
-                      ({impactAnalysis.percentageChange >= 0 ? "+" : ""}
-                      {impactAnalysis.percentageChange.toFixed(1)}%)
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <div className="text-xs font-medium text-purple-900 mb-1">
-                    Annual Projection
-                  </div>
-                  <div className="text-sm font-semibold text-purple-600">
-                    {impactAnalysis.projectedAnnualImpact >= 0 ? "+" : ""}
-                    {formatCurrency(impactAnalysis.projectedAnnualImpact)}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+          <Percent className="h-5 w-5" />
+          Financial Engine Configuration
+        </h3>
+        <p className="text-sm text-blue-700 mt-1">
+          Configure commission tiers, monthly loyalty discounts, guest service fees,
+          and withdrawal fees used by pricing engine V2.
+        </p>
       </div>
 
-      {/* Mini Percentage Calculator */}
-      {showAdvancedCalculator && (
-        <div className="bg-white rounded-lg p-6 border border-gray-200">
-          <div className="flex items-center mb-4">
-            <Calculator className="h-5 w-5 text-purple-600 mr-2" />
-            <h3 className="text-lg font-semibold text-gray-900">
-              Percentage Calculator
-            </h3>
-          </div>
+      {validationErrors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            Fix these validation issues before saving
+          </p>
+          <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
+            {validationErrors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Calculator Interface */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Calculate Percentages
-                </label>
-                <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                  <div className="text-xs text-gray-600 mb-2">Examples:</div>
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <div>• 7% of 50000 = commission</div>
-                    <div>• 15 * 1000 = basic math</div>
-                    <div>• 25% * 80000 = percentage</div>
-                  </div>
-                </div>
+      <section className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-gray-900">Commission Tiers (Room Fee Basis)</h4>
+          <button
+            type="button"
+            onClick={() =>
+              setFormState((prev) => ({
+                ...prev,
+                tiers: [
+                  ...prev.tiers,
+                  {
+                    min:
+                      prev.tiers.length > 0
+                        ? (prev.tiers[prev.tiers.length - 1].max || 0) + 1
+                        : 0,
+                    max: null,
+                    rate: 0.05,
+                  },
+                ],
+              }))
+            }
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 flex items-center gap-1"
+          >
+            <Plus className="h-4 w-4" /> Add tier
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {formState.tiers.map((tierItem, index) => (
+            <div
+              key={`${tierItem.min}-${index}`}
+              className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end"
+            >
+              <label className="text-sm text-gray-600">
+                Min (NGN)
                 <input
-                  type="text"
-                  value={calculatorInput}
-                  onChange={(e) => setCalculatorInput(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 font-mono"
-                  placeholder="Enter calculation (e.g., 7% of 50000)"
+                  type="number"
+                  value={tierItem.min}
+                  onChange={(e) =>
+                    updateTier(index, "min", Math.max(0, Number(e.target.value)))
+                  }
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
-                {calculatorResult !== null && (
-                  <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
-                    <span className="text-sm font-medium text-green-800">
-                      Result: {calculatorResult.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
+              </label>
 
-              {/* Calculator Buttons */}
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  "7",
-                  "8",
-                  "9",
-                  "%",
-                  "4",
-                  "5",
-                  "6",
-                  "*",
-                  "1",
-                  "2",
-                  "3",
-                  "of",
-                  "0",
-                  ".",
-                  "=",
-                  "C",
-                ].map((btn) => (
-                  <button
-                    key={btn}
-                    onClick={() => handleCalculatorInput(btn)}
-                    className={`p-3 text-sm font-medium rounded-lg border transition-colors ${
-                      btn === "="
-                        ? "bg-purple-600 text-white border-purple-600 hover:bg-purple-700"
-                        : btn === "C"
-                        ? "bg-red-500 text-white border-red-500 hover:bg-red-600"
-                        : btn === "%" || btn === "of" || btn === "*"
-                        ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    {btn}
-                  </button>
-                ))}
-              </div>
+              <label className="text-sm text-gray-600">
+                Max (NGN, blank = open)
+                <input
+                  type="number"
+                  value={tierItem.max ?? ""}
+                  onChange={(e) =>
+                    updateTier(
+                      index,
+                      "max",
+                      e.target.value === "" ? null : Math.max(0, Number(e.target.value))
+                    )
+                  }
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </label>
+
+              <label className="text-sm text-gray-600">
+                Rate (%)
+                <input
+                  type="number"
+                  step="0.01"
+                  value={Number((tierItem.rate * 100).toFixed(2))}
+                  onChange={(e) =>
+                    updateTier(index, "rate", Math.max(0, Number(e.target.value)) / 100)
+                  }
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </label>
+
+              <button
+                type="button"
+                disabled={formState.tiers.length <= 1}
+                onClick={() =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    tiers: prev.tiers.filter((_, rowIndex) => rowIndex !== index),
+                  }))
+                }
+                className="px-3 py-2 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-1"
+              >
+                <Trash2 className="h-4 w-4" /> Remove
+              </button>
             </div>
+          ))}
+        </div>
+      </section>
 
-            {/* Quick Commission Calculations */}
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">
-                  Quick Commission Calculator
-                </h4>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Booking Amount (₦)
-                  </label>
+      <section className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-gray-900">Monthly Volume Discounts</h4>
+          <button
+            type="button"
+            onClick={() =>
+              setFormState((prev) => ({
+                ...prev,
+                monthlyDiscounts: [
+                  ...prev.monthlyDiscounts,
+                  {
+                    volume:
+                      prev.monthlyDiscounts.length > 0
+                        ? prev.monthlyDiscounts[prev.monthlyDiscounts.length - 1].volume +
+                          1000000
+                        : 5000000,
+                    reductionRate: 0.005,
+                  },
+                ],
+              }))
+            }
+            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 flex items-center gap-1"
+          >
+            <Plus className="h-4 w-4" /> Add threshold
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {formState.monthlyDiscounts.map((item, index) => (
+            <div key={`${item.volume}-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
+              <label className="text-sm text-gray-600">
+                Threshold (NGN)
+                <input
+                  type="number"
+                  value={item.volume}
+                  onChange={(e) =>
+                    updateDiscount(index, "volume", Math.max(0, Number(e.target.value)))
+                  }
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </label>
+
+              <label className="text-sm text-gray-600">
+                Reduction (%)
+                <input
+                  type="number"
+                  step="0.01"
+                  value={Number((item.reductionRate * 100).toFixed(2))}
+                  onChange={(e) =>
+                    updateDiscount(
+                      index,
+                      "reductionRate",
+                      Math.max(0, Number(e.target.value)) / 100
+                    )
+                  }
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </label>
+
+              <button
+                type="button"
+                disabled={formState.monthlyDiscounts.length <= 1}
+                onClick={() =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    monthlyDiscounts: prev.monthlyDiscounts.filter(
+                      (_, rowIndex) => rowIndex !== index
+                    ),
+                  }))
+                }
+                className="px-3 py-2 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-1"
+              >
+                <Trash2 className="h-4 w-4" /> Remove
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <label className="text-sm text-gray-600 block max-w-sm">
+          Monthly discount cap (%)
+          <input
+            type="number"
+            step="0.01"
+            value={Number((formState.monthlyDiscountCapRate * 100).toFixed(2))}
+            onChange={(e) =>
+              setFormState((prev) => ({
+                ...prev,
+                monthlyDiscountCapRate: Math.max(0, Number(e.target.value)) / 100,
+              }))
+            }
+            className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+          />
+        </label>
+      </section>
+
+      <section className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+        <h4 className="font-semibold text-gray-900">Guest Service Fee Components</h4>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            ["stayzaFee", "Stayza fee"],
+            ["localProcessingFee", "Paystack local"],
+            ["internationalProcessingFee", "Paystack international"],
+          ].map(([key, label]) => {
+            const fee = formState[key as "stayzaFee" | "localProcessingFee" | "internationalProcessingFee"];
+            return (
+              <div key={key} className="border border-gray-200 rounded-lg p-3 space-y-2">
+                <p className="font-medium text-gray-800">{label}</p>
+
+                <label className="text-xs text-gray-600 block">
+                  Percent (%)
                   <input
                     type="number"
-                    value={customBookingAmount}
+                    step="0.01"
+                    value={Number((fee.percent * 100).toFixed(3))}
                     onChange={(e) =>
-                      setCustomBookingAmount(Number(e.target.value))
+                      updateFeeComponent(
+                        key as "stayzaFee" | "localProcessingFee" | "internationalProcessingFee",
+                        "percent",
+                        Math.max(0, Number(e.target.value)) / 100
+                      )
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 mb-3"
-                    placeholder="50000"
+                    className="mt-1 w-full px-2 py-1.5 border border-gray-300 rounded-lg"
                   />
-                </div>
+                </label>
 
-                <div className="space-y-3">
-                  {[
-                    { rate: 0.05, label: "5%" },
-                    { rate: 0.07, label: "7%" },
-                    { rate: 0.1, label: "10%" },
-                    { rate: 0.12, label: "12%" },
-                  ].map((item) => {
-                    const commission = customBookingAmount * item.rate;
-                    const realtorEarnings = customBookingAmount - commission;
-                    return (
-                      <div
-                        key={item.rate}
-                        className={`p-3 rounded-lg border-2 transition-all ${
-                          Math.abs(commissionRate - item.rate) < 0.001
-                            ? "border-purple-500 bg-purple-50"
-                            : "border-gray-200 bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-900">
-                            {item.label} Commission Rate
-                          </span>
-                          <span className="text-sm font-bold text-purple-600">
-                            ₦{commission.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Realtor gets: ₦{realtorEarnings.toLocaleString()}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                <label className="text-xs text-gray-600 block">
+                  Fixed (NGN)
+                  <input
+                    type="number"
+                    value={fee.fixed}
+                    onChange={(e) =>
+                      updateFeeComponent(
+                        key as "stayzaFee" | "localProcessingFee" | "internationalProcessingFee",
+                        "fixed",
+                        Math.max(0, Number(e.target.value))
+                      )
+                    }
+                    className="mt-1 w-full px-2 py-1.5 border border-gray-300 rounded-lg"
+                  />
+                </label>
 
-      {/* Market Positioning Analysis */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 border border-gray-200">
-        <div className="flex items-center mb-4">
-          <Target className="h-5 w-5 text-green-600 mr-2" />
-          <h3 className="text-lg font-semibold text-gray-900">
-            Market Position Analysis
-          </h3>
-        </div>
+                <label className="text-xs text-gray-600 block">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(fee.noCap)}
+                    onChange={(e) =>
+                      updateFeeComponent(
+                        key as "stayzaFee" | "localProcessingFee" | "internationalProcessingFee",
+                        "noCap",
+                        e.target.checked
+                      )
+                    }
+                    className="mr-1"
+                  />
+                  No cap
+                </label>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Current Position */}
-          <div className="text-center p-4 bg-white rounded-lg">
-            <div className="text-sm text-gray-600 mb-1">Your Rate</div>
-            <div className="text-2xl font-bold text-blue-600">
-              {(commissionRate * 100).toFixed(1)}%
-            </div>
-          </div>
+                {!fee.noCap && (
+                  <>
+                    <label className="text-xs text-gray-600 block">
+                      Cap variable (NGN)
+                      <input
+                        type="number"
+                        value={fee.capVariable || 0}
+                        onChange={(e) =>
+                          updateFeeComponent(
+                            key as "stayzaFee" | "localProcessingFee" | "internationalProcessingFee",
+                            "capVariable",
+                            Math.max(0, Number(e.target.value))
+                          )
+                        }
+                        className="mt-1 w-full px-2 py-1.5 border border-gray-300 rounded-lg"
+                      />
+                    </label>
 
-          {/* Market Comparison */}
-          <div className="text-center p-4 bg-white rounded-lg">
-            <div className="text-sm text-gray-600 mb-1">Market Average</div>
-            <div className="text-2xl font-bold text-gray-600">8.5%</div>
-            <div
-              className={`text-xs mt-1 ${
-                commissionRate < 0.085 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {commissionRate < 0.085 ? "Below average" : "Above average"}
-            </div>
-          </div>
-
-          {/* Competitiveness */}
-          <div className="text-center p-4 bg-white rounded-lg">
-            <div className="text-sm text-gray-600 mb-1">Competitiveness</div>
-            <div
-              className={`text-2xl font-bold ${
-                commissionRate <= 0.06
-                  ? "text-green-600"
-                  : commissionRate <= 0.09
-                  ? "text-yellow-600"
-                  : "text-red-600"
-              }`}
-            >
-              {commissionRate <= 0.06
-                ? "High"
-                : commissionRate <= 0.09
-                ? "Medium"
-                : "Low"}
-            </div>
-          </div>
-        </div>
-
-        {/* Recommendations */}
-        <div className="mt-4 p-4 bg-white rounded-lg">
-          <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center">
-            <Zap className="h-4 w-4 text-yellow-500 mr-1" />
-            Smart Recommendations
-          </h4>
-          <div className="text-sm text-gray-600 space-y-1">
-            {commissionRate > 0.1 && (
-              <div className="flex items-center text-amber-600">
-                <AlertCircle className="h-4 w-4 mr-2" />
-                Consider lowering the rate to attract more realtors
-              </div>
-            )}
-            {commissionRate < 0.05 && (
-              <div className="flex items-center text-blue-600">
-                <Info className="h-4 w-4 mr-2" />
-                You could increase the rate to boost revenue without hurting
-                competitiveness
-              </div>
-            )}
-            {commissionRate >= 0.05 && commissionRate <= 0.08 && (
-              <div className="flex items-center text-green-600">
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Your rate is well-positioned for growth and retention
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Commission Rate History & Info */}
-      {commissionSetting && (
-        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-          <div className="flex items-start">
-            <Info className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                Setting Information
-              </h4>
-              <div className="text-xs text-gray-600 space-y-1">
-                <p>
-                  <strong>Current Value:</strong>{" "}
-                  {(Number(commissionSetting.value) * 100).toFixed(1)}%
-                </p>
-                <p>
-                  <strong>Last Updated:</strong>{" "}
-                  {new Date(commissionSetting.updatedAt).toLocaleDateString()}
-                </p>
-                <p>
-                  <strong>Updated By:</strong>{" "}
-                  {commissionSetting.updatedByUser.firstName}{" "}
-                  {commissionSetting.updatedByUser.lastName}
-                </p>
-                {commissionSetting.description && (
-                  <p>
-                    <strong>Description:</strong>{" "}
-                    {commissionSetting.description}
-                  </p>
+                    <label className="text-xs text-gray-600 block">
+                      Cap trigger (NGN)
+                      <input
+                        type="number"
+                        value={fee.capTrigger || 0}
+                        onChange={(e) =>
+                          updateFeeComponent(
+                            key as "stayzaFee" | "localProcessingFee" | "internationalProcessingFee",
+                            "capTrigger",
+                            Math.max(0, Number(e.target.value))
+                          )
+                        }
+                        className="mt-1 w-full px-2 py-1.5 border border-gray-300 rounded-lg"
+                      />
+                    </label>
+                  </>
                 )}
               </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
-      )}
+      </section>
 
-      {/* Enhanced Impact Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-          <div className="flex items-start">
-            <Info className="h-5 w-5 text-amber-600 mr-3 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-medium text-amber-800 mb-2">
-                Implementation Notes
-              </h4>
-              <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
-                <li>Changes affect all new bookings immediately</li>
-                <li>Existing active bookings maintain original rates</li>
-                <li>All modifications are logged for audit compliance</li>
-                <li>Rate changes may impact realtor acquisition</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+      <section className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+          <Wallet className="h-4 w-4" />
+          Withdrawal Fee
+        </h4>
 
-        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-          <div className="flex items-start">
-            <CheckCircle className="h-5 w-5 text-green-600 mr-3 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-medium text-green-800 mb-2">
-                Best Practices
-              </h4>
-              <ul className="text-xs text-green-700 space-y-1 list-disc list-inside">
-                <li>Monitor competitor rates regularly</li>
-                <li>Test rate changes with A/B testing</li>
-                <li>Consider seasonal adjustments</li>
-                <li>Balance revenue with realtor satisfaction</li>
-              </ul>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label className="text-sm text-gray-600 block">
+            Percent (%)
+            <input
+              type="number"
+              step="0.01"
+              value={Number((formState.withdrawalFee.percent * 100).toFixed(3))}
+              onChange={(e) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  withdrawalFee: {
+                    ...prev.withdrawalFee,
+                    percent: Math.max(0, Number(e.target.value)) / 100,
+                  },
+                }))
+              }
+              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </label>
+
+          <label className="text-sm text-gray-600 block">
+            Cap (NGN)
+            <input
+              type="number"
+              value={formState.withdrawalFee.cap}
+              onChange={(e) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  withdrawalFee: {
+                    ...prev.withdrawalFee,
+                    cap: Math.max(0, Number(e.target.value)),
+                  },
+                }))
+              }
+              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </label>
+
+          <label className="text-sm text-gray-600 block">
+            Minimum withdrawal (NGN)
+            <input
+              type="number"
+              value={formState.withdrawalFee.minimumWithdrawal}
+              onChange={(e) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  withdrawalFee: {
+                    ...prev.withdrawalFee,
+                    minimumWithdrawal: Math.max(0, Number(e.target.value)),
+                  },
+                }))
+              }
+              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Live Preview (Sample Values)
+        </h4>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-1">
+            <p className="font-medium text-gray-900">Commission preview</p>
+            <p>Room fee: {formatCurrency(sampleRoomFee)}</p>
+            <p>Base tier rate: {(tier.rate * 100).toFixed(2)}%</p>
+            <p>Volume reduction: {(volumeReduction * 100).toFixed(2)}%</p>
+            <p>Effective rate: {(effectiveRate * 100).toFixed(2)}%</p>
+            <p>Platform commission: {formatCurrency(commissionAmount)}</p>
+            <p>Realtor room payout: {formatCurrency(realtorRoomPayout)}</p>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-1">
+            <p className="font-medium text-gray-900">Service + withdrawal preview</p>
+            <p>Chargeable subtotal: {formatCurrency(sampleSubtotal)}</p>
+            <p>Stayza fee: {formatCurrency(stayzaTotal)}</p>
+            <p>Processing fee (local): {formatCurrency(localProcessingTotal)}</p>
+            <p>Total service fee: {formatCurrency(stayzaTotal + localProcessingTotal)}</p>
+            <p>Withdrawal request: {formatCurrency(withdrawalSample)}</p>
+            <p>Withdrawal fee: {formatCurrency(withdrawalFee)}</p>
+            <p>Net transfer: {formatCurrency(withdrawalNet)}</p>
           </div>
         </div>
+      </section>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving || !hasChanges || validationErrors.length > 0}
+          className={`px-5 py-2.5 rounded-lg font-medium text-white flex items-center gap-2 ${
+            saving || !hasChanges || validationErrors.length > 0
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          <Save className="h-4 w-4" />
+          {saving ? "Saving..." : "Save Finance Configuration"}
+        </button>
       </div>
-
-      {/* Add custom CSS for slider styling */}
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #3b82f6;
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-        .slider::-moz-range-thumb {
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #3b82f6;
-          cursor: pointer;
-          border: none;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-      `}</style>
     </div>
   );
 };

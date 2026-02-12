@@ -29,6 +29,7 @@ import { Card } from "@/components/ui";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { favoritesService } from "@/services";
+import { bookingService } from "@/services/bookings";
 import toast from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { PropertyAmenity } from "@/types";
@@ -38,6 +39,15 @@ type AmenityIcon = React.ComponentType<{ className?: string }> | null;
 interface AvailabilityDay {
   date: string;
   available: boolean;
+}
+
+interface BookingPriceQuote {
+  subtotal: number;
+  serviceFee: number;
+  cleaningFee: number;
+  securityDeposit: number;
+  total: number;
+  nights: number;
 }
 
 const amenityIcons: Record<PropertyAmenity, AmenityIcon> = {
@@ -100,6 +110,10 @@ export default function PropertyDetailsPage() {
   const [showCheckOutCalendar, setShowCheckOutCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
+  const [pricingQuote, setPricingQuote] = useState<BookingPriceQuote | null>(
+    null
+  );
+  const [isPricingLoading, setIsPricingLoading] = useState(false);
 
   const getErrorMessage = (error: unknown, fallback: string): string => {
     if (
@@ -186,23 +200,76 @@ export default function PropertyDetailsPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Calculate nights and total
-  const calculateBooking = () => {
-    if (!checkIn || !checkOut || !property) {
-      return { nights: 0, total: 0 };
-    }
+  React.useEffect(() => {
+    let cancelled = false;
 
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const nights = Math.ceil(
-      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const total = nights * property.pricePerNight;
+    const fetchPricingQuote = async () => {
+      if (!property || !checkIn || !checkOut) {
+        setPricingQuote(null);
+        return;
+      }
 
-    return { nights, total };
-  };
+      const checkInDate = new Date(checkIn);
+      const checkOutDate = new Date(checkOut);
+      if (
+        Number.isNaN(checkInDate.getTime()) ||
+        Number.isNaN(checkOutDate.getTime()) ||
+        checkOutDate <= checkInDate
+      ) {
+        setPricingQuote(null);
+        return;
+      }
 
-  const { nights } = calculateBooking();
+      try {
+        setIsPricingLoading(true);
+        const quote = await bookingService.calculateBookingTotal(
+          propertyId,
+          checkInDate,
+          checkOutDate,
+          guests
+        );
+        if (!cancelled) {
+          setPricingQuote({
+            subtotal: Number(quote.subtotal || 0),
+            serviceFee: Number(quote.serviceFee || 0),
+            cleaningFee: Number(quote.cleaningFee || 0),
+            securityDeposit: Number(quote.securityDeposit || 0),
+            total: Number(quote.total || 0),
+            nights: Number(quote.nights || 0),
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPricingQuote(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsPricingLoading(false);
+        }
+      }
+    };
+
+    void fetchPricingQuote();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [property, propertyId, checkIn, checkOut, guests]);
+
+  const nights =
+    pricingQuote?.nights && pricingQuote.nights > 0
+      ? pricingQuote.nights
+      : checkIn && checkOut
+      ? Math.ceil(
+          (new Date(checkOut).getTime() - new Date(checkIn).getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      : 0;
+  const roomFee = pricingQuote?.subtotal || 0;
+  const cleaningFee = pricingQuote?.cleaningFee || 0;
+  const securityDeposit = pricingQuote?.securityDeposit || 0;
+  const serviceFee = pricingQuote?.serviceFee || 0;
+  const totalPayable = pricingQuote?.total || 0;
 
   const handleBookNow = () => {
     if (!user) {
@@ -802,7 +869,10 @@ export default function PropertyDetailsPage() {
                       className="h-12 w-12 mx-auto mb-2"
                       style={{ color: `${secondaryColor}60` }}
                     />
-                    <p className="text-gray-600">{property.address}</p>
+                    <p className="text-gray-600">
+                      {property.address ||
+                        "Exact address is shared after payment confirmation"}
+                    </p>
                     <p className="text-gray-500 text-sm">
                       {property.city}, {property.state}
                     </p>
@@ -923,7 +993,9 @@ export default function PropertyDetailsPage() {
                         )}
                         <div className="flex justify-between">
                           <span>Service fee:</span>
-                          <span className="font-medium">2% of charge</span>
+                          <span className="font-medium">
+                            Calculated at checkout
+                          </span>
                         </div>
                         {property.securityDeposit && (
                           <div className="flex justify-between">
@@ -1056,50 +1128,45 @@ export default function PropertyDetailsPage() {
                   {/* Price Breakdown */}
                   {nights > 0 && (
                     <div className="border-t border-gray-200 pt-4 space-y-2">
-                      <div className="flex justify-between text-gray-700">
-                        <span>
-                          {formatPrice(property.pricePerNight)} × {nights}{" "}
-                          {nights === 1 ? "night" : "nights"}
-                        </span>
-                        <span>
-                          {formatPrice(Number(property.pricePerNight) * nights)}
-                        </span>
-                      </div>
-                      {property.cleaningFee && (
-                        <div className="flex justify-between text-gray-700 text-sm">
-                          <span>Cleaning fee</span>
-                          <span>{formatPrice(property.cleaningFee)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-gray-700 text-sm">
-                        <span>Service fee (2%)</span>
-                        <span>
-                          {formatPrice(
-                            (Number(property.pricePerNight) * nights +
-                              Number(property.cleaningFee || 0)) *
-                              0.02
+                      {isPricingLoading ? (
+                        <p className="text-sm text-gray-500">
+                          Calculating current fees...
+                        </p>
+                      ) : pricingQuote ? (
+                        <>
+                          <div className="flex justify-between text-gray-700">
+                            <span>
+                              {formatPrice(property.pricePerNight)} x {nights}{" "}
+                              {nights === 1 ? "night" : "nights"}
+                            </span>
+                            <span>{formatPrice(roomFee)}</span>
+                          </div>
+                          {cleaningFee > 0 && (
+                            <div className="flex justify-between text-gray-700 text-sm">
+                              <span>Cleaning fee</span>
+                              <span>{formatPrice(cleaningFee)}</span>
+                            </div>
                           )}
-                        </span>
-                      </div>
-                      {property.securityDeposit && (
-                        <div className="flex justify-between text-gray-700 text-sm">
-                          <span>Security deposit</span>
-                          <span>{formatPrice(property.securityDeposit)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between font-semibold text-gray-900 text-lg border-t border-gray-200 pt-2">
-                        <span>Total</span>
-                        <span>
-                          {formatPrice(
-                            Number(property.pricePerNight) * nights +
-                              Number(property.cleaningFee || 0) +
-                              (Number(property.pricePerNight) * nights +
-                                Number(property.cleaningFee || 0)) *
-                                0.02 +
-                              Number(property.securityDeposit || 0)
+                          <div className="flex justify-between text-gray-700 text-sm">
+                            <span>Service fee</span>
+                            <span>{formatPrice(serviceFee)}</span>
+                          </div>
+                          {securityDeposit > 0 && (
+                            <div className="flex justify-between text-gray-700 text-sm">
+                              <span>Security deposit</span>
+                              <span>{formatPrice(securityDeposit)}</span>
+                            </div>
                           )}
-                        </span>
-                      </div>
+                          <div className="flex justify-between font-semibold text-gray-900 text-lg border-t border-gray-200 pt-2">
+                            <span>Total</span>
+                            <span>{formatPrice(totalPayable)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-amber-700">
+                          Unable to load quote. Adjust dates and try again.
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -1135,3 +1202,4 @@ export default function PropertyDetailsPage() {
     </div>
   );
 }
+

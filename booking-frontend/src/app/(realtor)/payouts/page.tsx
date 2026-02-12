@@ -29,6 +29,7 @@ import walletService, {
   WalletTransaction,
   WithdrawalRequest,
   EarningsSummary,
+  WithdrawalFeePreview,
 } from "@/services/wallet";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
@@ -68,6 +69,10 @@ export default function PayoutsPage() {
   const [withdrawOtp, setWithdrawOtp] = useState("");
   const [otpAmount, setOtpAmount] = useState<number | null>(null);
   const [otpDestination, setOtpDestination] = useState("");
+  const [withdrawPreview, setWithdrawPreview] =
+    useState<WithdrawalFeePreview | null>(null);
+  const [isLoadingWithdrawPreview, setIsLoadingWithdrawPreview] =
+    useState(false);
 
   // Transaction filters
   const [txFilter, setTxFilter] = useState<"ALL" | "CREDIT" | "DEBIT">("ALL");
@@ -213,7 +218,39 @@ export default function PayoutsPage() {
     setWithdrawOtp("");
     setOtpAmount(null);
     setOtpDestination("");
+    setWithdrawPreview(null);
+    setIsLoadingWithdrawPreview(false);
   };
+
+  useEffect(() => {
+    if (!showWithdrawModal || withdrawStep !== "amount") {
+      return;
+    }
+
+    const amount = parseFloat(withdrawAmount);
+    if (!amount || amount <= 0) {
+      setWithdrawPreview(null);
+      setIsLoadingWithdrawPreview(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setIsLoadingWithdrawPreview(true);
+      walletService
+        .previewWithdrawal(amount)
+        .then((preview) => {
+          setWithdrawPreview(preview);
+        })
+        .catch(() => {
+          setWithdrawPreview(null);
+        })
+        .finally(() => {
+          setIsLoadingWithdrawPreview(false);
+        });
+    }, 250);
+
+    return () => clearTimeout(timeoutId);
+  }, [withdrawAmount, showWithdrawModal, withdrawStep]);
 
   const handleRequestWithdrawOtp = async () => {
     const amount = parseFloat(withdrawAmount);
@@ -251,6 +288,9 @@ export default function PayoutsPage() {
 
       setOtpAmount(amount);
       setOtpDestination(response.maskedEmail || "");
+      if (response.fee) {
+        setWithdrawPreview(response.fee);
+      }
       setWithdrawStep("otp");
       setWithdrawOtp("");
       showSuccess("A 4-digit OTP has been sent to your email.");
@@ -857,6 +897,37 @@ export default function PayoutsPage() {
                     </p>
                   </div>
 
+                  {(isLoadingWithdrawPreview || withdrawPreview) && (
+                    <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
+                      <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+                        Withdrawal Preview
+                      </p>
+                      {isLoadingWithdrawPreview ? (
+                        <p className="text-sm text-gray-500">Calculating...</p>
+                      ) : withdrawPreview ? (
+                        <div className="space-y-1 text-sm text-gray-700">
+                          <div className="flex justify-between">
+                            <span>Requested</span>
+                            <span>{formatCurrency(withdrawPreview.requestedAmount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Withdrawal fee</span>
+                            <span>{formatCurrency(withdrawPreview.feeAmount)}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold text-gray-900">
+                            <span>Net transfer</span>
+                            <span>{formatCurrency(withdrawPreview.netAmount)}</span>
+                          </div>
+                          {withdrawPreview.capApplied && (
+                            <p className="text-xs text-amber-700">
+                              Fee cap applied.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
                     <button
                       onClick={closeWithdrawModal}
@@ -886,6 +957,12 @@ export default function PayoutsPage() {
                       <Mail className="w-3 h-3" />
                       Sent to {otpDestination || "your email"}
                     </p>
+                    {withdrawPreview && (
+                      <p className="text-xs text-green-800 mt-2">
+                        Fee: {formatCurrency(withdrawPreview.feeAmount)} | Net:{" "}
+                        {formatCurrency(withdrawPreview.netAmount)}
+                      </p>
+                    )}
                   </div>
 
                   <div>

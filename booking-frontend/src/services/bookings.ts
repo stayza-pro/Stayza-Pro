@@ -6,6 +6,26 @@ import {
   SearchParams,
 } from "../types";
 
+export interface VerifiedBookingArtifact {
+  verified: boolean;
+  code: string;
+  booking: {
+    id: string;
+    status: string;
+    paymentStatus: string | null;
+    checkInDate: string;
+    checkOutDate: string;
+    guestName: string;
+    property: {
+      id: string;
+      title: string;
+      city: string;
+      state: string;
+    };
+  };
+  message?: string;
+}
+
 export const bookingService = {
   // Create new booking
   createBooking: async (data: BookingFormData): Promise<Booking> => {
@@ -95,6 +115,19 @@ export const bookingService = {
   getBooking: async (id: string): Promise<Booking> => {
     const response = await apiClient.get<Booking>(`/bookings/${id}`);
     return response.data;
+  },
+
+  verifyBookingArtifact: async (
+    code: string
+  ): Promise<VerifiedBookingArtifact> => {
+    const response = await apiClient.get<VerifiedBookingArtifact>(
+      `/bookings/verify-artifact/${encodeURIComponent(code)}`
+    );
+
+    return {
+      ...response.data,
+      message: response.message,
+    };
   },
 
   // Get single realtor booking
@@ -343,6 +376,26 @@ export const bookingService = {
     total: number;
     currency: string;
     nights: number;
+    serviceFeeBreakdown?: {
+      total: number;
+      stayza: number;
+      processing: number;
+      processingMode: string;
+      stayzaCapApplied?: boolean;
+      processingCapApplied?: boolean;
+    };
+    realtorPreview?: {
+      baseRate: number;
+      volumeReduction: number;
+      effectiveRate: number;
+      commissionAmount: number;
+      estimatedNetPayout: number;
+    };
+    monthlyVolumeProgress?: {
+      current: number;
+      nextThreshold: number | null;
+      nextReduction: number | null;
+    };
   }> => {
     const response = await apiClient.post<{
       success: boolean;
@@ -357,6 +410,26 @@ export const bookingService = {
         total: number;
         currency: string;
         nights: number;
+        serviceFeeBreakdown?: {
+          total: number;
+          stayza: number;
+          processing: number;
+          processingMode: string;
+          stayzaCapApplied?: boolean;
+          processingCapApplied?: boolean;
+        };
+        realtorPreview?: {
+          baseRate: number;
+          volumeReduction: number;
+          effectiveRate: number;
+          commissionAmount: number;
+          estimatedNetPayout: number;
+        };
+        monthlyVolumeProgress?: {
+          current: number;
+          nextThreshold: number | null;
+          nextReduction: number | null;
+        };
         breakdown?: {
           pricePerNight: number;
           serviceFee: number;

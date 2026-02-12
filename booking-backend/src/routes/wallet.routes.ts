@@ -13,6 +13,8 @@ import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
 import { createHash } from "crypto";
 import { hasConfiguredPayoutAccount } from "@/services/payoutAccountService";
+import { loadFinanceConfig } from "@/services/financeConfig";
+import { computeWithdrawalFee } from "@/services/pricingEngine";
 
 const router = Router();
 
@@ -127,6 +129,27 @@ const ensureSufficientWalletBalance = async (
       400
     );
   }
+};
+
+const getWithdrawalFeePreview = async (amount: number) => {
+  const financeConfig = await loadFinanceConfig();
+  const preview = computeWithdrawalFee(amount, financeConfig);
+
+  if (preview.requestedAmount < preview.minimumWithdrawal) {
+    throw new AppError(
+      `Minimum withdrawal is ${formatCurrency(preview.minimumWithdrawal)}`,
+      400
+    );
+  }
+
+  if (preview.netAmount <= 0) {
+    throw new AppError("Withdrawal net amount must be greater than zero", 400);
+  }
+
+  return {
+    preview,
+    configVersion: financeConfig.version,
+  };
 };
 
 const saveWithdrawalOtpChallenge = async (
@@ -256,12 +279,18 @@ const createWithdrawalRequest = async ({
   walletId,
   realtorId,
   amount,
+  feeAmount,
+  netAmount,
+  feeConfigVersion,
   email,
   displayName,
 }: {
   walletId: string;
   realtorId: string;
   amount: number;
+  feeAmount: number;
+  netAmount: number;
+  feeConfigVersion?: string;
   email: string;
   displayName: string;
 }) => {
@@ -274,9 +303,17 @@ const createWithdrawalRequest = async ({
       walletId,
       realtorId,
       amount,
+      feeAmount,
+      netAmount,
+      feeConfigVersion,
       status: "PENDING",
       requestedAt: new Date(),
-      metadata: { reference: withdrawalReference },
+      metadata: {
+        reference: withdrawalReference,
+        grossAmount: amount,
+        feeAmount,
+        netAmount,
+      },
     },
   });
 
@@ -348,7 +385,7 @@ router.get(
       const balance = await walletService.getWalletBalance(wallet.id);
 
       // Calculate pending escrow funds (money held in escrow for realtor)
-      const escrowFunds = await prisma.payment.aggregate({
+      const escrowFunds = await prisma.payment.findMany({
         where: {
           booking: {
             property: {
@@ -361,14 +398,37 @@ router.get(
           },
           roomFeeInEscrow: true, // Room fee still in escrow
         },
-        _sum: {
+        select: {
           roomFeeAmount: true,
+          commissionEffectiveRate: true,
+          booking: {
+            select: {
+              commissionEffectiveRate: true,
+            },
+          },
         },
       });
 
-      // Calculate realtor's share (90% of room fees in escrow)
-      const roomFeesInEscrow = Number(escrowFunds._sum.roomFeeAmount || 0);
-      const realtorShareInEscrow = roomFeesInEscrow * 0.9;
+      // Calculate realtor's pending share using each booking effective commission rate
+      const realtorShareInEscrow = Number(
+        escrowFunds
+          .reduce((sum, payment) => {
+            const roomFee = Number(payment.roomFeeAmount || 0);
+            const effectiveRate = Math.min(
+              Math.max(
+                Number(
+                  payment.commissionEffectiveRate ??
+                    payment.booking?.commissionEffectiveRate ??
+                    0.1
+                ),
+                0
+              ),
+              1
+            );
+            return sum + roomFee * (1 - effectiveRate);
+          }, 0)
+          .toFixed(2)
+      );
 
       res.status(200).json({
         success: true,
@@ -431,6 +491,33 @@ router.get(
 );
 
 /**
+ * POST /api/wallets/withdraw/preview
+ * Preview withdrawal fee and net transfer amount
+ */
+router.post(
+  "/withdraw/preview",
+  authenticate,
+  authorize(UserRole.REALTOR),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const amount = normalizeAmount(Number(req.body?.amount));
+      if (!amount || amount <= 0) {
+        throw new AppError("Invalid withdrawal amount", 400);
+      }
+
+      const { preview } = await getWithdrawalFeePreview(amount);
+
+      res.status(200).json({
+        success: true,
+        data: preview,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * POST /api/wallets/withdraw/request-otp
  * Send withdrawal OTP to authenticated realtor email
  */
@@ -448,6 +535,7 @@ router.post(
       const { realtorId, wallet, realtor } = await getWithdrawalContext(
         req.user!.id
       );
+      const { preview } = await getWithdrawalFeePreview(amount);
       await ensureSufficientWalletBalance(wallet.id, amount);
 
       const otp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -466,6 +554,7 @@ router.post(
         message: "OTP sent to your email. Enter the 4-digit code to continue.",
         data: {
           amount,
+          fee: preview,
           maskedEmail: maskEmail(realtor.user.email),
           expiresInMinutes: WITHDRAWAL_OTP_EXPIRY_MINUTES,
         },
@@ -500,6 +589,7 @@ router.post(
       const { wallet, realtorId, realtor } = await getWithdrawalContext(
         req.user!.id
       );
+      const { preview, configVersion } = await getWithdrawalFeePreview(amount);
       await ensureSufficientWalletBalance(wallet.id, amount);
       await verifyAndConsumeWithdrawalOtp(req.user!.id, amount, otp);
 
@@ -507,6 +597,9 @@ router.post(
         walletId: wallet.id,
         realtorId,
         amount,
+        feeAmount: preview.feeAmount,
+        netAmount: preview.netAmount,
+        feeConfigVersion: configVersion,
         email: realtor.user.email,
         displayName: realtor.user.firstName || realtor.businessName,
       });
@@ -517,7 +610,9 @@ router.post(
           "Withdrawal request submitted successfully. Processing automatically...",
         data: {
           withdrawalRequestId: withdrawalRequest.id,
-          amount,
+          amount: preview.requestedAmount,
+          fee: preview,
+          netAmount: preview.netAmount,
           status: "PENDING",
           requestedAt: withdrawalRequest.requestedAt,
           note: "Your withdrawal is being processed automatically. You'll receive an email notification once completed (usually within minutes). If automatic processing fails, our team will process it manually within 24 hours.",
@@ -556,6 +651,7 @@ router.post(
       const { wallet, realtorId, realtor } = await getWithdrawalContext(
         req.user!.id
       );
+      const { preview, configVersion } = await getWithdrawalFeePreview(amount);
       await ensureSufficientWalletBalance(wallet.id, amount);
       await verifyAndConsumeWithdrawalOtp(req.user!.id, amount, otp);
 
@@ -563,6 +659,9 @@ router.post(
         walletId: wallet.id,
         realtorId,
         amount,
+        feeAmount: preview.feeAmount,
+        netAmount: preview.netAmount,
+        feeConfigVersion: configVersion,
         email: realtor.user.email,
         displayName: realtor.user.firstName || realtor.businessName,
       });
@@ -573,7 +672,9 @@ router.post(
           "Withdrawal request submitted successfully. Processing automatically...",
         data: {
           withdrawalRequestId: withdrawalRequest.id,
-          amount,
+          amount: preview.requestedAmount,
+          fee: preview,
+          netAmount: preview.netAmount,
           status: "PENDING",
           requestedAt: withdrawalRequest.requestedAt,
           note: "Your withdrawal is being processed automatically. You'll receive an email notification once completed (usually within minutes). If automatic processing fails, our team will process it manually within 24 hours.",

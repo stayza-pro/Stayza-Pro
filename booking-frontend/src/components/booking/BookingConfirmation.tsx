@@ -45,6 +45,11 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
       new Date(booking.checkInDate).getTime()) /
       (1000 * 60 * 60 * 24)
   );
+  const sensitiveDetailsUnlocked =
+    booking.sensitiveDetailsUnlocked ??
+    ["HELD", "PARTIALLY_RELEASED", "SETTLED"].includes(
+      String(booking.paymentStatus || "")
+    );
 
   return (
     <div className={`max-w-4xl mx-auto space-y-6 ${className}`}>
@@ -151,8 +156,11 @@ export const BookingConfirmation: React.FC<BookingConfirmationProps> = ({
                 </h3>
                 <div className="flex items-center text-gray-600 text-sm mt-1">
                   <MapPin className="h-4 w-4 mr-1" />
-                  {booking.property?.address || "Unknown"},{" "}
-                  {booking.property?.city || "Unknown"}
+                  {sensitiveDetailsUnlocked
+                    ? `${booking.property?.address || "Unknown"}, ${
+                        booking.property?.city || "Unknown"
+                      }`
+                    : `${booking.property?.city || "Unknown"} (address unlocks after payment)`}
                 </div>
               </div>
             </div>

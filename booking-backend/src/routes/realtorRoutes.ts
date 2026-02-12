@@ -47,6 +47,10 @@ import {
   cacAppealLimiter,
 } from "@/middleware/rateLimiter";
 import { realtorRegisterSchema } from "@/utils/validation";
+import {
+  BLOCKED_DATES_MARKER,
+  LEGACY_BLOCKED_DATES_MARKER,
+} from "@/services/bookingAccessControl";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -94,6 +98,11 @@ const PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES = 10;
 const PAYOUT_ACCOUNT_OTP_MAX_ATTEMPTS = 5;
 const PAYOUT_ACCOUNT_OTP_ACTION = "PAYOUT_ACCOUNT_OTP_REQUESTED";
 const PAYOUT_ACCOUNT_OTP_ENTITY_TYPE = "PAYOUT_ACCOUNT_OTP";
+
+const BLOCKED_DATES_SPECIAL_REQUEST_OR_FILTER = [
+  { specialRequests: { startsWith: BLOCKED_DATES_MARKER } },
+  { specialRequests: { startsWith: LEGACY_BLOCKED_DATES_MARKER } },
+];
 
 type PayoutAccountOtpDetails = {
   otpHash: string;
@@ -1780,9 +1789,7 @@ router.get(
           realtorId: realtor.id,
         },
         NOT: {
-          specialRequests: {
-            startsWith: "[SYSTEM_BLOCKED_DATES]",
-          },
+          OR: BLOCKED_DATES_SPECIAL_REQUEST_OR_FILTER,
         },
         status: {
           in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED],
@@ -1803,10 +1810,15 @@ router.get(
       },
     });
 
-    // Calculate released funds from escrow (cleaning fees already released + room fees that are released)
-    const releasedCleaningFees = await prisma.escrowEvent.aggregate({
+    // Calculate released realtor-side funds from escrow
+    const releasedRealtorEscrow = await prisma.escrowEvent.aggregate({
       where: {
-        eventType: "RELEASE_CLEANING_FEE",
+        eventType: {
+          in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
+        },
+        toParty: {
+          in: ["REALTOR", "REALTOR_WALLET"],
+        },
         booking: {
           property: {
             realtorId: realtor.id,
@@ -1818,25 +1830,10 @@ router.get(
       },
     });
 
-    const releasedRoomFees = await prisma.escrowEvent.aggregate({
-      where: {
-        eventType: "RELEASE_ROOM_FEE_SPLIT",
-        booking: {
-          property: {
-            realtorId: realtor.id,
-          },
-        },
-      },
-      _sum: {
-        amount: true,
-      },
-    });
-
-    // Total revenue = completed bookings + released cleaning fees + released room fees (minus platform cut)
+    // Total revenue = completed bookings + released realtor-side escrow amounts
     const totalRevenue =
       Number(completedRevenue._sum?.totalPrice || 0) +
-      Number(releasedCleaningFees._sum?.amount || 0) +
-      Number(releasedRoomFees._sum?.amount || 0) * 0.9; // Realtor gets 90% of room fee
+      Number(releasedRealtorEscrow._sum?.amount || 0);
 
     const currentPeriodRevenue = await prisma.booking.aggregate({
       where: {
@@ -1875,9 +1872,7 @@ router.get(
           realtorId: realtor.id,
         },
         NOT: {
-          specialRequests: {
-            startsWith: "[SYSTEM_BLOCKED_DATES]",
-          },
+          OR: BLOCKED_DATES_SPECIAL_REQUEST_OR_FILTER,
         },
         status: {
           in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED],
@@ -1894,9 +1889,7 @@ router.get(
           realtorId: realtor.id,
         },
         NOT: {
-          specialRequests: {
-            startsWith: "[SYSTEM_BLOCKED_DATES]",
-          },
+          OR: BLOCKED_DATES_SPECIAL_REQUEST_OR_FILTER,
         },
         status: {
           in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED],
@@ -2004,9 +1997,7 @@ router.get(
           realtorId: realtor.id,
         },
         NOT: {
-          specialRequests: {
-            startsWith: "[SYSTEM_BLOCKED_DATES]",
-          },
+          OR: BLOCKED_DATES_SPECIAL_REQUEST_OR_FILTER,
         },
         createdAt: {
           gte: today,
@@ -2021,9 +2012,7 @@ router.get(
           realtorId: realtor.id,
         },
         NOT: {
-          specialRequests: {
-            startsWith: "[SYSTEM_BLOCKED_DATES]",
-          },
+          OR: BLOCKED_DATES_SPECIAL_REQUEST_OR_FILTER,
         },
         checkInDate: {
           gte: today,
@@ -2106,9 +2095,7 @@ router.get(
           realtorId: realtor.id,
         },
         NOT: {
-          specialRequests: {
-            startsWith: "[SYSTEM_BLOCKED_DATES]",
-          },
+          OR: BLOCKED_DATES_SPECIAL_REQUEST_OR_FILTER,
         },
       },
       include: {
@@ -3291,6 +3278,9 @@ router.get(
         eventType: {
           in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
         },
+        toParty: {
+          in: ["REALTOR", "REALTOR_WALLET"],
+        },
         executedAt: {
           gte: startDate,
           lte: now,
@@ -3321,10 +3311,7 @@ router.get(
     // Add released escrow funds
     releasedEscrowEvents.forEach((event) => {
       const date = event.executedAt.toISOString().split("T")[0];
-      const amount =
-        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
-          ? Number(event.amount) * 0.9 // Realtor gets 90%
-          : Number(event.amount); // Full cleaning fee
+      const amount = Number(event.amount);
       revenueByDate[date] = (revenueByDate[date] || 0) + amount;
     });
 
@@ -3342,13 +3329,10 @@ router.get(
       0,
     );
 
-    const releasedEscrowTotal = releasedEscrowEvents.reduce((sum, event) => {
-      const amount =
-        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
-          ? Number(event.amount) * 0.9
-          : Number(event.amount);
-      return sum + amount;
-    }, 0);
+    const releasedEscrowTotal = releasedEscrowEvents.reduce(
+      (sum, event) => sum + Number(event.amount),
+      0
+    );
 
     const totalRevenue = completedBookingsTotal + releasedEscrowTotal;
     const totalBookings = bookings.length;
@@ -4185,6 +4169,9 @@ router.get(
         eventType: {
           in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
         },
+        toParty: {
+          in: ["REALTOR", "REALTOR_WALLET"],
+        },
       },
       include: {
         booking: {
@@ -4218,17 +4205,11 @@ router.get(
         !event.booking?.payment?.realtorTransferInitiated,
     );
 
-    // Calculate amounts (realtor gets 90% of room fee, 100% of cleaning fee)
     const formatted = pendingList.map((event: any) => {
-      const amount =
-        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
-          ? Number(event.amount) * 0.9
-          : Number(event.amount);
-
       return {
         bookingId: event.booking.id,
         propertyTitle: event.booking.property.title,
-        amount: Math.round(amount * 100) / 100,
+        amount: Math.round(Number(event.amount) * 100) / 100,
         releaseDate: event.executedAt,
         eventType: event.eventType,
       };
@@ -4294,6 +4275,9 @@ router.get(
         eventType: {
           in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
         },
+        toParty: {
+          in: ["REALTOR", "REALTOR_WALLET"],
+        },
       },
       include: {
         booking: {
@@ -4319,11 +4303,6 @@ router.get(
 
     // Format for display
     const formatted = payoutHistory.map((event: any) => {
-      const amount =
-        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
-          ? Number(event.amount) * 0.9
-          : Number(event.amount);
-
       let status = "PENDING";
       if (event.booking?.payment?.realtorTransferCompleted) {
         status = "RELEASED";
@@ -4336,7 +4315,7 @@ router.get(
       return {
         id: event.id,
         bookingId: event.booking.id,
-        amount: Math.round(amount * 100) / 100,
+        amount: Math.round(Number(event.amount) * 100) / 100,
         status,
         createdAt: event.executedAt,
         processedAt: event.booking?.payment?.realtorTransferCompleted,
@@ -4424,6 +4403,9 @@ router.post(
         eventType: {
           in: ["RELEASE_CLEANING_FEE", "RELEASE_ROOM_FEE_SPLIT"],
         },
+        toParty: {
+          in: ["REALTOR", "REALTOR_WALLET"],
+        },
       },
       include: {
         booking: {
@@ -4454,11 +4436,7 @@ router.post(
 
     // Calculate total available
     const totalAvailable = untransferred.reduce((sum: number, event: any) => {
-      const eventAmount =
-        event.eventType === "RELEASE_ROOM_FEE_SPLIT"
-          ? Number(event.amount) * 0.9
-          : Number(event.amount);
-      return sum + eventAmount;
+      return sum + Number(event.amount);
     }, 0);
 
     if (amount > totalAvailable) {

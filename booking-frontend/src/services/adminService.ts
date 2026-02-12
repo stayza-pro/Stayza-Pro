@@ -44,6 +44,32 @@ export interface PlatformAnalytics {
   };
 }
 
+export interface LeakageMetrics {
+  windowDays: number;
+  startedCheckouts: number;
+  confirmedPayments: number;
+  abandonedCheckouts: number;
+  conversionRate: number;
+  abandonmentRate: number;
+  checkoutToPaymentDropOffRate?: number;
+  paymentToSuccessDropOffRate?: number;
+  repeatGuestsTracked: number;
+  repeatGuestsDroppedOff: number;
+  funnel?: {
+    checkoutPageViewed: number;
+    checkoutSubmitted: number;
+    checkoutSubmitFailed: number;
+    bookingCreated: number;
+    paymentPageViewed: number;
+    paymentInitiated: number;
+    paymentSucceeded: number;
+    paymentFailed: number;
+    savedMethodAttempts: number;
+    savedMethodSuccesses: number;
+    savedMethodFailures: number;
+  };
+}
+
 export interface Realtor {
   id: string;
   businessName: string;
@@ -132,7 +158,7 @@ export interface AuditLog {
   action: string;
   entityType: string;
   entityId: string;
-  details: any;
+  details: Record<string, unknown> | null;
   ipAddress: string | null;
   createdAt: string; // Mapped from backend's timestamp
   timestamp?: string; // Backend field
@@ -151,7 +177,21 @@ export interface Notification {
   message: string;
   isRead: boolean;
   createdAt: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
+}
+
+interface AuditLogsApiResponse {
+  logs?: AuditLog[];
+  pagination?: {
+    page?: number;
+    limit?: number;
+    total?: number;
+    pages?: number;
+  };
+}
+
+interface NotificationsApiResponse {
+  notifications?: Notification[];
 }
 
 // =====================================================
@@ -165,6 +205,15 @@ export const getAnalytics = async (
     `/admin/analytics?timeRange=${timeRange}`
   );
   return response.data as PlatformAnalytics;
+};
+
+export const getLeakageMetrics = async (
+  windowDays = 30
+): Promise<LeakageMetrics> => {
+  const response = await apiClient.get(
+    `/payments/leakage-metrics?windowDays=${windowDays}`
+  );
+  return response.data as LeakageMetrics;
 };
 
 // =====================================================
@@ -364,10 +413,10 @@ export const getAuditLogs = async (params?: {
   );
 
   // Backend returns data wrapped in { success, data: { logs, pagination } }
-  const responseData = response.data as any;
+  const responseData = response.data as AuditLogsApiResponse;
 
   // Map backend response to frontend format
-  const logs = (responseData.logs || []).map((log: any) => ({
+  const logs = (responseData.logs || []).map((log) => ({
     ...log,
     createdAt: log.timestamp || log.createdAt, // Map timestamp to createdAt
   }));
@@ -410,7 +459,7 @@ export const getNotifications = async (params?: {
     `/admin/notifications?${queryParams.toString()}`
   );
 
-  const responseData = response.data as any;
+  const responseData = response.data as NotificationsApiResponse;
   return responseData.notifications || [];
 };
 

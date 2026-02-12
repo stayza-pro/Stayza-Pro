@@ -204,15 +204,15 @@ export const emailTemplates = {
                   </div>
                   <div class="feature-item" style="margin-bottom: 16px; padding-left: 8px; border-left: 3px solid #047857;">
                     <strong class="feature-item-title" style="font-size: 16px; display: block; margin-bottom: 4px;">Escrow-Protected Payments</strong>
-                    <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">Secure Paystack escrow. You get 90% after checkout—automatic</span>
+                    <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">Secure Paystack escrow with booking-level payout snapshots and automated releases</span>
                   </div>
                   <div class="feature-item" style="margin-bottom: 16px; padding-left: 8px; border-left: 3px solid #F97316;">
                     <strong class="feature-item-title" style="font-size: 16px; display: block; margin-bottom: 4px;">CAC Verification</strong>
                     <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">Build trust with verified Corporate Affairs Commission badge</span>
                   </div>
                   <div class="feature-item" style="padding-left: 8px; border-left: 3px solid #047857;">
-                    <strong class="feature-item-title" style="font-size: 16px; display: block; margin-bottom: 4px;">10% Commission Only</strong>
-                    <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">No monthly fees. Just 10% on room fees. Keep 90% + 100% of cleaning fees</span>
+                    <strong class="feature-item-title" style="font-size: 16px; display: block; margin-bottom: 4px;">Transparent Booking Fees</strong>
+                    <span class="feature-item-desc" style="color: rgba(255,255,255,0.85); font-size: 14px;">No subscription required. Commission and guest fees are shown per booking before payment.</span>
                   </div>
                 </div>
               </div>
@@ -220,12 +220,12 @@ export const emailTemplates = {
               <!-- Stats Grid -->
               <div class="stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 32px 0;">
                 <div class="stat-card" style="background: #FEF3C7; border-radius: 12px; padding: 20px; text-align: center;">
-                  <div class="stat-number" style="color: #92400E; font-size: 32px; font-weight: 700; margin-bottom: 4px;">10%</div>
-                  <div class="stat-label" style="color: #78350F; font-size: 12px; font-weight: 500;">Commission</div>
+                  <div class="stat-number" style="color: #92400E; font-size: 32px; font-weight: 700; margin-bottom: 4px;">Config</div>
+                  <div class="stat-label" style="color: #78350F; font-size: 12px; font-weight: 500;">Fee Rules</div>
                 </div>
                 <div class="stat-card" style="background: #D1FAE5; border-radius: 12px; padding: 20px; text-align: center;">
-                  <div class="stat-number" style="color: #065F46; font-size: 32px; font-weight: 700; margin-bottom: 4px;">90%</div>
-                  <div class="stat-label" style="color: #047857; font-size: 12px; font-weight: 500;">You Keep</div>
+                  <div class="stat-number" style="color: #065F46; font-size: 32px; font-weight: 700; margin-bottom: 4px;">Clear</div>
+                  <div class="stat-label" style="color: #047857; font-size: 12px; font-weight: 500;">Payout Preview</div>
                 </div>
                 <div class="stat-card" style="background: #DBEAFE; border-radius: 12px; padding: 20px; text-align: center;">
                   <div class="stat-number" style="color: #1E40AF; font-size: 32px; font-weight: 700; margin-bottom: 4px;">∞</div>
@@ -1979,3 +1979,4 @@ export const sendWithdrawalFailedEmail = async (
 
   return sendEmail(to, template);
 };
+

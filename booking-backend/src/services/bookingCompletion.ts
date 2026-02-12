@@ -45,7 +45,7 @@ export async function completePastBookings(now: Date = new Date()) {
         .log("BOOKING_STATUS_UPDATE", "BOOKING", {
           entityId: b.id,
           userId: b.guestId,
-          details: { auto: true, newStatus: "RELEASED" },
+          details: { auto: true, newStatus: "COMPLETED" },
         })
         .catch(() => {});
     } catch (err) {

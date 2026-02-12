@@ -82,6 +82,11 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
     booking.status === "COMPLETED" &&
     (!booking.reviews || booking.reviews.length === 0) &&
     viewType === "guest";
+  const sensitiveDetailsUnlocked =
+    booking.sensitiveDetailsUnlocked ??
+    ["HELD", "PARTIALLY_RELEASED", "SETTLED"].includes(
+      String(booking.paymentStatus || "")
+    );
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -191,8 +196,13 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
 
             <div className="flex items-center text-gray-600 mb-2">
               <MapPin className="h-4 w-4 mr-1" />
-              {booking.property?.address}, {booking.property?.city},{" "}
-              {booking.property?.country}
+              {sensitiveDetailsUnlocked
+                ? `${booking.property?.address || "Address not available"}, ${
+                    booking.property?.city || "-"
+                  }, ${booking.property?.country || "-"}`
+                : `${booking.property?.city || "-"}, ${
+                    booking.property?.country || "-"
+                  } (exact address unlocks after payment)`}
             </div>
 
             <div className="flex items-center space-x-6 text-sm text-gray-600 mb-4">
@@ -358,6 +368,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
               <Button
                 variant="outline"
                 size="sm"
+                disabled={viewType === "guest" && !sensitiveDetailsUnlocked}
                 onClick={() =>
                   onContactUser(
                     viewType === "guest"

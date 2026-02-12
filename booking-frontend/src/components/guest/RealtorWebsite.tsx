@@ -106,18 +106,28 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
     }
   };
 
-  // Phone number formatting
-  const getPhoneDisplay = () => {
-    if (data.phoneNumber) {
-      if (
-        !data.phoneNumber.startsWith("+234") &&
-        !data.phoneNumber.startsWith("234")
-      ) {
-        return `+234 ${data.phoneNumber}`;
-      }
-      return data.phoneNumber;
+  const getNormalizedPhone = () => {
+    const raw = data.phoneNumber?.trim();
+    if (!raw) return "+234 901 234 5678";
+    if (!raw.startsWith("+234") && !raw.startsWith("234")) {
+      return `+234 ${raw}`;
     }
-    return "+234 901 234 5678";
+    return raw;
+  };
+
+  const getMaskedPhoneDisplay = () => {
+    const normalized = getNormalizedPhone().replace(/\s+/g, "");
+    if (normalized.length <= 6) return "Hidden until payment";
+    return `${normalized.slice(0, 4)}****${normalized.slice(-2)}`;
+  };
+
+  const getMaskedEmailDisplay = () => {
+    const email = (data.businessEmail || "hello@example.com").trim();
+    const [local, domain] = email.split("@");
+    if (!local || !domain) return "Hidden until payment";
+    const safeLocal =
+      local.length <= 2 ? `${local.charAt(0)}*` : `${local.slice(0, 2)}***`;
+    return `${safeLocal}@${domain}`;
   };
 
   // Fetch realtor's properties
@@ -623,14 +633,15 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center">
                   <Phone className="w-5 h-5 mr-3 text-gray-400" />
-                  <span className="text-gray-300">{getPhoneDisplay()}</span>
+                  <span className="text-gray-300">{getMaskedPhoneDisplay()}</span>
                 </div>
                 <div className="flex items-center">
                   <Mail className="w-5 h-5 mr-3 text-gray-400" />
-                  <span className="text-gray-300">
-                    {data.businessEmail || "hello@example.com"}
-                  </span>
+                  <span className="text-gray-300">{getMaskedEmailDisplay()}</span>
                 </div>
+                <p className="text-xs text-amber-300 pt-1">
+                  Direct contact unlocks after a paid booking confirmation.
+                </p>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   DollarSign,
   TrendingUp,
@@ -11,7 +11,6 @@ import {
   PieChart,
 } from "lucide-react";
 import { getAnalytics, PlatformAnalytics } from "@/services/adminService";
-import { getCommissionRate } from "@/services/settingsService";
 import toast from "react-hot-toast";
 
 interface RevenueMetrics {
@@ -43,27 +42,33 @@ export default function RevenueTracking({
   const [metrics, setMetrics] = useState<RevenueMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState("30d");
-  const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
-  const [commissionRate, setCommissionRate] = useState<number>(0.07);
 
   // Fetch real analytics data
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
-      const [analyticsData, commissionRateData] = await Promise.all([
-        getAnalytics(timeRange as "7d" | "30d" | "90d" | "1y"),
-        getCommissionRate(),
-      ]);
-
-      setAnalytics(analyticsData);
-      setCommissionRate(commissionRateData || 0.07);
+      const analyticsData = await getAnalytics(
+        timeRange as "7d" | "30d" | "90d" | "1y"
+      );
 
       // Transform analytics data to RevenueMetrics format
       const totalRevenue = parseFloat(
         analyticsData?.overview?.totalRevenue || "0"
       );
       const totalBookings = analyticsData?.overview?.totalBookings || 0;
-      const commissionEarned = totalRevenue * (commissionRateData || 0.07);
+      const overviewWithCommission = analyticsData?.overview as
+        | (PlatformAnalytics["overview"] & {
+            platformCommission?: number | string;
+            totalCommissions?: number | string;
+            commissionEarned?: number | string;
+          })
+        | undefined;
+      const commissionEarned = Number(
+        overviewWithCommission?.platformCommission ??
+          overviewWithCommission?.totalCommissions ??
+          overviewWithCommission?.commissionEarned ??
+          0
+      );
       const averageBookingValue =
         totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
@@ -123,7 +128,7 @@ export default function RevenueTracking({
       };
 
       setMetrics(transformedMetrics);
-    } catch (error: any) {
+    } catch (error: unknown) {
       
       toast.error("Failed to load revenue data");
 
@@ -141,18 +146,18 @@ export default function RevenueTracking({
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   useEffect(() => {
-    fetchAnalytics();
+    void fetchAnalytics();
 
     // Auto-refresh every 60 seconds
     const interval = setInterval(() => {
-      fetchAnalytics();
+      void fetchAnalytics();
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [timeRange]);
+  }, [fetchAnalytics]);
 
   const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null || amount === undefined) {
@@ -441,18 +446,11 @@ export default function RevenueTracking({
             <DollarSign className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
               <h5 className="font-medium text-blue-900">
-                Commission Breakdown
+                Commission Snapshot
               </h5>
               <p className="text-sm text-blue-700 mt-1">
-                Platform earns {(commissionRate * 100).toFixed(1)}% commission
-                on each successful booking. This month's commission represents{" "}
-                {metrics.monthlyRevenue > 0
-                  ? (
-                      (metrics.commissionEarned / metrics.monthlyRevenue) *
-                      100
-                    ).toFixed(1)
-                  : "0"}
-                % of total revenue.
+                Commission shown here is sourced from backend financial
+                snapshots and reflects actual collected platform commission.
               </p>
               <div className="flex flex-wrap gap-4 mt-2 text-sm">
                 <span className="text-blue-700">

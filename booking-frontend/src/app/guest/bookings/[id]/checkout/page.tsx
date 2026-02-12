@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -16,11 +17,58 @@ import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService, paymentService } from "@/services";
 import toast from "react-hot-toast";
 
-declare global {
-  interface Window {
-    PaystackPop: any;
-  }
+interface PaystackPopup {
+  setup: (config: {
+    key?: string;
+    email: string;
+    amount: number;
+    currency: string;
+    ref: string;
+    metadata: Record<string, unknown>;
+    callback: (response: { reference: string }) => void;
+    onClose: () => void;
+  }) => {
+    openIframe: () => void;
+  };
 }
+
+interface CheckoutBooking {
+  id: string;
+  propertyId: string;
+  guestId: string;
+  checkInDate: string | Date;
+  checkOutDate: string | Date;
+  status: string;
+  totalAmount?: number;
+  roomFee: number;
+  securityDeposit: number;
+  cleaningFee: number;
+  serviceFee: number;
+  payment?: {
+    status?: string;
+    reference?: string;
+    amount: number;
+    currency?: string;
+  };
+  guest: {
+    email: string;
+    firstName: string;
+  };
+  property: {
+    name?: string;
+    title?: string;
+    city?: string;
+    state?: string;
+    images?: string[];
+  };
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+};
 
 export default function CheckoutPage() {
   const params = useParams();
@@ -29,38 +77,22 @@ export default function CheckoutPage() {
 
   const {
     brandColor: primaryColor,
-    secondaryColor,
-    accentColor,
     realtorName,
     logoUrl,
     tagline,
     description,
   } = useRealtorBranding();
 
-  const [booking, setBooking] = useState<any>(null);
+  const [booking, setBooking] = useState<CheckoutBooking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    fetchBookingDetails();
-  }, [bookingId]);
-
-  useEffect(() => {
-    // Load Paystack script
-    const script = document.createElement("script");
-    script.src = "https://js.paystack.co/v1/inline.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  const fetchBookingDetails = async () => {
+  const fetchBookingDetails = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await bookingService.getBooking(bookingId);
+      const response = (await bookingService.getBooking(
+        bookingId
+      )) as unknown as CheckoutBooking;
 
       if (response) {
         setBooking(response);
@@ -74,14 +106,29 @@ export default function CheckoutPage() {
           router.push(`/guest/bookings/${bookingId}`);
         }
       }
-    } catch (error: any) {
-      
-      toast.error("Failed to load booking details");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to load booking details"));
       router.push("/guest/bookings");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [bookingId, router]);
+
+  useEffect(() => {
+    void fetchBookingDetails();
+  }, [fetchBookingDetails]);
+
+  useEffect(() => {
+    // Load Paystack script
+    const script = document.createElement("script");
+    script.src = "https://js.paystack.co/v1/inline.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   const handlePayment = async () => {
     if (!booking || !booking.payment) {
@@ -89,7 +136,10 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!window.PaystackPop) {
+    const paystackPop = (window as unknown as { PaystackPop?: PaystackPopup })
+      .PaystackPop;
+
+    if (!paystackPop) {
       toast.error("Payment system not loaded. Please refresh the page.");
       return;
     }
@@ -113,10 +163,10 @@ export default function CheckoutPage() {
       }
 
       // Open Paystack payment modal with existing or new reference
-      const handler = window.PaystackPop.setup({
+      const handler = paystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_xxxxx",
         email: booking.guest.email,
-        amount: booking.payment.amount * 100, // Convert to kobo
+        amount: (booking.payment.amount ?? booking.totalAmount ?? 0) * 100, // Convert to kobo
         currency: booking.payment.currency || "NGN",
         ref: paymentReference,
         metadata: {
@@ -124,7 +174,7 @@ export default function CheckoutPage() {
           propertyId: booking.propertyId,
           guestId: booking.guestId,
         },
-        callback: function (response: any) {
+        callback: function (response: { reference: string }) {
           
           toast.success("Payment successful! Verifying...");
 
@@ -143,8 +193,7 @@ export default function CheckoutPage() {
                 );
               }
             })
-            .catch((error) => {
-              
+            .catch(() => {
               toast.error(
                 "Payment verification failed. Please contact support."
               );
@@ -158,9 +207,8 @@ export default function CheckoutPage() {
       });
 
       handler.openIframe();
-    } catch (error: any) {
-      
-      toast.error(error.message || "Failed to process payment");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to process payment"));
       setIsProcessing(false);
     }
   };
@@ -172,7 +220,7 @@ export default function CheckoutPage() {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -210,6 +258,8 @@ export default function CheckoutPage() {
     );
   }
 
+  const totalPayableAmount = booking.payment?.amount ?? booking.totalAmount ?? 0;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <GuestHeader currentPage="bookings" />
@@ -235,15 +285,18 @@ export default function CheckoutPage() {
               {/* Property Info */}
               <div className="flex space-x-4 mb-6 pb-6 border-b border-gray-200">
                 {booking.property.images?.[0] && (
-                  <img
+                  <Image
                     src={booking.property.images[0]}
-                    alt={booking.property.name}
+                    alt={booking.property.name || booking.property.title || "Property"}
+                    width={96}
+                    height={96}
+                    unoptimized
                     className="w-24 h-24 object-cover rounded-lg"
                   />
                 )}
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900 mb-1">
-                    {booking.property.name}
+                    {booking.property.name || booking.property.title || "Property"}
                   </h3>
                   <p className="text-sm text-gray-600">
                     {booking.property.city}, {booking.property.state}
@@ -314,7 +367,7 @@ export default function CheckoutPage() {
                       style={{ color: primaryColor }}
                     >
                       {formatCurrency(
-                        booking.payment?.amount || booking.totalAmount,
+                        totalPayableAmount,
                         booking.payment?.currency
                       )}
                     </span>
@@ -385,7 +438,7 @@ export default function CheckoutPage() {
                     <CreditCard className="h-5 w-5 mr-2" />
                     Pay{" "}
                     {formatCurrency(
-                      booking.payment?.amount || booking.totalAmount,
+                      totalPayableAmount,
                       booking.payment?.currency
                     )}
                   </>

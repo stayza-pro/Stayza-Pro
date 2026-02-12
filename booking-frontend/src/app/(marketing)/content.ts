@@ -56,7 +56,7 @@ export const heroHighlights: Array<{
   {
     title: "Secure payouts with escrow",
     description:
-      "All payments held in escrow. You get 90% after checkout, platform takes 10%—fully automated, fully transparent.",
+      "All payments are held in escrow and released using per-booking financial snapshots-fully automated and transparent.",
     Icon: CreditCard,
   },
   {
@@ -106,7 +106,7 @@ export const featurePillars: Array<{
   },
   {
     title: "Escrow-protected payments",
-    copy: "Paystack escrow holds funds securely. You get 90% after checkout, platform takes 10%—all automatic with full transparency.",
+    copy: "Paystack escrow holds funds securely. Commission and payouts are calculated per booking using active finance settings.",
     Icon: Wallet,
   },
   {
@@ -141,7 +141,7 @@ export const workflowSteps: Array<{
   {
     title: "Connect Paystack for payouts",
     description:
-      "Link your bank account once. Escrow system handles 90/10 splits automatically after every booking.",
+      "Link your bank account once. Escrow and wallet releases are automated from each booking's financial snapshot.",
     Icon: ShieldCheck,
   },
 ];
@@ -158,7 +158,7 @@ export const capabilityColumns = [
   {
     heading: "Payments & compliance",
     bullets: [
-      "Escrow protection: 90% to realtor, 10% platform fee on room fees only",
+      "Escrow protection with transparent booking-level commission and payout breakdowns",
       "CAC verification system with trust badges for verified businesses",
       "Full audit trail tracks every action, dispute, and payout for compliance",
     ],
@@ -195,7 +195,7 @@ export const operationsMetrics = [
   {
     label: "Payout timing",
     value: "1hr After checkin",
-    hint: "90% of room fees released automatically when guests checks in — secure escrow protection.",
+    hint: "Room-fee release is automated from booking snapshots after check-in windows and dispute checks.",
   },
   {
     label: "Property photos",
@@ -233,9 +233,9 @@ export const caseStudies = [
   {
     company: "Unlimited Properties",
     industry: "No Subscription Fees",
-    result: "10% Commission Only",
+    result: "Config-Driven Fees",
     delta:
-      "Free platform access with unlimited property listings—earn 90% of every booking after checkout",
+      "Free platform access with unlimited listings and transparent booking-level commission previews before confirmation",
   },
 ] as const;
 
@@ -245,7 +245,7 @@ export const waitlistDetails = {
     "Be among the first to launch when we go live. Get priority access to all platform features.",
   bulletPoints: [
     "Custom subdomain (yourbusiness.stayza.pro) with your logo and brand colors",
-    "Paystack escrow system: earn 90% of bookings, platform takes 10% commission",
+    "Paystack escrow with transparent booking-level fee and payout previews",
     "CAC verification for trust badges and unlimited property listings",
   ],
   buttonLabel: "Join the waitlist",
@@ -265,7 +265,7 @@ export const faqItems = [
   {
     question: "How do commissions and payouts work?",
     answer:
-      "Guests pay via Paystack. Platform takes 10% of room fees only. You get 90% + 100% of cleaning fees automatically after 1 hour of check in. Guests also pay a 2% service fee.",
+      "Guests pay via Paystack. Commission, service fees, and payout amounts are calculated per booking from active finance settings and shown before payment.",
   },
   {
     question: "What is CAC verification?",
@@ -275,6 +275,7 @@ export const faqItems = [
   {
     question: "Are there property limits or subscription fees?",
     answer:
-      "Realtors can list unlimited properties. Stayza currently charges a 10% commission on completed bookings with no subscription fee.",
+      "Realtors can list unlimited properties. Fee rates are configured in-platform and applied transparently per booking with no hidden deductions.",
   },
 ] as const;
+

@@ -15,10 +15,9 @@
  * - Visible to admin during disputes
  */
 
-import { PrismaClient, PaymentStatus } from "@prisma/client";
+import { BookingStatus, PaymentStatus } from "@prisma/client";
+import { prisma } from "@/config/database";
 import { logger } from "@/utils/logger";
-
-const prisma = new PrismaClient();
 
 export enum SystemMessageType {
   BOOKING_CONFIRMED = "BOOKING_CONFIRMED",
@@ -61,6 +60,43 @@ interface SystemMessageData {
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
 export class SystemMessageService {
+  private static getLogDetailType(details: unknown): string | null {
+    if (
+      details &&
+      typeof details === "object" &&
+      "type" in (details as Record<string, unknown>) &&
+      typeof (details as Record<string, unknown>).type === "string"
+    ) {
+      return (details as Record<string, unknown>).type as string;
+    }
+    return null;
+  }
+
+  private static async hasAuditLogForType(params: {
+    action: string;
+    bookingId: string;
+    type: SystemMessageType;
+  }): Promise<boolean> {
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        action: params.action,
+        entityType: "BOOKING",
+        entityId: params.bookingId,
+      },
+      select: {
+        details: true,
+      },
+      orderBy: {
+        timestamp: "desc",
+      },
+      take: 100,
+    });
+
+    return logs.some(
+      (log) => this.getLogDetailType(log.details) === params.type
+    );
+  }
+
   /**
    * Generate booking confirmation message
    */
@@ -221,6 +257,16 @@ Thank you for staying with us! We'd love to hear about your experience - please 
     type: SystemMessageType,
     data: SystemMessageData
   ): Promise<void> {
+    const alreadySent = await this.hasAuditLogForType({
+      action: "SYSTEM_MESSAGE_SENT",
+      bookingId: data.bookingId,
+      type,
+    });
+
+    if (alreadySent) {
+      return;
+    }
+
     let content = "";
 
     switch (type) {
@@ -257,6 +303,18 @@ Thank you for staying with us! We'd love to hear about your experience - please 
         createdAt: new Date(),
         wasFiltered: false,
         violations: [],
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: "SYSTEM_MESSAGE_SENT",
+        entityType: "BOOKING",
+        entityId: data.bookingId,
+        details: {
+          type,
+          recipientId: data.guestId,
+        },
       },
     });
 
@@ -407,6 +465,42 @@ Thank you for staying with us! We'd love to hear about your experience - please 
       type: SystemMessageType.CHECKOUT_INSTRUCTIONS,
       data,
       runAt: schedule.checkOutInstructionsAt,
+    });
+  }
+
+  static async rehydrateScheduledMessages(): Promise<void> {
+    const now = new Date();
+    const lookbackWindow = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    const candidateBookings = await prisma.booking.findMany({
+      where: {
+        checkOutDate: { gte: lookbackWindow },
+        status: {
+          in: [BookingStatus.PENDING, BookingStatus.ACTIVE, BookingStatus.COMPLETED],
+        },
+      },
+      select: {
+        id: true,
+      },
+      orderBy: {
+        checkInDate: "asc",
+      },
+      take: 500,
+    });
+
+    for (const booking of candidateBookings) {
+      try {
+        await this.scheduleBookingMessages(booking.id);
+      } catch (error) {
+        logger.error("Failed to rehydrate booking system messages", {
+          bookingId: booking.id,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
+
+    logger.info("System message rehydration complete", {
+      count: candidateBookings.length,
     });
   }
 }

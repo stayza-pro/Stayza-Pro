@@ -4,6 +4,31 @@ import { AppError } from "@/middleware/errorHandler";
 import { PaymentStatus } from "@prisma/client";
 import { logger } from "@/utils/logger";
 
+const COMMISSION_REPORT_STATUSES: PaymentStatus[] = [
+  PaymentStatus.PARTIALLY_RELEASED,
+  PaymentStatus.SETTLED,
+];
+
+const getRealtorEarningsAmount = (payment: {
+  roomFeeSplitRealtorAmount: Decimal | null;
+  realtorEarnings: Decimal | null;
+}) => {
+  return payment.roomFeeSplitRealtorAmount || payment.realtorEarnings || new Decimal(0);
+};
+
+const getPlatformCommissionAmount = (payment: {
+  roomFeeSplitPlatformAmount: Decimal | null;
+  platformFeeAmount: Decimal | null;
+  platformCommission: Decimal | null;
+}) => {
+  return (
+    payment.roomFeeSplitPlatformAmount ||
+    payment.platformFeeAmount ||
+    payment.platformCommission ||
+    new Decimal(0)
+  );
+};
+
 // NEW COMMISSION STRUCTURE
 export const PLATFORM_FEE_RATE = 0.1; // 10% of room fee only
 export const SERVICE_FEE_RATE = 0.02; // 2% of total booking amount
@@ -345,7 +370,9 @@ export const getRealtorCommissionReport = async (
         realtorId,
       },
     },
-    status: "RELEASED",
+    status: {
+      in: COMMISSION_REPORT_STATUSES,
+    },
   };
 
   if (startDate || endDate) {
@@ -365,24 +392,27 @@ export const getRealtorCommissionReport = async (
     },
   });
 
-  const totalEarnings = payments.reduce(
-    (sum, payment) => sum.add(payment.realtorEarnings || new Decimal(0)),
-    new Decimal(0)
-  );
+  const totalEarnings = payments.reduce((sum, payment) => {
+    return sum.add(getRealtorEarningsAmount(payment));
+  }, new Decimal(0));
 
-  const totalCommissionPaid = payments.reduce(
-    (sum, payment) => sum.add(payment.platformCommission || new Decimal(0)),
-    new Decimal(0)
-  );
+  const totalCommissionPaid = payments.reduce((sum, payment) => {
+    return sum.add(getPlatformCommissionAmount(payment));
+  }, new Decimal(0));
 
-  const completedPayouts = payments
-    .filter((p) => p.commissionPaidOut)
-    .reduce(
-      (sum, payment) => sum.add(payment.realtorEarnings || new Decimal(0)),
-      new Decimal(0)
-    );
+  const completedPayouts = payments.reduce((sum, payment) => {
+    if (payment.roomFeeSplitDone || payment.commissionPaidOut) {
+      return sum.add(getRealtorEarningsAmount(payment));
+    }
+    return sum;
+  }, new Decimal(0));
 
-  const pendingPayouts = totalEarnings.sub(completedPayouts);
+  const pendingPayouts = payments.reduce((sum, payment) => {
+    if (!payment.roomFeeSplitDone && !payment.commissionPaidOut) {
+      return sum.add(getRealtorEarningsAmount(payment));
+    }
+    return sum;
+  }, new Decimal(0));
 
   return {
     realtorId,
@@ -412,7 +442,9 @@ export const getPlatformCommissionReport = async (
   endDate?: Date
 ): Promise<PlatformCommissionReport> => {
   const whereClause: any = {
-    status: "RELEASED",
+    status: {
+      in: COMMISSION_REPORT_STATUSES,
+    },
   };
 
   if (startDate || endDate) {
@@ -439,24 +471,23 @@ export const getPlatformCommissionReport = async (
     new Decimal(0)
   );
 
-  const totalCommissions = payments.reduce(
-    (sum, payment) => sum.add(payment.platformCommission || new Decimal(0)),
-    new Decimal(0)
-  );
+  const totalCommissions = payments.reduce((sum, payment) => {
+    return sum.add(getPlatformCommissionAmount(payment));
+  }, new Decimal(0));
 
-  const completedPayouts = payments
-    .filter((p) => p.commissionPaidOut)
-    .reduce(
-      (sum, payment) => sum.add(payment.realtorEarnings || new Decimal(0)),
-      new Decimal(0)
-    );
+  const completedPayouts = payments.reduce((sum, payment) => {
+    if (payment.roomFeeSplitDone || payment.commissionPaidOut) {
+      return sum.add(getRealtorEarningsAmount(payment));
+    }
+    return sum;
+  }, new Decimal(0));
 
-  const totalEarnings = payments.reduce(
-    (sum, payment) => sum.add(payment.realtorEarnings || new Decimal(0)),
-    new Decimal(0)
-  );
-
-  const pendingPayouts = totalEarnings.sub(completedPayouts);
+  const pendingPayouts = payments.reduce((sum, payment) => {
+    if (!payment.roomFeeSplitDone && !payment.commissionPaidOut) {
+      return sum.add(getRealtorEarningsAmount(payment));
+    }
+    return sum;
+  }, new Decimal(0));
 
   const activeRealtors = new Set(
     payments.map((p) => p.booking.property.realtorId)

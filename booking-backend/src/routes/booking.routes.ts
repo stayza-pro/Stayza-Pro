@@ -10,28 +10,75 @@ import { AuthenticatedRequest, BookingSearchQuery } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { createBookingSchema } from "@/utils/validation";
 import { refundPolicyService } from "@/services/refundPolicy";
-import { calculateRefundSplit, processBookingRefund } from "@/services/refund";
 import { processAutomaticCancellationRefund } from "@/services/cancellationRefund";
 import { paystackService } from "@/services/paystack";
-import { config } from "@/config";
 import { sendBookingCancellation } from "@/services/email";
 import { auditLogger } from "@/services/auditLogger";
 import {
   safeTransitionBookingStatus,
   canCancelBooking,
-  BookingStatusConflictError,
-  InvalidStatusTransitionError,
 } from "@/services/bookingStatus";
 import {
   NotificationService,
   notificationHelpers,
 } from "@/services/notificationService";
 import escrowService from "@/services/escrowService";
+import {
+  applyGuestBookingAccessControl,
+  isBookingPaymentConfirmed,
+  buildBookingVerificationCode,
+  isBlockedDatesSpecialRequest,
+  buildBlockedDatesSpecialRequest,
+} from "@/services/bookingAccessControl";
+import { loadFinanceConfig } from "@/services/financeConfig";
+import {
+  computeGuestServiceFee,
+  getCurrentLagosMonthBounds,
+  quoteBooking,
+} from "@/services/pricingEngine";
 import { logger } from "@/utils/logger";
 import { authenticate, authorize } from "@/middleware/auth";
 import { bookingLimiter } from "@/middleware/rateLimiter";
 
 const router = express.Router();
+
+const CONFIRMED_PAYMENT_STATUSES: PaymentStatus[] = [
+  PaymentStatus.HELD,
+  PaymentStatus.PARTIALLY_RELEASED,
+  PaymentStatus.SETTLED,
+];
+
+const getMonthlyConfirmedRoomFeeVolume = async (
+  realtorId: string,
+  db: Pick<typeof prisma, "booking"> = prisma
+): Promise<number> => {
+  const { start, end } = getCurrentLagosMonthBounds();
+
+  const aggregate = await db.booking.aggregate({
+    _sum: {
+      roomFee: true,
+    },
+    where: {
+      property: {
+        realtorId,
+      },
+      status: {
+        in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED, BookingStatus.DISPUTED],
+      },
+      payment: {
+        status: {
+          in: CONFIRMED_PAYMENT_STATUSES,
+        },
+        paidAt: {
+          gte: start,
+          lt: end,
+        },
+      },
+    },
+  });
+
+  return Number(aggregate._sum.roomFee || 0);
+};
 
 /**
  * @swagger
@@ -148,7 +195,7 @@ const router = express.Router();
 router.post(
   "/calculate",
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { propertyId, checkInDate, checkOutDate, guests } = req.body;
+    const { propertyId, checkInDate, checkOutDate } = req.body;
 
     if (!propertyId || !checkInDate || !checkOutDate) {
       throw new AppError(
@@ -187,70 +234,64 @@ router.post(
     const nights = Math.ceil(
       (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
     );
-
-    const pricePerNight = Number(property.pricePerNight);
-    const roomFee = pricePerNight * nights; // Room fee (base price)
-
-    const cleaningFee = property.cleaningFee ? Number(property.cleaningFee) : 0;
-    const securityDeposit = property.securityDeposit
-      ? Math.round(Number(property.securityDeposit) * 100) / 100
-      : 0;
-
-    // NEW COMMISSION STRUCTURE
-    // Calculate service fee: 2% of (room fee + cleaning fee)
-    const subtotal = roomFee + cleaningFee;
-    const serviceFee = Math.round(subtotal * 0.02 * 100) / 100; // 2% service fee
-
-    // Platform fee: 10% of room fee (deducted at release, not charged to guest)
-    const platformFee = Math.round(roomFee * 0.1 * 100) / 100;
-
-    // Total amount customer pays
-    const total =
-      Math.round((roomFee + cleaningFee + serviceFee + securityDeposit) * 100) /
-      100;
-
-    // Realtor earnings breakdown
-    const cleaningFeeImmediate = cleaningFee; // Released immediately
-    const roomFeeSplitRealtor = roomFee * 0.9; // Released after 1-hour window
-    const totalRealtorEarnings = cleaningFeeImmediate + roomFeeSplitRealtor;
+    const financeConfig = await loadFinanceConfig();
+    const monthlyVolume = await getMonthlyConfirmedRoomFeeVolume(
+      property.realtorId
+    );
+    const quote = quoteBooking(
+      {
+        pricePerNight: Number(property.pricePerNight),
+        numberOfNights: nights,
+        cleaningFee: property.cleaningFee ? Number(property.cleaningFee) : 0,
+        securityDeposit: property.securityDeposit
+          ? Number(property.securityDeposit)
+          : 0,
+        monthlyVolume,
+        paystackMode: "LOCAL",
+      },
+      financeConfig
+    );
 
     res.json({
       success: true,
       message: "Booking calculation successful",
       data: {
-        roomFee: Number(roomFee.toFixed(2)),
-        cleaningFee: Number(cleaningFee.toFixed(2)),
-        serviceFee: Number(serviceFee.toFixed(2)), // 2% of (room + cleaning)
-        securityDeposit: Number(securityDeposit.toFixed(2)),
-        subtotal: Number(roomFee.toFixed(2)), // Room fee only (for display)
+        roomFee: quote.roomFee,
+        cleaningFee: quote.cleaningFee,
+        serviceFee: quote.serviceFee,
+        securityDeposit: quote.securityDeposit,
+        subtotal: quote.roomFee,
         taxes: 0, // No taxes in current implementation
-        fees: Number(serviceFee.toFixed(2)), // Service fee shown separately
-        total: Number(total.toFixed(2)), // room + cleaning + serviceFee + deposit
+        fees: quote.serviceFee,
+        total: quote.totalPayable,
         currency: property.currency,
         nights,
+        serviceFeeBreakdown: quote.serviceFeeBreakdown,
+        realtorPreview: {
+          baseRate: quote.commissionSnapshot.baseRate,
+          volumeReduction: quote.commissionSnapshot.volumeReductionRate,
+          effectiveRate: quote.commissionSnapshot.effectiveRate,
+          commissionAmount: quote.commissionSnapshot.commissionAmount,
+          estimatedNetPayout: quote.estimatedNetPayout,
+        },
+        monthlyVolumeProgress: quote.monthlyVolumeProgress,
         breakdown: {
-          pricePerNight: Number(pricePerNight.toFixed(2)),
-          roomFee: Number(roomFee.toFixed(2)),
-          cleaningFee: Number(cleaningFee.toFixed(2)),
-          serviceFee: Number(serviceFee.toFixed(2)),
-          securityDeposit: Number(securityDeposit.toFixed(2)),
-          platformFee: Number(platformFee.toFixed(2)), // 10% of room fee
-
-          // Immediate releases (at payment verification)
-          cleaningFeeImmediate: Number(cleaningFeeImmediate.toFixed(2)),
-          serviceFeeToPlatform: Number(serviceFee.toFixed(2)),
-
-          // Released after 1-hour dispute window
-          roomFeeSplitRealtor: Number(roomFeeSplitRealtor.toFixed(2)), // 90%
-          roomFeeSplitPlatform: Number(platformFee.toFixed(2)), // 10%
-
-          // Total realtor earnings
-          totalRealtorEarnings: Number(totalRealtorEarnings.toFixed(2)),
-
-          // Commission rates
-          platformFeeRate: "10%",
-          serviceFeeRate: "2%",
-          serviceFeeDescription: "2% of (room fee + cleaning fee)",
+          pricePerNight: Number(Number(property.pricePerNight).toFixed(2)),
+          roomFee: quote.roomFee,
+          cleaningFee: quote.cleaningFee,
+          serviceFee: quote.serviceFee,
+          securityDeposit: quote.securityDeposit,
+          platformFee: quote.platformFee,
+          serviceFeeStayza: quote.serviceFeeBreakdown.stayza,
+          serviceFeeProcessing: quote.serviceFeeBreakdown.processing,
+          cleaningFeeImmediate: quote.cleaningFee,
+          serviceFeeToPlatform: quote.serviceFee,
+          roomFeeSplitRealtor: quote.commissionSnapshot.realtorRoomPayout,
+          roomFeeSplitPlatform: quote.commissionSnapshot.commissionAmount,
+          totalRealtorEarnings: quote.estimatedNetPayout,
+          commissionBaseRate: quote.commissionSnapshot.baseRate,
+          commissionEffectiveRate: quote.commissionSnapshot.effectiveRate,
+          serviceFeeMode: quote.serviceFeeBreakdown.processingMode,
         },
       },
     });
@@ -361,7 +402,7 @@ router.get(
       },
     });
 
-    const unavailableDates: any[] = [];
+    const unavailableDates: string[] = [];
 
     const isAvailable =
       conflictingBookings.length === 0 && unavailableDates.length === 0;
@@ -487,6 +528,7 @@ router.post(
       throw new AppError("Check-in date must be at least tomorrow", 400);
     }
 
+    const financeConfig = await loadFinanceConfig();
     const result = await prisma.$transaction(async (tx) => {
       const conflictingBookings = await tx.booking.findMany({
         where: {
@@ -523,7 +565,7 @@ router.post(
         throw new AppError("Property is not available for selected dates", 400);
       }
 
-      const unavailableDates: any[] = [];
+      const unavailableDates: string[] = [];
 
       if (unavailableDates.length > 0) {
         throw new AppError("Property is not available for selected dates", 400);
@@ -534,7 +576,6 @@ router.post(
       );
 
       const pricePerNight = Number(property.pricePerNight);
-      const propertyPrice = pricePerNight * nights;
 
       const cleaningFee = property.cleaningFee
         ? Number(property.cleaningFee)
@@ -542,19 +583,22 @@ router.post(
       const securityDeposit = property.securityDeposit
         ? Number(property.securityDeposit)
         : 0;
-
-      const feeBreakdown = escrowService.calculateFeeBreakdown(
-        pricePerNight,
-        nights,
-        cleaningFee,
-        securityDeposit
+      const monthlyVolume = await getMonthlyConfirmedRoomFeeVolume(
+        property.realtor.id,
+        tx
       );
-
-      const totalPrice = feeBreakdown.totalAmount;
-
-      const platformCommissionRate = config.DEFAULT_PLATFORM_COMMISSION_RATE;
-      const platformCommission = propertyPrice * platformCommissionRate;
-      const realtorPayout = propertyPrice - platformCommission;
+      const quote = quoteBooking(
+        {
+          pricePerNight,
+          numberOfNights: nights,
+          cleaningFee,
+          securityDeposit,
+          monthlyVolume,
+          paystackMode: "LOCAL",
+        },
+        financeConfig
+      );
+      const totalPrice = quote.totalPayable;
 
       const refundCutoffTime = new Date(checkIn);
       refundCutoffTime.setHours(refundCutoffTime.getHours() - 24);
@@ -572,11 +616,26 @@ router.post(
           refundCutoffTime,
           payoutEligibleAt,
           payoutStatus: "PENDING",
-          roomFee: new Prisma.Decimal(feeBreakdown.roomFee),
-          cleaningFee: new Prisma.Decimal(feeBreakdown.cleaningFee),
-          securityDeposit: new Prisma.Decimal(feeBreakdown.securityDeposit),
-          serviceFee: new Prisma.Decimal(feeBreakdown.serviceFee),
-          platformFee: new Prisma.Decimal(feeBreakdown.platformFee),
+          roomFee: new Prisma.Decimal(quote.roomFee),
+          cleaningFee: new Prisma.Decimal(quote.cleaningFee),
+          securityDeposit: new Prisma.Decimal(quote.securityDeposit),
+          serviceFee: new Prisma.Decimal(quote.serviceFee),
+          platformFee: new Prisma.Decimal(quote.platformFee),
+          commissionBaseRate: new Prisma.Decimal(
+            quote.commissionSnapshot.baseRate
+          ),
+          commissionVolumeReductionRate: new Prisma.Decimal(
+            quote.commissionSnapshot.volumeReductionRate
+          ),
+          commissionEffectiveRate: new Prisma.Decimal(
+            quote.commissionSnapshot.effectiveRate
+          ),
+          monthlyVolumeAtPricing: new Prisma.Decimal(monthlyVolume),
+          serviceFeeStayza: new Prisma.Decimal(quote.serviceFeeBreakdown.stayza),
+          serviceFeeProcessing: new Prisma.Decimal(
+            quote.serviceFeeBreakdown.processing
+          ),
+          processingFeeMode: quote.serviceFeeBreakdown.processingMode,
           guestId: req.user!.id,
           propertyId,
         },
@@ -615,7 +674,7 @@ router.post(
         userId: result.guestId,
         type: "BOOKING_CONFIRMED" as const,
         title: "Booking Created",
-        message: `Your booking for "${result.property.title}" is pending confirmation.`,
+        message: `Your booking for "${result.property.title}" is awaiting payment confirmation.`,
         bookingId: result.id,
         priority: "normal" as const,
       };
@@ -625,10 +684,10 @@ router.post(
       const realtorNotification = {
         userId: result.property.realtor.userId,
         type: "BOOKING_CONFIRMED" as const,
-        title: "New Booking Request",
+        title: "New Booking Pending Payment",
         message: `${req.user!.firstName || "A guest"} has requested to book "${
           result.property.title
-        }".`,
+        }" and is completing payment.`,
         bookingId: result.id,
         priority: "high" as const,
       };
@@ -721,7 +780,7 @@ router.get(
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    const where: any = {
+    const where: Prisma.BookingWhereInput = {
       guestId: req.user!.id,
     };
 
@@ -769,10 +828,14 @@ router.get(
       prisma.booking.count({ where }),
     ]);
 
+    const bookingsWithAccessControl = bookings.map((booking) =>
+      applyGuestBookingAccessControl(booking as Record<string, unknown>, true)
+    );
+
     res.json({
       success: true,
       message: "Your bookings retrieved successfully",
-      data: bookings,
+      data: bookingsWithAccessControl,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -856,7 +919,7 @@ router.get(
       throw new AppError("Realtor profile not found", 404);
     }
 
-    const where: any = {
+    const where: Prisma.BookingWhereInput = {
       property: {
         realtorId: realtor.id,
       },
@@ -912,6 +975,96 @@ router.get(
         limit: limitNum,
         total,
         pages: Math.ceil(total / limitNum),
+      },
+    });
+  })
+);
+
+router.get(
+  "/verify-artifact/:code",
+  authenticate,
+  authorize("REALTOR", "ADMIN"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { code } = req.params;
+
+    if (!code || !code.startsWith("STZ-")) {
+      throw new AppError("Invalid verification code", 400);
+    }
+
+    const bookingId = code.slice(4);
+    if (!bookingId) {
+      throw new AppError("Invalid verification code", 400);
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        payment: {
+          select: {
+            status: true,
+          },
+        },
+        property: {
+          select: {
+            id: true,
+            title: true,
+            city: true,
+            state: true,
+            realtor: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+        guest: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found for this verification code", 404);
+    }
+
+    const isAdmin = req.user!.role === "ADMIN";
+    const isAssignedRealtor = booking.property.realtor.userId === req.user!.id;
+    if (!isAdmin && !isAssignedRealtor) {
+      throw new AppError("Not authorized to verify this booking", 403);
+    }
+
+    const paymentVerified = isBookingPaymentConfirmed(
+      booking.payment?.status ?? null,
+      booking.paymentStatus ?? null
+    );
+
+    return res.json({
+      success: true,
+      message: paymentVerified
+        ? "Booking artifact verified"
+        : "Booking found but payment is not yet verified",
+      data: {
+        verified: paymentVerified,
+        code: buildBookingVerificationCode(booking.id),
+        booking: {
+          id: booking.id,
+          status: booking.status,
+          paymentStatus: booking.paymentStatus,
+          checkInDate: booking.checkInDate,
+          checkOutDate: booking.checkOutDate,
+          guestName: `${booking.guest.firstName || ""} ${
+            booking.guest.lastName || ""
+          }`.trim(),
+          property: {
+            id: booking.property.id,
+            title: booking.property.title,
+            city: booking.property.city,
+            state: booking.property.state,
+          },
+        },
       },
     });
   })
@@ -1001,10 +1154,16 @@ router.get(
       throw new AppError("Not authorized to view this booking", 403);
     }
 
+    const isGuestOwner = isOwner && req.user!.role === "GUEST";
+    const bookingWithAccessControl = applyGuestBookingAccessControl(
+      booking as Record<string, unknown>,
+      isGuestOwner
+    );
+
     res.json({
       success: true,
       message: "Booking retrieved successfully",
-      data: booking,
+      data: bookingWithAccessControl,
     });
   })
 );
@@ -1061,6 +1220,11 @@ router.put(
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: {
+        payment: {
+          select: {
+            status: true,
+          },
+        },
         property: {
           select: {
             realtor: {
@@ -1082,6 +1246,23 @@ router.put(
 
     if (!isHost && !isAdmin) {
       throw new AppError("Not authorized to update this booking", 403);
+    }
+
+    if (status === BookingStatus.ACTIVE && !isAdmin) {
+      const paymentConfirmed = isBookingPaymentConfirmed(
+        booking.payment?.status ?? null,
+        booking.paymentStatus ?? null
+      );
+      const isBlockedDatesBooking = isBlockedDatesSpecialRequest(
+        booking.specialRequests
+      );
+
+      if (!paymentConfirmed && !isBlockedDatesBooking) {
+        throw new AppError(
+          "Booking can only be activated after successful payment verification",
+          400
+        );
+      }
     }
 
     const updatedBooking = await prisma.booking.update({
@@ -1423,11 +1604,21 @@ router.put(
       );
     }
 
-    let refundInfo: any = null;
+    let refundInfo:
+      | {
+          amount?: number;
+          eligible?: boolean;
+          totalCustomerRefund?: number;
+          totalRealtorPortion?: number;
+          tier?: string;
+          [key: string]: unknown;
+        }
+      | null = null;
 
     
     // Process automatic cancellation refund based on tier
     if (
+      booking.payment?.status === PaymentStatus.HELD ||
       booking.payment?.status === PaymentStatus.PARTIALLY_RELEASED ||
       booking.payment?.status === PaymentStatus.SETTLED
     ) {
@@ -2012,6 +2203,9 @@ router.post(
             method: true,
             roomFeeInEscrow: true,
             amount: true,
+            commissionEffectiveRate: true,
+            serviceFeeStayzaAmount: true,
+            serviceFeeProcessingQuotedAmount: true,
             metadata: true,
           },
         },
@@ -2090,17 +2284,51 @@ router.post(
 
     const additionalRoomFee =
       parsedAdditionalNights * Number(booking.property.pricePerNight);
-    const additionalServiceFee = Number((additionalRoomFee * 0.02).toFixed(2));
-    const additionalPlatformFee = Number((additionalRoomFee * 0.1).toFixed(2));
+    const financeConfig = await loadFinanceConfig();
+    const serviceFeeBreakdown = computeGuestServiceFee(
+      additionalRoomFee,
+      "LOCAL",
+      financeConfig,
+      "QUOTED"
+    );
+    const additionalServiceFee = Number(serviceFeeBreakdown.total.toFixed(2));
+    const effectiveRate = Number(
+      booking.commissionEffectiveRate ??
+        booking.payment?.commissionEffectiveRate ??
+        0.1
+    );
+    const additionalPlatformFee = Number(
+      (additionalRoomFee * effectiveRate).toFixed(2)
+    );
     const totalAdditionalCost = Number(
       (additionalRoomFee + additionalServiceFee).toFixed(2)
     );
 
     const paymentMetadata =
-      (booking.payment.metadata as Record<string, any> | null) ?? {};
+      booking.payment.metadata &&
+      typeof booking.payment.metadata === "object" &&
+      !Array.isArray(booking.payment.metadata)
+        ? (booking.payment.metadata as Record<string, unknown>)
+        : {};
+    const providerResponse =
+      paymentMetadata.providerResponse &&
+      typeof paymentMetadata.providerResponse === "object" &&
+      !Array.isArray(paymentMetadata.providerResponse)
+        ? (paymentMetadata.providerResponse as Record<string, unknown>)
+        : {};
+    const authorizationData =
+      providerResponse.authorization &&
+      typeof providerResponse.authorization === "object" &&
+      !Array.isArray(providerResponse.authorization)
+        ? (providerResponse.authorization as Record<string, unknown>)
+        : {};
     const authorizationCode =
-      paymentMetadata?.providerResponse?.authorization?.authorization_code ||
-      paymentMetadata?.authorizationCode;
+      (typeof authorizationData.authorization_code === "string"
+        ? authorizationData.authorization_code
+        : undefined) ||
+      (typeof paymentMetadata.authorizationCode === "string"
+        ? paymentMetadata.authorizationCode
+        : undefined);
 
     if (!authorizationCode || typeof authorizationCode !== "string") {
       throw new AppError(
@@ -2141,6 +2369,9 @@ router.post(
       amount: totalAdditionalCost,
       roomFee: additionalRoomFee,
       serviceFee: additionalServiceFee,
+      serviceFeeStayza: serviceFeeBreakdown.stayza,
+      serviceFeeProcessing: serviceFeeBreakdown.processing,
+      serviceFeeProcessingMode: serviceFeeBreakdown.processingMode,
       platformFee: additionalPlatformFee,
       additionalNights: parsedAdditionalNights,
       chargedAt: new Date().toISOString(),
@@ -2167,6 +2398,19 @@ router.post(
           serviceFee: {
             increment: additionalServiceFee,
           },
+          serviceFeeStayza: new Prisma.Decimal(
+            (
+              Number(booking.serviceFeeStayza || 0) +
+              serviceFeeBreakdown.stayza
+            ).toFixed(2)
+          ),
+          serviceFeeProcessing: new Prisma.Decimal(
+            (
+              Number(booking.serviceFeeProcessing || 0) +
+              serviceFeeBreakdown.processing
+            ).toFixed(2)
+          ),
+          processingFeeMode: serviceFeeBreakdown.processingMode,
           platformFee: {
             increment: additionalPlatformFee,
           },
@@ -2185,6 +2429,19 @@ router.post(
           serviceFeeAmount: {
             increment: additionalServiceFee,
           },
+          serviceFeeStayzaAmount: new Prisma.Decimal(
+            (
+              Number(booking.payment!.serviceFeeStayzaAmount || 0) +
+              serviceFeeBreakdown.stayza
+            ).toFixed(2)
+          ),
+          serviceFeeProcessingQuotedAmount: new Prisma.Decimal(
+            (
+              Number(booking.payment!.serviceFeeProcessingQuotedAmount || 0) +
+              serviceFeeBreakdown.processing
+            ).toFixed(2)
+          ),
+          processingFeeModeQuoted: serviceFeeBreakdown.processingMode,
           platformFeeAmount: {
             increment: additionalPlatformFee,
           },
@@ -2243,7 +2500,7 @@ router.post(
             transactionReference: extensionReference,
             notes: `Service fee of ${additionalServiceFee.toFixed(
               2
-            )} collected immediately for extension`,
+            )} collected immediately for extension (${serviceFeeBreakdown.processingMode})`,
             triggeredBy: userId,
             providerResponse: chargeData,
           },
@@ -2614,7 +2871,7 @@ router.post(
         securityDeposit: new Prisma.Decimal(0),
         serviceFee: new Prisma.Decimal(0),
         platformFee: new Prisma.Decimal(0),
-        specialRequests: `[SYSTEM_BLOCKED_DATES] ${reasonText}`,
+        specialRequests: buildBlockedDatesSpecialRequest(reasonText),
       },
       select: {
         id: true,
@@ -2790,7 +3047,7 @@ router.post(
     const realtorDisputeClosesAt = new Date(now.getTime() + 4 * 60 * 60 * 1000); // +4 hours
 
     // Update booking to checked out
-    const updatedBooking = await prisma.booking.update({
+    await prisma.booking.update({
       where: { id: bookingId },
       data: {
         status: "ACTIVE", // BookingStatus stays ACTIVE until deposit released

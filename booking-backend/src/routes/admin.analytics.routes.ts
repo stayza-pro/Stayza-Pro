@@ -1,15 +1,13 @@
 import express, { Response } from "express";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
-import { AppError, asyncHandler } from "@/middleware/errorHandler";
+import { asyncHandler } from "@/middleware/errorHandler";
 import { PaymentStatus } from "@prisma/client";
 import {
   getPlatformCommissionReport as generatePlatformReport,
   getRealtorCommissionReport as generateRealtorReport,
 } from "@/services/commission";
-import { logPayoutProcessed } from "@/services/auditLogger";
-import { createAdminNotification } from "@/services/notificationService";
-import { logger } from "@/utils/logger";
+import { loadFinanceConfig } from "@/services/financeConfig";
 
 const router = express.Router();
 
@@ -531,9 +529,8 @@ router.get(
     const skip = (pageNum - 1) * limitNum;
 
     const where: any = {
-      status: "RELEASED",
-      commissionPaidOut: false,
-      realtorEarnings: { not: null },
+      status: { in: [PaymentStatus.PARTIALLY_RELEASED, PaymentStatus.SETTLED] },
+      roomFeeSplitDone: true,
     };
 
     if (realtorId) {
@@ -585,7 +582,11 @@ router.get(
           id: payment.id,
           bookingId: payment.bookingId,
           amount: payment.amount.toString(),
-          realtorEarnings: payment.realtorEarnings?.toString(),
+          realtorEarnings: (
+            payment.roomFeeSplitRealtorAmount ||
+            payment.realtorEarnings ||
+            0
+          ).toString(),
           currency: payment.currency,
           paidAt: payment.paidAt,
           realtor: {
@@ -646,72 +647,10 @@ router.get(
 router.post(
   "/commission/payout/:paymentId",
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { paymentId } = req.params;
-    const { payoutReference } = req.body;
-
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
-      include: {
-        booking: {
-          include: {
-            property: {
-              include: { realtor: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!payment) {
-      throw new AppError("Payment not found", 404);
-    }
-
-    const { processRealtorPayout: processPayout } = await import(
-      "@/services/commission"
-    );
-
-    await processPayout(paymentId, payoutReference);
-
-    try {
-      await logPayoutProcessed(
-        req.user!.id,
-        paymentId,
-        payment.booking.property.realtorId,
-        payment.realtorEarnings?.toString() || "0",
-        payment.currency,
-        req
-      );
-    } catch (auditError) {
-      logger.error("Failed to log payout processing:", auditError);
-    }
-
-    createAdminNotification({
-      type: "PAYOUT_COMPLETED",
-      title: "Payout Completed",
-      message: `Payout of ${payment.currency} ${
-        payment.realtorEarnings?.toString() || "0"
-      } to ${
-        payment.booking.property.realtor.businessName
-      } has been processed.`,
-      data: {
-        paymentId,
-        realtorId: payment.booking.property.realtorId,
-        realtorName: payment.booking.property.realtor.businessName,
-        amount: payment.realtorEarnings?.toString() || "0",
-        currency: payment.currency,
-        payoutReference,
-      },
-      priority: "low",
-    }).catch((err) => logger.error("Admin notification failed", err));
-
-    res.json({
-      success: true,
-      message: "Payout processed successfully",
-      data: {
-        paymentId,
-        payoutReference,
-        processedAt: new Date().toISOString(),
-      },
+    res.status(400).json({
+      success: false,
+      message:
+        "Manual payout is disabled. Stayza now uses wallet-first automatic settlement for booking payouts.",
     });
   })
 );
@@ -734,20 +673,11 @@ router.post(
 router.post(
   "/payouts/process",
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { runPayoutCheckNow } = await import("@/jobs/payoutCron");
-      const result = await runPayoutCheckNow();
-      res.json({
-        success: true,
-        message: "Payout processing complete",
-        data: result,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message || "Failed to process payouts",
-      });
-    }
+    res.status(400).json({
+      success: false,
+      message:
+        "Legacy payout cron processing is disabled. Escrow release jobs now settle payouts directly into wallets.",
+    });
   })
 );
 
@@ -783,20 +713,21 @@ router.post(
 router.get(
   "/commission/settings",
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    // Fetch from PlatformSettings or use default
-    const settings = await prisma.platformSettings.findFirst({
-      where: { key: "commission_rate" },
-    });
-
-    const platformCommissionRate = settings
-      ? parseFloat(settings.value as string)
-      : 0.1; // Default 10%
+    const financeConfig = await loadFinanceConfig();
+    const defaultTierRate = financeConfig.commission.tiers[0]?.rate ?? 0.1;
 
     return res.json({
       success: true,
       data: {
-        platformCommissionRate,
-        guestServiceFeeRate: 0.02, // Locked at 2%
+        platformCommissionRate: defaultTierRate,
+        guestServiceFeeRate:
+          financeConfig.serviceFee.stayza.percent +
+          financeConfig.serviceFee.processing.local.percent,
+        commissionTiers: financeConfig.commission.tiers,
+        monthlyDiscounts: financeConfig.commission.monthlyDiscounts,
+        monthlyDiscountCapRate: financeConfig.commission.monthlyDiscountCapRate,
+        serviceFee: financeConfig.serviceFee,
+        withdrawalFee: financeConfig.withdrawalFee,
       },
     });
   })
@@ -843,147 +774,10 @@ router.get(
 router.patch(
   "/commission/settings",
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { newCommissionRate, reason, effectiveDate } = req.body;
-    const adminUserId = req.user!.id;
-
-    // Validate inputs
-    if (!newCommissionRate || typeof newCommissionRate !== "number") {
-      throw new AppError("Valid commission rate is required", 400);
-    }
-
-    if (newCommissionRate < 0 || newCommissionRate > 0.5) {
-      throw new AppError("Commission rate must be between 0% and 50%", 400);
-    }
-
-    if (!reason || reason.length < 10) {
-      throw new AppError(
-        "Reason is required and must be at least 10 characters",
-        400
-      );
-    }
-
-    // Get current rate
-    const currentSettings = await prisma.platformSettings.findFirst({
-      where: { key: "commission_rate" },
-    });
-
-    const oldRate = currentSettings
-      ? parseFloat(currentSettings.value as string)
-      : 0.1;
-
-    // Update or create settings
-    await prisma.platformSettings.upsert({
-      where: {
-        key: "commission_rate",
-      },
-      update: {
-        value: newCommissionRate.toString(),
-        updatedBy: adminUserId,
-        updatedAt: new Date(),
-      },
-      create: {
-        key: "commission_rate",
-        value: newCommissionRate.toString(),
-        description: "Platform commission rate for realtors",
-        updatedBy: adminUserId,
-      },
-    });
-
-    // Log the change
-    await prisma.auditLog.create({
-      data: {
-        action: "COMMISSION_RATE_CHANGED",
-        adminId: adminUserId,
-        entityType: "PlatformSettings",
-        entityId: "commission_rate",
-        details: {
-          oldRate,
-          newRate: newCommissionRate,
-          reason,
-          effectiveDate: effectiveDate || new Date(),
-        },
-      },
-    });
-
-    // Get all active realtors
-    const realtors = await prisma.user.findMany({
-      where: {
-        role: "REALTOR",
-        realtor: {
-          isActive: true,
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-      },
-    });
-
-    // Send email to all realtors
-    const { sendCommissionRateChangeEmail } = await import("@/services/email");
-
-    const emailPromises = realtors.map((realtor) =>
-      sendCommissionRateChangeEmail(realtor.email, {
-        realtorFirstName: realtor.firstName,
-        oldRate,
-        newRate: newCommissionRate,
-        reason,
-        effectiveDate,
-      })
-    );
-
-    try {
-      await Promise.all(emailPromises);
-    } catch (emailError) {
-      logger.error("Failed to send commission update emails", {
-        error: emailError,
-      });
-      // Don't fail the request if emails fail
-    }
-
-    // Create notifications for all realtors
-    const notificationPromises = realtors.map((realtor) =>
-      prisma.notification.create({
-        data: {
-          userId: realtor.id,
-          type: "SYSTEM_ALERT",
-          title: "Commission Rate Updated",
-          message: `Platform commission rate changed from ${(
-            oldRate * 100
-          ).toFixed(1)}% to ${(newCommissionRate * 100).toFixed(1)}%`,
-          priority: "high",
-          isRead: false,
-          data: {
-            oldRate,
-            newRate: newCommissionRate,
-            reason,
-            effectiveDate: effectiveDate || new Date(),
-          },
-        },
-      })
-    );
-
-    await Promise.all(notificationPromises);
-
-    logger.info("Commission rate updated", {
-      adminUserId,
-      oldRate,
-      newRate: newCommissionRate,
-      realtorsNotified: realtors.length,
-    });
-
-    return res.json({
-      success: true,
-      message: `Commission rate updated to ${(newCommissionRate * 100).toFixed(
-        1
-      )}%. ${realtors.length} realtors have been notified via email.`,
-      data: {
-        oldRate,
-        newRate: newCommissionRate,
-        realtorsNotified: realtors.length,
-        effectiveDate: effectiveDate || new Date(),
-      },
+    return res.status(400).json({
+      success: false,
+      message:
+        "This endpoint is deprecated. Update finance configuration via /api/admin/settings using finance.* keys.",
     });
   })
 );

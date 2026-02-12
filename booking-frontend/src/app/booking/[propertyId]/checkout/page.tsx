@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   MapPin,
@@ -19,6 +19,7 @@ import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService } from "@/services";
+import { paymentService } from "@/services/payments";
 import { PaymentRetryAlert } from "@/components/payments/RetryIndicator";
 import { useAuthStore } from "@/store";
 
@@ -60,6 +61,7 @@ export default function BookingCheckoutPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasTrackedCheckoutView = useRef(false);
   const [bookingCalculation, setBookingCalculation] = useState<{
     subtotal: number;
     serviceFee: number;
@@ -70,7 +72,30 @@ export default function BookingCheckoutPage() {
     total: number;
     currency: string;
     nights: number;
+    serviceFeeBreakdown?: {
+      total: number;
+      stayza: number;
+      processing: number;
+      processingMode: string;
+    };
   } | null>(null);
+
+  useEffect(() => {
+    if (hasTrackedCheckoutView.current || !propertyId) {
+      return;
+    }
+
+    hasTrackedCheckoutView.current = true;
+    void paymentService.trackCheckoutEvent({
+      event: "CHECKOUT_PAGE_VIEWED",
+      propertyId,
+      context: {
+        checkIn,
+        checkOut,
+        guests: guestsParam,
+      },
+    });
+  }, [propertyId, checkIn, checkOut, guestsParam]);
 
   // Update form data when user loads
   useEffect(() => {
@@ -174,10 +199,24 @@ export default function BookingCheckoutPage() {
     e.preventDefault();
 
     if (!validateForm()) {
+      void paymentService.trackCheckoutEvent({
+        event: "CHECKOUT_SUBMIT_FAILED",
+        propertyId,
+        context: { reason: "validation_error" },
+      });
       return;
     }
 
     setIsSubmitting(true);
+    void paymentService.trackCheckoutEvent({
+      event: "CHECKOUT_SUBMITTED",
+      propertyId,
+      context: {
+        checkIn,
+        checkOut,
+        guests: guestsParam,
+      },
+    });
 
     try {
       // Create booking
@@ -189,12 +228,25 @@ export default function BookingCheckoutPage() {
         specialRequests: formData.specialRequests,
       });
 
+      void paymentService.trackCheckoutEvent({
+        event: "BOOKING_CREATED",
+        bookingId: booking.id,
+        propertyId,
+      });
+
       // Redirect to payment page with Paystack as the only payment method
       router.push(
         `/booking/${propertyId}/payment?bookingId=${booking.id}&paymentMethod=paystack`
       );
     } catch (error: any) {
-      
+      void paymentService.trackCheckoutEvent({
+        event: "CHECKOUT_SUBMIT_FAILED",
+        propertyId,
+        context: {
+          reason: "booking_creation_failed",
+          message: error?.message || "unknown",
+        },
+      });
       setErrors({
         submit: error.message || "Failed to create booking. Please try again.",
       });
@@ -687,7 +739,14 @@ export default function BookingCheckoutPage() {
 
                       {bookingCalculation.serviceFee > 0 && (
                         <div className="flex justify-between text-gray-700">
-                          <span className="text-sm">Service fee (2%)</span>
+                          <div>
+                            <span className="text-sm">Service fee</span>
+                            {bookingCalculation.serviceFeeBreakdown && (
+                              <p className="text-xs text-gray-500">
+                                Includes Stayza + processing fee
+                              </p>
+                            )}
+                          </div>
                           <span className="font-medium">
                             {formatPrice(
                               bookingCalculation.serviceFee,

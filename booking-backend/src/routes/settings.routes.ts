@@ -4,6 +4,10 @@ import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { logSettingUpdate } from "@/services/auditLogger";
 import { authenticate, requireRole } from "@/middleware/auth";
+import {
+  FINANCE_SETTING_KEYS,
+  validateFinanceSettingValue,
+} from "@/services/financeConfig";
 import { UserRole } from "@prisma/client";
 
 const router = express.Router();
@@ -26,6 +30,17 @@ function validateSettingValue(
   key: string,
   value: any
 ): { isValid: boolean; message: string } {
+  if (Object.values(FINANCE_SETTING_KEYS).includes(key as any)) {
+    const financeErrors = validateFinanceSettingValue(key, value);
+    if (financeErrors.length > 0) {
+      return {
+        isValid: false,
+        message: financeErrors.join("; "),
+      };
+    }
+    return { isValid: true, message: "" };
+  }
+
   switch (key) {
     case "commission_rate":
       if (typeof value !== "number" || value < 0.01 || value > 0.15) {

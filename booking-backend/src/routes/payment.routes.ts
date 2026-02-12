@@ -5,22 +5,19 @@ import {
   Prisma,
   BookingStatus,
 } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
 import { paystackService } from "@/services/paystack";
-import escrowService from "@/services/escrowService";
 import {
-  sendPaymentReceipt,
-  sendBookingConfirmation,
   sendEmail,
 } from "@/services/email";
-import {
-  NotificationService,
-  notificationHelpers,
-} from "@/services/notificationService";
-import { updatePaymentCommission } from "@/services/commission";
 import { ReceiptGenerator } from "@/services/receiptGenerator";
+import {
+  dedupeSavedPaymentMethods,
+  extractPaystackAuthorization,
+  getMetadataObject,
+} from "@/services/savedPaymentMethods";
+import { finalizePaystackPayment } from "@/services/paymentFinalization";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import {
   authenticate,
@@ -28,9 +25,86 @@ import {
   optionalAuthenticate,
 } from "@/middleware/auth";
 import { config } from "@/config/index";
-import { logger } from "@/utils/logger";
 
 const router = express.Router();
+
+const SAVED_METHOD_ELIGIBLE_STATUSES: PaymentStatus[] = [
+  PaymentStatus.HELD,
+  PaymentStatus.PARTIALLY_RELEASED,
+  PaymentStatus.SETTLED,
+];
+
+const CHECKOUT_EVENT_TYPES = [
+  "CHECKOUT_PAGE_VIEWED",
+  "CHECKOUT_SUBMITTED",
+  "CHECKOUT_SUBMIT_FAILED",
+  "BOOKING_CREATED",
+  "PAYMENT_PAGE_VIEWED",
+  "PAYSTACK_POPUP_OPENED",
+  "PAYSTACK_CALLBACK_SUCCESS",
+  "PAYMENT_VERIFIED",
+  "PAYMENT_VERIFY_FAILED",
+  "SAVED_METHOD_PAYMENT_ATTEMPT",
+  "SAVED_METHOD_PAYMENT_SUCCESS",
+  "SAVED_METHOD_PAYMENT_FAILED",
+] as const;
+
+type CheckoutEventType = (typeof CHECKOUT_EVENT_TYPES)[number];
+const CHECKOUT_EVENT_TYPE_SET = new Set<string>(CHECKOUT_EVENT_TYPES);
+
+const extractCheckoutEventName = (
+  action: string,
+  details: unknown
+): CheckoutEventType | null => {
+  if (typeof details === "object" && details !== null) {
+    const payload = details as { event?: unknown };
+    if (
+      typeof payload.event === "string" &&
+      CHECKOUT_EVENT_TYPE_SET.has(payload.event)
+    ) {
+      return payload.event as CheckoutEventType;
+    }
+  }
+
+  const fromAction = action.replace(/^CHECKOUT_EVENT_/, "");
+  if (CHECKOUT_EVENT_TYPE_SET.has(fromAction)) {
+    return fromAction as CheckoutEventType;
+  }
+
+  return null;
+};
+
+const extractCheckoutBookingKey = (
+  entityId: string,
+  details: unknown
+): string | null => {
+  if (typeof details === "object" && details !== null) {
+    const payload = details as {
+      bookingId?: unknown;
+      paymentId?: unknown;
+      propertyId?: unknown;
+      sessionId?: unknown;
+    };
+
+    if (typeof payload.bookingId === "string" && payload.bookingId.trim()) {
+      return `booking:${payload.bookingId}`;
+    }
+
+    if (typeof payload.paymentId === "string" && payload.paymentId.trim()) {
+      return `payment:${payload.paymentId}`;
+    }
+
+    if (typeof payload.propertyId === "string" && payload.propertyId.trim()) {
+      return `property:${payload.propertyId}`;
+    }
+
+    if (typeof payload.sessionId === "string" && payload.sessionId.trim()) {
+      return `session:${payload.sessionId}`;
+    }
+  }
+
+  return entityId ? `entity:${entityId}` : null;
+};
 
 /**
  * @swagger
@@ -51,8 +125,11 @@ router.get(
 
     // Paystack sends 'reference' or 'trxref'
     // Handle arrays (duplicate query params) by taking first element
-    const getFirstParam = (param: any): string | undefined => {
-      if (Array.isArray(param)) return param[0];
+    const getFirstParam = (param: unknown): string | undefined => {
+      if (Array.isArray(param)) {
+        const first = param[0];
+        return typeof first === "string" ? first : undefined;
+      }
       if (typeof param === "string") return param;
       return undefined;
     };
@@ -262,7 +339,6 @@ router.post(
       throw new AppError("Booking ID is required", 400);
     }
 
-    // Fetch booking with all required relations
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -283,18 +359,15 @@ router.post(
       throw new AppError("Booking not found", 404);
     }
 
-    // Verify user is the guest
     if (booking.guestId !== userId) {
       throw new AppError("Unauthorized: Not your booking", 403);
     }
 
-    // Check if booking already has a payment (any status due to unique constraint)
     const existingPayment = await prisma.payment.findUnique({
       where: { bookingId },
     });
 
     if (existingPayment) {
-      // If payment exists but failed, return the existing record so user can retry
       if (existingPayment.status === PaymentStatus.FAILED) {
         return res.status(200).json({
           success: true,
@@ -306,17 +379,15 @@ router.post(
           },
         });
       }
+
       throw new AppError("Payment already exists for this booking", 400);
     }
 
-    // Generate unique payment reference
     const reference = `PAY-${Date.now()}-${Math.random()
       .toString(36)
       .substring(2, 11)
       .toUpperCase()}`;
 
-    // Use booking's pre-calculated fee breakdown
-    // No need to recalculate since booking already has these values
     const payment = await prisma.payment.create({
       data: {
         bookingId,
@@ -331,16 +402,23 @@ router.post(
         securityDepositAmount: booking.securityDeposit,
         serviceFeeAmount: booking.serviceFee,
         platformFeeAmount: booking.platformFee,
+        commissionBaseRate: booking.commissionBaseRate,
+        commissionVolumeReductionRate: booking.commissionVolumeReductionRate,
+        commissionEffectiveRate: booking.commissionEffectiveRate,
+        commissionBaseAmount: booking.commissionBaseRate
+          ? new Prisma.Decimal(
+              (
+                Number(booking.roomFee) * Number(booking.commissionBaseRate)
+              ).toFixed(2)
+            )
+          : null,
+        serviceFeeStayzaAmount: booking.serviceFeeStayza,
+        serviceFeeProcessingQuotedAmount: booking.serviceFeeProcessing,
+        serviceFeeProcessingVarianceAmount: new Prisma.Decimal(0),
+        processingFeeModeQuoted: booking.processingFeeMode,
       },
     });
 
-    // Initialize Paystack payment
-    // All funds are received by Stayza main account.
-    // Escrow logic controls timing and amounts (90% realtor, 10% platform).
-    // Subaccounts are used ONLY for realtor withdrawals, not for payment splits.
-    // No subaccount or split_code is passed to Paystack.
-
-    // Build proper callback URL based on environment
     const isDev = config.NODE_ENV === "development";
     const callbackBaseUrl = isDev
       ? `http://localhost:${config.PORT}`
@@ -349,7 +427,7 @@ router.post(
     const paystackResponse =
       await paystackService.initializePaystackTransaction({
         email: booking.guest.email,
-        amount: Math.round(Number(booking.totalPrice) * 100), // Convert to kobo
+        amount: Math.round(Number(booking.totalPrice) * 100),
         reference: payment.reference!,
         callback_url: `${callbackBaseUrl}/api/payments/callback?reference=${reference}`,
         metadata: {
@@ -368,7 +446,7 @@ router.post(
         accessCode: paystackResponse.data.access_code,
         reference: payment.reference,
         paymentId: payment.id,
-        publicKey: config.PAYSTACK_PUBLIC_KEY, // For inline payment
+        publicKey: config.PAYSTACK_PUBLIC_KEY,
       },
     });
   })
@@ -391,10 +469,6 @@ router.post(
  *     responses:
  *       200:
  *         description: Payment verified and held in escrow
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/VerifyPaymentResponse'
  *       400:
  *         description: Payment verification failed
  *       404:
@@ -410,7 +484,6 @@ router.post(
       throw new AppError("Payment reference is required", 400);
     }
 
-    // Find payment with booking and related data
     const payment = await prisma.payment.findUnique({
       where: { reference },
       include: {
@@ -435,11 +508,10 @@ router.post(
       throw new AppError("Payment not found", 404);
     }
 
-    // Check if already verified
     if (
       payment.status === PaymentStatus.PARTIALLY_RELEASED ||
       payment.status === PaymentStatus.SETTLED ||
-      payment.status === PaymentStatus.HELD
+      (payment.status === PaymentStatus.HELD && payment.paidAt)
     ) {
       return res.status(200).json({
         success: true,
@@ -448,18 +520,12 @@ router.post(
       });
     }
 
-    // Verify with Paystack
     const verificationResult = await paystackService.verifyPaystackTransaction(
       reference
     );
-
-    // Check Paystack API response structure
-    // Paystack returns: { status: true/false, message: "...", data: { status: "success", amount: 123, ... } }
     const txData = verificationResult.data || {};
     const isApiSuccess = verificationResult.status === true;
     const isTransactionSuccess = txData.status === "success";
-
-    // Validate amount matches (convert from kobo to naira)
     const expectedAmount = Math.round(Number(payment.amount) * 100);
     const actualAmount = txData.amount || 0;
 
@@ -476,20 +542,30 @@ router.post(
         },
       });
 
+      await prisma.auditLog.create({
+        data: {
+          action: "PAYMENT_VERIFICATION_FAILED",
+          userId: payment.booking.guestId,
+          entityType: "PAYMENT",
+          entityId: payment.id,
+          details: {
+            bookingId: payment.booking.id,
+            reason: "AMOUNT_MISMATCH",
+            expectedAmount,
+            actualAmount,
+          },
+        },
+      });
+
       throw new AppError(
-        `Payment amount mismatch: expected ₦${Number(
+        `Payment amount mismatch: expected NGN ${Number(
           payment.amount
-        ).toLocaleString()}, got ₦${(actualAmount / 100).toLocaleString()}`,
+        ).toLocaleString()}, got NGN ${(actualAmount / 100).toLocaleString()}`,
         400
       );
     }
 
-    // Check if transaction is successful
-    // Note: gateway_response can be "Successful", "test-3ds", etc. - we only check transaction status
     if (!isApiSuccess || !isTransactionSuccess) {
-      // Log detailed failure info
-
-      // Update payment to FAILED
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
@@ -503,11 +579,23 @@ router.post(
         },
       });
 
-      // Send failure notification (non-blocking)
+      await prisma.auditLog.create({
+        data: {
+          action: "PAYMENT_VERIFICATION_FAILED",
+          userId: payment.booking.guestId,
+          entityType: "PAYMENT",
+          entityId: payment.id,
+          details: {
+            bookingId: payment.booking.id,
+            reason: verificationResult.message || txData.status || "UNKNOWN",
+          },
+        },
+      });
+
       sendEmail(payment.booking.guest.email, {
         subject: "Payment Failed",
         html: `<p>Your payment for ${payment.booking.property.title} has failed. Please try again.</p>`,
-      }).catch((err) => {});
+      }).catch(() => undefined);
 
       throw new AppError(
         `Payment verification failed: ${
@@ -517,151 +605,20 @@ router.post(
       );
     }
 
-    // Use booking's pre-calculated fee breakdown
-    const feeBreakdown = {
-      roomFee: Number(payment.booking.roomFee),
-      cleaningFee: Number(payment.booking.cleaningFee),
-      securityDeposit: Number(payment.booking.securityDeposit),
-      serviceFee: Number(payment.booking.serviceFee),
-      platformFee: Number(payment.booking.platformFee),
-      totalAmount: Number(payment.booking.totalPrice),
-    };
-
-    // Hold room fee and deposit in escrow + Release cleaning/service fees to wallets
-    // NEW WALLET FLOW: Cleaning fee → Realtor wallet, Service fee → Platform wallet (immediate)
-    await escrowService.holdFundsInEscrow(
-      payment.id,
-      payment.booking.id,
-      payment.booking.property.realtorId,
-      feeBreakdown
-    );
-
-    const now = new Date();
-
-    // NOTE: Immediate releases now handled inside holdFundsInEscrow:
-    // 1. Cleaning fee → Realtor wallet (immediate, non-refundable)
-    // 2. Service fee → Platform wallet (immediate, non-refundable)
-    // 3. Room fee + deposit → Escrow (held, disputable)
-
-    // Update payment status with immediate releases
-    const updatedPayment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: PaymentStatus.HELD, // Money in escrow
-        paidAt: new Date(),
-
-        // Immediate release tracking
-        cleaningFeeReleasedToRealtor: true,
-        serviceFeeCollectedByPlatform: true,
-
-        // Room fee split amounts (to be released after 1-hour window)
-        roomFeeSplitRealtorAmount: new Decimal(payment.booking.roomFee).mul(
-          0.9
-        ),
-        roomFeeSplitPlatformAmount: new Decimal(payment.booking.roomFee).mul(
-          0.1
-        ),
-
-        metadata: {
-          ...((payment.metadata as object) || {}),
-          providerId: txData.id?.toString(),
-          providerResponse: txData,
-          gatewayResponse: txData.gateway_response,
-        },
-      },
-      include: {
-        booking: {
-          include: {
-            guest: true,
-            property: {
-              include: {
-                realtor: {
-                  include: {
-                    user: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // Update booking status to CONFIRMED and track immediate releases
-    await prisma.booking.update({
-      where: { id: payment.booking.id },
-      data: {
-        status: BookingStatus.ACTIVE,
-        paymentStatus: PaymentStatus.HELD,
-        cleaningFeeReleasedAt: now,
-        serviceFeeCollectedAt: now,
-      },
-    });
-
-    // Update commission tracking
-    await updatePaymentCommission(payment.id);
-
-    // Send payment receipt to guest (non-blocking)
-    sendPaymentReceipt(
-      payment.booking.guest.email,
-      payment.booking.guest.firstName,
-      {
-        reference: payment.reference!,
-        amount: Number(payment.amount),
-        propertyName: payment.booking.property.title,
-        checkInDate: payment.booking.checkInDate,
-        checkOutDate: payment.booking.checkOutDate,
-      },
-      payment.booking.property
-    ).catch((err) => {});
-
-    // Send booking confirmation to guest (non-blocking)
-    sendBookingConfirmation(
-      payment.booking.guest.email,
-      payment.booking.guest.firstName,
-      {
-        bookingId: payment.booking.id,
-        propertyName: payment.booking.property.title,
-        checkInDate: payment.booking.checkInDate,
-        checkOutDate: payment.booking.checkOutDate,
-        totalPrice: Number(payment.booking.totalPrice),
-        realtorName:
-          payment.booking.property.realtor.businessName ||
-          `${payment.booking.property.realtor.user.firstName} ${payment.booking.property.realtor.user.lastName}`,
-        realtorEmail: payment.booking.property.realtor.user.email,
-      },
-      payment.booking.property.realtor
-    ).catch((err) => {});
-
-    // Send real-time notifications
-    await prisma.notification.create({
-      data: {
-        userId: payment.booking.guestId,
-        type: "PAYMENT_COMPLETED",
-        title: "Payment Confirmed",
-        message: `Your payment of ₦${Number(
-          payment.amount
-        ).toLocaleString()} for ${
-          payment.booking.property.title
-        } has been confirmed`,
-      },
-    });
-
-    await prisma.notification.create({
-      data: {
-        userId: payment.booking.property.realtor.userId,
-        type: "BOOKING_CONFIRMED",
-        title: "New Booking",
-        message: `New booking confirmed for ${payment.booking.property.title}. Payment held in escrow.`,
-      },
+    const finalized = await finalizePaystackPayment({
+      paymentId: payment.id,
+      source: "VERIFY_PAYSTACK",
+      providerData: txData,
     });
 
     return res.status(200).json({
       success: true,
-      message: "Payment verified successfully and held in escrow",
+      message: finalized.alreadyFinalized
+        ? "Payment already verified"
+        : "Payment verified successfully and held in escrow",
       data: {
-        payment: updatedPayment,
-        booking: updatedPayment.booking,
+        payment: finalized.payment,
+        booking: finalized.booking,
       },
     });
   })
@@ -693,14 +650,13 @@ router.post(
   "/verify-by-booking",
   authenticate,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const { bookingId, transactionId } = req.body;
+    const { bookingId } = req.body;
     const userId = req.user!.id;
 
     if (!bookingId) {
       throw new AppError("Booking ID is required", 400);
     }
 
-    // Find payment with full relations
     const payment = await prisma.payment.findFirst({
       where: { bookingId },
       include: {
@@ -725,16 +681,14 @@ router.post(
       throw new AppError("Payment not found for this booking", 404);
     }
 
-    // Verify authorization
     if (payment.booking.guestId !== userId) {
       throw new AppError("Unauthorized", 403);
     }
 
-    // Check if already paid
     if (
       payment.status === PaymentStatus.PARTIALLY_RELEASED ||
       payment.status === PaymentStatus.SETTLED ||
-      payment.status === PaymentStatus.HELD
+      (payment.status === PaymentStatus.HELD && payment.paidAt)
     ) {
       return res.status(200).json({
         success: true,
@@ -743,165 +697,68 @@ router.post(
       });
     }
 
-    // Auto-detect provider and verify
-    if (payment.method === PaymentMethod.PAYSTACK) {
-      // Verify with Paystack
-      const verificationResult =
-        await paystackService.verifyPaystackTransaction(payment.reference!);
-
-      // Check Paystack response structure
-      const txData = verificationResult.data || {};
-      const isApiSuccess = verificationResult.status === true;
-      const isTransactionSuccess = txData.status === "success";
-
-      if (!isApiSuccess || !isTransactionSuccess) {
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            status: PaymentStatus.FAILED,
-            metadata: {
-              ...((payment.metadata as object) || {}),
-              failureReason:
-                verificationResult.message || "Payment verification failed",
-              verificationResponse: txData,
-            },
-          },
-        });
-
-        throw new AppError(
-          `Payment verification failed: ${
-            verificationResult.message || txData.status
-          }`,
-          400
-        );
-      }
-
-      // Use booking's pre-calculated fee breakdown
-      const feeBreakdown = {
-        roomFee: Number(payment.booking.roomFee),
-        cleaningFee: Number(payment.booking.cleaningFee),
-        securityDeposit: Number(payment.booking.securityDeposit),
-        serviceFee: Number(payment.booking.serviceFee),
-        platformFee: Number(payment.booking.platformFee),
-        totalAmount: Number(payment.booking.totalPrice),
-      };
-
-      // Hold funds in escrow + Release cleaning/service fees to wallets
-      // NEW WALLET FLOW: Cleaning fee → Realtor wallet, Service fee → Platform wallet (immediate)
-      await escrowService.holdFundsInEscrow(
-        payment.id,
-        payment.booking.id,
-        payment.booking.property.realtorId,
-        feeBreakdown
-      );
-
-      // NOTE: Cleaning fee transfer now handled inside holdFundsInEscrow (wallet credit)
-      // No separate Paystack transfer needed - money goes to realtor's internal wallet
-
-      // Update payment
-      const updatedPayment = await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: PaymentStatus.HELD,
-          paidAt: new Date(),
-          metadata: {
-            ...((payment.metadata as object) || {}),
-            providerId: txData.id?.toString(),
-            providerResponse: txData,
-            gatewayResponse: txData.gateway_response,
-          },
-        },
-        include: {
-          booking: {
-            include: {
-              guest: true,
-              property: {
-                include: {
-                  realtor: {
-                    include: {
-                      user: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      // Update booking to ACTIVE (Paystack verification in verify-by-booking)
-      await prisma.booking.update({
-        where: { id: payment.booking.id },
-        data: {
-          status: BookingStatus.ACTIVE, // BookingStatus.ACTIVE
-          paymentStatus: PaymentStatus.HELD,
-        },
-      });
-
-      // Send receipts and notifications (non-blocking)
-      sendPaymentReceipt(
-        payment.booking.guest.email,
-        payment.booking.guest.firstName,
-        {
-          reference: payment.reference!,
-          amount: Number(payment.amount),
-          propertyName: payment.booking.property.title,
-          checkInDate: payment.booking.checkInDate,
-          checkOutDate: payment.booking.checkOutDate,
-        },
-        payment.booking.property
-      ).catch((err) => {});
-
-      sendBookingConfirmation(
-        payment.booking.guest.email,
-        payment.booking.guest.firstName,
-        {
-          bookingId: payment.booking.id,
-          propertyName: payment.booking.property.title,
-          checkInDate: payment.booking.checkInDate,
-          checkOutDate: payment.booking.checkOutDate,
-          totalPrice: Number(payment.booking.totalPrice),
-          realtorName:
-            payment.booking.property.realtor.businessName ||
-            `${payment.booking.property.realtor.user.firstName} ${payment.booking.property.realtor.user.lastName}`,
-          realtorEmail: payment.booking.property.realtor.user.email,
-        },
-        payment.booking.property.realtor
-      ).catch((err) => {});
-
-      await prisma.notification.create({
-        data: {
-          userId: payment.booking.guestId,
-          type: "PAYMENT_COMPLETED",
-          title: "Payment Confirmed",
-          message: `Your payment of ₦${Number(
-            payment.amount
-          ).toLocaleString()} for ${
-            payment.booking.property.title
-          } has been confirmed`,
-        },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: payment.booking.property.realtor.userId,
-          type: "BOOKING_CONFIRMED",
-          title: "New Booking",
-          message: `New booking confirmed for ${payment.booking.property.title}. Payment held in escrow.`,
-        },
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Payment verified successfully",
-        data: { payment: updatedPayment, booking: updatedPayment.booking },
-      });
-    } else {
+    if (payment.method !== PaymentMethod.PAYSTACK) {
       throw new AppError(
         `Unsupported payment provider: ${payment.method}`,
         400
       );
     }
+
+    const verificationResult = await paystackService.verifyPaystackTransaction(
+      payment.reference!
+    );
+    const txData = verificationResult.data || {};
+    const isApiSuccess = verificationResult.status === true;
+    const isTransactionSuccess = txData.status === "success";
+
+    if (!isApiSuccess || !isTransactionSuccess) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          metadata: {
+            ...((payment.metadata as object) || {}),
+            failureReason:
+              verificationResult.message || "Payment verification failed",
+            verificationResponse: txData,
+          },
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: "PAYMENT_VERIFICATION_FAILED",
+          userId: payment.booking.guestId,
+          entityType: "PAYMENT",
+          entityId: payment.id,
+          details: {
+            bookingId: payment.booking.id,
+            reason: verificationResult.message || txData.status || "UNKNOWN",
+          },
+        },
+      });
+
+      throw new AppError(
+        `Payment verification failed: ${
+          verificationResult.message || txData.status
+        }`,
+        400
+      );
+    }
+
+    const finalized = await finalizePaystackPayment({
+      paymentId: payment.id,
+      source: "VERIFY_BY_BOOKING",
+      providerData: txData,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: finalized.alreadyFinalized
+        ? "Payment already verified"
+        : "Payment verified successfully",
+      data: { payment: finalized.payment, booking: finalized.booking },
+    });
   })
 );
 
@@ -995,6 +852,559 @@ router.get(
           total,
           totalPages: Math.ceil(total / limitNum),
         },
+      },
+    });
+  })
+);
+
+router.post(
+  "/checkout-event",
+  optionalAuthenticate,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const {
+      event,
+      bookingId,
+      paymentId,
+      propertyId,
+      sessionId,
+      context,
+    } = req.body as {
+      event?: string;
+      bookingId?: string;
+      paymentId?: string;
+      propertyId?: string;
+      sessionId?: string;
+      context?: Record<string, unknown>;
+    };
+
+    const normalizedEvent = (event || "").trim().toUpperCase();
+    if (!CHECKOUT_EVENT_TYPE_SET.has(normalizedEvent)) {
+      throw new AppError("Unsupported checkout event", 400);
+    }
+
+    const resolvedEntityId =
+      bookingId ||
+      paymentId ||
+      propertyId ||
+      sessionId ||
+      `anon:${req.ip || "unknown"}`;
+    const eventDetails: Prisma.InputJsonObject = {
+      event: normalizedEvent,
+      bookingId: bookingId || null,
+      paymentId: paymentId || null,
+      propertyId: propertyId || null,
+      sessionId: sessionId || null,
+      context: (context || null) as Prisma.InputJsonValue,
+    };
+
+    await prisma.auditLog.create({
+      data: {
+        action: `CHECKOUT_EVENT_${normalizedEvent}`,
+        entityType: "CHECKOUT_FUNNEL",
+        entityId: resolvedEntityId,
+        userId: req.user?.id,
+        ipAddress: req.ip,
+        userAgent: req.headers["user-agent"]?.toString(),
+        details: eventDetails,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Checkout event tracked",
+    });
+  })
+);
+
+router.get(
+  "/leakage-metrics",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const parsedWindowDays = Number(req.query.windowDays ?? 30);
+    const windowDays =
+      Number.isFinite(parsedWindowDays) && parsedWindowDays > 0
+        ? Math.min(Math.floor(parsedWindowDays), 90)
+        : 30;
+
+    const windowStart = new Date();
+    windowStart.setDate(windowStart.getDate() - windowDays);
+
+    const abandonmentCutoff = new Date(Date.now() - 30 * 60 * 1000);
+
+    const [
+      startedCheckoutPayments,
+      confirmedPayments,
+      abandonedCheckoutPayments,
+      completedBookings,
+      recentBookings,
+      checkoutEvents,
+    ] = await Promise.all([
+      prisma.payment.count({
+        where: {
+          createdAt: { gte: windowStart },
+          method: PaymentMethod.PAYSTACK,
+        },
+      }),
+      prisma.payment.count({
+        where: {
+          createdAt: { gte: windowStart },
+          method: PaymentMethod.PAYSTACK,
+          status: { in: SAVED_METHOD_ELIGIBLE_STATUSES },
+        },
+      }),
+      prisma.payment.count({
+        where: {
+          createdAt: { gte: windowStart, lte: abandonmentCutoff },
+          method: PaymentMethod.PAYSTACK,
+          status: { in: [PaymentStatus.INITIATED] },
+          booking: {
+            status: BookingStatus.PENDING,
+          },
+        },
+      }),
+      prisma.booking.findMany({
+        where: {
+          status: BookingStatus.COMPLETED,
+        },
+        select: {
+          guestId: true,
+        },
+      }),
+      prisma.booking.findMany({
+        where: {
+          createdAt: { gte: windowStart },
+          status: {
+            in: [
+              BookingStatus.PENDING,
+              BookingStatus.ACTIVE,
+              BookingStatus.COMPLETED,
+            ],
+          },
+        },
+        select: {
+          guestId: true,
+        },
+      }),
+      prisma.auditLog.findMany({
+        where: {
+          timestamp: { gte: windowStart },
+          action: { startsWith: "CHECKOUT_EVENT_" },
+        },
+        select: {
+          action: true,
+          entityId: true,
+          details: true,
+        },
+      }),
+    ]);
+
+    const funnelSets: Record<CheckoutEventType, Set<string>> = {
+      CHECKOUT_PAGE_VIEWED: new Set<string>(),
+      CHECKOUT_SUBMITTED: new Set<string>(),
+      CHECKOUT_SUBMIT_FAILED: new Set<string>(),
+      BOOKING_CREATED: new Set<string>(),
+      PAYMENT_PAGE_VIEWED: new Set<string>(),
+      PAYSTACK_POPUP_OPENED: new Set<string>(),
+      PAYSTACK_CALLBACK_SUCCESS: new Set<string>(),
+      PAYMENT_VERIFIED: new Set<string>(),
+      PAYMENT_VERIFY_FAILED: new Set<string>(),
+      SAVED_METHOD_PAYMENT_ATTEMPT: new Set<string>(),
+      SAVED_METHOD_PAYMENT_SUCCESS: new Set<string>(),
+      SAVED_METHOD_PAYMENT_FAILED: new Set<string>(),
+    };
+
+    for (const eventLog of checkoutEvents) {
+      const eventName = extractCheckoutEventName(
+        eventLog.action,
+        eventLog.details
+      );
+      if (!eventName) {
+        continue;
+      }
+
+      const eventKey = extractCheckoutBookingKey(
+        eventLog.entityId,
+        eventLog.details
+      );
+      if (!eventKey) {
+        continue;
+      }
+
+      funnelSets[eventName].add(eventKey);
+    }
+
+    const paymentInitiatedFunnelSet = new Set<string>([
+      ...funnelSets.PAYSTACK_POPUP_OPENED,
+      ...funnelSets.SAVED_METHOD_PAYMENT_ATTEMPT,
+    ]);
+    const paymentSuccessFunnelSet = new Set<string>([
+      ...funnelSets.PAYMENT_VERIFIED,
+      ...funnelSets.SAVED_METHOD_PAYMENT_SUCCESS,
+    ]);
+    const paymentFailureFunnelSet = new Set<string>([
+      ...funnelSets.PAYMENT_VERIFY_FAILED,
+      ...funnelSets.SAVED_METHOD_PAYMENT_FAILED,
+      ...funnelSets.CHECKOUT_SUBMIT_FAILED,
+    ]);
+
+    const funnel = {
+      checkoutPageViewed: funnelSets.CHECKOUT_PAGE_VIEWED.size,
+      checkoutSubmitted: funnelSets.CHECKOUT_SUBMITTED.size,
+      checkoutSubmitFailed: funnelSets.CHECKOUT_SUBMIT_FAILED.size,
+      bookingCreated: funnelSets.BOOKING_CREATED.size,
+      paymentPageViewed: funnelSets.PAYMENT_PAGE_VIEWED.size,
+      paymentInitiated: paymentInitiatedFunnelSet.size,
+      paymentSucceeded: paymentSuccessFunnelSet.size,
+      paymentFailed: paymentFailureFunnelSet.size,
+      savedMethodAttempts: funnelSets.SAVED_METHOD_PAYMENT_ATTEMPT.size,
+      savedMethodSuccesses: funnelSets.SAVED_METHOD_PAYMENT_SUCCESS.size,
+      savedMethodFailures: funnelSets.SAVED_METHOD_PAYMENT_FAILED.size,
+    };
+
+    const startedCheckouts = Math.max(
+      startedCheckoutPayments,
+      funnel.checkoutPageViewed
+    );
+    const abandonedCheckouts = Math.max(
+      abandonedCheckoutPayments,
+      funnel.checkoutSubmitFailed
+    );
+
+    const completedCounts = new Map<string, number>();
+    for (const booking of completedBookings) {
+      completedCounts.set(
+        booking.guestId,
+        (completedCounts.get(booking.guestId) || 0) + 1
+      );
+    }
+
+    const repeatGuestIds = new Set(
+      Array.from(completedCounts.entries())
+        .filter(([, count]) => count >= 2)
+        .map(([guestId]) => guestId)
+    );
+
+    const activeRecentGuestIds = new Set(recentBookings.map((b) => b.guestId));
+    const repeatGuestsDroppedOff = Array.from(repeatGuestIds).filter(
+      (guestId) => !activeRecentGuestIds.has(guestId)
+    ).length;
+
+    const conversionRate =
+      startedCheckouts > 0
+        ? Number(((confirmedPayments / startedCheckouts) * 100).toFixed(2))
+        : 0;
+    const abandonmentRate =
+      startedCheckouts > 0
+        ? Number(((abandonedCheckouts / startedCheckouts) * 100).toFixed(2))
+        : 0;
+    const checkoutToPaymentDropOffRate =
+      funnel.checkoutPageViewed > 0
+        ? Number(
+            (
+              ((funnel.checkoutPageViewed - funnel.paymentPageViewed) /
+                funnel.checkoutPageViewed) *
+              100
+            ).toFixed(2)
+          )
+        : 0;
+    const paymentToSuccessDropOffRate =
+      funnel.paymentInitiated > 0
+        ? Number(
+            (
+              ((funnel.paymentInitiated - funnel.paymentSucceeded) /
+                funnel.paymentInitiated) *
+              100
+            ).toFixed(2)
+          )
+        : 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        windowDays,
+        startedCheckouts,
+        confirmedPayments,
+        abandonedCheckouts,
+        conversionRate,
+        abandonmentRate,
+        checkoutToPaymentDropOffRate,
+        paymentToSuccessDropOffRate,
+        repeatGuestsTracked: repeatGuestIds.size,
+        repeatGuestsDroppedOff,
+        funnel,
+      },
+    });
+  })
+);
+
+router.get(
+  "/saved-methods",
+  authenticate,
+  authorize("GUEST"),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const userId = req.user!.id;
+
+    const priorPayments = await prisma.payment.findMany({
+      where: {
+        userId,
+        method: PaymentMethod.PAYSTACK,
+        status: {
+          in: SAVED_METHOD_ELIGIBLE_STATUSES,
+        },
+      },
+      select: {
+        id: true,
+        metadata: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    const savedMethods = dedupeSavedPaymentMethods(priorPayments);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        savedMethods,
+      },
+    });
+  })
+);
+
+router.post(
+  "/pay-with-saved-method",
+  authenticate,
+  authorize("GUEST"),
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const userId = req.user!.id;
+    const { bookingId, methodId } = req.body as {
+      bookingId?: string;
+      methodId?: string;
+    };
+
+    if (!bookingId || !methodId) {
+      throw new AppError("bookingId and methodId are required", 400);
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        guest: true,
+        property: {
+          include: {
+            realtor: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+        payment: true,
+      },
+    });
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+
+    if (booking.guestId !== userId) {
+      throw new AppError("Unauthorized: Not your booking", 403);
+    }
+
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new AppError("Only pending bookings can be paid", 400);
+    }
+
+    if (
+      booking.payment &&
+      SAVED_METHOD_ELIGIBLE_STATUSES.includes(booking.payment.status)
+    ) {
+      return res.status(200).json({
+        success: true,
+        message: "Payment already verified",
+        data: { payment: booking.payment, booking },
+      });
+    }
+
+    if (
+      booking.payment &&
+      booking.payment.status !== PaymentStatus.INITIATED &&
+      booking.payment.status !== PaymentStatus.FAILED
+    ) {
+      throw new AppError(
+        "This booking already has an active payment process",
+        400
+      );
+    }
+
+    const sourcePayment = await prisma.payment.findFirst({
+      where: {
+        id: methodId,
+        userId,
+        method: PaymentMethod.PAYSTACK,
+        status: {
+          in: SAVED_METHOD_ELIGIBLE_STATUSES,
+        },
+      },
+      select: {
+        id: true,
+        metadata: true,
+      },
+    });
+
+    if (!sourcePayment) {
+      throw new AppError("Saved payment method not found", 404);
+    }
+
+    const authorization = extractPaystackAuthorization(sourcePayment.metadata);
+    if (!authorization.authorizationCode || !authorization.reusable) {
+      throw new AppError(
+        "Selected payment method is not reusable. Please pay with Paystack.",
+        400
+      );
+    }
+
+    let payment = booking.payment;
+    if (!payment) {
+      const reference = `PAY-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 11)
+        .toUpperCase()}`;
+
+      payment = await prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          userId,
+          amount: booking.totalPrice,
+          currency: booking.currency,
+          status: PaymentStatus.INITIATED,
+          method: PaymentMethod.PAYSTACK,
+          reference,
+          roomFeeAmount: booking.roomFee,
+          cleaningFeeAmount: booking.cleaningFee,
+          securityDepositAmount: booking.securityDeposit,
+          serviceFeeAmount: booking.serviceFee,
+          platformFeeAmount: booking.platformFee,
+          commissionBaseRate: booking.commissionBaseRate,
+          commissionVolumeReductionRate: booking.commissionVolumeReductionRate,
+          commissionEffectiveRate: booking.commissionEffectiveRate,
+          commissionBaseAmount: booking.commissionBaseRate
+            ? new Prisma.Decimal(
+                (
+                  Number(booking.roomFee) * Number(booking.commissionBaseRate)
+                ).toFixed(2)
+              )
+            : null,
+          serviceFeeStayzaAmount: booking.serviceFeeStayza,
+          serviceFeeProcessingQuotedAmount: booking.serviceFeeProcessing,
+          serviceFeeProcessingVarianceAmount: new Prisma.Decimal(0),
+          processingFeeModeQuoted: booking.processingFeeMode,
+        },
+      });
+    }
+
+    let chargeReference = payment.reference;
+    if (!chargeReference) {
+      chargeReference = `PAY-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 11)
+        .toUpperCase()}`;
+
+      payment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: { reference: chargeReference },
+      });
+    }
+
+    const chargeResult = await paystackService.chargeAuthorization({
+      authorizationCode: authorization.authorizationCode,
+      email: booking.guest.email,
+      amount: Math.round(Number(booking.totalPrice) * 100),
+      reference: chargeReference,
+      metadata: {
+        bookingId: booking.id,
+        paymentId: payment.id,
+        reusedFromPaymentId: sourcePayment.id,
+        paymentMode: "SAVED_METHOD",
+      },
+    });
+
+    const chargeData = chargeResult?.data || {};
+    const paymentSuccessful =
+      chargeResult?.status === true && chargeData?.status === "success";
+
+    if (!paymentSuccessful) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          metadata: {
+            ...getMetadataObject(payment.metadata),
+            failureReason:
+              chargeResult?.message ||
+              chargeData?.gateway_response ||
+              "Saved method charge failed",
+            providerResponse: chargeData,
+          },
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: "PAYMENT_FAILED_SAVED_METHOD",
+          userId,
+          entityType: "PAYMENT",
+          entityId: payment.id,
+          details: {
+            bookingId: booking.id,
+            sourcePaymentId: sourcePayment.id,
+            chargeReference,
+          },
+        },
+      });
+
+      throw new AppError(
+        `Payment failed: ${
+          chargeResult?.message ||
+          chargeData?.gateway_response ||
+          "Could not complete payment"
+        }`,
+        400
+      );
+    }
+    const finalized = await finalizePaystackPayment({
+      paymentId: payment.id,
+      source: "SAVED_METHOD",
+      providerData: chargeData,
+      extraMetadata: {
+        authorizationCode: authorization.authorizationCode,
+        savedMethodPayment: true,
+        reusedFromPaymentId: sourcePayment.id,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: "PAYMENT_COMPLETED_SAVED_METHOD",
+        userId,
+        entityType: "PAYMENT",
+        entityId: finalized.payment.id,
+        details: {
+          bookingId: booking.id,
+          sourcePaymentId: sourcePayment.id,
+          chargeReference,
+        },
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment completed successfully with saved method",
+      data: {
+        payment: finalized.payment,
+        booking: finalized.booking,
       },
     });
   })

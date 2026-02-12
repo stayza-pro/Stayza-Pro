@@ -15,11 +15,11 @@ export function FinalCTABand() {
         <p className="text-sm text-white/70">
           Set up your branded booking site in minutes with your logo and colors
           at yourbusiness.stayza.pro. Upload unlimited listings, manage
-          bookings, and collect payments automatically—no spreadsheets, no
+          bookings, and collect payments automatically-no spreadsheets, no
           headaches. Guests can browse, favorite, and review properties, while
-          CAC-verified realtors stand out with a trust badge. Platform takes 10%
-          commission on room fees, you keep 90% plus 100% of cleaning fees. Join
-          100+ property professionals building their booking business.
+          CAC-verified realtors stand out with a trust badge. Commission and
+          service fees are calculated transparently per booking before payment.
+          Join 100+ property professionals building their booking business.
         </p>
       </div>
     </section>

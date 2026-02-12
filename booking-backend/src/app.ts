@@ -14,12 +14,14 @@ import { apiLimiter } from "@/middleware/rateLimiter";
 import { swaggerSpec } from "@/config/swagger";
 import { logger } from "@/utils/logger";
 import { NotificationService } from "@/services/notificationService";
-import { startPayoutCron } from "@/jobs/payoutCron";
 import { startUnpaidBookingCron } from "@/jobs/unpaidBookingCron";
 import { initializeScheduledJobs } from "@/jobs/scheduler";
-import { processRoomFeeRelease } from "@/jobs/roomFeeReleaseJob";
-import { processDepositRefunds } from "@/jobs/depositRefundJob";
 import { processCheckinFallbacks } from "@/jobs/checkinFallbackJob";
+import { SystemMessageService } from "@/services/systemMessage";
+import {
+  getFinanceConfigHealth,
+  loadFinanceConfig,
+} from "@/services/financeConfig";
 
 // Import routes
 import authRoutes from "@/routes/auth.routes";
@@ -51,8 +53,12 @@ const app = express();
 // Trust proxy for accurate IP addresses
 app.set("trust proxy", 1);
 
-// Webhook routes (BEFORE express.json for raw body parsing)
-app.use("/api/webhooks", webhookRoutes);
+// Webhook routes (BEFORE express.json to preserve raw payload for signature verification)
+app.use(
+  "/api/webhooks/paystack",
+  express.raw({ type: "application/json", limit: "2mb" })
+);
+app.use("/api/webhooks", express.json({ limit: "2mb" }), webhookRoutes);
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -152,6 +158,23 @@ app.get("/health", async (req, res) => {
     health.status = "unhealthy";
   }
 
+  try {
+    await loadFinanceConfig();
+    health.services.financeConfig = getFinanceConfigHealth();
+    if (health.services.financeConfig.status === "unhealthy") {
+      health.status = "unhealthy";
+    } else if (health.services.financeConfig.status === "degraded") {
+      health.status = health.status === "unhealthy" ? "unhealthy" : "degraded";
+    }
+  } catch (error) {
+    health.services.financeConfig = {
+      status: "unhealthy",
+      error:
+        error instanceof Error ? error.message : "Finance config load failed",
+    };
+    health.status = "unhealthy";
+  }
+
   const memUsage = process.memoryUsage();
   health.system.memory = {
     used: Math.round(memUsage.rss / 1024 / 1024),
@@ -205,6 +228,37 @@ app.get("/health/detailed", async (req, res) => {
     overallStatus = "unhealthy";
   }
 
+  try {
+    await loadFinanceConfig();
+    const financeConfigHealth = getFinanceConfigHealth();
+    checks.push({
+      service: "finance-config",
+      status: financeConfigHealth.status,
+      message:
+        financeConfigHealth.status === "healthy"
+          ? "Finance config is valid"
+          : "Finance config has validation issues",
+      details: financeConfigHealth,
+    });
+
+    if (financeConfigHealth.status === "unhealthy") {
+      overallStatus = "unhealthy";
+    } else if (
+      financeConfigHealth.status === "degraded" &&
+      overallStatus === "healthy"
+    ) {
+      overallStatus = "degraded";
+    }
+  } catch (error) {
+    checks.push({
+      service: "finance-config",
+      status: "unhealthy",
+      error:
+        error instanceof Error ? error.message : "Finance config load failed",
+    });
+    overallStatus = "unhealthy";
+  }
+
   const requiredEnvVars = ["DATABASE_URL", "JWT_SECRET", "PAYSTACK_SECRET_KEY"];
   const missingEnvVars = requiredEnvVars.filter(
     (varName) => !process.env[varName]
@@ -241,7 +295,7 @@ app.get("/health/detailed", async (req, res) => {
     });
   }
 
-  res.status(overallStatus === "healthy" ? 200 : 503).json({
+  res.status(overallStatus === "unhealthy" ? 503 : 200).json({
     success: overallStatus !== "unhealthy",
     status: overallStatus,
     timestamp: new Date().toISOString(),
@@ -338,31 +392,23 @@ if (require.main === module) {
   // Initialize NotificationService with Socket.io
   NotificationService.initialize(server);
 
-  // Start CRON jobs
-  startPayoutCron();
-
   // Start unpaid booking auto-cancellation cron
   startUnpaidBookingCron();
 
   // Start escrow job scheduler
   initializeScheduledJobs();
 
-  // Start new commission flow timer jobs
-  // Room Fee Release Job (every 5 minutes)
-  cron.schedule("*/5 * * * *", async () => {
-    try {
-      await processRoomFeeRelease();
-    } catch (error) {
-      logger.error("Room Fee Release Job failed", { error });
-    }
+  // Rehydrate scheduled booking message automation after restart
+  SystemMessageService.rehydrateScheduledMessages().catch((error) => {
+    logger.error("System message rehydration failed", { error });
   });
 
-  // Deposit Refund Job (every 5 minutes)
-  cron.schedule("*/5 * * * *", async () => {
+  // Rehydrate periodically to cover runtime restarts/timeouts
+  cron.schedule("*/30 * * * *", async () => {
     try {
-      await processDepositRefunds();
+      await SystemMessageService.rehydrateScheduledMessages();
     } catch (error) {
-      logger.error("Deposit Refund Job failed", { error });
+      logger.error("System message periodic rehydration failed", { error });
     }
   });
 

@@ -399,7 +399,7 @@ export const transferCleaningFeeToRealtor = async (
 };
 
 /**
- * Release room fee split: 90% to realtor wallet, 10% to platform wallet
+ * Release room fee split using the effective commission snapshot
  * Called 1 hour after check-in if no user dispute
  *
  * IMPORTANT: Money moves from escrow to WALLETS (not Paystack)
@@ -413,7 +413,16 @@ export const releaseRoomFeeSplit = async (
   // Check payment status
   const paymentCheck = await prisma.payment.findUnique({
     where: { id: paymentId },
-    select: { roomFeeAmount: true, roomFeeInEscrow: true },
+    select: {
+      roomFeeAmount: true,
+      roomFeeInEscrow: true,
+      commissionEffectiveRate: true,
+      booking: {
+        select: {
+          commissionEffectiveRate: true,
+        },
+      },
+    },
   });
 
   if (!paymentCheck || !paymentCheck.roomFeeInEscrow) {
@@ -421,8 +430,19 @@ export const releaseRoomFeeSplit = async (
   }
 
   const roomFee = paymentCheck.roomFeeAmount.toNumber();
-  const realtorAmount = roomFee * 0.9; // 90%
-  const platformAmount = roomFee * 0.1; // 10%
+  const effectiveRate = Math.min(
+    Math.max(
+      Number(
+        paymentCheck.commissionEffectiveRate ??
+          paymentCheck.booking?.commissionEffectiveRate ??
+          0.1
+      ),
+      0
+    ),
+    1
+  );
+  const realtorAmount = Number((roomFee * (1 - effectiveRate)).toFixed(2));
+  const platformAmount = Number((roomFee * effectiveRate).toFixed(2));
 
   // Get booking details
   const booking = await prisma.booking.findUnique({
@@ -442,7 +462,7 @@ export const releaseRoomFeeSplit = async (
 
   // Release funds from escrow to wallets (all in one transaction)
   await prisma.$transaction(async (tx) => {
-    // 1. Credit realtor wallet (90%)
+    // 1. Credit realtor wallet
     const realtorWallet = await walletService.getOrCreateWallet(
       WalletOwnerType.REALTOR,
       realtorId
@@ -452,10 +472,15 @@ export const releaseRoomFeeSplit = async (
       realtorAmount,
       WalletTransactionSource.ROOM_FEE,
       bookingId,
-      { bookingId, paymentId, percentage: 90 }
+      {
+        bookingId,
+        paymentId,
+        effectiveCommissionRate: effectiveRate,
+        payoutRate: 1 - effectiveRate,
+      }
     );
 
-    // 2. Credit platform wallet (10%)
+    // 2. Credit platform wallet
     const platformWallet = await walletService.getOrCreateWallet(
       WalletOwnerType.PLATFORM,
       "platform"
@@ -465,7 +490,11 @@ export const releaseRoomFeeSplit = async (
       platformAmount,
       WalletTransactionSource.ROOM_FEE, // 10% of room fee
       bookingId,
-      { bookingId, paymentId, percentage: 10 }
+      {
+        bookingId,
+        paymentId,
+        effectiveCommissionRate: effectiveRate,
+      }
     );
 
     // 3. Update payment status
@@ -498,7 +527,7 @@ export const releaseRoomFeeSplit = async (
       `room_fee_${bookingId}_${paymentId.slice(-8)}`,
       `Released ₦${realtorAmount.toFixed(
         2
-      )} (90%) to realtor wallet from room fee`
+      )} (${((1 - effectiveRate) * 100).toFixed(2)}%) to realtor wallet from room fee`
     );
 
     await createEscrowEvent(
@@ -508,13 +537,14 @@ export const releaseRoomFeeSplit = async (
       "ESCROW",
       "PLATFORM_WALLET",
       undefined,
-      `Released ₦${platformAmount.toFixed(2)} (10%) to platform from room fee`
+      `Released ₦${platformAmount.toFixed(2)} (${(effectiveRate * 100).toFixed(2)}%) to platform from room fee`
     );
   });
 
   logger.info("Room fee split completed successfully", {
     bookingId,
     paymentId,
+    effectiveRate,
     realtorAmount,
     platformAmount,
     totalReleased: roomFee,
@@ -950,10 +980,25 @@ export const refundRoomFeeToCustomer = async (
       );
     }
 
-    // Calculate remaining amount for realtor
+    // Calculate remaining amount split using effective commission snapshot
     const remainingForRealtor = roomFee - refundAmount;
-    const realtorAmount = remainingForRealtor * 0.9; // 90%
-    const platformAmount = remainingForRealtor * 0.1; // 10%
+    const effectiveRate = Math.min(
+      Math.max(
+        Number(
+          payment.commissionEffectiveRate ??
+            payment.booking.commissionEffectiveRate ??
+            0.1
+        ),
+        0
+      ),
+      1
+    );
+    const realtorAmount = Number(
+      (remainingForRealtor * (1 - effectiveRate)).toFixed(2)
+    );
+    const platformAmount = Number(
+      (remainingForRealtor * effectiveRate).toFixed(2)
+    );
 
     const paymentMethod = payment.method || PaymentMethod.PAYSTACK;
     const realtor = payment.booking.property.realtor;
@@ -1109,7 +1154,7 @@ export const refundRoomFeeToCustomer = async (
         "ESCROW",
         "REALTOR",
         transferReference,
-        `Released ₦${realtorAmount.toFixed(2)} (90% of remaining) to realtor`
+        `Released ₦${realtorAmount.toFixed(2)} (${((1 - effectiveRate) * 100).toFixed(2)}% of remaining) to realtor`
       );
 
       await createEscrowEvent(
@@ -1119,7 +1164,7 @@ export const refundRoomFeeToCustomer = async (
         "ESCROW",
         "PLATFORM",
         undefined,
-        `Released ₦${platformAmount.toFixed(2)} (10% of remaining) to platform`
+        `Released ₦${platformAmount.toFixed(2)} (${(effectiveRate * 100).toFixed(2)}% of remaining) to platform`
       );
     }
 
@@ -1242,3 +1287,5 @@ export default {
   getBookingsEligibleForRoomFeeRelease,
   getBookingsEligibleForDepositReturn,
 };
+
+

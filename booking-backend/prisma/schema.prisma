@@ -179,6 +179,15 @@ model Booking {
    serviceFee      Decimal @default(0) @db.Decimal(10, 2) // 2% of (roomFee + cleaningFee)
    platformFee     Decimal @default(0) @db.Decimal(10, 2) // 10% of roomFee (deducted at release)
 
+   // Financial Engine V2 snapshot fields
+   commissionBaseRate            Decimal? @db.Decimal(5, 4)
+   commissionVolumeReductionRate Decimal? @db.Decimal(5, 4)
+   commissionEffectiveRate       Decimal? @db.Decimal(5, 4)
+   monthlyVolumeAtPricing        Decimal? @db.Decimal(12, 2)
+   serviceFeeStayza              Decimal? @db.Decimal(10, 2)
+   serviceFeeProcessing          Decimal? @db.Decimal(10, 2)
+   processingFeeMode             String?
+
    // New commission flow fields
    checkinConfirmedAt       DateTime? // Timestamp when check-in was confirmed
    checkinConfirmationType  String? // "GUEST_CONFIRMED" | "REALTOR_CONFIRMED" | "AUTO_FALLBACK"
@@ -239,6 +248,18 @@ model Payment {
    securityDepositAmount Decimal @default(0) @db.Decimal(10, 2)
    serviceFeeAmount      Decimal @default(0) @db.Decimal(10, 2)
    platformFeeAmount     Decimal @default(0) @db.Decimal(10, 2)
+
+   // Financial Engine V2 snapshot fields
+   commissionBaseRate                 Decimal? @db.Decimal(5, 4)
+   commissionVolumeReductionRate      Decimal? @db.Decimal(5, 4)
+   commissionEffectiveRate            Decimal? @db.Decimal(5, 4)
+   commissionBaseAmount               Decimal? @db.Decimal(10, 2)
+   serviceFeeStayzaAmount             Decimal? @db.Decimal(10, 2)
+   serviceFeeProcessingQuotedAmount   Decimal? @db.Decimal(10, 2)
+   serviceFeeProcessingActualAmount   Decimal? @db.Decimal(10, 2)
+   serviceFeeProcessingVarianceAmount Decimal? @db.Decimal(10, 2)
+   processingFeeModeQuoted            String?
+   processingFeeModeActual            String?
 
    // Escrow tracking
    roomFeeInEscrow   Boolean   @default(false)
@@ -921,6 +942,9 @@ model WithdrawalRequest {
    walletId             String
    realtorId            String
    amount               Decimal                 @db.Decimal(12, 2)
+   feeAmount            Decimal                 @default(0) @db.Decimal(12, 2)
+   netAmount            Decimal                 @default(0) @db.Decimal(12, 2)
+   feeConfigVersion     String?
    status               WithdrawalRequestStatus @default(PENDING)
    requestedAt          DateTime                @default(now())
    processedAt          DateTime?
@@ -978,8 +1002,11 @@ enum WalletTransactionType {
 enum WalletTransactionSource {
    CLEANING_FEE
    ROOM_FEE
+   COMMISSION
    SERVICE_FEE
    WITHDRAWAL
+   WITHDRAWAL_FEE
+   PROCESSING_FEE_ADJUSTMENT
    REFUND
    ADJUSTMENT
    CANCELLATION

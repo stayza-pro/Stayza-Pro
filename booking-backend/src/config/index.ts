@@ -91,14 +91,18 @@ export const config = {
   ),
 
   // Financial (platform economics)
-  SERVICE_FEE_RATE: parseFloat(process.env.SERVICE_FEE_RATE || "0.12"), // 12% of property price (visible service fee)
+  SERVICE_FEE_RATE: parseFloat(process.env.SERVICE_FEE_RATE || "0.01"), // Legacy fallback only. Financial Engine V2 uses admin-configured settings.
   DEFAULT_PLATFORM_COMMISSION_RATE: parseFloat(
-    process.env.DEFAULT_PLATFORM_COMMISSION_RATE || "0.05",
-  ), // 5% of property price (taken from property price portion)
+    process.env.DEFAULT_PLATFORM_COMMISSION_RATE || "0.10",
+  ), // Legacy fallback only. Financial Engine V2 uses admin-configured settings.
   ESCROW_RELEASE_OFFSET_HOURS: parseInt(
     process.env.ESCROW_RELEASE_OFFSET_HOURS || "0",
     10,
   ), // If >0, delay payout release this many hours after check-in
+  FINANCIAL_ENGINE_V2_STRICT: toBoolean(
+    process.env.FINANCIAL_ENGINE_V2_STRICT,
+    (process.env.NODE_ENV || "development") === "production",
+  ),
 };
 
 // Validate required environment variables

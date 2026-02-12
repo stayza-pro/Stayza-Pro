@@ -77,7 +77,6 @@ export default function EditPropertyPage() {
         houseRules: data.houseRules,
         checkInTime: data.checkInTime,
         checkOutTime: data.checkOutTime,
-        serviceFee: data.serviceFee,
         cleaningFee: data.cleaningFee,
         securityDeposit: data.securityDeposit,
       });
@@ -451,34 +450,7 @@ export default function EditPropertyPage() {
                   Leave blank if not applicable.
                 </p>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Service Fee
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                        {formData.currency === "NGN" ? "₦" : "$"}
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.serviceFee ?? ""}
-                        onChange={(e) =>
-                          updateFormData(
-                            "serviceFee",
-                            e.target.value
-                              ? parseFloat(e.target.value)
-                              : undefined
-                          )
-                        }
-                        placeholder="0.00"
-                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Cleaning Fee

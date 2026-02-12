@@ -74,7 +74,7 @@ export default function TermsPage() {
       icon: HeartHandshake,
       title: "Commission Structure",
       description:
-        "Platform takes 10% of room fees only. You keep 90% + 100% of cleaning fees. Guests pay 2% service fee separately.",
+        "Commission, guest service fees, and payout estimates are calculated per booking using the active finance configuration and shown before payment.",
     },
   ];
 
@@ -82,7 +82,7 @@ export default function TermsPage() {
     {
       title: "Paystack Escrow Integration",
       description:
-        "All payments held in escrow until 1 hour after check in. Automatic 90/10 split ensures transparent commission collection.",
+        "Payments are held in escrow and released using each booking's stored financial snapshot, with full transparency for guest and realtor.",
     },
     {
       title: "CAC Verification System",

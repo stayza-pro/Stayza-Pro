@@ -10,6 +10,24 @@ import { asyncHandler } from "@/middleware/errorHandler";
 const router = Router();
 const prisma = new PrismaClient();
 
+const getErrorDetails = (error: unknown): string => {
+  return error instanceof Error ? error.message : "Unknown error";
+};
+
+const sanitizeFavoriteProperty = <T extends Record<string, unknown>>(
+  property: T
+): T & { sensitiveDetailsUnlocked: false } => {
+  return {
+    ...property,
+    address: null,
+    accessInstructions: null,
+    wifiName: null,
+    wifiPassword: null,
+    parkingInstructions: null,
+    sensitiveDetailsUnlocked: false as const,
+  };
+};
+
 /**
  * Add a property to favorites
  * POST /favorites
@@ -96,10 +114,15 @@ router.post(
       },
     });
 
+    const sanitizedFavorite = {
+      ...favorite,
+      property: sanitizeFavoriteProperty(favorite.property),
+    };
+
     return res.status(201).json({
       success: true,
       message: "Property added to favorites",
-      data: favorite,
+      data: sanitizedFavorite,
     });
   })
 );
@@ -184,21 +207,26 @@ router.get(
       });
 
       // Filter out properties that are no longer active
-      const activeFavorites = favorites.filter(
-        (fav) => fav.property.isActive && fav.property.status === "ACTIVE"
-      );
+      const activeFavorites = favorites
+        .filter((fav) => fav.property.isActive && fav.property.status === "ACTIVE")
+        .map((fav) => ({
+          ...fav,
+          property: sanitizeFavoriteProperty(fav.property),
+        }));
 
       res.json({
         success: true,
         data: activeFavorites,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       
       res.status(500).json({
         success: false,
         error: "Failed to fetch favorites",
         details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development"
+            ? getErrorDetails(error)
+            : undefined,
       });
     }
   }
@@ -233,13 +261,15 @@ router.get(
           favoriteId: favorite?.id,
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       
       res.status(500).json({
         success: false,
         error: "Failed to check favorite status",
         details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development"
+            ? getErrorDetails(error)
+            : undefined,
       });
     }
   }

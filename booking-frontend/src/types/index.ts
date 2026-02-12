@@ -305,6 +305,23 @@ export interface Booking {
   nights?: number;
   isRefundable?: boolean;
   refundDeadline?: Date;
+  sensitiveDetailsUnlocked?: boolean;
+  hasVerifiedArtifact?: boolean;
+  bookingVerificationCode?: string;
+
+  // Financial snapshots
+  roomFee?: number;
+  cleaningFee?: number;
+  securityDeposit?: number;
+  serviceFee?: number;
+  platformFee?: number;
+  serviceFeeStayza?: number;
+  serviceFeeProcessing?: number;
+  processingFeeMode?: string;
+  commissionBaseRate?: number;
+  commissionVolumeReductionRate?: number;
+  commissionEffectiveRate?: number;
+  monthlyVolumeAtPricing?: number;
 }
 
 export interface Payment {
@@ -338,7 +355,7 @@ export interface Payment {
   depositRefunded: boolean;
 
   // Legacy fields
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   paidAt?: Date;
   refundAmount?: number;
   providerTransactionId?: string;
@@ -349,6 +366,18 @@ export interface Payment {
   payoutReference?: string;
   platformCommission?: number;
   realtorEarnings?: number;
+
+  // Financial engine V2 snapshots
+  commissionBaseRate?: number;
+  commissionVolumeReductionRate?: number;
+  commissionEffectiveRate?: number;
+  commissionBaseAmount?: number;
+  serviceFeeStayzaAmount?: number;
+  serviceFeeProcessingQuotedAmount?: number;
+  serviceFeeProcessingActualAmount?: number;
+  serviceFeeProcessingVarianceAmount?: number;
+  processingFeeModeQuoted?: string;
+  processingFeeModeActual?: string;
 
   createdAt: Date;
   updatedAt: Date;
@@ -781,8 +810,8 @@ export interface Dispute {
   closedAt?: Date;
   outcome?: string;
   agreedAmount?: number;
-  evidence?: any; // JSON array of photo/video URLs
-  messages?: any; // JSON array of dispute messages
+  evidence?: unknown[]; // JSON array of photo/video URLs
+  messages?: unknown[]; // JSON array of dispute messages
   escalatedToAdmin: boolean;
   adminId?: string;
   adminNotes?: string;

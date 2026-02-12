@@ -53,17 +53,35 @@ const getMaxRefundPercent = (category: DisputeCategory): number => {
   }
 };
 
+const clampRate = (value: number): number => Math.min(Math.max(value, 0), 1);
+
+const getEffectiveCommissionRate = (params: {
+  payment?: { commissionEffectiveRate?: Prisma.Decimal | null } | null;
+  booking?: { commissionEffectiveRate?: Prisma.Decimal | null } | null;
+}): number => {
+  const rawRate =
+    params.payment?.commissionEffectiveRate ??
+    params.booking?.commissionEffectiveRate ??
+    new Prisma.Decimal(0.1);
+  const numericRate =
+    rawRate instanceof Prisma.Decimal ? rawRate.toNumber() : Number(rawRate);
+  return clampRate(Number.isFinite(numericRate) ? numericRate : 0.1);
+};
+
 /**
  * Calculate dispute amounts for ROOM_FEE dispute
  */
 const calculateRoomFeeDisputeAmounts = (
   roomFeeAmount: number,
-  maxRefundPercent: number
+  maxRefundPercent: number,
+  effectiveCommissionRate: number
 ): {
   guestRefundAmount: number;
   realtorPayoutAmount: number;
   platformFeeAmount: number;
 } => {
+  const payoutRate = 1 - clampRate(effectiveCommissionRate);
+
   if (maxRefundPercent === 100) {
     // FULL REFUND: Guest gets 100%, realtor/platform get 0%
     return {
@@ -72,11 +90,11 @@ const calculateRoomFeeDisputeAmounts = (
       platformFeeAmount: 0,
     };
   } else if (maxRefundPercent === 30) {
-    // PARTIAL REFUND: Guest gets 30%, remainder split 90/10
+    // PARTIAL REFUND: Guest gets 30%, remainder split using effective commission snapshot
     const guestRefundAmount = roomFeeAmount * 0.3;
     const remainingAmount = roomFeeAmount * 0.7;
-    const realtorPayoutAmount = remainingAmount * 0.9;
-    const platformFeeAmount = remainingAmount * 0.1;
+    const realtorPayoutAmount = remainingAmount * payoutRate;
+    const platformFeeAmount = remainingAmount * (1 - payoutRate);
 
     return {
       guestRefundAmount,
@@ -84,11 +102,11 @@ const calculateRoomFeeDisputeAmounts = (
       platformFeeAmount,
     };
   } else {
-    // NO REFUND: Normal 90/10 split
+    // NO REFUND: Normal split using effective commission snapshot
     return {
       guestRefundAmount: 0,
-      realtorPayoutAmount: roomFeeAmount * 0.9,
-      platformFeeAmount: roomFeeAmount * 0.1,
+      realtorPayoutAmount: roomFeeAmount * payoutRate,
+      platformFeeAmount: roomFeeAmount * (1 - payoutRate),
     };
   }
 };
@@ -135,6 +153,20 @@ const mapIssueTypeToCategory = (issueType: string): DisputeCategory => {
     default:
       return DisputeCategory.MINOR_INCONVENIENCE;
   }
+};
+
+const SECURITY_DEPOSIT_CATEGORIES = new Set<DisputeCategory>([
+  DisputeCategory.PROPERTY_DAMAGE,
+  DisputeCategory.MISSING_ITEMS,
+  DisputeCategory.CLEANING_REQUIRED,
+  DisputeCategory.OTHER_DEPOSIT_CLAIM,
+]);
+
+const mapCategoryToSubject = (category: DisputeCategory): DisputeSubject => {
+  if (SECURITY_DEPOSIT_CATEGORIES.has(category)) {
+    return DisputeSubject.SECURITY_DEPOSIT;
+  }
+  return DisputeSubject.ROOM_FEE;
 };
 
 /**
@@ -207,6 +239,10 @@ export const openRoomFeeDispute = async (
   }
 
   const roomFeeAmount = booking.payment.roomFeeAmount.toNumber();
+  const effectiveCommissionRate = getEffectiveCommissionRate({
+    payment: booking.payment,
+    booking,
+  });
 
   if (roomFeeAmount === 0) {
     throw new Error("No room fee to dispute");
@@ -214,7 +250,8 @@ export const openRoomFeeDispute = async (
 
   const amounts = calculateRoomFeeDisputeAmounts(
     roomFeeAmount,
-    maxRefundPercent
+    maxRefundPercent,
+    effectiveCommissionRate
   );
 
   // Create dispute
@@ -564,11 +601,20 @@ const executeDisputeResolution = async (
   let platformFeeAmount: number = 0;
 
   if (isRoomFeeDispute) {
+    const effectiveCommissionRate = getEffectiveCommissionRate({
+      payment,
+      booking,
+    });
+
     // Room fee dispute resolution
     if (adminDecision === AdminDisputeDecision.FULL_REFUND) {
       // Admin override: 100% refund
       const roomFee = payment.roomFeeAmount.toNumber();
-      const amounts = calculateRoomFeeDisputeAmounts(roomFee, 100);
+      const amounts = calculateRoomFeeDisputeAmounts(
+        roomFee,
+        100,
+        effectiveCommissionRate
+      );
       guestRefundAmount = amounts.guestRefundAmount;
       realtorPayoutAmount = amounts.realtorPayoutAmount;
       platformFeeAmount = amounts.platformFeeAmount;
@@ -576,17 +622,26 @@ const executeDisputeResolution = async (
     } else if (adminDecision === AdminDisputeDecision.PARTIAL_REFUND) {
       // Admin override: 30% refund
       const roomFee = payment.roomFeeAmount.toNumber();
-      const amounts = calculateRoomFeeDisputeAmounts(roomFee, 30);
+      const amounts = calculateRoomFeeDisputeAmounts(
+        roomFee,
+        30,
+        effectiveCommissionRate
+      );
       guestRefundAmount = amounts.guestRefundAmount;
       realtorPayoutAmount = amounts.realtorPayoutAmount;
       platformFeeAmount = amounts.platformFeeAmount;
       finalOutcome = DisputeFinalOutcome.PARTIAL_REFUND_EXECUTED;
     } else if (adminDecision === AdminDisputeDecision.NO_REFUND) {
       // Admin override: No refund
-      guestRefundAmount = 0;
       const roomFee = payment.roomFeeAmount.toNumber();
-      realtorPayoutAmount = roomFee * 0.9;
-      platformFeeAmount = roomFee * 0.1;
+      const amounts = calculateRoomFeeDisputeAmounts(
+        roomFee,
+        0,
+        effectiveCommissionRate
+      );
+      guestRefundAmount = amounts.guestRefundAmount;
+      realtorPayoutAmount = amounts.realtorPayoutAmount;
+      platformFeeAmount = amounts.platformFeeAmount;
       finalOutcome = DisputeFinalOutcome.NO_REFUND_EXECUTED;
     } else {
       // Use original dispute amounts (accepted by counterparty)
@@ -740,8 +795,8 @@ const executeDisputeResolution = async (
           data: { status: BookingStatus.ACTIVE },
         });
       } else if (finalOutcome === DisputeFinalOutcome.NO_REFUND_EXECUTED) {
-        // No refund: Normal 90/10 split
-        // Credit realtor wallet (90%)
+        // No refund: release based on effective commission snapshot
+        // Credit realtor wallet
         const realtorWallet = await walletService.getOrCreateWallet(
           WalletOwnerType.REALTOR,
           booking.property.realtorId
@@ -754,7 +809,7 @@ const executeDisputeResolution = async (
           { disputeId, noRefund: true }
         );
 
-        // Credit platform wallet (10%)
+        // Credit platform wallet
         const platformWallet = await walletService.getOrCreateWallet(
           WalletOwnerType.PLATFORM,
           "platform"
@@ -1048,12 +1103,22 @@ export const createNewDispute = async (
 
   const category = mapIssueTypeToCategory(issueType);
 
-  // For the new system, we'll use room fee dispute as default
-  // and store the conversation in attachments as JSON
+  const disputeSubject = mapCategoryToSubject(category);
+
+  if (
+    disputeSubject === DisputeSubject.SECURITY_DEPOSIT &&
+    Number(booking.securityDeposit || 0) <= 0
+  ) {
+    throw new Error(
+      "Security deposit disputes are unavailable for bookings without a deposit"
+    );
+  }
+
+  // Store the conversation bootstrap in attachments as JSON
   const dispute = await prisma.dispute.create({
     data: {
       bookingId,
-      disputeSubject: DisputeSubject.ROOM_FEE,
+      disputeSubject,
       category,
       openedBy: guestId,
       writeup: `${subject}\n\n${description}`,

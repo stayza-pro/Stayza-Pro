@@ -8,6 +8,7 @@ import { logger } from "@/utils/logger";
 import { createAdminNotification } from "@/services/notificationService";
 import { ensureRealtorTransferRecipientCode } from "@/services/payoutAccountService";
 import { initiateTransfer, verifyTransfer } from "@/services/paystack";
+import { finalizePaystackPayment } from "@/services/paymentFinalization";
 
 const router = express.Router();
 
@@ -59,6 +60,60 @@ async function markEventFailed(
   });
 }
 
+const getRawBodyBuffer = (body: unknown): Buffer => {
+  if (Buffer.isBuffer(body)) {
+    return body;
+  }
+
+  if (typeof body === "string") {
+    return Buffer.from(body, "utf8");
+  }
+
+  return Buffer.from(JSON.stringify(body || {}), "utf8");
+};
+
+const isValidPaystackSignature = (
+  rawBody: Buffer,
+  signatureHeader: unknown
+): boolean => {
+  if (typeof signatureHeader !== "string") {
+    return false;
+  }
+
+  const expectedSignature = crypto
+    .createHmac("sha512", config.PAYSTACK_WEBHOOK_SECRET)
+    .update(rawBody)
+    .digest("hex");
+
+  try {
+    const providedBuffer = Buffer.from(signatureHeader, "hex");
+    const expectedBuffer = Buffer.from(expectedSignature, "hex");
+    return (
+      providedBuffer.length === expectedBuffer.length &&
+      crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const parsePaystackPayload = (
+  rawBody: Buffer
+): { event: string; data: Record<string, any>; payload: Record<string, any> } => {
+  const parsed = JSON.parse(rawBody.toString("utf8")) as Record<string, any>;
+  const event = typeof parsed.event === "string" ? parsed.event : "";
+  const data =
+    parsed.data && typeof parsed.data === "object" && !Array.isArray(parsed.data)
+      ? (parsed.data as Record<string, any>)
+      : {};
+
+  if (!event) {
+    throw new Error("Webhook payload missing event type");
+  }
+
+  return { event, data, payload: parsed };
+};
+
 /**
  * @swagger
  * tags:
@@ -87,25 +142,34 @@ async function markEventFailed(
 router.post(
   "/paystack",
   asyncHandler(async (req, res) => {
-    // Verify Paystack signature (HMAC SHA512)
+    const rawBody = getRawBodyBuffer(req.body);
     const signature = req.headers["x-paystack-signature"];
-
-    if (!signature) {
+    if (!signature || typeof signature !== "string") {
       logger.warn("Paystack webhook: Missing signature");
       return res.status(401).json({ error: "Missing signature" });
     }
 
-    const hash = crypto
-      .createHmac("sha512", config.PAYSTACK_WEBHOOK_SECRET)
-      .update(JSON.stringify(req.body))
-      .digest("hex");
-
-    if (hash !== signature) {
+    if (!isValidPaystackSignature(rawBody, signature)) {
       logger.warn("Paystack webhook: Invalid signature");
       return res.status(401).json({ error: "Invalid signature" });
     }
 
-    const { event, data } = req.body;
+    let event = "";
+    let data: Record<string, any> = {};
+    let payload: Record<string, any> = {};
+
+    try {
+      const parsed = parsePaystackPayload(rawBody);
+      event = parsed.event;
+      data = parsed.data;
+      payload = parsed.payload;
+    } catch (error) {
+      logger.warn("Paystack webhook: Invalid payload", {
+        error: error instanceof Error ? error.message : error,
+      });
+      return res.status(400).json({ error: "Invalid webhook payload" });
+    }
+
     const eventId = `paystack-${event}-${data.reference || data.id}`;
 
     // Database-backed idempotency check
@@ -118,7 +182,7 @@ router.post(
           eventId: `${eventId}-duplicate-${Date.now()}`,
           eventType: event,
           status: "DUPLICATE",
-          payload: req.body,
+          payload,
         },
       });
       return res.status(200).json({ message: "Event already processed" });
@@ -156,7 +220,7 @@ router.post(
       }
 
       // Mark as processed in database
-      await markEventProcessed("PAYSTACK", eventId, event, req.body, {
+      await markEventProcessed("PAYSTACK", eventId, event, payload, {
         reference: data.reference,
       });
 
@@ -172,7 +236,7 @@ router.post(
         "PAYSTACK",
         eventId,
         event,
-        req.body,
+        payload,
         error.message
       );
       return res.status(500).json({ error: "Webhook processing failed" });
@@ -240,19 +304,6 @@ router.post(
 async function handleChargeCompleted(paymentRef: string, data: any) {
   const payment = await prisma.payment.findUnique({
     where: { reference: paymentRef },
-    include: {
-      booking: {
-        select: {
-          id: true,
-          propertyId: true,
-          property: {
-            select: {
-              title: true,
-            },
-          },
-        },
-      },
-    },
   });
 
   if (!payment) {
@@ -264,7 +315,7 @@ async function handleChargeCompleted(paymentRef: string, data: any) {
 
   // Skip if already completed
   if (
-    payment.status === PaymentStatus.HELD ||
+    (payment.status === PaymentStatus.HELD && Boolean(payment.paidAt)) ||
     payment.status === PaymentStatus.PARTIALLY_RELEASED ||
     payment.status === PaymentStatus.SETTLED
   ) {
@@ -272,30 +323,22 @@ async function handleChargeCompleted(paymentRef: string, data: any) {
     return;
   }
 
-  // Update payment status to HELD (money in escrow)
-  await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: PaymentStatus.HELD, // Money now in escrow
-      updatedAt: new Date(),
-      metadata: {
-        ...((payment.metadata as object) || {}),
-        webhookProcessedAt: new Date().toISOString(),
-        webhookData: data,
-      },
+  const finalized = await finalizePaystackPayment({
+    paymentId: payment.id,
+    source: "WEBHOOK",
+    providerData: data,
+    extraMetadata: {
+      webhookProcessedAt: new Date().toISOString(),
+      webhookReference: paymentRef,
+      webhookEvent: "charge.success",
     },
-  });
-
-  // Update booking to ACTIVE
-  await prisma.booking.update({
-    where: { id: payment.bookingId },
-    data: { status: BookingStatus.ACTIVE },
   });
 
   logger.info(`Charge completed successfully`, {
     paymentId: payment.id,
     reference: paymentRef,
     amount: Number(payment.amount),
+    alreadyFinalized: finalized.alreadyFinalized,
   });
 }
 
@@ -309,6 +352,17 @@ async function handleChargeFailed(paymentRef: string, data: any) {
 
   if (!payment) {
     logger.warn(`Charge failed: Payment not found for reference ${paymentRef}`);
+    return;
+  }
+
+  if (
+    payment.status === PaymentStatus.HELD ||
+    payment.status === PaymentStatus.PARTIALLY_RELEASED ||
+    payment.status === PaymentStatus.SETTLED
+  ) {
+    logger.warn(
+      `Charge failed webhook ignored for already-finalized payment ${payment.id}`
+    );
     return;
   }
 
@@ -329,7 +383,10 @@ async function handleChargeFailed(paymentRef: string, data: any) {
   // Cancel booking
   await prisma.booking.update({
     where: { id: payment.bookingId },
-    data: { status: BookingStatus.CANCELLED },
+    data: {
+      status: BookingStatus.CANCELLED,
+      paymentStatus: PaymentStatus.FAILED,
+    },
   });
 
   logger.info(`Charge failed`, {

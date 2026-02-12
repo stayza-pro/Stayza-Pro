@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:critical": "next lint --max-warnings 0 --file src/app/browse/[id]/page.tsx --file src/app/admin/analytics/page.tsx",
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch"

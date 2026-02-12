@@ -186,12 +186,28 @@ export const createSetting = async (
  */
 export const getCommissionRate = async (): Promise<number> => {
   try {
-    const response = await getSettingByKey("commission_rate");
-    return Number(response.data.value);
-  } catch (error) {
-    
-    // Return default fallback
-    return 0.07; // 7%
+    const financeTiers = await getSettingByKey("finance.commission.tiers.v1");
+    const rawValue = financeTiers.data.value;
+    if (Array.isArray(rawValue) && rawValue.length > 0) {
+      const firstTier = rawValue[0] as Record<string, unknown>;
+      if (firstTier && typeof firstTier === "object") {
+        if (typeof firstTier.rate === "number") {
+          return Number(firstTier.rate);
+        }
+        const firstKey = Object.keys(firstTier)[0];
+        if (firstKey && typeof firstTier[firstKey] === "number") {
+          return Number(firstTier[firstKey]);
+        }
+      }
+    }
+  } catch {
+  }
+
+  try {
+    const legacyResponse = await getSettingByKey("commission_rate");
+    return Number(legacyResponse.data.value);
+  } catch {
+    return 0.1;
   }
 };
 

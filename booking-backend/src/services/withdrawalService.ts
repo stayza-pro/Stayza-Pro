@@ -6,7 +6,26 @@ import {
   sendWithdrawalCompletedEmail,
   sendWithdrawalFailedEmail,
 } from "@/services/email";
-import { Prisma, WithdrawalRequestStatus } from "@prisma/client";
+import {
+  Prisma,
+  WithdrawalRequestStatus,
+  WalletOwnerType,
+  WalletTransactionSource,
+  WalletTransactionStatus,
+  WalletTransactionType,
+} from "@prisma/client";
+
+const getObjectMetadata = (value: unknown): Record<string, unknown> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+};
+
+const getWithdrawalReference = (metadata: unknown): string | null => {
+  const record = getObjectMetadata(metadata);
+  return typeof record.reference === "string" ? record.reference : null;
+};
 
 /**
  * Process a pending withdrawal by transferring funds via Paystack
@@ -20,7 +39,6 @@ export const processWithdrawal = async (
   transferReference?: string;
 }> => {
   try {
-    // Get withdrawal request with full details
     const withdrawal = await prisma.withdrawalRequest.findUnique({
       where: { id: withdrawalRequestId },
       include: {
@@ -57,6 +75,38 @@ export const processWithdrawal = async (
       };
     }
 
+    const metadata = getObjectMetadata(withdrawal.metadata);
+    const withdrawalReference = getWithdrawalReference(metadata);
+    const grossAmount = Number(withdrawal.amount);
+    const feeAmount = Number(withdrawal.feeAmount || 0);
+    const netAmount = Number(
+      (
+        withdrawal.netAmount !== null
+          ? Number(withdrawal.netAmount)
+          : Number(withdrawal.amount) - Number(withdrawal.feeAmount || 0)
+      ).toFixed(2)
+    );
+
+    if (netAmount <= 0) {
+      throw new Error("Invalid withdrawal net amount");
+    }
+
+    const pendingLockTransaction = await prisma.walletTransaction.findFirst({
+      where: {
+        walletId: withdrawal.walletId,
+        source: WalletTransactionSource.WITHDRAWAL,
+        status: WalletTransactionStatus.PENDING,
+        ...(withdrawalReference ? { referenceId: withdrawalReference } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!pendingLockTransaction) {
+      throw new Error(
+        "Withdrawal funds are not locked. Please submit a new withdrawal request."
+      );
+    }
+
     const recipientCode = await ensureRealtorTransferRecipientCode(
       withdrawal.realtorId
     );
@@ -69,14 +119,16 @@ export const processWithdrawal = async (
     logger.info("Processing withdrawal", {
       withdrawalId: withdrawalRequestId,
       realtorId: withdrawal.realtorId,
-      amount: withdrawal.amount,
+      grossAmount,
+      feeAmount,
+      netAmount,
       transferReference,
       isManualRetry,
     });
 
     // Initiate Paystack transfer
     const transferResult = await paystackService.initiateTransfer({
-      amount: Number(withdrawal.amount),
+      amount: netAmount,
       recipient: recipientCode,
       reason: `Withdrawal for ${withdrawal.realtor.businessName}`,
       reference: transferReference,
@@ -95,18 +147,36 @@ export const processWithdrawal = async (
         status: "COMPLETED",
         processedAt: new Date(),
         metadata: {
-          ...(withdrawal.metadata as any),
+          ...metadata,
           transferReference,
           transferStatus: transferResult.status,
           transferCode: transferResult.transfer_code,
+          grossAmount,
+          feeAmount,
+          netAmount,
+          fundsRestored: false,
           processedBy: isManualRetry ? "admin" : "automatic",
         },
       },
     });
 
-    // Complete wallet transaction - mark the pending transaction as completed and deduct from pending balance
     await prisma.$transaction(async (tx) => {
-      // Update wallet: remove from pending balance
+      // Update lock transaction and remove held amount from pending balance
+      await tx.walletTransaction.update({
+        where: { id: pendingLockTransaction.id },
+        data: {
+          status: WalletTransactionStatus.COMPLETED,
+          metadata: {
+            ...getObjectMetadata(pendingLockTransaction.metadata),
+            withdrawalRequestId,
+            transferReference,
+            grossAmount,
+            feeAmount,
+            netAmount,
+          },
+        },
+      });
+
       await tx.wallet.update({
         where: { id: withdrawal.walletId },
         data: {
@@ -116,16 +186,69 @@ export const processWithdrawal = async (
         },
       });
 
-      // Mark any related transactions as completed (optional, since funds already locked)
-      // The lockFundsForWithdrawal already moved funds from available to pending
-      // Now we just need to remove them from pending entirely
+      if (feeAmount > 0) {
+        // Realtor-side fee transaction for ledger transparency
+        await tx.walletTransaction.create({
+          data: {
+            walletId: withdrawal.walletId,
+            type: WalletTransactionType.DEBIT,
+            source: WalletTransactionSource.WITHDRAWAL_FEE,
+            amount: new Prisma.Decimal(feeAmount),
+            referenceId: transferReference,
+            status: WalletTransactionStatus.COMPLETED,
+            metadata: {
+              withdrawalRequestId,
+              grossAmount,
+              feeAmount,
+              netAmount,
+            },
+          },
+        });
+
+        // Credit platform wallet with withdrawal fee margin
+        const platformWallet = await tx.wallet.upsert({
+          where: {
+            ownerType_ownerId: {
+              ownerType: WalletOwnerType.PLATFORM,
+              ownerId: "platform",
+            },
+          },
+          update: {
+            balanceAvailable: {
+              increment: new Prisma.Decimal(feeAmount),
+            },
+          },
+          create: {
+            ownerType: WalletOwnerType.PLATFORM,
+            ownerId: "platform",
+            balanceAvailable: new Prisma.Decimal(feeAmount),
+            balancePending: new Prisma.Decimal(0),
+          },
+        });
+
+        await tx.walletTransaction.create({
+          data: {
+            walletId: platformWallet.id,
+            type: WalletTransactionType.CREDIT,
+            source: WalletTransactionSource.WITHDRAWAL_FEE,
+            amount: new Prisma.Decimal(feeAmount),
+            referenceId: withdrawalRequestId,
+            status: WalletTransactionStatus.COMPLETED,
+            metadata: {
+              withdrawalRequestId,
+              realtorId: withdrawal.realtorId,
+              transferReference,
+            },
+          },
+        });
+      }
     });
 
     // Send success email to realtor
     await sendWithdrawalCompletedEmail(
       withdrawal.realtor.user.email,
       withdrawal.realtor.user.firstName || withdrawal.realtor.businessName,
-      Number(withdrawal.amount),
+      netAmount,
       transferReference
     );
 
@@ -167,27 +290,7 @@ export const processWithdrawal = async (
         "Too many transfer requests. Your withdrawal will be processed automatically within the hour.";
     }
 
-    // Update withdrawal status to FAILED
-    await prisma.withdrawalRequest
-      .update({
-        where: { id: withdrawalRequestId },
-        data: {
-          status: "FAILED",
-          failureReason: userMessage,
-          failedAt: new Date(),
-          retryCount: { increment: 1 },
-          metadata: {
-            error: error.message,
-            failedAt: new Date().toISOString(),
-            isManualRetry,
-          },
-        },
-      })
-      .catch((err) =>
-        logger.error("Failed to update withdrawal status to FAILED", err)
-      );
-
-    // Get withdrawal details for email
+    const failedAt = new Date();
     const withdrawal = await prisma.withdrawalRequest.findUnique({
       where: { id: withdrawalRequestId },
       include: {
@@ -205,6 +308,80 @@ export const processWithdrawal = async (
     });
 
     if (withdrawal) {
+      const metadata = getObjectMetadata(withdrawal.metadata);
+      const withdrawalReference = getWithdrawalReference(metadata);
+      const amount = Number(withdrawal.amount);
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          const lockTransaction = await tx.walletTransaction.findFirst({
+            where: {
+              walletId: withdrawal.walletId,
+              source: WalletTransactionSource.WITHDRAWAL,
+              status: WalletTransactionStatus.PENDING,
+              ...(withdrawalReference
+                ? { referenceId: withdrawalReference }
+                : {}),
+            },
+            orderBy: { createdAt: "desc" },
+          });
+
+          const fundsRestored = true;
+
+          if (lockTransaction) {
+            await tx.wallet.update({
+              where: { id: withdrawal.walletId },
+              data: {
+                balanceAvailable: {
+                  increment: new Prisma.Decimal(amount),
+                },
+                balancePending: {
+                  decrement: new Prisma.Decimal(amount),
+                },
+              },
+            });
+
+            await tx.walletTransaction.update({
+              where: { id: lockTransaction.id },
+              data: {
+                status: WalletTransactionStatus.FAILED,
+                metadata: {
+                  ...getObjectMetadata(lockTransaction.metadata),
+                  failureReason: userMessage,
+                  failedAt: failedAt.toISOString(),
+                  fundsRestored,
+                },
+              },
+            });
+          }
+
+          await tx.withdrawalRequest.update({
+            where: { id: withdrawalRequestId },
+            data: {
+              status: "FAILED",
+              failureReason: userMessage,
+              failedAt,
+              retryCount: { increment: 1 },
+              metadata: {
+                ...metadata,
+                error: error.message,
+                failedAt: failedAt.toISOString(),
+                isManualRetry,
+                fundsRestored,
+              },
+            },
+          });
+        });
+      } catch (recoveryError) {
+        logger.error("Failed to finalize withdrawal failure recovery", {
+          withdrawalRequestId,
+          recoveryError:
+            recoveryError instanceof Error
+              ? recoveryError.message
+              : recoveryError,
+        });
+      }
+
       // Send failure email to realtor
       await sendWithdrawalFailedEmail(
         withdrawal.realtor.user.email,
@@ -238,7 +415,7 @@ export const retryFailedWithdrawals = async (): Promise<{
   };
 
   try {
-    // Get all failed withdrawals that haven't been retried too many times
+    // Get failed withdrawals that still have locked funds available for retry
     const failedWithdrawals = await prisma.withdrawalRequest.findMany({
       where: {
         status: "FAILED",
@@ -251,6 +428,11 @@ export const retryFailedWithdrawals = async (): Promise<{
     });
 
     for (const withdrawal of failedWithdrawals) {
+      const metadata = getObjectMetadata(withdrawal.metadata);
+      if (metadata.fundsRestored === true) {
+        continue;
+      }
+
       results.processed++;
 
       const result = await processWithdrawal(withdrawal.id, false);

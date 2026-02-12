@@ -1,6 +1,6 @@
 import { apiClient } from "./api";
 import { getCookie } from "@/utils/cookies";
-import { Payment } from "../types";
+import { Booking, Payment } from "../types";
 
 export interface PaystackInitializationRequest {
   bookingId: string;
@@ -22,7 +22,7 @@ export interface PaystackVerificationResponse {
   message: string;
   // Optional enriched payload from backend
   payment?: Payment;
-  booking?: any;
+  booking?: Booking;
 }
 
 export interface VerifyByBookingRequest {
@@ -33,7 +33,52 @@ export interface VerifyByBookingResponse {
   success: boolean;
   message: string;
   payment?: Payment;
-  booking?: any;
+  booking?: Booking;
+}
+
+export interface SavedPaymentMethod {
+  methodId: string;
+  brand?: string | null;
+  bank?: string | null;
+  last4?: string | null;
+  expMonth?: string | null;
+  expYear?: string | null;
+  lastUsedAt?: string | Date;
+}
+
+export interface SavedMethodPaymentRequest {
+  bookingId: string;
+  methodId: string;
+}
+
+export interface SavedMethodPaymentResponse {
+  success: boolean;
+  message: string;
+  payment?: Payment;
+  booking?: Booking;
+}
+
+export type CheckoutEventType =
+  | "CHECKOUT_PAGE_VIEWED"
+  | "CHECKOUT_SUBMITTED"
+  | "CHECKOUT_SUBMIT_FAILED"
+  | "BOOKING_CREATED"
+  | "PAYMENT_PAGE_VIEWED"
+  | "PAYSTACK_POPUP_OPENED"
+  | "PAYSTACK_CALLBACK_SUCCESS"
+  | "PAYMENT_VERIFIED"
+  | "PAYMENT_VERIFY_FAILED"
+  | "SAVED_METHOD_PAYMENT_ATTEMPT"
+  | "SAVED_METHOD_PAYMENT_SUCCESS"
+  | "SAVED_METHOD_PAYMENT_FAILED";
+
+export interface CheckoutEventPayload {
+  event: CheckoutEventType;
+  bookingId?: string;
+  paymentId?: string;
+  propertyId?: string;
+  sessionId?: string;
+  context?: Record<string, unknown>;
 }
 
 interface NormalizedPagination {
@@ -44,8 +89,33 @@ interface NormalizedPagination {
   hasPrev: boolean;
 }
 
-const normalizePagination = (raw: any): NormalizedPagination | undefined => {
-  if (!raw || typeof raw !== "object") {
+interface PaymentsEnvelope {
+  payments?: Payment[];
+  data?: Payment[];
+  pagination?: unknown;
+}
+
+interface PaymentEnvelope {
+  payment?: Payment;
+}
+
+interface PaymentVerificationData {
+  payment?: Payment;
+  booking?: Booking;
+}
+
+interface PaymentVerificationEnvelope {
+  success?: boolean;
+  message?: string;
+  data?: PaymentVerificationData;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null;
+};
+
+const normalizePagination = (raw: unknown): NormalizedPagination | undefined => {
+  if (!isRecord(raw)) {
     return undefined;
   }
 
@@ -74,23 +144,23 @@ const normalizePagination = (raw: any): NormalizedPagination | undefined => {
 };
 
 const normalizePaymentsList = (
-  payload: any
+  payload: unknown
 ): { data: Payment[]; pagination?: NormalizedPagination } => {
   if (Array.isArray(payload)) {
-    return { data: payload };
+    return { data: payload as Payment[] };
   }
 
-  if (payload && typeof payload === "object") {
+  if (isRecord(payload)) {
     if (Array.isArray(payload.payments)) {
       return {
-        data: payload.payments,
+        data: payload.payments as Payment[],
         pagination: normalizePagination(payload.pagination),
       };
     }
 
     if (Array.isArray(payload.data)) {
       return {
-        data: payload.data,
+        data: payload.data as Payment[],
         pagination: normalizePagination(payload.pagination),
       };
     }
@@ -152,17 +222,19 @@ export const paymentService = {
     const response = await apiClient.post<{
       success: boolean;
       message: string;
-      data?: { payment?: Payment; booking?: any };
+      data?: PaymentVerificationData;
     }>("/payments/verify-paystack", data);
 
     
     
 
+    const payload = (response.data || response) as PaymentVerificationEnvelope;
+
     return {
-      success: response.success,
-      message: response.message || "Payment verification completed",
-      payment: response.data?.data?.payment,
-      booking: response.data?.data?.booking,
+      success: payload.success ?? false,
+      message: payload.message || "Payment verification completed",
+      payment: payload.data?.payment,
+      booking: payload.data?.booking,
     };
   },
 
@@ -175,24 +247,79 @@ export const paymentService = {
     const response = await apiClient.post<{
       success: boolean;
       message: string;
-      data?: { payment?: Payment; booking?: any };
+      data?: PaymentVerificationData;
     }>("/payments/verify-by-booking", data);
 
+    const payload = (response.data || response) as PaymentVerificationEnvelope;
+
     return {
-      success: response.data.success,
-      message: response.data.message,
-      payment: response.data.data?.payment,
-      booking: response.data.data?.booking,
+      success: payload.success ?? false,
+      message: payload.message || "Payment verification completed",
+      payment: payload.data?.payment,
+      booking: payload.data?.booking,
     };
+  },
+
+  getSavedMethods: async (): Promise<SavedPaymentMethod[]> => {
+    const response = await apiClient.get<{ savedMethods?: SavedPaymentMethod[] }>(
+      "/payments/saved-methods"
+    );
+
+    const payload =
+      (response?.data as { savedMethods?: SavedPaymentMethod[] } | undefined) ||
+      {};
+
+    return Array.isArray(payload.savedMethods) ? payload.savedMethods : [];
+  },
+
+  payWithSavedMethod: async (
+    data: SavedMethodPaymentRequest
+  ): Promise<SavedMethodPaymentResponse> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      data?: PaymentVerificationData;
+    }>("/payments/pay-with-saved-method", data);
+
+    const nestedPayload = isRecord(response.data)
+      ? (response.data as PaymentVerificationEnvelope)
+      : undefined;
+
+    return {
+      success:
+        response.success ??
+        nestedPayload?.success ??
+        false,
+      message:
+        response.message ||
+        nestedPayload?.message ||
+        "Payment request completed",
+      payment: nestedPayload?.data?.payment,
+      booking: nestedPayload?.data?.booking,
+    };
+  },
+
+  trackCheckoutEvent: async (payload: CheckoutEventPayload): Promise<void> => {
+    try {
+      await apiClient.post<unknown, CheckoutEventPayload>(
+        "/payments/checkout-event",
+        payload
+      );
+    } catch {
+      // Intentionally silent - analytics should never block booking flow.
+    }
   },
 
   // Fetch a single payment by id
   getPayment: async (id: string): Promise<Payment> => {
-    const response = await apiClient.get<any>(`/payments/${id}`);
+    const response = await apiClient.get<unknown>(`/payments/${id}`);
     const payload = response?.data;
 
-    if (payload && typeof payload === "object" && payload.payment) {
-      return payload.payment as Payment;
+    if (isRecord(payload) && "payment" in payload) {
+      const paymentPayload = payload as PaymentEnvelope;
+      if (paymentPayload.payment) {
+        return paymentPayload.payment;
+      }
     }
 
     return payload as Payment;
@@ -200,7 +327,7 @@ export const paymentService = {
 
   // Fetch current user's payments
   getUserPayments: async (): Promise<Payment[]> => {
-    const response = await apiClient.get<any>("/payments");
+    const response = await apiClient.get<unknown>("/payments");
     return normalizePaymentsList(response?.data).data;
   },
 
@@ -227,7 +354,7 @@ export const paymentService = {
     const queryString = params.toString();
     const url = queryString ? `/payments?${queryString}` : "/payments";
 
-    const response = await apiClient.get<any>(url);
+    const response = await apiClient.get<PaymentsEnvelope>(url);
     const normalized = normalizePaymentsList(response?.data);
 
     return {

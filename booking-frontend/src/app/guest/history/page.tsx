@@ -8,6 +8,7 @@ import {
   Search,
   FileText,
   Home,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import { Card, Button, Input } from "@/components/ui";
@@ -27,6 +28,7 @@ export default function BookingHistoryPage() {
   const { user, isAuthenticated, isLoading } = useCurrentUser();
   const [searchQuery, setSearchQuery] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
+  const [rebookingId, setRebookingId] = useState<string | null>(null);
 
   // Use realtor branding hook for consistent styling
   const {
@@ -148,6 +150,84 @@ export default function BookingHistoryPage() {
     (sum: number, booking: Booking) => sum + booking.totalPrice,
     0
   );
+
+  const getRebookDates = (booking: Booking) => {
+    const nights = Math.max(
+      1,
+      calculateNights(booking.checkInDate, booking.checkOutDate)
+    );
+    const checkInDate = new Date();
+    checkInDate.setDate(checkInDate.getDate() + 7);
+    checkInDate.setHours(12, 0, 0, 0);
+
+    const checkOutDate = new Date(checkInDate);
+    checkOutDate.setDate(checkOutDate.getDate() + nights);
+    checkOutDate.setHours(12, 0, 0, 0);
+
+    return { checkInDate, checkOutDate };
+  };
+
+  const getRebookCheckoutUrl = (booking: Booking) => {
+    const { checkInDate, checkOutDate } = getRebookDates(booking);
+    const toIso = (date: Date) => date.toISOString().split("T")[0];
+    return `/booking/${booking.propertyId}/checkout?checkIn=${toIso(
+      checkInDate
+    )}&checkOut=${toIso(checkOutDate)}&guests=${booking.totalGuests}&rebookFrom=${
+      booking.id
+    }`;
+  };
+
+  const handleBookAgain = async (booking: Booking) => {
+    if (!booking.propertyId) {
+      toast.error("Unable to rebook this stay.");
+      return;
+    }
+
+    const { checkInDate, checkOutDate } = getRebookDates(booking);
+    setRebookingId(booking.id);
+
+    try {
+      const newBooking = await bookingService.createBooking({
+        propertyId: booking.propertyId,
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        guests: booking.totalGuests || 1,
+        specialRequests: booking.specialRequests || "",
+      });
+
+      void paymentService.trackCheckoutEvent({
+        event: "BOOKING_CREATED",
+        bookingId: newBooking.id,
+        propertyId: booking.propertyId,
+        context: {
+          source: "HISTORY_REBOOK",
+          rebookFrom: booking.id,
+          autoPay: true,
+        },
+      });
+
+      router.push(
+        `/booking/${booking.propertyId}/payment?bookingId=${newBooking.id}&paymentMethod=paystack&autopay=1&rebookFrom=${booking.id}`
+      );
+    } catch (error: unknown) {
+      const message =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response
+          ?.data?.message === "string"
+          ? (error as { response?: { data?: { message?: string } } }).response!
+              .data!.message!
+          : error instanceof Error
+          ? error.message
+          : "Unable to create instant rebooking. Continue in checkout.";
+
+      toast.error(message);
+      router.push(getRebookCheckoutUrl(booking));
+    } finally {
+      setRebookingId(null);
+    }
+  };
 
   const handleDownloadReceipt = (bookingId: string) => {
     const booking = bookings.find((item: Booking) => item.id === bookingId);
@@ -423,16 +503,32 @@ export default function BookingHistoryPage() {
                             {booking.id}
                           </p>
                         </div>
-
-                        <Button
-                          onClick={() =>
-                            router.push(`/guest/bookings/${booking.id}`)
-                          }
-                          variant="outline"
-                          size="sm"
-                        >
-                          View Details
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() =>
+                              router.push(`/guest/bookings/${booking.id}`)
+                            }
+                            variant="outline"
+                            size="sm"
+                          >
+                            View Details
+                          </Button>
+                          <Button
+                            onClick={() => void handleBookAgain(booking)}
+                            size="sm"
+                            disabled={rebookingId === booking.id}
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            {rebookingId === booking.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Rebooking...
+                              </>
+                            ) : (
+                              "Book Again"
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

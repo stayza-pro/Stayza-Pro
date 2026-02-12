@@ -27,6 +27,7 @@ import {
   LogOut,
   AlertCircle,
   MessageCircle,
+  QrCode,
 } from "lucide-react";
 
 export default function RealtorLayout({
@@ -130,6 +131,8 @@ export default function RealtorLayout({
       setActiveNav("refund-requests");
     } else if (currentPath.includes("/disputes")) {
       setActiveNav("disputes");
+    } else if (currentPath.includes("/verify-booking")) {
+      setActiveNav("verify-booking");
     } else if (
       currentPath.includes("/earnings") ||
       currentPath.includes("/revenue")
@@ -274,6 +277,12 @@ export default function RealtorLayout({
       label: "Disputes",
       icon: AlertCircle,
       href: "/disputes",
+    },
+    {
+      id: "verify-booking",
+      label: "Verify Booking",
+      icon: QrCode,
+      href: "/verify-booking",
     },
     {
       id: "earnings",

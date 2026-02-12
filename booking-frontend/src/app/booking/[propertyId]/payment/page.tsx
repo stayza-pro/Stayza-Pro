@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle,
@@ -22,12 +23,82 @@ import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService } from "@/services/bookings";
 import { paymentService } from "@/services/payments";
 import { useAuthStore } from "@/store/authStore";
+import type { SavedPaymentMethod } from "@/services/payments";
+import type { Booking, User } from "@/types";
 
-declare global {
-  interface Window {
-    PaystackPop: any;
-  }
+interface PaystackCallbackResponse {
+  reference?: string;
+  trxref?: string;
 }
+
+interface PaystackHandler {
+  openIframe: () => void;
+}
+
+interface PaystackPop {
+  setup: (config: {
+    key?: string;
+    email: string;
+    amount: number;
+    currency: string;
+    ref: string;
+    metadata: {
+      bookingId: string;
+      propertyId: string;
+      userId: string;
+      custom_fields: Array<{
+        display_name: string;
+        variable_name: string;
+        value: string;
+      }>;
+    };
+    onClose: () => void;
+    callback: (paystackResponse: PaystackCallbackResponse) => void;
+  }) => PaystackHandler;
+}
+
+interface AppError {
+  message?: string;
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === "object" && error !== null) {
+    const appError = error as AppError;
+    return appError.response?.data?.message || appError.message || fallback;
+  }
+
+  return fallback;
+};
+
+const getBookingImageUrl = (booking: Booking | null): string | null => {
+  if (!booking?.property?.images?.length) {
+    return null;
+  }
+
+  const firstImage = booking.property.images[0] as
+    | string
+    | { url?: string }
+    | undefined;
+
+  if (typeof firstImage === "string") {
+    return firstImage;
+  }
+
+  if (
+    firstImage &&
+    typeof firstImage === "object" &&
+    typeof firstImage.url === "string"
+  ) {
+    return firstImage.url;
+  }
+
+  return null;
+};
 
 export default function PaymentPage() {
   const params = useParams();
@@ -49,13 +120,20 @@ export default function PaymentPage() {
   const propertyId = params.propertyId as string;
   const bookingId = searchParams.get("bookingId") || "";
   const paymentMethod = "paystack"; // Only Paystack supported
+  const shouldAutoPay = searchParams.get("autopay") === "1";
+  const rebookFromBookingId = searchParams.get("rebookFrom") || "";
 
   const [paymentStatus, setPaymentStatus] = useState<
     "loading" | "ready" | "processing" | "success" | "failed"
   >("loading");
-  const [booking, setBooking] = useState<any>(null);
+  const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string>("");
   const [isPaystackLoaded, setIsPaystackLoaded] = useState(false);
+  const [savedMethods, setSavedMethods] = useState<SavedPaymentMethod[]>([]);
+  const [selectedSavedMethodId, setSelectedSavedMethodId] = useState("");
+  const [loadingSavedMethods, setLoadingSavedMethods] = useState(false);
+  const hasAutoPayTriggeredRef = useRef(false);
+  const hasTrackedPaymentViewRef = useRef(false);
 
   // Load Paystack script
   useEffect(() => {
@@ -104,6 +182,19 @@ export default function PaymentPage() {
         
         setBooking(bookingData);
 
+        if (!hasTrackedPaymentViewRef.current) {
+          hasTrackedPaymentViewRef.current = true;
+          void paymentService.trackCheckoutEvent({
+            event: "PAYMENT_PAGE_VIEWED",
+            bookingId: bookingData.id,
+            propertyId,
+            context: {
+              rebookFrom: rebookFromBookingId || null,
+              autoPay: shouldAutoPay,
+            },
+          });
+        }
+
         // Check if already paid (HELD or later status means payment processed)
         if (
           bookingData.paymentStatus === "HELD" ||
@@ -118,15 +209,47 @@ export default function PaymentPage() {
         }
 
         setPaymentStatus("ready");
-      } catch (err: any) {
-        
-        setError(err.message || "Failed to load booking details");
+      } catch (error: unknown) {
+        setError(getErrorMessage(error, "Failed to load booking details"));
         setPaymentStatus("failed");
       }
     };
 
     fetchBooking();
-  }, [bookingId, user, storeUser, userLoading, router, propertyId]);
+  }, [
+    bookingId,
+    user,
+    storeUser,
+    userLoading,
+    router,
+    propertyId,
+    rebookFromBookingId,
+    shouldAutoPay,
+  ]);
+
+  useEffect(() => {
+    const currentUser = user || storeUser;
+    if (!booking || !currentUser) return;
+
+    setLoadingSavedMethods(true);
+    paymentService
+      .getSavedMethods()
+      .then((methods) => {
+        setSavedMethods(methods);
+        if (methods.length > 0) {
+          setSelectedSavedMethodId(methods[0].methodId);
+        } else {
+          setSelectedSavedMethodId("");
+        }
+      })
+      .catch(() => {
+        setSavedMethods([]);
+        setSelectedSavedMethodId("");
+      })
+      .finally(() => {
+        setLoadingSavedMethods(false);
+      });
+  }, [booking, user, storeUser]);
 
   const initiatePayment = () => {
     const currentUser = user || storeUser;
@@ -144,10 +267,13 @@ export default function PaymentPage() {
       return;
     }
 
-    initiatePaystackPayment(currentUser);
+    void initiatePaystackPayment(currentUser, booking);
   };
 
-  const initiatePaystackPayment = async (currentUser: any) => {
+  const initiatePaystackPayment = async (
+    currentUser: User,
+    currentBooking: Booking
+  ) => {
     setPaymentStatus("processing");
     setError("");
 
@@ -156,7 +282,7 @@ export default function PaymentPage() {
 
       // Call backend API to initialize payment
       const response = await paymentService.initializePaystackPayment({
-        bookingId: booking.id,
+        bookingId: currentBooking.id,
       });
 
       
@@ -166,33 +292,35 @@ export default function PaymentPage() {
       }
 
       // Check if Paystack script is loaded
-      if (!window.PaystackPop) {
+      const paystackPop = (window as unknown as { PaystackPop?: PaystackPop })
+        .PaystackPop;
+      if (!paystackPop) {
         throw new Error(
           "Paystack payment system not loaded. Please refresh the page."
         );
       }
 
       // Initialize Paystack Popup (inline payment)
-      const handler = window.PaystackPop.setup({
+      const handler = paystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email: currentUser.email,
-        amount: Math.round(booking.totalPrice * 100), // Amount in kobo
-        currency: booking.currency || "NGN",
+        amount: Math.round(currentBooking.totalPrice * 100), // Amount in kobo
+        currency: currentBooking.currency || "NGN",
         ref: response.reference,
         metadata: {
-          bookingId: booking.id,
-          propertyId: booking.propertyId,
+          bookingId: currentBooking.id,
+          propertyId: currentBooking.propertyId,
           userId: currentUser.id,
           custom_fields: [
             {
               display_name: "Booking ID",
               variable_name: "booking_id",
-              value: booking.id,
+              value: currentBooking.id,
             },
             {
               display_name: "Property",
               variable_name: "property_name",
-              value: booking.property?.name || "N/A",
+              value: currentBooking.property?.title || "N/A",
             },
           ],
         },
@@ -201,7 +329,7 @@ export default function PaymentPage() {
           setPaymentStatus("ready");
           setError("Payment was cancelled. Please try again when ready.");
         },
-        callback: function (paystackResponse: any) {
+        callback: function (paystackResponse: PaystackCallbackResponse) {
           
           
           
@@ -219,7 +347,14 @@ export default function PaymentPage() {
                 throw new Error("No reference found in Paystack response");
               }
 
-              
+              void paymentService.trackCheckoutEvent({
+                event: "PAYSTACK_CALLBACK_SUCCESS",
+                bookingId: currentBooking.id,
+                propertyId: currentBooking.propertyId,
+                context: {
+                  reference,
+                },
+              });
 
               // Verify payment with backend
               const verifyResponse = await paymentService.verifyPaystackPayment(
@@ -231,6 +366,14 @@ export default function PaymentPage() {
               
 
               if (verifyResponse.success) {
+                void paymentService.trackCheckoutEvent({
+                  event: "PAYMENT_VERIFIED",
+                  bookingId: verifyResponse.booking?.id || currentBooking.id,
+                  propertyId: currentBooking.propertyId,
+                  context: {
+                    reference,
+                  },
+                });
                 setPaymentStatus("success");
 
                 // Store payment metadata for success page
@@ -246,23 +389,34 @@ export default function PaymentPage() {
                 }
 
                 // Redirect directly to booking confirmation page
-                const bookingId = verifyResponse.booking?.id || booking.id;
+                const resolvedBookingId =
+                  verifyResponse.booking?.id || currentBooking.id;
                 setTimeout(() => {
-                  router.push(`/booking/confirmation/${bookingId}`);
+                  router.push(`/booking/confirmation/${resolvedBookingId}`);
                 }, 1500);
               } else {
                 throw new Error(
                   verifyResponse.message || "Payment verification failed"
                 );
               }
-            } catch (err: any) {
-              
-              
+            } catch (error: unknown) {
+              void paymentService.trackCheckoutEvent({
+                event: "PAYMENT_VERIFY_FAILED",
+                bookingId: currentBooking.id,
+                propertyId: currentBooking.propertyId,
+                context: {
+                  message: getErrorMessage(
+                    error,
+                    "verify_paystack_failed"
+                  ),
+                },
+              });
               setPaymentStatus("failed");
               setError(
-                err.response?.data?.message ||
-                  err.message ||
+                getErrorMessage(
+                  error,
                   "Payment completed but verification failed. Please contact support."
+                )
               );
             }
           };
@@ -271,16 +425,123 @@ export default function PaymentPage() {
         },
       });
 
+      void paymentService.trackCheckoutEvent({
+        event: "PAYSTACK_POPUP_OPENED",
+        bookingId: currentBooking.id,
+        propertyId: currentBooking.propertyId,
+      });
       handler.openIframe();
-    } catch (err: any) {
-      
+    } catch (error: unknown) {
       setPaymentStatus("failed");
       setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to initialize payment. Please try again."
+        getErrorMessage(error, "Failed to initialize payment. Please try again.")
       );
     }
+  };
+
+  const handleSavedMethodPayment = useCallback(async () => {
+    const currentBooking = booking;
+    if (!currentBooking || !selectedSavedMethodId) {
+      setError("No saved payment method selected.");
+      return;
+    }
+
+    setPaymentStatus("processing");
+    setError("");
+    void paymentService.trackCheckoutEvent({
+      event: "SAVED_METHOD_PAYMENT_ATTEMPT",
+      bookingId: currentBooking.id,
+      propertyId: currentBooking.propertyId,
+    });
+
+    try {
+      const result = await paymentService.payWithSavedMethod({
+        bookingId: currentBooking.id,
+        methodId: selectedSavedMethodId,
+      });
+
+      if (!result.success) {
+        throw new Error(result.message || "Saved method payment failed");
+      }
+
+      void paymentService.trackCheckoutEvent({
+        event: "SAVED_METHOD_PAYMENT_SUCCESS",
+        bookingId: result.booking?.id || currentBooking.id,
+        propertyId: currentBooking.propertyId,
+      });
+
+      setPaymentStatus("success");
+
+      if (result.payment && result.booking) {
+        localStorage.setItem(
+          "paystackPaymentMeta",
+          JSON.stringify({
+            paymentId: result.payment.id,
+            bookingId: result.booking.id,
+            reference: result.payment.reference,
+          })
+        );
+      }
+
+      const paidBookingId = result.booking?.id || currentBooking.id;
+      setTimeout(() => {
+        router.push(`/booking/confirmation/${paidBookingId}`);
+      }, 1200);
+    } catch (error: unknown) {
+      void paymentService.trackCheckoutEvent({
+        event: "SAVED_METHOD_PAYMENT_FAILED",
+        bookingId: currentBooking.id,
+        propertyId: currentBooking.propertyId,
+        context: {
+          message: getErrorMessage(error, "saved_method_payment_failed"),
+        },
+      });
+      setPaymentStatus("ready");
+      setError(
+        getErrorMessage(
+          error,
+          "Saved method payment failed. Please try Paystack checkout."
+        )
+      );
+    }
+  }, [booking, selectedSavedMethodId, router]);
+
+  useEffect(() => {
+    if (!shouldAutoPay || hasAutoPayTriggeredRef.current) {
+      return;
+    }
+    if (paymentStatus !== "ready" || loadingSavedMethods) {
+      return;
+    }
+    if (!booking) {
+      return;
+    }
+    if (!selectedSavedMethodId) {
+      setError(
+        "No saved card found for one-click rebooking. Choose a payment option below."
+      );
+      return;
+    }
+
+    hasAutoPayTriggeredRef.current = true;
+    void handleSavedMethodPayment();
+  }, [
+    shouldAutoPay,
+    paymentStatus,
+    loadingSavedMethods,
+    booking,
+    selectedSavedMethodId,
+    handleSavedMethodPayment,
+  ]);
+
+  const getSavedMethodLabel = (method: SavedPaymentMethod) => {
+    const brand = method.brand || "Card";
+    const last4 = method.last4 || "****";
+    const expiry =
+      method.expMonth && method.expYear
+        ? ` (exp ${method.expMonth}/${method.expYear})`
+        : "";
+    return `${brand} **** ${last4}${expiry}`;
   };
 
   const formatPrice = (price: number, currency: string = "NGN") => {
@@ -291,7 +552,7 @@ export default function PaymentPage() {
     }).format(price);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date) => {
     if (!dateString) return "Invalid Date";
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "Invalid Date";
@@ -324,23 +585,25 @@ export default function PaymentPage() {
       (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    const pricePerNight = booking.property?.pricePerNight || 0;
-    const subtotal = Number(pricePerNight) * nights;
+    const roomFee = Number(booking.roomFee ?? 0);
+    const cleaningFee = Number(booking.cleaningFee ?? 0);
+    const serviceFee = Number(booking.serviceFee ?? 0);
+    const securityDeposit = Number(booking.securityDeposit ?? 0);
 
-    // Get optional fees from property (set by realtor)
-    const serviceFee = booking.property?.serviceFee
-      ? Number(booking.property.serviceFee)
+    const fallbackPricePerNight = booking.property?.pricePerNight
+      ? Number(booking.property.pricePerNight)
       : 0;
-    const cleaningFee = booking.property?.cleaningFee
-      ? Number(booking.property.cleaningFee)
-      : 0;
-    const securityDeposit = booking.property?.securityDeposit
-      ? Number(booking.property.securityDeposit)
-      : 0;
+    const pricePerNight =
+      roomFee > 0 && nights > 0 ? roomFee / nights : fallbackPricePerNight;
 
-    const total =
-      booking.totalPrice ||
-      subtotal + serviceFee + cleaningFee + securityDeposit;
+    const subtotal = roomFee > 0 ? roomFee : Number(pricePerNight) * nights;
+
+    const total = Number(
+      (
+        booking.totalPrice ||
+        subtotal + serviceFee + cleaningFee + securityDeposit
+      ).toFixed(2)
+    );
 
     return {
       pricePerNight: Number(pricePerNight),
@@ -349,6 +612,10 @@ export default function PaymentPage() {
       serviceFee,
       cleaningFee,
       securityDeposit,
+      serviceFeeBreakdown: {
+        stayza: Number(booking.serviceFeeStayza || 0),
+        processing: Number(booking.serviceFeeProcessing || 0),
+      },
       taxes: 0, // MVP: No separate tax
       total,
       currency: booking.currency || "NGN",
@@ -356,6 +623,8 @@ export default function PaymentPage() {
   };
 
   const priceBreakdown = calculatePriceBreakdown();
+  const primaryImageUrl = getBookingImageUrl(booking);
+  const sensitiveDetailsUnlocked = Boolean(booking?.sensitiveDetailsUnlocked);
 
   // Loading state
   if (userLoading || paymentStatus === "loading") {
@@ -521,6 +790,14 @@ export default function PaymentPage() {
                   <p className="text-gray-600">
                     Secure payment for your booking
                   </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                      Verified Business
+                    </span>
+                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                      Secure Payment
+                    </span>
+                  </div>
                 </div>
 
                 {/* Booking Summary Card */}
@@ -535,16 +812,15 @@ export default function PaymentPage() {
                     Booking Summary
                   </h2>
                   <div className="space-y-4">
-                    {booking.property?.images?.[0] && (
+                    {primaryImageUrl && (
                       <div className="relative h-48 rounded-lg overflow-hidden">
-                        <img
-                          src={
-                            typeof booking.property.images[0] === "string"
-                              ? booking.property.images[0]
-                              : booking.property.images[0].url
-                          }
-                          alt={booking.property.title}
-                          className="w-full h-full object-cover"
+                        <Image
+                          src={primaryImageUrl}
+                          alt={booking.property?.title || "Property image"}
+                          fill
+                          unoptimized
+                          sizes="(max-width: 1024px) 100vw, 66vw"
+                          className="object-cover"
                         />
                       </div>
                     )}
@@ -552,10 +828,16 @@ export default function PaymentPage() {
                       <h3 className="text-lg font-semibold text-gray-900">
                         {booking.property?.title || "Property"}
                       </h3>
-                      {booking.property?.address && (
+                      {sensitiveDetailsUnlocked && booking.property?.address && (
                         <p className="text-gray-600 text-sm mt-1 flex items-start">
                           <MapPin className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
                           {booking.property.address}
+                        </p>
+                      )}
+                      {!sensitiveDetailsUnlocked && (
+                        <p className="text-amber-700 text-sm mt-1 flex items-start">
+                          <MapPin className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
+                          Exact address unlocks after payment confirmation.
                         </p>
                       )}
                     </div>
@@ -625,6 +907,64 @@ export default function PaymentPage() {
                       backgroundColor: `${brandColor}05`,
                     }}
                   >
+                    {loadingSavedMethods ? (
+                      <div className="mb-4 text-sm text-gray-600">
+                        Loading saved payment methods...
+                      </div>
+                    ) : savedMethods.length > 0 ? (
+                      <div
+                        className="mb-5 p-4 rounded-lg border"
+                        style={{
+                          borderColor: `${brandColor}30`,
+                          backgroundColor: "#ffffff",
+                        }}
+                      >
+                        <p
+                          className="text-sm font-semibold mb-2"
+                          style={{ color: secondaryColor }}
+                        >
+                          Express Checkout
+                        </p>
+                        <p className="text-xs text-gray-600 mb-3">
+                          Pay instantly with your saved card token.
+                        </p>
+                        <select
+                          value={selectedSavedMethodId}
+                          onChange={(e) =>
+                            setSelectedSavedMethodId(e.target.value)
+                          }
+                          className="w-full mb-3 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700"
+                        >
+                          {savedMethods.map((method) => (
+                            <option key={method.methodId} value={method.methodId}>
+                              {getSavedMethodLabel(method)}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={handleSavedMethodPayment}
+                          disabled={
+                            paymentStatus === "processing" ||
+                            !selectedSavedMethodId
+                          }
+                          className="w-full py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-md hover:shadow-lg"
+                          style={{ backgroundColor: secondaryColor }}
+                        >
+                          {paymentStatus === "processing" ? (
+                            <>
+                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="h-5 w-5 mr-2" />
+                              Pay with Saved Card
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ) : null}
+
                     <div className="flex items-center mb-4">
                       <div
                         className="w-12 h-12 rounded-lg flex items-center justify-center mr-4"
@@ -739,7 +1079,7 @@ export default function PaymentPage() {
                                 priceBreakdown.pricePerNight,
                                 priceBreakdown.currency
                               )}{" "}
-                              × {priceBreakdown.nights} nights
+                              Ã— {priceBreakdown.nights} nights
                             </span>
                             <span className="font-medium">
                               {formatPrice(
@@ -763,7 +1103,15 @@ export default function PaymentPage() {
 
                           {priceBreakdown.serviceFee > 0 && (
                             <div className="flex justify-between text-gray-700">
-                              <span className="text-sm">Service fee (2%)</span>
+                              <div>
+                                <span className="text-sm">Service fee</span>
+                                {(priceBreakdown.serviceFeeBreakdown.stayza > 0 ||
+                                  priceBreakdown.serviceFeeBreakdown.processing > 0) && (
+                                  <p className="text-xs text-gray-500">
+                                    Includes Stayza + processing fee
+                                  </p>
+                                )}
+                              </div>
                               <span className="font-medium">
                                 {formatPrice(
                                   priceBreakdown.serviceFee,
@@ -851,3 +1199,4 @@ export default function PaymentPage() {
     </div>
   );
 }
+

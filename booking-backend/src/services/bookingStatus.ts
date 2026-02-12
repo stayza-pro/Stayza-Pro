@@ -60,7 +60,7 @@ export const STATUS_TRANSITION_RULES: Partial<
 > = {
   [BookingStatus.ACTIVE]: {
     requiresPayment: true,
-    allowedPaymentStatuses: ["HELD", "RELEASED"],
+    allowedPaymentStatuses: ["HELD", "PARTIALLY_RELEASED", "SETTLED"],
     description: "Booking can only be activated when payment is held in escrow",
   },
   [BookingStatus.COMPLETED]: {

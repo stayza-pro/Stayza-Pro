@@ -5,7 +5,6 @@ import { prisma } from "@/config/database";
 import { authenticate } from "@/middleware/auth";
 import {
   addHours,
-  addMinutes,
   isPast,
   isFuture,
   differenceInMilliseconds,
@@ -125,7 +124,7 @@ router.get(
       throw new AppError("No payment found for this booking", 404);
     }
 
-    // Calculate fees - use actual values from payment, no fallback percentages
+    // Calculate fee fields from persisted snapshots (no inferred percentages)
     const roomFee =
       Number(booking.payment.roomFeeAmount) > 0
         ? Number(booking.payment.roomFeeAmount)
@@ -147,19 +146,33 @@ router.get(
         ? Number(booking.securityDeposit)
         : 0;
 
-    const serviceFee =
-      Number(booking.serviceFee) > 0
-        ? Number(booking.serviceFee)
-        : Number(booking.payment.serviceFeeAmount) > 0
-        ? Number(booking.payment.serviceFeeAmount)
-        : (roomFee + cleaningFee) * 0.02; // Fallback: 2% of room+cleaning
+    const serviceFee = Number(
+      booking.payment.serviceFeeAmount ?? booking.serviceFee ?? 0
+    );
 
-    const platformFee =
-      Number(booking.platformFee) > 0
-        ? Number(booking.platformFee)
-        : Number(booking.payment.platformFeeAmount) > 0
-        ? Number(booking.payment.platformFeeAmount)
-        : roomFee * 0.1; // Fallback: 10% of room fee
+    const effectiveRate = Math.min(
+      Math.max(
+        Number(
+          booking.payment.commissionEffectiveRate ??
+            booking.commissionEffectiveRate ??
+            0
+        ),
+        0
+      ),
+      1
+    );
+
+    const roomFeePlatformAmount = Number(
+      booking.payment.roomFeeSplitPlatformAmount ??
+        booking.payment.platformFeeAmount ??
+        booking.platformFee ??
+        roomFee * effectiveRate
+    );
+
+    const roomFeeRealtorAmount = Number(
+      booking.payment.roomFeeSplitRealtorAmount ??
+        roomFee - roomFeePlatformAmount
+    );
 
     // Calculate timers
     const checkInDate = new Date(booking.checkInDate);
@@ -181,21 +194,21 @@ router.get(
       ? new Date(booking.disputeWindowClosesAt)
       : depositRefundTime;
 
-    // Determine fund statuses based on actual release dates and booking status
+    // Determine fund statuses based on actual persisted split states.
     const roomFeeStatus =
-      booking.roomFeeReleaseEligibleAt && isPast(roomFeeReleaseTime)
-        ? "RELEASED"
-        : booking.status === "ACTIVE" || booking.status === "COMPLETED"
-        ? "HELD"
-        : "PENDING";
+      booking.payment.roomFeeSplitDone || Boolean(booking.payment.roomFeeReleasedAt)
+      ? "RELEASED"
+      : booking.payment.roomFeeInEscrow
+      ? "HELD"
+      : "PENDING";
 
-    const depositStatus =
-      booking.depositRefundEligibleAt && isPast(depositRefundTime)
-        ? booking.depositDeductionAmount &&
-          Number(booking.depositDeductionAmount) > 0
-          ? "DEDUCTED"
-          : "REFUNDED"
-        : "HELD";
+    const depositStatus = booking.payment.depositInEscrow
+      ? "HELD"
+      : booking.depositDeductionAmount && Number(booking.depositDeductionAmount) > 0
+      ? "DEDUCTED"
+      : booking.payment.depositRefunded
+      ? "REFUNDED"
+      : "RELEASED";
 
     // Fetch escrow events
     const escrowEvents = await prisma.escrowEvent.findMany({
@@ -217,35 +230,42 @@ router.get(
         roomFee: {
           status: roomFeeStatus,
           amount: roomFee,
-          realtorAmount: roomFee * 0.9,
-          platformAmount: roomFee * 0.1,
-          releasedAt: booking.roomFeeReleaseEligibleAt
-            ? new Date(booking.roomFeeReleaseEligibleAt).toISOString()
+          realtorAmount: Number(roomFeeRealtorAmount.toFixed(2)),
+          platformAmount: Number(roomFeePlatformAmount.toFixed(2)),
+          releasedAt: booking.payment.roomFeeReleasedAt
+            ? new Date(booking.payment.roomFeeReleasedAt).toISOString()
             : undefined,
         },
         cleaningFee: {
-          status: "RELEASED",
+          status: booking.payment.cleaningFeeReleasedToRealtor
+            ? "RELEASED"
+            : "PENDING",
           amount: cleaningFee,
-          releasedAt: (booking.cleaningFeeReleasedAt
-            ? new Date(booking.cleaningFeeReleasedAt)
-            : booking.payment.paidAt || new Date()
-          ).toISOString(),
+          releasedAt:
+            booking.cleaningFeeReleasedAt || booking.payment.paidAt
+              ? new Date(
+                  booking.cleaningFeeReleasedAt ||
+                    booking.payment.paidAt ||
+                    new Date()
+                ).toISOString()
+              : undefined,
         },
         securityDeposit: {
           status: depositStatus,
           amount: securityDeposit,
-          refundedAt:
-            booking.depositRefundEligibleAt && isPast(depositRefundTime)
-              ? depositRefundTime.toISOString()
-              : undefined,
+          refundedAt: booking.payment.depositReleasedAt
+            ? booking.payment.depositReleasedAt.toISOString()
+            : undefined,
         },
         serviceFee: {
-          status: "COLLECTED",
+          status: booking.payment.serviceFeeCollectedByPlatform
+            ? "COLLECTED"
+            : "PENDING",
           amount: serviceFee,
         },
         platformFee: {
           status: roomFeeStatus === "RELEASED" ? "COLLECTED" : "HELD",
-          amount: platformFee,
+          amount: Number(roomFeePlatformAmount.toFixed(2)),
         },
       },
 

@@ -1,6 +1,6 @@
 import express, { Response } from "express";
 import "multer";
-import { PropertyType } from "@prisma/client";
+import { Prisma, PropertyType } from "@prisma/client";
 import { prisma } from "@/config/database";
 import {
   AuthenticatedRequest,
@@ -9,7 +9,7 @@ import {
 } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { createPropertySchema, updatePropertySchema } from "@/utils/validation";
-import { uploadMultipleImages, deleteImage } from "@/utils/upload";
+import { uploadMultipleImages } from "@/utils/upload";
 import {
   authenticate,
   authorize,
@@ -20,6 +20,30 @@ import { upload } from "@/utils/upload";
 const router = express.Router();
 
 const MAX_PROPERTY_IMAGES = 8;
+
+const sanitizePublicProperty = <T extends Record<string, unknown>>(
+  property: T
+): T & {
+  sensitiveDetailsUnlocked: false;
+  serviceFee: null;
+} => {
+  const safeProperty = {
+    ...property,
+    address: null,
+    accessInstructions: null,
+    wifiName: null,
+    wifiPassword: null,
+    parkingInstructions: null,
+    // Deprecated: service fee is quote-driven by finance engine, not property-level.
+    serviceFee: null,
+    sensitiveDetailsUnlocked: false as const,
+  };
+
+  return safeProperty as T & {
+    sensitiveDetailsUnlocked: false;
+    serviceFee: null;
+  };
+};
 
 /**
  * @swagger
@@ -216,7 +240,7 @@ router.get(
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       isActive: true,
     };
 
@@ -224,9 +248,10 @@ router.get(
     if (country) where.country = { contains: country, mode: "insensitive" };
     if (type) where.type = type as PropertyType;
     if (minPrice || maxPrice) {
-      where.pricePerNight = {};
-      if (minPrice) where.pricePerNight.gte = parseFloat(minPrice);
-      if (maxPrice) where.pricePerNight.lte = parseFloat(maxPrice);
+      const priceFilter: { gte?: number; lte?: number } = {};
+      if (minPrice) priceFilter.gte = parseFloat(minPrice);
+      if (maxPrice) priceFilter.lte = parseFloat(maxPrice);
+      where.pricePerNight = priceFilter;
     }
     if (maxGuests) where.maxGuests = { gte: parseInt(maxGuests, 10) };
     if (amenities) {
@@ -285,7 +310,7 @@ router.get(
 
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
-        where,
+        where: where as Prisma.PropertyWhereInput,
         include: {
           images: {
             orderBy: {
@@ -310,11 +335,11 @@ router.get(
         skip,
         take: limitNum,
       }),
-      prisma.property.count({ where }),
+      prisma.property.count({ where: where as Prisma.PropertyWhereInput }),
     ]);
 
     const propertiesWithRatings = properties.map((property) => ({
-      ...property,
+      ...sanitizePublicProperty(property),
       averageRating: property.averageRating
         ? Number(property.averageRating)
         : 0,
@@ -408,16 +433,13 @@ router.get(
     }
 
     const propertyWithRating = {
-      ...property,
+      ...sanitizePublicProperty(property),
       pricePerNight: Math.round(Number(property.pricePerNight) * 100) / 100,
       cleaningFee: property.cleaningFee
         ? Math.round(Number(property.cleaningFee) * 100) / 100
         : null,
       securityDeposit: property.securityDeposit
         ? Math.round(Number(property.securityDeposit) * 100) / 100
-        : null,
-      serviceFee: property.serviceFee
-        ? Math.round(Number(property.serviceFee) * 100) / 100
         : null,
       averageRating: property.averageRating
         ? Number(property.averageRating)
@@ -1184,7 +1206,7 @@ router.get(
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
-    const where: any = { realtorId };
+    const where: Record<string, unknown> = { realtorId };
 
     if (location) {
       where.OR = [
@@ -1255,7 +1277,7 @@ router.get(
 
     const [properties, total] = await Promise.all([
       prisma.property.findMany({
-        where,
+        where: where as Prisma.PropertyWhereInput,
         include: {
           realtor: {
             select: {
@@ -1290,23 +1312,23 @@ router.get(
         take: limitNum,
       }),
       prisma.property.count({
-        where,
+        where: where as Prisma.PropertyWhereInput,
       }),
     ]);
 
-    const propertiesWithRatings = properties.map((property: any) => {
+    const propertiesWithRatings = properties.map((property) => {
       const averageRating =
         property.reviews && property.reviews.length > 0
           ? property.reviews.reduce(
-              (sum: number, review: any) => sum + review.rating,
+              (sum: number, review: { rating: number }) => sum + review.rating,
               0
             ) / property.reviews.length
           : 0;
 
       return {
-        ...property,
+        ...sanitizePublicProperty(property),
         averageRating: Math.round(averageRating * 10) / 10,
-        reviewCount: 0,
+        reviewCount: property._count?.reviews ?? 0,
       };
     });
 

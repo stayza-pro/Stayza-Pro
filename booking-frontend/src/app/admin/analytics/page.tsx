@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { AdminNavigation } from "@/components/admin/AdminNavigation";
 import {
   TrendingUp,
-  TrendingDown,
   Users,
   DollarSign,
   Building2,
@@ -12,9 +11,15 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
+  ShieldAlert,
+  type LucideIcon,
 } from "lucide-react";
-import { getAnalytics, PlatformAnalytics } from "@/services/adminService";
-import { getCommissionRate } from "@/services/settingsService";
+import {
+  getAnalytics,
+  getLeakageMetrics,
+  LeakageMetrics,
+  PlatformAnalytics,
+} from "@/services/adminService";
 import RevenueTracking from "@/components/admin/RevenueTracking";
 import toast from "react-hot-toast";
 import {
@@ -30,59 +35,67 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from "recharts";
 
 const COLORS = ["#3B82F6", "#F97316", "#10B981", "#EF4444", "#8B5CF6"];
+type TimeRange = "7d" | "30d" | "90d" | "1y";
+
+const getWindowDays = (timeRange: TimeRange): number => {
+  if (timeRange === "7d") return 7;
+  if (timeRange === "90d") return 90;
+  return 30;
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === "object" && error !== null) {
+    const maybeError = error as {
+      message?: string;
+      response?: { data?: { message?: string } };
+    };
+    return maybeError.response?.data?.message || maybeError.message || fallback;
+  }
+  return fallback;
+};
 
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [commissionRate, setCommissionRate] = useState<number>(0.07);
-  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "1y">(
-    "30d"
+  const [leakageMetrics, setLeakageMetrics] = useState<LeakageMetrics | null>(
+    null
   );
+  const [isLoading, setIsLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState<TimeRange>("30d");
 
-  useEffect(() => {
-    fetchAnalytics();
-    fetchCommissionRate();
-
-    // Auto-refresh every 60 seconds
-    const interval = setInterval(() => {
-      fetchAnalytics();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [timeRange]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await getAnalytics(timeRange);
+      const [data, leakage] = await Promise.all([
+        getAnalytics(timeRange),
+        getLeakageMetrics(getWindowDays(timeRange)),
+      ]);
       setAnalytics(data);
-      
-    } catch (error: any) {
-      
-      toast.error(error.response?.data?.message || "Failed to load analytics");
+      setLeakageMetrics(leakage);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to load analytics"));
       setAnalytics(null);
+      setLeakageMetrics(null);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [timeRange]);
 
-  const fetchCommissionRate = async () => {
-    try {
-      const rate = await getCommissionRate();
-      setCommissionRate(rate || 0.07);
-    } catch (error: any) {
-      
-      setCommissionRate(0.07);
-    }
-  };
+  useEffect(() => {
+    void fetchAnalytics();
+
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(() => {
+      void fetchAnalytics();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [fetchAnalytics]);
 
   const handleRefresh = () => {
-    fetchAnalytics();
-    fetchCommissionRate();
+    void fetchAnalytics();
     toast.success("Analytics data refreshed!");
   };
 
@@ -98,10 +111,9 @@ export default function AnalyticsPage() {
   };
 
   // Safe data extraction with fallbacks
-  const safeValue = (value: any, fallback: any = 0) => {
-    return value !== null && value !== undefined && !isNaN(value)
-      ? value
-      : fallback;
+  const safeNumber = (value: unknown, fallback = 0): number => {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : fallback;
   };
 
   const monthlyRevenue = Array.isArray(analytics?.trends?.monthlyRevenue)
@@ -116,8 +128,8 @@ export default function AnalyticsPage() {
     const bookingData = monthlyBookings.find((b) => b.month === trend.month);
     return {
       name: trend.month || "Unknown",
-      revenue: safeValue(parseFloat(trend.revenue?.toString() || "0"), 0),
-      bookings: safeValue(bookingData?.bookings, 0),
+      revenue: safeNumber(trend.revenue, 0),
+      bookings: safeNumber(bookingData?.bookings, 0),
     };
   });
 
@@ -128,11 +140,11 @@ export default function AnalyticsPage() {
       : []
   ).map((status) => ({
     name: status.status || "Pending",
-    value: safeValue(status.count, 0),
+    value: safeNumber(status.count, 0),
   }));
 
   // Calculate all growth metrics from real data
-  const revenueGrowth = safeValue(analytics?.overview.revenueGrowth, 0);
+  const revenueGrowth = safeNumber(analytics?.overview.revenueGrowth, 0);
 
   // Calculate bookings growth from trends data
   const bookingsGrowth = (() => {
@@ -147,17 +159,33 @@ export default function AnalyticsPage() {
 
   // Calculate realtors growth (active vs total)
   const realtorsGrowth = (() => {
-    const total = safeValue(analytics?.overview.totalRealtors, 0);
-    const active = safeValue(analytics?.overview.activeRealtors, 0);
+    const total = safeNumber(analytics?.overview.totalRealtors, 0);
+    const active = safeNumber(analytics?.overview.activeRealtors, 0);
     return total > 0 ? (active / total) * 100 - 50 : 0; // Relative to 50% baseline
   })();
 
   // Calculate properties growth (active vs total)
   const propertiesGrowth = (() => {
-    const total = safeValue(analytics?.overview.totalProperties, 0);
-    const active = safeValue(analytics?.overview.activeProperties, 0);
+    const total = safeNumber(analytics?.overview.totalProperties, 0);
+    const active = safeNumber(analytics?.overview.activeProperties, 0);
     return total > 0 ? (active / total) * 100 - 70 : 0; // Relative to 70% baseline
   })(); // Metric Card Component
+
+  const overviewWithCommission = analytics?.overview as
+    | (PlatformAnalytics["overview"] & {
+        platformCommission?: number | string;
+        totalCommissions?: number | string;
+        commissionEarned?: number | string;
+      })
+    | undefined;
+
+  const actualCommissionEarned = safeNumber(
+    overviewWithCommission?.platformCommission ??
+      overviewWithCommission?.totalCommissions ??
+      overviewWithCommission?.commissionEarned ??
+      0,
+    0
+  );
   const MetricCard = ({
     title,
     value,
@@ -168,7 +196,7 @@ export default function AnalyticsPage() {
   }: {
     title: string;
     value: string | number;
-    icon: any;
+    icon: LucideIcon;
     trend?: "up" | "down";
     trendValue?: number;
     color: string;
@@ -267,7 +295,7 @@ export default function AnalyticsPage() {
               <MetricCard
                 title="Total Revenue"
                 value={formatCurrency(
-                  safeValue(analytics?.overview.totalRevenue, "0")
+                  safeNumber(analytics?.overview.totalRevenue, 0)
                 )}
                 icon={DollarSign}
                 trend={revenueGrowth >= 0 ? "up" : "down"}
@@ -276,7 +304,7 @@ export default function AnalyticsPage() {
               />
               <MetricCard
                 title="Total Bookings"
-                value={safeValue(analytics?.overview.totalBookings, 0)}
+                value={safeNumber(analytics?.overview.totalBookings, 0)}
                 icon={Calendar}
                 trend={bookingsGrowth >= 0 ? "up" : "down"}
                 trendValue={bookingsGrowth}
@@ -284,7 +312,7 @@ export default function AnalyticsPage() {
               />
               <MetricCard
                 title="Active Realtors"
-                value={safeValue(analytics?.overview.activeRealtors, 0)}
+                value={safeNumber(analytics?.overview.activeRealtors, 0)}
                 icon={Users}
                 trend={realtorsGrowth >= 0 ? "up" : "down"}
                 trendValue={realtorsGrowth}
@@ -292,7 +320,7 @@ export default function AnalyticsPage() {
               />
               <MetricCard
                 title="Listed Properties"
-                value={safeValue(analytics?.overview.totalProperties, 0)}
+                value={safeNumber(analytics?.overview.totalProperties, 0)}
                 icon={Building2}
                 trend={propertiesGrowth >= 0 ? "up" : "down"}
                 trendValue={propertiesGrowth}
@@ -302,6 +330,85 @@ export default function AnalyticsPage() {
 
             {/* Revenue Tracking Component */}
             <RevenueTracking />
+
+            {/* Leakage Monitoring */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Leakage Monitoring
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Drop-off and repeat booking retention signals
+                  </p>
+                </div>
+                <ShieldAlert className="w-5 h-5 text-amber-600" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">Checkout Starts</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {safeNumber(leakageMetrics?.startedCheckouts, 0)}
+                  </p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">Payment Conversion</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {safeNumber(leakageMetrics?.conversionRate, 0).toFixed(1)}%
+                  </p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">Abandonment Rate</p>
+                  <p className="text-2xl font-bold text-amber-700">
+                    {safeNumber(leakageMetrics?.abandonmentRate, 0).toFixed(1)}%
+                  </p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">
+                    Repeat Guests Dropped
+                  </p>
+                  <p className="text-2xl font-bold text-red-700">
+                    {safeNumber(leakageMetrics?.repeatGuestsDroppedOff, 0)}
+                  </p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">
+                    Checkout to Payment Drop-off
+                  </p>
+                  <p className="text-2xl font-bold text-amber-700">
+                    {safeNumber(
+                      leakageMetrics?.checkoutToPaymentDropOffRate,
+                      0
+                    ).toFixed(1)}
+                    %
+                  </p>
+                </div>
+                <div className="bg-orange-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">
+                    Payment to Success Drop-off
+                  </p>
+                  <p className="text-2xl font-bold text-orange-700">
+                    {safeNumber(
+                      leakageMetrics?.paymentToSuccessDropOffRate,
+                      0
+                    ).toFixed(1)}
+                    %
+                  </p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-1">
+                    Saved Method Successes
+                  </p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {safeNumber(
+                      leakageMetrics?.funnel?.savedMethodSuccesses,
+                      0
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -399,11 +506,17 @@ export default function AnalyticsPage() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }: any) => {
+                      label={({
+                        name,
+                        percent,
+                      }: {
+                        name?: string;
+                        percent?: number;
+                      }) => {
                         const displayName = name || "Unknown";
-                        const displayPercent = isNaN(percent)
+                        const displayPercent = isNaN(percent || 0)
                           ? 0
-                          : (percent * 100).toFixed(0);
+                          : ((percent || 0) * 100).toFixed(0);
                         return `${displayName} ${displayPercent}%`;
                       }}
                       outerRadius={80}
@@ -435,9 +548,9 @@ export default function AnalyticsPage() {
                     <p className="text-2xl font-bold text-blue-600">
                       {(() => {
                         const totalRevenue = parseFloat(
-                          safeValue(analytics?.overview.totalRevenue, "0")
+                          String(safeNumber(analytics?.overview.totalRevenue, 0))
                         );
-                        const totalBookings = safeValue(
+                        const totalBookings = safeNumber(
                           analytics?.overview.totalBookings,
                           0
                         );
@@ -452,13 +565,7 @@ export default function AnalyticsPage() {
                       Commission Earned
                     </p>
                     <p className="text-2xl font-bold text-green-600">
-                      {(() => {
-                        const totalRevenue = parseFloat(
-                          safeValue(analytics?.overview.totalRevenue, "0")
-                        );
-                        const commission = totalRevenue * commissionRate;
-                        return formatCurrency(commission);
-                      })()}
+                      {formatCurrency(actualCommissionEarned)}
                     </p>
                   </div>
                   <div className="bg-purple-50 rounded-lg p-4">
@@ -466,7 +573,7 @@ export default function AnalyticsPage() {
                       Pending Approvals
                     </p>
                     <p className="text-2xl font-bold text-purple-600">
-                      {safeValue(analytics?.overview.pendingRealtors, 0)}
+                      {safeNumber(analytics?.overview.pendingRealtors, 0)}
                     </p>
                   </div>
                   <div className="bg-orange-50 rounded-lg p-4">
@@ -474,7 +581,7 @@ export default function AnalyticsPage() {
                       Completed Bookings
                     </p>
                     <p className="text-2xl font-bold text-orange-600">
-                      {safeValue(analytics?.overview.completedBookings, 0)}
+                      {safeNumber(analytics?.overview.completedBookings, 0)}
                     </p>
                   </div>
                 </div>

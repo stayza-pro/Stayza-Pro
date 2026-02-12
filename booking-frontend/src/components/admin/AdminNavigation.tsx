@@ -38,7 +38,7 @@ const navigationItems = [
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
   { name: "Waitlist", href: "/admin/waitlist", icon: UserPlus },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: DollarSign },
-  { name: "Commission", href: "/admin/commission", icon: DollarSign },
+  { name: "Finance", href: "/admin/settings", icon: DollarSign },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { name: "System Health", href: "/admin/system-health", icon: Activity },

@@ -9,7 +9,7 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("��� Starting database seeding...");
+  console.log("Starting database seeding...");
 
   // Clear existing data
   await prisma.review.deleteMany({});
@@ -18,7 +18,7 @@ async function main() {
   await prisma.propertyImage.deleteMany({});
   await prisma.property.deleteMany({});
   await prisma.realtor.deleteMany({});
-  await prisma.platformSettings.deleteMany({}); // Delete settings first to avoid foreign key constraints
+  await prisma.platformSettings.deleteMany({});
   await prisma.user.deleteMany({});
 
   // Create passwords
@@ -48,7 +48,6 @@ async function main() {
       lastName: "Anderson",
       role: UserRole.REALTOR,
       isEmailVerified: true,
-
       businessAddress: "1847 Union Street, San Francisco, CA 94123",
     },
   });
@@ -67,7 +66,7 @@ async function main() {
   });
 
   // Create guest user
-  const guest = await prisma.user.create({
+  await prisma.user.create({
     data: {
       email: "mike.guest@example.com",
       password: hashedPassword,
@@ -118,21 +117,97 @@ async function main() {
     data: [
       {
         key: "commission_rate",
-        value: 0.07, // 7% commission
-        description: "Platform commission rate for successful bookings",
+        value: 0.07,
+        description: "Legacy platform commission rate for successful bookings",
         category: "commission",
         updatedBy: admin.id,
       },
       {
+        key: "finance.commission.tiers.v1",
+        value: [
+          { min: 0, max: 500000, rate: 0.1 },
+          { min: 500001, max: 2000000, rate: 0.07 },
+          { min: 2000001, max: null, rate: 0.05 },
+        ],
+        description: "Financial Engine V2 commission tiers",
+        category: "commission",
+        updatedBy: admin.id,
+      },
+      {
+        key: "finance.commission.monthly_discounts.v1",
+        value: [
+          { volume: 5000000, reductionRate: 0.005 },
+          { volume: 10000000, reductionRate: 0.01 },
+          { volume: 20000000, reductionRate: 0.015 },
+        ],
+        description:
+          "Financial Engine V2 monthly room-fee volume discounts (highest threshold only)",
+        category: "commission",
+        updatedBy: admin.id,
+      },
+      {
+        key: "finance.commission.monthly_discount_cap_rate",
+        value: 0.02,
+        description: "Financial Engine V2 monthly discount cap rate",
+        category: "commission",
+        updatedBy: admin.id,
+      },
+      {
+        key: "finance.service_fee.stayza.v1",
+        value: {
+          percent: 0.01,
+          fixed: 100,
+          capVariable: 1333,
+          capTrigger: 133333,
+        },
+        description: "Financial Engine V2 stayza service fee component",
+        category: "commission",
+        updatedBy: admin.id,
+      },
+      {
+        key: "finance.service_fee.processing.local.v1",
+        value: {
+          percent: 0.015,
+          fixed: 100,
+          capVariable: 2000,
+          capTrigger: 133333,
+        },
+        description: "Financial Engine V2 local processing fee component",
+        category: "commission",
+        updatedBy: admin.id,
+      },
+      {
+        key: "finance.service_fee.processing.international.v1",
+        value: {
+          percent: 0.039,
+          fixed: 100,
+          noCap: true,
+        },
+        description: "Financial Engine V2 international processing fee component",
+        category: "commission",
+        updatedBy: admin.id,
+      },
+      {
+        key: "finance.withdrawal_fee.v1",
+        value: {
+          percent: 0.003,
+          cap: 3000,
+          minimumWithdrawal: 1000,
+        },
+        description: "Financial Engine V2 withdrawal fee configuration",
+        category: "payout",
+        updatedBy: admin.id,
+      },
+      {
         key: "payout_threshold",
-        value: 10000, // ₦10,000 minimum payout
+        value: 10000,
         description: "Minimum amount required before payout processing",
         category: "payout",
         updatedBy: admin.id,
       },
       {
         key: "booking_cancellation_window",
-        value: 24, // 24 hours
+        value: 24,
         description: "Hours before check-in when free cancellation ends",
         category: "booking",
         updatedBy: admin.id,
@@ -154,15 +229,15 @@ async function main() {
     ],
   });
 
-  console.log("✅ Database seeding completed!");
+  console.log("Database seeding completed");
   console.log(
-    "Created: 1 admin, 1 realtor, 1 guest, 1 property with images, 5 platform settings"
+    "Created: 1 admin, 1 realtor, 1 guest, 1 property with images, 12 platform settings"
   );
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Error during seeding:", e);
+    console.error("Error during seeding:", e);
     process.exit(1);
   })
   .finally(async () => {

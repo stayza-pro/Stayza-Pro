@@ -376,9 +376,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             </span>
 
             {/* Optional Fees Display */}
-            {(property.serviceFee ||
-              property.cleaningFee ||
-              property.securityDeposit) && (
+            {(property.cleaningFee || property.securityDeposit) && (
               <div
                 style={{
                   marginTop: "0.5rem",
@@ -386,12 +384,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                   color: `${effectiveSecondaryColor}99`,
                 }}
               >
-                {property.serviceFee && (
-                  <div>
-                    + {formatPrice(property.serviceFee, property.currency)}{" "}
-                    service fee
-                  </div>
-                )}
                 {property.cleaningFee && (
                   <div>
                     + {formatPrice(property.cleaningFee, property.currency)}{" "}

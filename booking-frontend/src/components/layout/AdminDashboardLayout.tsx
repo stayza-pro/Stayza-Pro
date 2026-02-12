@@ -42,8 +42,8 @@ const navigationItems = [
     icon: FileCheck,
   },
   {
-    name: "Commission",
-    href: "/admin/commission",
+    name: "Finance",
+    href: "/admin/settings",
     icon: DollarSign,
   },
   {

@@ -28,6 +28,9 @@ export interface WithdrawalRequest {
   walletId: string;
   realtorId: string;
   amount: number;
+  feeAmount?: number;
+  netAmount?: number;
+  feeConfigVersion?: string;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED";
   requestedAt: string;
   processedAt?: string;
@@ -53,11 +56,20 @@ export interface EarningsSummary {
   totalEarnings: number;
 }
 
+export interface WithdrawalFeePreview {
+  requestedAmount: number;
+  feeAmount: number;
+  netAmount: number;
+  capApplied: boolean;
+  minimumWithdrawal: number;
+}
+
 export interface WithdrawalOtpChallenge {
   amount: number;
   maskedEmail: string;
   expiresInMinutes: number;
   legacyFlow?: boolean;
+  fee?: WithdrawalFeePreview;
 }
 
 /**
@@ -144,6 +156,16 @@ export const requestWithdrawalOtp = async (
 };
 
 /**
+ * Preview withdrawal fee and net transfer
+ */
+export const previewWithdrawal = async (
+  amount: number
+): Promise<WithdrawalFeePreview> => {
+  const response = await api.post("/wallets/withdraw/preview", { amount });
+  return response.data.data;
+};
+
+/**
  * Confirm withdrawal using OTP
  */
 export const confirmWithdrawal = async (
@@ -191,6 +213,7 @@ export const getEarningsSummary = async (): Promise<EarningsSummary> => {
 const walletService = {
   getWalletBalance,
   getWalletTransactions,
+  previewWithdrawal,
   requestWithdrawal,
   requestWithdrawalOtp,
   confirmWithdrawal,

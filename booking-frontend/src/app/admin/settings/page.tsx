@@ -124,12 +124,18 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
 
   const renderCategoryContent = () => {
     const categorySettings = settings[activeTab] || [];
+    const commissionSettings = [
+      ...categorySettings,
+      ...(settings.payout || []).filter(
+        (setting) => setting.key === "finance.withdrawal_fee.v1"
+      ),
+    ];
 
     switch (activeTab) {
       case "commission":
         return (
           <CommissionSettings
-            settings={categorySettings}
+            settings={commissionSettings}
             onUpdate={handleSettingUpdate}
             onSaveSuccess={handleSaveSuccess}
             onSaveError={handleSaveError}
