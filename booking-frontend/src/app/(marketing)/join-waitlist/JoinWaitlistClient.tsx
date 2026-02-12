@@ -83,9 +83,9 @@ export function JoinWaitlistClient() {
     },
     {
       icon: DollarSign,
-      title: "10% Commission Only",
+      title: "Transparent Pricing",
       description:
-        "Free platform access with unlimited property listings. Earn 90% of every booking after checkout.",
+        "Free platform access with unlimited property listings and booking-level payout previews before confirmation.",
     },
     {
       icon: TrendingUp,
@@ -112,7 +112,7 @@ export function JoinWaitlistClient() {
       icon: Clock,
       title: "Escrow-Protected Payouts",
       description:
-        "Paystack escrow holds funds securely. You get 90% after checkout, platform takes 10%—all automatic.",
+        "Paystack escrow holds funds securely, then releases payouts based on the configured commission model.",
     },
     {
       icon: BarChart3,
@@ -124,7 +124,7 @@ export function JoinWaitlistClient() {
       icon: DollarSign,
       title: "Unlimited Properties",
       description:
-        "List unlimited properties with up to 10 photos each. No subscription fees, just 10% commission.",
+        "List unlimited properties with up to 10 photos each and keep pricing fully transparent to guests.",
     },
   ];
 
@@ -136,16 +136,16 @@ export function JoinWaitlistClient() {
         "Join hundreds of Nigerian property professionals preparing to launch their branded booking sites.",
     },
     {
-      name: "10% Commission",
-      role: "No Hidden Fees",
+      name: "Transparent Fees",
+      role: "No Hidden Charges",
       content:
-        "Keep 90% of your room fees plus 100% of cleaning fees. Only pay when you earn.",
+        "Commission tiers and guest service fees are shown before payment confirmation. No surprise deductions.",
     },
     {
       name: "Escrow Protection",
       role: "Secure Payments",
       content:
-        "Paystack escrow holds funds until checkout, then automatically splits: 90% to you, 10% platform fee.",
+        "Paystack escrow holds funds until release milestones, then applies the booking snapshot split automatically.",
     },
   ];
 
@@ -212,12 +212,12 @@ export function JoinWaitlistClient() {
                   <div className="text-white/70 text-sm">On Waitlist</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl md:text-5xl font-bold">10%</div>
-                  <div className="text-white/70 text-sm">Commission Only</div>
+                  <div className="text-4xl md:text-5xl font-bold">Tiered</div>
+                  <div className="text-white/70 text-sm">Commission</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl md:text-5xl font-bold">90%</div>
-                  <div className="text-white/70 text-sm">You Keep</div>
+                  <div className="text-4xl md:text-5xl font-bold">Live</div>
+                  <div className="text-white/70 text-sm">Payout Preview</div>
                 </div>
               </motion.div>
             </motion.div>

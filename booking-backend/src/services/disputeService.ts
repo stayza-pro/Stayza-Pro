@@ -55,17 +55,75 @@ const getMaxRefundPercent = (category: DisputeCategory): number => {
 
 const clampRate = (value: number): number => Math.min(Math.max(value, 0), 1);
 
+const toNumericOrNull = (
+  value: Prisma.Decimal | number | null | undefined
+): number | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const numeric =
+    value instanceof Prisma.Decimal ? value.toNumber() : Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const deriveRateFromAmounts = (
+  platformAmount: Prisma.Decimal | number | null | undefined,
+  roomFeeAmount: Prisma.Decimal | number | null | undefined
+): number | null => {
+  const platform = toNumericOrNull(platformAmount);
+  const roomFee = toNumericOrNull(roomFeeAmount);
+  if (platform === null || roomFee === null || roomFee <= 0) {
+    return null;
+  }
+
+  return clampRate(platform / roomFee);
+};
+
 const getEffectiveCommissionRate = (params: {
-  payment?: { commissionEffectiveRate?: Prisma.Decimal | null } | null;
-  booking?: { commissionEffectiveRate?: Prisma.Decimal | null } | null;
+  payment?: {
+    commissionEffectiveRate?: Prisma.Decimal | null;
+    roomFeeAmount?: Prisma.Decimal | null;
+    roomFeeSplitPlatformAmount?: Prisma.Decimal | null;
+    platformFeeAmount?: Prisma.Decimal | null;
+  } | null;
+  booking?: {
+    commissionEffectiveRate?: Prisma.Decimal | null;
+    roomFee?: Prisma.Decimal | null;
+    platformFee?: Prisma.Decimal | null;
+  } | null;
 }): number => {
-  const rawRate =
-    params.payment?.commissionEffectiveRate ??
-    params.booking?.commissionEffectiveRate ??
-    new Prisma.Decimal(0.1);
-  const numericRate =
-    rawRate instanceof Prisma.Decimal ? rawRate.toNumber() : Number(rawRate);
-  return clampRate(Number.isFinite(numericRate) ? numericRate : 0.1);
+  const directRate =
+    toNumericOrNull(params.payment?.commissionEffectiveRate) ??
+    toNumericOrNull(params.booking?.commissionEffectiveRate);
+  if (directRate !== null) {
+    return clampRate(directRate);
+  }
+
+  const paymentDerived =
+    deriveRateFromAmounts(
+      params.payment?.roomFeeSplitPlatformAmount,
+      params.payment?.roomFeeAmount
+    ) ??
+    deriveRateFromAmounts(
+      params.payment?.platformFeeAmount,
+      params.payment?.roomFeeAmount
+    );
+  if (paymentDerived !== null) {
+    return paymentDerived;
+  }
+
+  const bookingDerived = deriveRateFromAmounts(
+    params.booking?.platformFee,
+    params.booking?.roomFee
+  );
+  if (bookingDerived !== null) {
+    return bookingDerived;
+  }
+
+  throw new Error(
+    "Missing commission snapshot for dispute resolution. Backfill booking/payment commissionEffectiveRate."
+  );
 };
 
 /**

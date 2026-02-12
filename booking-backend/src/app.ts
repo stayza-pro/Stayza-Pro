@@ -384,41 +384,51 @@ const PORT = config.PORT;
 if (require.main === module) {
   // Setup global error handlers
   setupGlobalErrorHandlers();
+  const bootstrap = async () => {
+    await loadFinanceConfig();
 
-  const server = app.listen(PORT, () => {
-    logger.info(`Server started on port ${PORT}`);
-  });
+    const server = app.listen(PORT, () => {
+      logger.info(`Server started on port ${PORT}`);
+    });
 
-  // Initialize NotificationService with Socket.io
-  NotificationService.initialize(server);
+    // Initialize NotificationService with Socket.io
+    NotificationService.initialize(server);
 
-  // Start unpaid booking auto-cancellation cron
-  startUnpaidBookingCron();
+    // Start unpaid booking auto-cancellation cron
+    startUnpaidBookingCron();
 
-  // Start escrow job scheduler
-  initializeScheduledJobs();
+    // Start escrow job scheduler
+    initializeScheduledJobs();
 
-  // Rehydrate scheduled booking message automation after restart
-  SystemMessageService.rehydrateScheduledMessages().catch((error) => {
-    logger.error("System message rehydration failed", { error });
-  });
+    // Rehydrate scheduled booking message automation after restart
+    SystemMessageService.rehydrateScheduledMessages().catch((error) => {
+      logger.error("System message rehydration failed", { error });
+    });
 
-  // Rehydrate periodically to cover runtime restarts/timeouts
-  cron.schedule("*/30 * * * *", async () => {
-    try {
-      await SystemMessageService.rehydrateScheduledMessages();
-    } catch (error) {
-      logger.error("System message periodic rehydration failed", { error });
-    }
-  });
+    // Rehydrate periodically to cover runtime restarts/timeouts
+    cron.schedule("*/30 * * * *", async () => {
+      try {
+        await SystemMessageService.rehydrateScheduledMessages();
+      } catch (error) {
+        logger.error("System message periodic rehydration failed", { error });
+      }
+    });
 
-  // Check-in Fallback Job (every 5 minutes)
-  cron.schedule("*/5 * * * *", async () => {
-    try {
-      await processCheckinFallbacks();
-    } catch (error) {
-      logger.error("Check-in Fallback Job failed", { error });
-    }
+    // Check-in Fallback Job (every 5 minutes)
+    cron.schedule("*/5 * * * *", async () => {
+      try {
+        await processCheckinFallbacks();
+      } catch (error) {
+        logger.error("Check-in Fallback Job failed", { error });
+      }
+    });
+  };
+
+  bootstrap().catch((error) => {
+    logger.error("Server bootstrap failed", {
+      error: error instanceof Error ? error.message : error,
+    });
+    process.exit(1);
   });
 }
 

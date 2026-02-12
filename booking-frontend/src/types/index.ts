@@ -63,7 +63,7 @@ export type StayStatus =
 export type PaymentStatus =
   | "INITIATED" // Payment process started
   | "HELD" // Escrow holding funds (room fee + deposit)
-  | "PARTIALLY_RELEASED" // Room fee released (90/10 split), deposit still in escrow
+  | "PARTIALLY_RELEASED" // Room fee released using booking snapshot commission, deposit still in escrow
   | "SETTLED" // All money distributed (booking completed)
   | "REFUNDED" // Cancellation refunds processed
   | "FAILED"; // Payment failed

@@ -1,5 +1,3 @@
-import { prisma } from "@/config/database";
-import { AppError } from "@/middleware/errorHandler";
 import { Booking, RefundTier } from "@prisma/client";
 
 export interface RefundCalculation {
@@ -43,9 +41,41 @@ const TIER_SPLITS = {
   EARLY: { customer: 0.9, realtor: 0.07, platform: 0.03 },
   MEDIUM: { customer: 0.7, realtor: 0.2, platform: 0.1 },
   LATE: { customer: 0.0, realtor: 0.8, platform: 0.2 },
-  // After check-in, customer gets no room-fee refund.
-  // If an admin/system flow applies this tier, room-fee ownership defaults to normal 90/10 split.
-  NONE: { customer: 0.0, realtor: 0.9, platform: 0.1 },
+};
+
+const clampRate = (value: number): number => Math.min(Math.max(value, 0), 1);
+
+const resolveNoRefundSplit = (booking: Booking) => {
+  const roomFee = Number(booking.roomFee);
+  if (roomFee <= 0) {
+    return { customer: 0, realtor: 0, platform: 0 };
+  }
+
+  const directRate =
+    booking.commissionEffectiveRate !== null
+      ? Number(booking.commissionEffectiveRate)
+      : null;
+  if (directRate !== null && Number.isFinite(directRate)) {
+    const platformRate = clampRate(directRate);
+    return {
+      customer: 0,
+      realtor: 1 - platformRate,
+      platform: platformRate,
+    };
+  }
+
+  const platformFee = Number(booking.platformFee ?? 0);
+  if (platformFee > 0) {
+    const platformRate = clampRate(platformFee / roomFee);
+    return {
+      customer: 0,
+      realtor: 1 - platformRate,
+      platform: platformRate,
+    };
+  }
+
+  // Legacy data without snapshots: avoid hidden hardcoded defaults.
+  return { customer: 0, realtor: 1, platform: 0 };
 };
 
 /**
@@ -85,7 +115,8 @@ export function calculateCancellationRefund({
     reason = `Cancellation after check-in time`;
   }
 
-  const split = TIER_SPLITS[tier];
+  const split =
+    tier === RefundTier.NONE ? resolveNoRefundSplit(booking) : TIER_SPLITS[tier];
 
   // Extract fee components
   const roomFee = Number(booking.roomFee);

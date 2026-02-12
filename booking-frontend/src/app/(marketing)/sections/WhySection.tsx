@@ -14,7 +14,7 @@ export function WhySection() {
           />
           <div className="flex flex-wrap gap-4 pt-4">
             <MetricPill value="100%" label="Brand front and center" />
-            <MetricPill value="Auto-split" label="90/10 escrow payouts" />
+            <MetricPill value="Auto-split" label="Config-driven escrow payouts" />
             <MetricPill value="1 link" label="Bookings, payments, receipts" />
           </div>
         </div>

@@ -124,7 +124,7 @@ export default function PrivacyPage() {
       items: [
         "Paystack subaccount details",
         "Transaction and escrow records",
-        "Commission splits (90/10)",
+        "Booking-level commission and payout snapshots",
         "Refund and payout history",
       ],
     },

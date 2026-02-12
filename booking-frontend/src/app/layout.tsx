@@ -72,7 +72,8 @@ export default function RootLayout({
                 "@type": "Offer",
                 price: "0",
                 priceCurrency: "NGN",
-                description: "10% commission on bookings only",
+                description:
+                  "No subscription fees with transparent, booking-level commission and payout previews",
               },
               aggregateRating: {
                 "@type": "AggregateRating",

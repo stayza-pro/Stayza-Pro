@@ -19,6 +19,9 @@ export interface PlatformAnalytics {
     pendingBookings: number;
     cancelledBookings: number;
     totalRevenue: string;
+    platformCommission?: string;
+    totalCommissions?: string;
+    commissionEarned?: string;
     revenueGrowth: number;
     averageRating: number;
     totalReviews: number;

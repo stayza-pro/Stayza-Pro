@@ -2,14 +2,170 @@ import express, { Response } from "express";
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
 import { asyncHandler } from "@/middleware/errorHandler";
-import { PaymentStatus } from "@prisma/client";
-import {
-  getPlatformCommissionReport as generatePlatformReport,
-  getRealtorCommissionReport as generateRealtorReport,
-} from "@/services/commission";
+import { PaymentStatus, Prisma } from "@prisma/client";
 import { loadFinanceConfig } from "@/services/financeConfig";
 
 const router = express.Router();
+
+const COMMISSION_REPORT_STATUSES: PaymentStatus[] = [
+  PaymentStatus.PARTIALLY_RELEASED,
+  PaymentStatus.SETTLED,
+];
+
+const paymentReportSelect = {
+  amount: true,
+  roomFeeSplitRealtorAmount: true,
+  realtorEarnings: true,
+  roomFeeSplitPlatformAmount: true,
+  platformFeeAmount: true,
+  platformCommission: true,
+  roomFeeSplitDone: true,
+  commissionPaidOut: true,
+  booking: {
+    select: {
+      property: {
+        select: {
+          realtorId: true,
+        },
+      },
+    },
+  },
+} as const;
+
+type PaymentReportRow = Prisma.PaymentGetPayload<{
+  select: typeof paymentReportSelect;
+}>;
+
+const toNumber = (value: unknown): number => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const getRealtorEarningsAmount = (payment: PaymentReportRow): number => {
+  return toNumber(
+    payment.roomFeeSplitRealtorAmount ?? payment.realtorEarnings ?? 0
+  );
+};
+
+const getPlatformCommissionAmount = (payment: PaymentReportRow): number => {
+  return toNumber(
+    payment.roomFeeSplitPlatformAmount ??
+      payment.platformFeeAmount ??
+      payment.platformCommission ??
+      0
+  );
+};
+
+const generatePlatformReport = async (startDate?: Date, endDate?: Date) => {
+  const whereClause: Prisma.PaymentWhereInput = {
+    status: {
+      in: COMMISSION_REPORT_STATUSES,
+    },
+  };
+
+  if (startDate || endDate) {
+    whereClause.createdAt = {};
+    if (startDate) whereClause.createdAt.gte = startDate;
+    if (endDate) whereClause.createdAt.lte = endDate;
+  }
+
+  const payments = await prisma.payment.findMany({
+    where: whereClause,
+    select: paymentReportSelect,
+  });
+
+  const totalRevenue = payments.reduce(
+    (sum, payment) => sum + toNumber(payment.amount),
+    0
+  );
+  const totalCommissions = payments.reduce(
+    (sum, payment) => sum + getPlatformCommissionAmount(payment),
+    0
+  );
+  const totalPayouts = payments.reduce((sum, payment) => {
+    if (payment.roomFeeSplitDone || payment.commissionPaidOut) {
+      return sum + getRealtorEarningsAmount(payment);
+    }
+    return sum;
+  }, 0);
+  const pendingPayouts = payments.reduce((sum, payment) => {
+    if (!payment.roomFeeSplitDone && !payment.commissionPaidOut) {
+      return sum + getRealtorEarningsAmount(payment);
+    }
+    return sum;
+  }, 0);
+  const activeRealtors = new Set(
+    payments.map((payment) => payment.booking.property.realtorId)
+  ).size;
+
+  return {
+    totalRevenue,
+    totalCommissions,
+    totalPayouts,
+    pendingPayouts,
+    totalBookings: payments.length,
+    activeRealtors,
+  };
+};
+
+const generateRealtorReport = async (
+  realtorId: string,
+  startDate?: Date,
+  endDate?: Date
+) => {
+  const whereClause: Prisma.PaymentWhereInput = {
+    booking: {
+      property: {
+        realtorId,
+      },
+    },
+    status: {
+      in: COMMISSION_REPORT_STATUSES,
+    },
+  };
+
+  if (startDate || endDate) {
+    whereClause.createdAt = {};
+    if (startDate) whereClause.createdAt.gte = startDate;
+    if (endDate) whereClause.createdAt.lte = endDate;
+  }
+
+  const payments = await prisma.payment.findMany({
+    where: whereClause,
+    select: paymentReportSelect,
+  });
+
+  const totalEarnings = payments.reduce(
+    (sum, payment) => sum + getRealtorEarningsAmount(payment),
+    0
+  );
+  const totalCommissionPaid = payments.reduce(
+    (sum, payment) => sum + getPlatformCommissionAmount(payment),
+    0
+  );
+  const completedPayouts = payments.reduce((sum, payment) => {
+    if (payment.roomFeeSplitDone || payment.commissionPaidOut) {
+      return sum + getRealtorEarningsAmount(payment);
+    }
+    return sum;
+  }, 0);
+  const pendingPayouts = payments.reduce((sum, payment) => {
+    if (!payment.roomFeeSplitDone && !payment.commissionPaidOut) {
+      return sum + getRealtorEarningsAmount(payment);
+    }
+    return sum;
+  }, 0);
+
+  return {
+    realtorId,
+    totalEarnings,
+    totalCommissionPaid,
+    pendingPayouts,
+    completedPayouts,
+    payoutCount: payments.filter((payment) => payment.commissionPaidOut).length,
+    bookingCount: payments.length,
+  };
+};
 
 /**
  * @swagger
@@ -103,6 +259,7 @@ router.get(
       totalRealtors,
       activeRealtors,
       pendingRealtors,
+      suspendedRealtors,
       totalProperties,
       activeProperties,
       totalBookings,
@@ -125,6 +282,9 @@ router.get(
       }),
       prisma.realtor.count({
         where: { isActive: false, createdAt: { gte: startDate } },
+      }),
+      prisma.realtor.count({
+        where: { status: "SUSPENDED", createdAt: { gte: startDate } },
       }),
       prisma.property.count({ where: { createdAt: { gte: startDate } } }),
       prisma.property.count({
@@ -172,6 +332,7 @@ router.get(
         _avg: { rating: true },
       }),
     ]);
+    const inactiveProperties = Math.max(totalProperties - activeProperties, 0);
 
     const calculateGrowth = (current: number, previous: number) => {
       if (previous === 0) return current > 0 ? 100 : 0;
@@ -273,35 +434,83 @@ router.get(
       take: 10,
     });
 
-    const realtorsWithRevenue = topRealtors
+    const topRealtorsBreakdown = topRealtors
       .map((realtor) => {
-        const totalRevenue = realtor.properties.reduce(
-          (sum: number, property: any) => {
+        const aggregated = realtor.properties.reduce(
+          (sum, property) => {
             const propertyRevenue = property.bookings.reduce(
-              (pSum: number, booking: any) => {
+              (pSum, booking) => {
                 return pSum + Number(booking.totalPrice ?? 0);
               },
               0
             );
-            return sum + propertyRevenue;
+            return {
+              totalRevenue: sum.totalRevenue + propertyRevenue,
+              bookingCount: sum.bookingCount + property.bookings.length,
+            };
           },
-          0
+          { totalRevenue: 0, bookingCount: 0 }
         );
 
         return {
-          ...realtor,
-          totalRevenue,
-          properties: undefined,
+          id: realtor.id,
+          businessName: realtor.businessName,
+          totalRevenue: Number(aggregated.totalRevenue.toFixed(2)),
+          bookingCount: aggregated.bookingCount,
+          propertyCount: realtor.properties.length,
         };
       })
-      .sort((a, b) => Number(b.totalRevenue) - Number(a.totalRevenue));
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    const commissionReport = await generatePlatformReport(startDate, now);
+    const totalRevenueValue = Number(totalRevenue._sum.amount ?? 0);
+    const previousRevenueValue = Number(previousRevenue._sum.amount ?? 0);
+
+    const monthlyBookingsTrend = monthlyData.map((row) => ({
+      month: row.month,
+      bookings: row.bookings,
+    }));
+    const monthlyRevenueTrend = monthlyData.map((row) => ({
+      month: row.month,
+      revenue: row.revenue,
+    }));
+    const monthlyCompletedTrend = monthlyData.map((row) => ({
+      month: row.month,
+      completed: row.completed,
+    }));
+
+    const flatOverview = {
+      totalUsers,
+      totalRealtors,
+      activeRealtors,
+      pendingRealtors,
+      suspendedRealtors,
+      totalProperties,
+      activeProperties,
+      inactiveProperties,
+      totalBookings,
+      completedBookings,
+      pendingBookings,
+      cancelledBookings,
+      totalRevenue: totalRevenueValue.toFixed(2),
+      platformCommission: commissionReport.totalCommissions.toFixed(2),
+      totalCommissions: commissionReport.totalCommissions.toFixed(2),
+      revenueGrowth: calculateGrowth(totalRevenueValue, previousRevenueValue),
+      averageRating: averageRating._avg.rating ?? 0,
+      totalReviews,
+      occupancyRate:
+        activeProperties > 0 ? (completedBookings / activeProperties) * 100 : 0,
+      conversionRate:
+        totalBookings > 0 ? (completedBookings / totalBookings) * 100 : 0,
+    };
 
     res.json({
       success: true,
       message: "Platform analytics retrieved successfully",
       data: {
         timeRange,
-        overview: {
+        overview: flatOverview,
+        legacyOverview: {
           users: {
             total: totalUsers,
             growth: calculateGrowth(totalUsers, previousUsers),
@@ -325,11 +534,8 @@ router.get(
             growth: calculateGrowth(totalBookings, previousBookings),
           },
           revenue: {
-            total: Number(totalRevenue._sum.amount ?? 0),
-            growth: calculateGrowth(
-              Number(totalRevenue._sum.amount ?? 0),
-              Number(previousRevenue._sum.amount ?? 0)
-            ),
+            total: totalRevenueValue,
+            growth: calculateGrowth(totalRevenueValue, previousRevenueValue),
           },
           performance: {
             averageRating: averageRating._avg.rating ?? 0,
@@ -344,6 +550,9 @@ router.get(
         },
         trends: {
           monthly: monthlyData,
+          monthlyBookings: monthlyBookingsTrend,
+          monthlyRevenue: monthlyRevenueTrend,
+          completedBookings: monthlyCompletedTrend,
         },
         breakdowns: {
           propertyTypes: propertyTypes.map((type) => ({
@@ -356,12 +565,17 @@ router.get(
             city: location.city,
             count: location._count,
           })),
+          topLocations: locationData.map((location) => ({
+            city: location.city,
+            count: location._count,
+          })),
           bookingStatus: bookingStatusData.map((status) => ({
             status: status.status,
             count: status._count,
             percentage:
               totalBookings > 0 ? (status._count / totalBookings) * 100 : 0,
           })),
+          topRealtors: topRealtorsBreakdown,
         },
       },
     });

@@ -1,6 +1,6 @@
 import express from "express";
 import crypto from "crypto";
-import { PaymentStatus, BookingStatus } from "@prisma/client";
+import { PaymentStatus, BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/config/database";
 import { config } from "@/config";
 import { asyncHandler } from "@/middleware/errorHandler";
@@ -12,64 +12,62 @@ import { finalizePaystackPayment } from "@/services/paymentFinalization";
 
 const router = express.Router();
 
-// Helper function to check if webhook event was already processed
-async function isEventProcessed(eventId: string): Promise<boolean> {
-  const existing = await prisma.webhookEvent.findUnique({
-    where: { eventId },
-  });
-  return existing !== null;
-}
+const isPrismaUniqueConstraintError = (
+  error: unknown
+): error is Prisma.PrismaClientKnownRequestError => {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
+  );
+};
 
-// Helper function to mark webhook event as processed
-async function markEventProcessed(
-  provider: string,
-  eventId: string,
-  eventType: string,
-  payload: any,
-  metadata?: any
-): Promise<void> {
-  await prisma.webhookEvent.create({
-    data: {
-      provider,
-      eventId,
-      eventType,
-      status: "PROCESSED",
-      payload,
-      metadata,
-    },
-  });
-}
-
-// Helper function to mark webhook event as failed
-async function markEventFailed(
-  provider: string,
-  eventId: string,
-  eventType: string,
-  payload: any,
-  error: string
-): Promise<void> {
-  await prisma.webhookEvent.create({
-    data: {
-      provider,
-      eventId,
-      eventType,
-      status: "FAILED",
-      payload,
-      metadata: { error },
-    },
-  });
-}
-
-const getRawBodyBuffer = (body: unknown): Buffer => {
+const getRawBodyBuffer = (body: unknown): Buffer | null => {
   if (Buffer.isBuffer(body)) {
     return body;
   }
 
-  if (typeof body === "string") {
-    return Buffer.from(body, "utf8");
-  }
+  return null;
+};
 
-  return Buffer.from(JSON.stringify(body || {}), "utf8");
+const reserveWebhookEvent = async (params: {
+  provider: string;
+  eventId: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+}): Promise<boolean> => {
+  try {
+    await prisma.webhookEvent.create({
+      data: {
+        provider: params.provider,
+        eventId: params.eventId,
+        eventType: params.eventType,
+        status: "PROCESSING",
+        payload: params.payload as Prisma.InputJsonValue,
+      },
+    });
+    return true;
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      return false;
+    }
+    throw error;
+  }
+};
+
+const finalizeWebhookEvent = async (params: {
+  eventId: string;
+  status: "PROCESSED" | "FAILED";
+  metadata?: Record<string, unknown>;
+}): Promise<void> => {
+  await prisma.webhookEvent.update({
+    where: { eventId: params.eventId },
+    data: {
+      status: params.status,
+      metadata: params.metadata as Prisma.InputJsonValue | undefined,
+    },
+  });
 };
 
 const isValidPaystackSignature = (
@@ -143,6 +141,13 @@ router.post(
   "/paystack",
   asyncHandler(async (req, res) => {
     const rawBody = getRawBodyBuffer(req.body);
+    if (!rawBody) {
+      logger.error(
+        "Paystack webhook: expected raw Buffer body but received parsed payload"
+      );
+      return res.status(400).json({ error: "Invalid webhook payload format" });
+    }
+
     const signature = req.headers["x-paystack-signature"];
     if (!signature || typeof signature !== "string") {
       logger.warn("Paystack webhook: Missing signature");
@@ -172,19 +177,15 @@ router.post(
 
     const eventId = `paystack-${event}-${data.reference || data.id}`;
 
-    // Database-backed idempotency check
-    if (await isEventProcessed(eventId)) {
+    // Database-backed idempotency guard with unique event lock.
+    const reserved = await reserveWebhookEvent({
+      provider: "PAYSTACK",
+      eventId,
+      eventType: event,
+      payload,
+    });
+    if (!reserved) {
       logger.info(`Paystack webhook: Duplicate event ${eventId}, skipping`);
-      // Mark as duplicate
-      await prisma.webhookEvent.create({
-        data: {
-          provider: "PAYSTACK",
-          eventId: `${eventId}-duplicate-${Date.now()}`,
-          eventType: event,
-          status: "DUPLICATE",
-          payload,
-        },
-      });
       return res.status(200).json({ message: "Event already processed" });
     }
 
@@ -220,8 +221,12 @@ router.post(
       }
 
       // Mark as processed in database
-      await markEventProcessed("PAYSTACK", eventId, event, payload, {
+      await finalizeWebhookEvent({
+        eventId,
+        status: "PROCESSED",
+        metadata: {
         reference: data.reference,
+        },
       });
 
       return res.status(200).json({ message: "Webhook processed" });
@@ -232,13 +237,11 @@ router.post(
         error: error.stack,
       });
       // Mark as failed
-      await markEventFailed(
-        "PAYSTACK",
+      await finalizeWebhookEvent({
         eventId,
-        event,
-        payload,
-        error.message
-      );
+        status: "FAILED",
+        metadata: { error: error.message },
+      });
       return res.status(500).json({ error: "Webhook processing failed" });
     }
   })

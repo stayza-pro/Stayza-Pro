@@ -125,8 +125,8 @@ export function GetStartedClient() {
 
   const pricingHighlights = [
     "No subscription or setup fees",
-    "10% commission on room fees only",
-    "You keep 90% + 100% of cleaning fees",
+    "Tiered commission on room fees, based on booking value",
+    "Monthly volume discounts are applied automatically when earned",
     "Escrow releases payouts automatically after check-in",
   ];
 
@@ -327,7 +327,7 @@ export function GetStartedClient() {
               <motion.div variants={itemVariants}>
                 <SectionTitle
                   title="Commission-only pricing"
-                  description="Pay nothing upfront. Stayza Pro earns only when you earn."
+                  description="Pay nothing upfront. Stayza Pro earns only when bookings are confirmed."
                 />
               </motion.div>
             </motion.div>
@@ -345,11 +345,10 @@ export function GetStartedClient() {
                     Simple, transparent pricing
                   </p>
                   <h3 className="text-3xl font-bold text-marketing-text mb-4">
-                    10% commission on room fees
+                    Config-driven tiered commission
                   </h3>
                   <p className="text-marketing-text-muted text-lg">
-                    Keep 90% of room fees plus 100% of cleaning fees, with escrow
-                    protection for every booking.
+                    Realtor commission, guest service fees, and estimated payout are shown before booking confirmation.
                   </p>
                 </div>
                 <div className="space-y-4">

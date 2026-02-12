@@ -116,13 +116,6 @@ async function main() {
   await prisma.platformSettings.createMany({
     data: [
       {
-        key: "commission_rate",
-        value: 0.07,
-        description: "Legacy platform commission rate for successful bookings",
-        category: "commission",
-        updatedBy: admin.id,
-      },
-      {
         key: "finance.commission.tiers.v1",
         value: [
           { min: 0, max: 500000, rate: 0.1 },

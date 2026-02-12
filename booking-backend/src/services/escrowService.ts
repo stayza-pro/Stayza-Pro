@@ -13,6 +13,7 @@ import { paystackService } from "./paystack";
 import { logger } from "@/utils/logger";
 import walletService from "./walletService";
 import { ensureRealtorTransferRecipientCode } from "./payoutAccountService";
+import { config as appConfig } from "@/config";
 
 interface FeeBreakdown {
   roomFee: number;
@@ -22,6 +23,55 @@ interface FeeBreakdown {
   platformFee: number;
   totalAmount: number;
 }
+
+const clampRate = (value: number): number => Math.min(Math.max(value, 0), 1);
+
+const toNumeric = (
+  value: Prisma.Decimal | Decimal | number | null | undefined
+): number | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const numeric = value instanceof Decimal ? value.toNumber() : Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const deriveRateFromAmounts = (
+  roomFeeValue: Prisma.Decimal | Decimal | number | null | undefined,
+  platformValue: Prisma.Decimal | Decimal | number | null | undefined
+): number | null => {
+  const roomFee = toNumeric(roomFeeValue);
+  const platform = toNumeric(platformValue);
+  if (roomFee === null || platform === null || roomFee <= 0) {
+    return null;
+  }
+  return clampRate(platform / roomFee);
+};
+
+const resolveEffectiveCommissionRate = (params: {
+  directRate?: Prisma.Decimal | Decimal | number | null;
+  roomFeeValue: Prisma.Decimal | Decimal | number | null | undefined;
+  platformCandidates: Array<
+    Prisma.Decimal | Decimal | number | null | undefined
+  >;
+}): number => {
+  const directRate = toNumeric(params.directRate);
+  if (directRate !== null) {
+    return clampRate(directRate);
+  }
+
+  for (const candidate of params.platformCandidates) {
+    const derived = deriveRateFromAmounts(params.roomFeeValue, candidate);
+    if (derived !== null) {
+      return derived;
+    }
+  }
+
+  throw new Error(
+    "Missing commission snapshot for escrow split. Backfill booking/payment commission data before release."
+  );
+};
 
 /**
  * Calculate fee breakdown for a booking
@@ -53,11 +103,10 @@ export const calculateFeeBreakdown = (
   // Room fee = price per night × number of nights
   const roomFee = pricePerNight * numberOfNights;
 
-  // Service fee = 2% of (room fee + cleaning fee)
-  const serviceFee = (roomFee + cleaningFee) * 0.02;
+  // Legacy estimate helper (booking flows should use pricingEngine for canonical math).
+  const serviceFee = (roomFee + cleaningFee) * appConfig.SERVICE_FEE_RATE;
 
-  // Platform fee = 10% of room fee (deducted at release time)
-  const platformFee = roomFee * 0.1;
+  const platformFee = roomFee * appConfig.DEFAULT_PLATFORM_COMMISSION_RATE;
 
   // Total amount customer pays
   const totalAmount = roomFee + cleaningFee + securityDeposit + serviceFee;
@@ -417,9 +466,13 @@ export const releaseRoomFeeSplit = async (
       roomFeeAmount: true,
       roomFeeInEscrow: true,
       commissionEffectiveRate: true,
+      roomFeeSplitPlatformAmount: true,
+      platformFeeAmount: true,
       booking: {
         select: {
           commissionEffectiveRate: true,
+          roomFee: true,
+          platformFee: true,
         },
       },
     },
@@ -430,17 +483,17 @@ export const releaseRoomFeeSplit = async (
   }
 
   const roomFee = paymentCheck.roomFeeAmount.toNumber();
-  const effectiveRate = Math.min(
-    Math.max(
-      Number(
-        paymentCheck.commissionEffectiveRate ??
-          paymentCheck.booking?.commissionEffectiveRate ??
-          0.1
-      ),
-      0
-    ),
-    1
-  );
+  const effectiveRate = resolveEffectiveCommissionRate({
+    directRate:
+      paymentCheck.commissionEffectiveRate ??
+      paymentCheck.booking?.commissionEffectiveRate,
+    roomFeeValue: paymentCheck.roomFeeAmount,
+    platformCandidates: [
+      paymentCheck.roomFeeSplitPlatformAmount,
+      paymentCheck.platformFeeAmount,
+      paymentCheck.booking?.platformFee,
+    ],
+  });
   const realtorAmount = Number((roomFee * (1 - effectiveRate)).toFixed(2));
   const platformAmount = Number((roomFee * effectiveRate).toFixed(2));
 
@@ -488,7 +541,7 @@ export const releaseRoomFeeSplit = async (
     await walletService.creditWallet(
       platformWallet.id,
       platformAmount,
-      WalletTransactionSource.ROOM_FEE, // 10% of room fee
+      WalletTransactionSource.ROOM_FEE, // Platform share of room fee
       bookingId,
       {
         bookingId,
@@ -982,17 +1035,17 @@ export const refundRoomFeeToCustomer = async (
 
     // Calculate remaining amount split using effective commission snapshot
     const remainingForRealtor = roomFee - refundAmount;
-    const effectiveRate = Math.min(
-      Math.max(
-        Number(
-          payment.commissionEffectiveRate ??
-            payment.booking.commissionEffectiveRate ??
-            0.1
-        ),
-        0
-      ),
-      1
-    );
+    const effectiveRate = resolveEffectiveCommissionRate({
+      directRate:
+        payment.commissionEffectiveRate ??
+        payment.booking.commissionEffectiveRate,
+      roomFeeValue: payment.roomFeeAmount,
+      platformCandidates: [
+        payment.roomFeeSplitPlatformAmount,
+        payment.platformFeeAmount,
+        payment.booking.platformFee,
+      ],
+    });
     const realtorAmount = Number(
       (remainingForRealtor * (1 - effectiveRate)).toFixed(2)
     );

@@ -201,14 +201,10 @@ export const getCommissionRate = async (): Promise<number> => {
       }
     }
   } catch {
-  }
-
-  try {
-    const legacyResponse = await getSettingByKey("commission_rate");
-    return Number(legacyResponse.data.value);
-  } catch {
     return 0.1;
   }
+
+  return 0.1;
 };
 
 /**
@@ -217,11 +213,34 @@ export const getCommissionRate = async (): Promise<number> => {
 export const updateCommissionRate = async (
   rate: number
 ): Promise<SingleSettingResponse> => {
-  return updateSetting("commission_rate", {
-    value: rate,
-    description: `Platform commission rate for successful bookings (${(
-      rate * 100
-    ).toFixed(1)}%)`,
+  const tiersResponse = await getSettingByKey("finance.commission.tiers.v1");
+  const rawTiers = tiersResponse.data.value;
+  if (!Array.isArray(rawTiers) || rawTiers.length === 0) {
+    throw new Error(
+      "Cannot update base commission rate without finance.commission.tiers.v1"
+    );
+  }
+
+  const updatedTiers = [...rawTiers];
+  const firstTier = updatedTiers[0];
+  if (firstTier && typeof firstTier === "object" && !Array.isArray(firstTier)) {
+    const tierRecord = { ...(firstTier as Record<string, unknown>) };
+    if ("rate" in tierRecord) {
+      tierRecord.rate = rate;
+    } else {
+      const firstKey = Object.keys(tierRecord)[0];
+      if (firstKey) {
+        tierRecord[firstKey] = rate;
+      } else {
+        tierRecord.rate = rate;
+      }
+    }
+    updatedTiers[0] = tierRecord;
+  }
+
+  return updateSetting("finance.commission.tiers.v1", {
+    value: updatedTiers,
+    description: `Tiered commission configuration (base tier ${(rate * 100).toFixed(1)}%)`,
   });
 };
 

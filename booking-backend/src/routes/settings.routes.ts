@@ -43,14 +43,11 @@ function validateSettingValue(
 
   switch (key) {
     case "commission_rate":
-      if (typeof value !== "number" || value < 0.01 || value > 0.15) {
-        return {
-          isValid: false,
-          message:
-            "Commission rate must be a number between 0.01 (1%) and 0.15 (15%)",
-        };
-      }
-      break;
+      return {
+        isValid: false,
+        message:
+          "commission_rate is deprecated. Use finance.commission.tiers.v1 and related finance.* keys.",
+      };
 
     case "payout_threshold":
       if (typeof value !== "number" || value < 1000 || value > 1000000) {

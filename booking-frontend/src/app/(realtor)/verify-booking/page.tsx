@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Search,
@@ -33,7 +33,7 @@ const formatDate = (value: string) =>
     year: "numeric",
   });
 
-export default function VerifyBookingPage() {
+function VerifyBookingContent() {
   const searchParams = useSearchParams();
   const queryCode = searchParams.get("code") || "";
   const initialCode = useMemo(() => toVerificationCode(queryCode), [queryCode]);
@@ -172,5 +172,13 @@ export default function VerifyBookingPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+export default function VerifyBookingPage() {
+  return (
+    <Suspense fallback={<div className="max-w-3xl">Loading verification...</div>}>
+      <VerifyBookingContent />
+    </Suspense>
   );
 }

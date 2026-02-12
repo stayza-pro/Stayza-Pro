@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Settings,
   Save,
@@ -28,6 +29,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("commission");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const searchParams = useSearchParams();
 
   // Available setting categories
   const categories = [
@@ -64,6 +66,21 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   useEffect(() => {
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (!requestedTab) return;
+    const validTabs = new Set(["commission", "payout", "booking", "property"]);
+
+    if (requestedTab === "finance") {
+      setActiveTab("commission");
+      return;
+    }
+
+    if (validTabs.has(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [searchParams]);
 
   const fetchSettings = async () => {
     try {

@@ -17,6 +17,8 @@ interface FundStatus {
   amount: number;
   realtorAmount?: number;
   platformAmount?: number;
+  snapshotAvailable?: boolean;
+  isEstimated?: boolean;
   releasedAt?: string;
   refundedAt?: string;
 }
@@ -150,29 +152,26 @@ router.get(
       booking.payment.serviceFeeAmount ?? booking.serviceFee ?? 0
     );
 
-    const effectiveRate = Math.min(
-      Math.max(
-        Number(
-          booking.payment.commissionEffectiveRate ??
-            booking.commissionEffectiveRate ??
-            0
-        ),
-        0
-      ),
-      1
-    );
+    const roomFeePlatformSnapshot = booking.payment.roomFeeSplitPlatformAmount;
+    const platformFeeSnapshot = booking.payment.platformFeeAmount;
+    const bookingPlatformSnapshot = booking.platformFee;
 
     const roomFeePlatformAmount = Number(
-      booking.payment.roomFeeSplitPlatformAmount ??
-        booking.payment.platformFeeAmount ??
-        booking.platformFee ??
-        roomFee * effectiveRate
+      roomFeePlatformSnapshot ??
+        platformFeeSnapshot ??
+        bookingPlatformSnapshot ??
+        0
     );
 
-    const roomFeeRealtorAmount = Number(
-      booking.payment.roomFeeSplitRealtorAmount ??
-        roomFee - roomFeePlatformAmount
-    );
+    const roomFeeRealtorSnapshot = booking.payment.roomFeeSplitRealtorAmount;
+    const hasRoomSplitSnapshots =
+      roomFeePlatformSnapshot !== null ||
+      roomFeeRealtorSnapshot !== null ||
+      platformFeeSnapshot !== null;
+    const roomFeeRealtorAmount =
+      roomFeeRealtorSnapshot !== null
+        ? Number(roomFeeRealtorSnapshot)
+        : Number((roomFee - roomFeePlatformAmount).toFixed(2));
 
     // Calculate timers
     const checkInDate = new Date(booking.checkInDate);
@@ -232,6 +231,8 @@ router.get(
           amount: roomFee,
           realtorAmount: Number(roomFeeRealtorAmount.toFixed(2)),
           platformAmount: Number(roomFeePlatformAmount.toFixed(2)),
+          snapshotAvailable: hasRoomSplitSnapshots,
+          isEstimated: roomFeeRealtorSnapshot === null,
           releasedAt: booking.payment.roomFeeReleasedAt
             ? new Date(booking.payment.roomFeeReleasedAt).toISOString()
             : undefined,
