@@ -431,13 +431,16 @@ function MessagesContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen bg-gray-50"
+      style={{ colorScheme: "light" }}
+    >
       <GuestHeader
         currentPage="messages"
         searchPlaceholder="Search messages..."
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -449,7 +452,7 @@ function MessagesContent() {
           </div>
         </div>
 
-        <Card className="flex h-[calc(100dvh-10rem)] min-h-[420px] md:h-[600px] flex-col md:flex-row overflow-hidden border border-gray-200 bg-white shadow-sm rounded-2xl">
+        <Card className="flex h-[calc(100dvh-10rem)] min-h-[460px] md:h-[620px] flex-col md:flex-row overflow-hidden border border-gray-200 !bg-white shadow-sm rounded-2xl">
           {/* Conversations List */}
           <div
             className={`w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col ${
