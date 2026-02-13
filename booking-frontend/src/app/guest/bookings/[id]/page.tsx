@@ -980,7 +980,10 @@ export default function BookingDetailsPage() {
                       <FileWarning className="h-4 w-4 mr-2" />
                       View Dispute
                       {existingDispute.status === "PENDING_GUEST_RESPONSE" && (
-                        <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse" />
+                        <span
+                          className="absolute top-1 right-1 h-3 w-3 rounded-full animate-pulse"
+                          style={{ backgroundColor: primaryColor }}
+                        />
                       )}
                     </Button>
                   )}
@@ -1318,7 +1321,8 @@ export default function BookingDetailsPage() {
                 max={booking?.totalPrice}
                 min={0}
                 step="0.01"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                style={{ outlineColor: primaryColor }}
                 placeholder="Enter amount..."
               />
             </div>
@@ -1327,7 +1331,8 @@ export default function BookingDetailsPage() {
               value={refundReason}
               onChange={(e) => setRefundReason(e.target.value)}
               rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent mb-4"
+              style={{ outlineColor: primaryColor }}
               placeholder="Reason for refund request..."
             />
 
@@ -1378,14 +1383,15 @@ export default function BookingDetailsPage() {
             {/* Issue Type Selection */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Issue Type <span className="text-red-500">*</span>
+                Issue Type <span style={{ color: primaryColor }}>*</span>
               </label>
               <select
                 value={disputeIssueType}
                 onChange={(e) =>
                   setDisputeIssueType(e.target.value as DisputeIssueType)
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                style={{ outlineColor: primaryColor }}
               >
                 <option value="PROPERTY_CONDITION">
                   Property Condition Issues
@@ -1402,13 +1408,14 @@ export default function BookingDetailsPage() {
             {/* Subject */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Subject <span className="text-red-500">*</span>
+                Subject <span style={{ color: primaryColor }}>*</span>
               </label>
               <input
                 type="text"
                 value={disputeSubject}
                 onChange={(e) => setDisputeSubject(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                style={{ outlineColor: primaryColor }}
                 placeholder="Brief summary of the issue..."
                 maxLength={100}
               />
@@ -1420,13 +1427,14 @@ export default function BookingDetailsPage() {
             {/* Description */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Detailed Description <span className="text-red-500">*</span>
+                Detailed Description <span style={{ color: primaryColor }}>*</span>
               </label>
               <textarea
                 value={disputeDescription}
                 onChange={(e) => setDisputeDescription(e.target.value)}
                 rows={6}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                style={{ outlineColor: primaryColor }}
                 placeholder="Provide a detailed explanation of the issue, including any relevant dates, times, and circumstances..."
                 maxLength={2000}
               />
@@ -1435,12 +1443,21 @@ export default function BookingDetailsPage() {
               </p>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div
+              className="border rounded-lg p-4 mb-6"
+              style={{
+                backgroundColor: `${primaryColor}10`,
+                borderColor: `${primaryColor}30`,
+              }}
+            >
               <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-                <div className="text-sm text-blue-900">
+                <AlertCircle
+                  className="h-5 w-5 mt-0.5 mr-3 flex-shrink-0"
+                  style={{ color: primaryColor }}
+                />
+                <div className="text-sm" style={{ color: primaryColor }}>
                   <p className="font-medium mb-1">Dispute Process:</p>
-                  <ul className="list-disc list-inside space-y-1 text-blue-800">
+                  <ul className="list-disc list-inside space-y-1" style={{ color: `${primaryColor}dd` }}>
                     <li>
                       The host will be notified and given 48 hours to respond
                     </li>
@@ -1494,7 +1511,7 @@ export default function BookingDetailsPage() {
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                       existingDispute.status === "OPEN"
-                        ? "bg-blue-100 text-blue-800"
+                        ? ""
                         : existingDispute.status === "PENDING_REALTOR_RESPONSE"
                           ? "bg-yellow-100 text-yellow-800"
                           : existingDispute.status === "PENDING_GUEST_RESPONSE"
@@ -1503,6 +1520,14 @@ export default function BookingDetailsPage() {
                               ? "bg-green-100 text-green-800"
                               : "bg-gray-100 text-gray-800"
                     }`}
+                    style={
+                      existingDispute.status === "OPEN"
+                        ? {
+                            backgroundColor: `${primaryColor}15`,
+                            color: primaryColor,
+                          }
+                        : undefined
+                    }
                   >
                     {existingDispute.status.replace(/_/g, " ")}
                   </span>
@@ -1565,17 +1590,30 @@ export default function BookingDetailsPage() {
                           key={index}
                           className={`p-4 rounded-lg ${
                             message.senderType === "GUEST"
-                              ? "bg-blue-50 border border-blue-200"
+                              ? "border"
                               : "bg-gray-100 border border-gray-200"
                           }`}
+                          style={
+                            message.senderType === "GUEST"
+                              ? {
+                                  backgroundColor: `${primaryColor}10`,
+                                  borderColor: `${primaryColor}30`,
+                                }
+                              : undefined
+                          }
                         >
                           <div className="flex items-start justify-between mb-2">
                             <span
                               className={`text-xs font-medium ${
                                 message.senderType === "GUEST"
-                                  ? "text-blue-700"
+                                  ? ""
                                   : "text-gray-700"
                               }`}
+                              style={
+                                message.senderType === "GUEST"
+                                  ? { color: primaryColor }
+                                  : undefined
+                              }
                             >
                               {message.senderType === "GUEST" ? "You" : "Host"}
                             </span>
@@ -1603,7 +1641,8 @@ export default function BookingDetailsPage() {
                   value={disputeResponse}
                   onChange={(e) => setDisputeResponse(e.target.value)}
                   rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent mb-2"
+                  style={{ outlineColor: primaryColor }}
                   placeholder="Type your response here..."
                   maxLength={1000}
                 />
@@ -1658,14 +1697,23 @@ export default function BookingDetailsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div
+                    className="border rounded-lg p-4"
+                    style={{
+                      backgroundColor: `${primaryColor}10`,
+                      borderColor: `${primaryColor}30`,
+                    }}
+                  >
                     <div className="flex items-start">
-                      <Clock className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                      <Clock
+                        className="h-5 w-5 mt-0.5 mr-3 flex-shrink-0"
+                        style={{ color: primaryColor }}
+                      />
                       <div>
-                        <p className="text-sm font-medium text-blue-900 mb-1">
+                        <p className="text-sm font-medium mb-1" style={{ color: primaryColor }}>
                           Waiting for host response
                         </p>
-                        <p className="text-sm text-blue-800">
+                        <p className="text-sm" style={{ color: `${primaryColor}dd` }}>
                           The host has been notified and will respond soon.
                           You&apos;ll receive a notification when they reply.
                         </p>
