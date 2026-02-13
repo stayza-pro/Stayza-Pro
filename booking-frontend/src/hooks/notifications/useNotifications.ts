@@ -129,16 +129,30 @@ export function useNotifications(): UseNotificationsReturn {
           unreadOnly,
         });
 
+        const safeNotifications = Array.isArray(data?.notifications)
+          ? data.notifications
+          : [];
+        const safeUnreadCount =
+          typeof data?.unreadCount === "number" ? data.unreadCount : 0;
+        const safePagination = data?.pagination || {
+          totalPages: page,
+          hasNext: false,
+        };
+
         if (page === 1) {
-          setNotifications(data.notifications);
+          setNotifications(safeNotifications);
         } else {
-          setNotifications((prev) => [...prev, ...data.notifications]);
+          setNotifications((prev) => [...prev, ...safeNotifications]);
         }
 
-        setUnreadCount(data.unreadCount);
+        setUnreadCount(safeUnreadCount);
         setCurrentPage(page);
-        setTotalPages(data.pagination.totalPages);
-        setHasMore(data.pagination.hasNext);
+        setTotalPages(
+          typeof safePagination.totalPages === "number"
+            ? safePagination.totalPages
+            : page
+        );
+        setHasMore(Boolean(safePagination.hasNext));
       } catch (err: any) {
         setError(err.message || "Failed to load notifications");
         

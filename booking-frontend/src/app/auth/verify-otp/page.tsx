@@ -316,6 +316,8 @@ function OTPVerificationContent() {
         background: "#f9fafb",
         display: "flex",
         flexDirection: "column",
+        width: "100%",
+        overflowX: "hidden",
       }}
     >
       {/* Header */}
@@ -323,16 +325,19 @@ function OTPVerificationContent() {
         style={{
           background: "white",
           borderBottom: "1px solid #e5e7eb",
-          padding: "1.5rem 2rem",
+          padding: "1rem clamp(1rem, 4vw, 2rem)",
         }}
       >
         <div
           style={{
             maxWidth: "1200px",
+            width: "100%",
             margin: "0 auto",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            gap: "0.75rem",
+            minWidth: 0,
           }}
         >
           <Link
@@ -343,8 +348,10 @@ function OTPVerificationContent() {
               gap: "0.5rem",
               color: "#6b7280",
               textDecoration: "none",
-              fontSize: "0.875rem",
+              fontSize: "clamp(0.75rem, 3vw, 0.875rem)",
               fontWeight: 600,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
             }}
           >
             <ArrowLeft size={18} />
@@ -357,6 +364,9 @@ function OTPVerificationContent() {
               alignItems: "center",
               gap: "0.75rem",
               textDecoration: "none",
+              flex: "1 1 auto",
+              justifyContent: "center",
+              minWidth: 0,
             }}
           >
             {logoUrl ? (
@@ -387,16 +397,20 @@ function OTPVerificationContent() {
             )}
             <h1
               style={{
-                fontSize: "1.25rem",
+                fontSize: "clamp(0.875rem, 3.5vw, 1.25rem)",
                 fontWeight: 700,
                 color: "#1f2937",
                 margin: 0,
+                maxWidth: "min(42vw, 12rem)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
               {realtorName}
             </h1>
           </Link>
-          <div style={{ width: 80 }}></div>
+          <div />
         </div>
       </div>
 
@@ -407,7 +421,7 @@ function OTPVerificationContent() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "2rem 1.5rem",
+          padding: "clamp(1rem, 3vw, 2rem) clamp(0.75rem, 4vw, 1.5rem)",
         }}
       >
         <div style={{ width: "100%", maxWidth: "480px" }}>
@@ -444,11 +458,14 @@ function OTPVerificationContent() {
                 color: "#6b7280",
                 fontSize: "0.9375rem",
                 lineHeight: 1.6,
+                overflowWrap: "anywhere",
               }}
             >
               We&apos;ve sent a 6-digit verification code to
               <br />
-              <strong style={{ color: "#1f2937" }}>{email}</strong>
+              <strong style={{ color: "#1f2937", overflowWrap: "anywhere" }}>
+                {email}
+              </strong>
             </p>
           </div>
 
@@ -457,7 +474,7 @@ function OTPVerificationContent() {
             style={{
               background: "white",
               borderRadius: 20,
-              padding: "2.5rem",
+              padding: "clamp(1rem, 4vw, 2.5rem)",
               boxShadow:
                 "0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
               border: "1px solid rgba(0, 0, 0, 0.05)",
@@ -480,7 +497,7 @@ function OTPVerificationContent() {
             <div
               style={{
                 display: "flex",
-                gap: "0.75rem",
+                gap: "clamp(0.35rem, 1.6vw, 0.75rem)",
                 justifyContent: "center",
                 marginBottom: "2rem",
               }}
@@ -500,9 +517,9 @@ function OTPVerificationContent() {
                   onPaste={handlePaste}
                   disabled={isLoading}
                   style={{
-                    width: 56,
-                    height: 64,
-                    fontSize: "1.5rem",
+                    width: "clamp(2rem, 11vw, 3.5rem)",
+                    height: "clamp(2.75rem, 12vw, 4rem)",
+                    fontSize: "clamp(1.125rem, 4vw, 1.5rem)",
                     fontWeight: 700,
                     textAlign: "center",
                     border: `2px solid ${digit ? primaryColor : "#e5e7eb"}`,

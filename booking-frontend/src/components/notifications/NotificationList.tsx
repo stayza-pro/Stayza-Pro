@@ -110,11 +110,11 @@ export function NotificationList({ className }: NotificationListProps) {
   };
 
   return (
-    <div className={cn("max-w-4xl mx-auto p-6", className)}>
+    <div className={cn("max-w-4xl mx-auto p-3 sm:p-6", className)}>
       <div className="bg-white rounded-lg shadow">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                 <Bell className="h-6 w-6 mr-2" />
@@ -129,7 +129,7 @@ export function NotificationList({ className }: NotificationListProps) {
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Filter Button */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -230,12 +230,12 @@ export function NotificationList({ className }: NotificationListProps) {
             <div
               key={notification.id}
               className={cn(
-                "relative p-6 border-l-4 hover:bg-gray-50 transition-colors",
+                "relative p-4 sm:p-6 border-l-4 hover:bg-gray-50 transition-colors",
                 getPriorityColor(notification.priority),
                 !notification.isRead && "bg-blue-50"
               )}
             >
-              <div className="flex items-start space-x-4">
+              <div className="flex items-start gap-3 sm:gap-4">
                 {/* Icon */}
                 <div className="flex-shrink-0 text-2xl">
                   {getNotificationIcon(notification.type)}
@@ -243,23 +243,23 @@ export function NotificationList({ className }: NotificationListProps) {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex-1">
                       <h3
                         className={cn(
-                          "text-base font-medium text-gray-900",
+                          "text-base font-medium text-gray-900 break-words [overflow-wrap:anywhere]",
                           !notification.isRead && "font-semibold"
                         )}
                       >
                         {notification.title}
                       </h3>
-                      <p className="text-gray-600 mt-1">
+                      <p className="text-gray-600 mt-1 break-words [overflow-wrap:anywhere]">
                         {notification.message}
                       </p>
 
                       {/* Related Info */}
                       {notification.booking && (
-                        <div className="mt-2 text-sm text-gray-500">
+                        <div className="mt-2 text-sm text-gray-500 break-words [overflow-wrap:anywhere]">
                           <span className="font-medium">Property:</span>{" "}
                           {notification.booking.property.title}
                         </div>
@@ -273,7 +273,7 @@ export function NotificationList({ className }: NotificationListProps) {
                         </div>
                       )}
 
-                      <div className="flex items-center mt-3 text-sm text-gray-400">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-3 text-xs sm:text-sm text-gray-400">
                         <span>
                           {format(
                             new Date(notification.createdAt),
@@ -295,7 +295,7 @@ export function NotificationList({ className }: NotificationListProps) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center space-x-2 ml-4">
+                    <div className="flex items-center gap-2 sm:ml-4 self-start sm:self-auto">
                       {!notification.isRead && (
                         <button
                           onClick={() => handleMarkAsRead(notification)}

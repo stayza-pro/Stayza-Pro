@@ -64,7 +64,7 @@ export function AdminNavigation() {
     try {
       setIsLoadingNotifications(true);
       const data = await getNotifications({ limit: 10, unreadOnly: false });
-      setNotifications(data);
+      setNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
       
     } finally {
@@ -91,7 +91,9 @@ export function AdminNavigation() {
     window.location.href = getMainDomainUrl("/");
   };
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = (Array.isArray(notifications) ? notifications : []).filter(
+    (n) => !n.isRead
+  ).length;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {

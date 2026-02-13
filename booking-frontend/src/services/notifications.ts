@@ -52,7 +52,48 @@ class NotificationApiService {
         { headers: this.getAuthHeaders() }
       );
 
-      return response.data.data;
+      const payload = response.data as unknown;
+
+      // Preferred shape: { data: PaginatedNotifications }
+      const wrapped = payload as { data?: Partial<PaginatedNotifications> };
+      const direct = payload as Partial<PaginatedNotifications>;
+      const source =
+        wrapped?.data && typeof wrapped.data === "object"
+          ? wrapped.data
+          : direct;
+
+      const safeNotifications = Array.isArray(source?.notifications)
+        ? source.notifications
+        : [];
+
+      const safeUnreadCount =
+        typeof source?.unreadCount === "number" ? source.unreadCount : 0;
+
+      const rawPagination: Partial<PaginatedNotifications["pagination"]> =
+        source?.pagination && typeof source.pagination === "object"
+          ? source.pagination
+          : {};
+
+      return {
+        notifications: safeNotifications,
+        unreadCount: safeUnreadCount,
+        pagination: {
+          currentPage:
+            typeof rawPagination.currentPage === "number"
+              ? rawPagination.currentPage
+              : params?.page || 1,
+          totalPages:
+            typeof rawPagination.totalPages === "number"
+              ? rawPagination.totalPages
+              : params?.page || 1,
+          totalItems:
+            typeof rawPagination.totalItems === "number"
+              ? rawPagination.totalItems
+              : safeNotifications.length,
+          hasNext: Boolean(rawPagination.hasNext),
+          hasPrev: Boolean(rawPagination.hasPrev),
+        },
+      };
     } catch (error) {
       
       throw error;

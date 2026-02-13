@@ -55,8 +55,12 @@ export function NotificationCenter({ className }: NotificationCenterProps) {
 
   const filteredNotifications =
     filter === "unread"
-      ? notifications.filter((n) => !n.isRead)
-      : notifications;
+      ? (Array.isArray(notifications) ? notifications : []).filter(
+          (n) => !n.isRead
+        )
+      : Array.isArray(notifications)
+      ? notifications
+      : [];
 
   const handleMarkAsRead = async (
     notification: Notification,

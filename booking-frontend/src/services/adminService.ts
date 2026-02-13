@@ -462,8 +462,20 @@ export const getNotifications = async (params?: {
     `/admin/notifications?${queryParams.toString()}`
   );
 
-  const responseData = response.data as NotificationsApiResponse;
-  return responseData.notifications || [];
+  const payload = response.data as unknown;
+
+  // Support both direct and wrapped payloads safely.
+  const direct = payload as NotificationsApiResponse;
+  if (Array.isArray(direct.notifications)) {
+    return direct.notifications;
+  }
+
+  const wrapped = payload as { data?: NotificationsApiResponse };
+  if (wrapped.data && Array.isArray(wrapped.data.notifications)) {
+    return wrapped.data.notifications;
+  }
+
+  return [];
 };
 
 export const markNotificationAsRead = async (

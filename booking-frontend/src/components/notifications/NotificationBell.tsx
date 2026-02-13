@@ -79,8 +79,12 @@ export function NotificationBell({
         page: 1,
         limit: 10,
       });
-      setNotifications(response.notifications);
-      setUnreadCount(response.unreadCount);
+      setNotifications(
+        Array.isArray(response.notifications) ? response.notifications : []
+      );
+      setUnreadCount(
+        typeof response.unreadCount === "number" ? response.unreadCount : 0
+      );
     } catch (error) {
       
       toast.error("Failed to load notifications");
