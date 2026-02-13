@@ -103,7 +103,7 @@ export default function BookingHistoryPage() {
   // Show loading state while checking authentication
   if (!authChecked || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-12 bg-gray-100 rounded w-1/3"></div>
@@ -303,7 +303,7 @@ export default function BookingHistoryPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
         <GuestHeader
           currentPage="history"
           searchPlaceholder="Search bookings..."
@@ -326,7 +326,7 @@ export default function BookingHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
       <GuestHeader
         currentPage="history"
         searchPlaceholder="Search bookings..."
@@ -350,7 +350,7 @@ export default function BookingHistoryPage() {
 
         {/* Stats Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <Card className="p-6 text-center">
+          <Card className="p-6 text-center !bg-white">
             <p
               className="text-2xl sm:text-3xl font-bold mb-2"
               style={{ color: primaryColor }} // Lighter touch - primary for stat
@@ -360,7 +360,7 @@ export default function BookingHistoryPage() {
             <p className="text-gray-600">Total Bookings</p>
           </Card>
 
-          <Card className="p-6 text-center">
+          <Card className="p-6 text-center !bg-white">
             <p
               className="text-2xl sm:text-3xl font-bold mb-2"
               style={{ color: secondaryColor }}
@@ -370,7 +370,7 @@ export default function BookingHistoryPage() {
             <p className="text-gray-600">Total Spent</p>
           </Card>
 
-          <Card className="p-6 text-center">
+          <Card className="p-6 text-center !bg-white">
             <Button
               onClick={handleDownloadAllReceipts}
               className="w-full"
@@ -384,7 +384,7 @@ export default function BookingHistoryPage() {
         </div>
 
         {/* Search and Filters */}
-        <Card className="p-4 mb-6">
+        <Card className="p-4 mb-6 !bg-white">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
@@ -399,7 +399,7 @@ export default function BookingHistoryPage() {
 
         {/* Bookings List */}
         {filteredBookings.length === 0 ? (
-          <Card className="p-12 text-center">
+          <Card className="p-12 text-center !bg-white">
             <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               {searchQuery ? "No bookings found" : "No booking history"}
@@ -424,7 +424,7 @@ export default function BookingHistoryPage() {
               );
 
               return (
-                <Card key={booking.id} className="p-6">
+                <Card key={booking.id} className="p-6 !bg-white">
                   <div className="flex flex-col md:flex-row gap-6">
                     {/* Property Image */}
                     <div className="relative w-full md:w-48 h-48 md:h-auto rounded-lg overflow-hidden flex-shrink-0">

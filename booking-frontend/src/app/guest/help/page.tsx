@@ -125,7 +125,7 @@ export default function HelpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
       <GuestHeader
         currentPage="help"
         searchPlaceholder="Search help topics..."
@@ -149,7 +149,7 @@ export default function HelpPage() {
         </div>
 
         {/* Quick Contact */}
-        <Card className="p-4 sm:p-8 mb-12 border-2 border-gray-200">
+        <Card className="p-4 sm:p-8 mb-12 border-2 border-gray-200 !bg-white">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Need immediate assistance?
@@ -197,7 +197,7 @@ export default function HelpPage() {
                     handleExternalRedirect(
                       `https://stayzapro.com/help/${category.title
                         .toLowerCase()
-                        .replace(/\s+/g, "-")}`
+                        .replace(/\s+/g, "-")}`,
                     )
                   }
                 >
@@ -234,7 +234,7 @@ export default function HelpPage() {
         </div>
 
         {/* Additional Resources */}
-        <Card className="p-4 sm:p-8 bg-white">
+        <Card className="p-4 sm:p-8 !bg-white">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
             Additional Resources
           </h2>
@@ -285,7 +285,7 @@ export default function HelpPage() {
       {/* Redirect Confirmation Modal */}
       {showRedirectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-4 sm:p-8 animate-in fade-in zoom-in duration-200">
+          <Card className="max-w-md w-full p-4 sm:p-8 !bg-white animate-in fade-in zoom-in duration-200">
             <div className="text-center mb-6">
               <div
                 className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
@@ -343,4 +343,3 @@ export default function HelpPage() {
     </div>
   );
 }
-

@@ -16,8 +16,8 @@ export default function GuestNotificationsPage() {
   } = useRealtorBranding();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <GuestHeader currentPage="browse" />
+    <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
+      <GuestHeader currentPage="notifications" />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <NotificationList />

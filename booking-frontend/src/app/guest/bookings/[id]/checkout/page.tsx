@@ -91,7 +91,7 @@ export default function CheckoutPage() {
     try {
       setIsLoading(true);
       const response = (await bookingService.getBooking(
-        bookingId
+        bookingId,
       )) as unknown as CheckoutBooking;
 
       if (response) {
@@ -175,7 +175,6 @@ export default function CheckoutPage() {
           guestId: booking.guestId,
         },
         callback: function (response: { reference: string }) {
-          
           toast.success("Payment successful! Verifying...");
 
           // Verify payment (handle async operation)
@@ -189,18 +188,17 @@ export default function CheckoutPage() {
                 router.push(`/guest/bookings/${bookingId}`);
               } else {
                 toast.error(
-                  "Payment verification failed. Please contact support."
+                  "Payment verification failed. Please contact support.",
                 );
               }
             })
             .catch(() => {
               toast.error(
-                "Payment verification failed. Please contact support."
+                "Payment verification failed. Please contact support.",
               );
             });
         },
         onClose: function () {
-          
           setIsProcessing(false);
           toast("Payment cancelled");
         },
@@ -230,7 +228,7 @@ export default function CheckoutPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
         <GuestHeader currentPage="bookings" />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -244,7 +242,7 @@ export default function CheckoutPage() {
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
         <GuestHeader currentPage="bookings" />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -258,10 +256,11 @@ export default function CheckoutPage() {
     );
   }
 
-  const totalPayableAmount = booking.payment?.amount ?? booking.totalAmount ?? 0;
+  const totalPayableAmount =
+    booking.payment?.amount ?? booking.totalAmount ?? 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
       <GuestHeader currentPage="bookings" />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -277,7 +276,7 @@ export default function CheckoutPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Booking Summary */}
           <div className="lg:col-span-2 space-y-6">
-            <Card className="p-6">
+            <Card className="p-6 !bg-white">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Complete Your Payment
               </h2>
@@ -287,7 +286,11 @@ export default function CheckoutPage() {
                 {booking.property.images?.[0] && (
                   <Image
                     src={booking.property.images[0]}
-                    alt={booking.property.name || booking.property.title || "Property"}
+                    alt={
+                      booking.property.name ||
+                      booking.property.title ||
+                      "Property"
+                    }
                     width={96}
                     height={96}
                     unoptimized
@@ -296,7 +299,9 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900 mb-1">
-                    {booking.property.name || booking.property.title || "Property"}
+                    {booking.property.name ||
+                      booking.property.title ||
+                      "Property"}
                   </h3>
                   <p className="text-sm text-gray-600">
                     {booking.property.city}, {booking.property.state}
@@ -327,7 +332,7 @@ export default function CheckoutPage() {
                     <span className="text-gray-900">
                       {formatCurrency(
                         booking.securityDeposit,
-                        booking.payment?.currency
+                        booking.payment?.currency,
                       )}
                     </span>
                   </div>
@@ -339,7 +344,7 @@ export default function CheckoutPage() {
                     <span className="text-gray-900">
                       {formatCurrency(
                         booking.cleaningFee,
-                        booking.payment?.currency
+                        booking.payment?.currency,
                       )}
                     </span>
                   </div>
@@ -351,7 +356,7 @@ export default function CheckoutPage() {
                     <span className="text-gray-900">
                       {formatCurrency(
                         booking.serviceFee,
-                        booking.payment?.currency
+                        booking.payment?.currency,
                       )}
                     </span>
                   </div>
@@ -368,7 +373,7 @@ export default function CheckoutPage() {
                     >
                       {formatCurrency(
                         totalPayableAmount,
-                        booking.payment?.currency
+                        booking.payment?.currency,
                       )}
                     </span>
                   </div>
@@ -386,13 +391,22 @@ export default function CheckoutPage() {
               </div>
 
               {/* Security Note */}
-              <div className="flex items-start space-x-3 bg-blue-50 rounded-lg p-4">
-                <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div
+                className="flex items-start space-x-3 rounded-lg p-4"
+                style={{ backgroundColor: `${primaryColor}10` }}
+              >
+                <Shield
+                  className="h-5 w-5 mt-0.5"
+                  style={{ color: primaryColor }}
+                />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900 mb-1">
+                  <p
+                    className="text-sm font-medium mb-1"
+                    style={{ color: primaryColor }}
+                  >
                     Secure Payment
                   </p>
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm" style={{ color: `${primaryColor}dd` }}>
                     Your payment is processed securely through Paystack. We
                     never store your card details.
                   </p>
@@ -403,7 +417,7 @@ export default function CheckoutPage() {
 
           {/* Payment Action */}
           <div className="lg:col-span-1">
-            <Card className="p-6 sticky top-6">
+            <Card className="p-6 sticky top-6 !bg-white">
               <div className="text-center mb-6">
                 <div
                   className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
@@ -439,7 +453,7 @@ export default function CheckoutPage() {
                     Pay{" "}
                     {formatCurrency(
                       totalPayableAmount,
-                      booking.payment?.currency
+                      booking.payment?.currency,
                     )}
                   </>
                 )}

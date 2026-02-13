@@ -132,7 +132,7 @@ function GuestLoginContent() {
         });
       } else {
         toast.success(
-          result.message || "Verification code sent! Check your email."
+          result.message || "Verification code sent! Check your email.",
         );
       }
 
@@ -145,9 +145,8 @@ function GuestLoginContent() {
 
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
     } catch (error: any) {
-      
       toast.error(
-        error.message || "Failed to send verification code. Please try again."
+        error.message || "Failed to send verification code. Please try again.",
       );
     } finally {
       setIsLoading(false);
@@ -163,6 +162,7 @@ function GuestLoginContent() {
       style={{
         minHeight: "100vh",
         backgroundColor: primaryColor ? `${primaryColor}05` : "#FFF8F0", // Subtle brand-tinted background
+        colorScheme: "light",
       }}
     >
       {/* Header - Minimal & Clean */}
@@ -267,7 +267,9 @@ function GuestLoginContent() {
             }}
           >
             <span className="sm:hidden">Sign up</span>
-            <span className="hidden sm:inline">Don&apos;t have an account? Sign up</span>
+            <span className="hidden sm:inline">
+              Don&apos;t have an account? Sign up
+            </span>
           </Link>
         </div>
       </div>

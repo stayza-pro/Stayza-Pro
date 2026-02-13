@@ -10,6 +10,7 @@ interface GuestHeaderProps {
     | "favorites"
     | "history"
     | "messages"
+    | "notifications"
     | "bookings"
     | "help"
     | "browse";

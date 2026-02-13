@@ -145,7 +145,7 @@ function GuestRegistrationContent() {
         });
       } else {
         toast.success(
-          result.message || "Verification code sent! Check your email."
+          result.message || "Verification code sent! Check your email.",
         );
       }
 
@@ -163,7 +163,6 @@ function GuestRegistrationContent() {
 
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
     } catch (error: any) {
-      
       toast.error(error.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -172,7 +171,7 @@ function GuestRegistrationContent() {
 
   const handleInputChange = (
     field: keyof GuestRegistrationData,
-    value: string
+    value: string,
   ) => {
     setData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -189,6 +188,7 @@ function GuestRegistrationContent() {
       style={{
         minHeight: "100vh",
         backgroundColor: primaryColor ? `${primaryColor}05` : "#FFF8F0", // Subtle brand-tinted background
+        colorScheme: "light",
       }}
     >
       {/* Header - Minimal & Clean */}
@@ -293,7 +293,9 @@ function GuestRegistrationContent() {
             }}
           >
             <span className="sm:hidden">Sign in</span>
-            <span className="hidden sm:inline">Already have an account? Sign in</span>
+            <span className="hidden sm:inline">
+              Already have an account? Sign in
+            </span>
           </Link>
         </div>
       </div>

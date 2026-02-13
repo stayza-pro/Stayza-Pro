@@ -150,6 +150,9 @@ logs
 tmp/
 temp/
 
+# Imported reference source bundle
+/src (1)/
+
 # Build outputs
 build/
 dist/

@@ -109,9 +109,8 @@ export default function WriteReviewPage() {
       toast.success("Review submitted successfully!");
       router.push(`/guest/bookings/${bookingId}`);
     } catch (error: any) {
-      
       toast.error(
-        error.message || "Failed to submit review. Please try again."
+        error.message || "Failed to submit review. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -226,7 +225,7 @@ export default function WriteReviewPage() {
             padding: "1rem 1rem 3rem",
           }}
         >
-          <Card className="p-4 sm:p-8 text-center">
+          <Card className="p-4 sm:p-8 text-center !bg-white">
             <h2
               style={{
                 fontSize: "1.5rem",
@@ -322,7 +321,7 @@ export default function WriteReviewPage() {
           style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
         >
           {/* Overall Rating */}
-          <Card className="p-6">
+          <Card className="p-6 !bg-white">
             <h2
               style={{
                 fontSize: "1.25rem",
@@ -359,7 +358,7 @@ export default function WriteReviewPage() {
           </Card>
 
           {/* Detailed Ratings */}
-          <Card className="p-6">
+          <Card className="p-6 !bg-white">
             <h2
               style={{
                 fontSize: "1.25rem",
@@ -411,7 +410,7 @@ export default function WriteReviewPage() {
           </Card>
 
           {/* Written Review */}
-          <Card className="p-6">
+          <Card className="p-6 !bg-white">
             <h2
               style={{
                 fontSize: "1.25rem",
@@ -460,7 +459,7 @@ export default function WriteReviewPage() {
           </Card>
 
           {/* Photo Upload */}
-          <Card className="p-6">
+          <Card className="p-6 !bg-white">
             <h2
               style={{
                 fontSize: "1.25rem",
