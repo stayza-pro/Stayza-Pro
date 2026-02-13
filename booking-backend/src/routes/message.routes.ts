@@ -688,7 +688,7 @@ router.post(
         propertyId: booking.propertyId,
         bookingId,
         propertyTitle: booking.property.title,
-        bookingReference: booking.bookingReference || booking.id,
+        bookingReference: booking.id,
         messagePreview: getMessagePreview(
           filteredContent,
           files?.files,
