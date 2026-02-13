@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   User,
   Calendar,
+  MessageCircle,
   Heart,
   Bell,
   HelpCircle,
@@ -207,6 +208,20 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                     >
                       <Calendar size={18} style={{ color: primaryColor }} />
                       <span>Bookings</span>
+                    </button>
+
+                    <button
+                      onClick={() => (window.location.href = "/guest/messages")}
+                      className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <MessageCircle size={18} style={{ color: primaryColor }} />
+                      <span>Messages</span>
                     </button>
 
                     <button

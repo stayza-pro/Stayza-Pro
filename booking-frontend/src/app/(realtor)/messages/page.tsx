@@ -271,6 +271,22 @@ export default function RealtorMessagesPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const resolveAudioMimeType = (attachment: {
+    type?: string;
+    filename?: string;
+    url?: string;
+  }) => {
+    const rawType = (attachment.type || "").toLowerCase();
+    if (rawType.startsWith("audio/")) return rawType;
+
+    const sourceName = `${attachment.filename || ""} ${attachment.url || ""}`.toLowerCase();
+    if (sourceName.includes(".mp3")) return "audio/mpeg";
+    if (sourceName.includes(".wav")) return "audio/wav";
+    if (sourceName.includes(".ogg")) return "audio/ogg";
+    if (sourceName.includes(".m4a")) return "audio/mp4";
+    return "audio/webm";
+  };
+
   const filteredConversations = Array.isArray(conversations)
     ? conversations.filter((conv) => {
         const searchLower = searchQuery.toLowerCase();
@@ -293,9 +309,9 @@ export default function RealtorMessagesPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-[calc(100vh-4rem)] bg-gray-50">
       {/* Conversations List */}
-      <div className="w-80 border-r border-gray-200 bg-white flex flex-col">
+      <div className="w-80 border-r border-gray-200 bg-white flex flex-col shadow-sm">
         <div className="p-4 border-b border-gray-200">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -328,9 +344,14 @@ export default function RealtorMessagesPage() {
                 }
                 className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition ${
                   selectedConversation === getConversationKey(conversation)
-                    ? "bg-blue-50"
+                    ? ""
                     : ""
                 }`}
+                style={
+                  selectedConversation === getConversationKey(conversation)
+                    ? { backgroundColor: `${primaryColor}14` }
+                    : undefined
+                }
               >
                 <div className="flex items-start space-x-3">
                   <div
@@ -376,7 +397,7 @@ export default function RealtorMessagesPage() {
         {selectedConversation ? (
           <>
             {/* Messages Header */}
-            <div className="bg-white border-b border-gray-200 p-4">
+            <div className="bg-white border-b border-gray-200 p-4 shadow-sm">
               {conversations.find(
                 (c) => getConversationKey(c) === selectedConversation,
               ) && (
@@ -445,15 +466,14 @@ export default function RealtorMessagesPage() {
                         isOwn ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div
-                        className={`max-w-md ${isOwn ? "order-2" : "order-1"}`}
-                      >
+                      <div className={`max-w-md ${isOwn ? "order-2" : "order-1"}`}>
                         <div
-                          className={`rounded-lg px-4 py-2 ${
+                          className="rounded-2xl px-4 py-3 shadow-sm"
+                          style={
                             isOwn
-                              ? "bg-blue-500 text-white"
-                              : "bg-white border border-gray-200 text-gray-900"
-                          }`}
+                              ? { backgroundColor: primaryColor, color: "#fff" }
+                              : { backgroundColor: "#fff", color: "#111827", border: "1px solid #e5e7eb" }
+                          }
                         >
                           {message.content && (
                             <p className="text-sm">{message.content}</p>
@@ -467,9 +487,12 @@ export default function RealtorMessagesPage() {
                                   (attachment, index: number) => (
                                     <div
                                       key={index}
-                                      className={`p-2 rounded ${
-                                        isOwn ? "bg-blue-600" : "bg-gray-100"
-                                      }`}
+                                      className="p-2 rounded"
+                                      style={
+                                        isOwn
+                                          ? { backgroundColor: "rgba(0,0,0,0.12)" }
+                                          : { backgroundColor: "#f3f4f6" }
+                                      }
                                     >
                                       {attachment.type?.includes("image") ? (
                                         <Image
@@ -481,10 +504,14 @@ export default function RealtorMessagesPage() {
                                         />
                                       ) : attachment.type?.includes("audio") ||
                                         attachment.type === "VOICE" ? (
-                                        <audio controls className="w-full">
+                                        <audio
+                                          controls
+                                          preload="metadata"
+                                          className="w-full min-w-[220px] max-w-full rounded-md"
+                                        >
                                           <source
                                             src={attachment.url}
-                                            type={attachment.type}
+                                            type={resolveAudioMimeType(attachment)}
                                           />
                                         </audio>
                                       ) : (
@@ -602,7 +629,7 @@ export default function RealtorMessagesPage() {
                     placeholder={
                       isRecording ? "Recording..." : "Type a message..."
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-300 focus:border-transparent resize-none"
                     rows={1}
                     disabled={isSending || isRecording}
                   />

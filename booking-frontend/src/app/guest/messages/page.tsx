@@ -417,6 +417,22 @@ function MessagesContent() {
     }
   };
 
+  const resolveAudioMimeType = (attachment: {
+    type?: string;
+    filename?: string;
+    url?: string;
+  }) => {
+    const rawType = (attachment.type || "").toLowerCase();
+    if (rawType.startsWith("audio/")) return rawType;
+
+    const sourceName = `${attachment.filename || ""} ${attachment.url || ""}`.toLowerCase();
+    if (sourceName.includes(".mp3")) return "audio/mpeg";
+    if (sourceName.includes(".wav")) return "audio/wav";
+    if (sourceName.includes(".ogg")) return "audio/ogg";
+    if (sourceName.includes(".m4a")) return "audio/mp4";
+    return "audio/webm";
+  };
+
   // Show loading state while checking authentication
   if (!authChecked || isLoading) {
     return (
@@ -440,13 +456,17 @@ function MessagesContent() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Messages
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">Powered by Stayza Pro</p>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Messages
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Secure conversation with your host
+            </p>
+          </div>
         </div>
 
-        <Card className="flex h-[calc(100dvh-10rem)] min-h-[420px] md:h-[600px] flex-col md:flex-row overflow-hidden">
+        <Card className="flex h-[calc(100dvh-10rem)] min-h-[420px] md:h-[600px] flex-col md:flex-row overflow-hidden border border-gray-200 bg-white shadow-sm rounded-2xl">
           {/* Conversations List */}
           <div
             className={`w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col ${
@@ -561,7 +581,7 @@ function MessagesContent() {
             {selectedConversation ? (
               <>
                 {/* Thread Header */}
-                <div className="p-4 border-b border-gray-200 flex items-center">
+                <div className="p-4 border-b border-gray-200 flex items-center bg-white">
                   <button
                     type="button"
                     onClick={() => setSelectedConversation(null)}
@@ -639,7 +659,7 @@ function MessagesContent() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
                   {isLoadingMessages ? (
                     <div className="text-center py-8 sm:py-12">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
@@ -663,14 +683,14 @@ function MessagesContent() {
                         }`}
                       >
                         <div
-                          className="max-w-[92%] sm:max-w-[80%] md:max-w-[70%] break-words rounded-lg px-4 py-2"
+                          className="max-w-[92%] sm:max-w-[80%] md:max-w-[70%] break-words rounded-2xl px-4 py-3 shadow-sm"
                           style={
                             message.senderId === user?.id
                               ? {
                                   backgroundColor: primaryColor,
                                   color: "white",
                                 }
-                              : { backgroundColor: "#f3f4f6", color: "#111827" }
+                              : { backgroundColor: "#ffffff", color: "#111827" }
                           }
                         >
                           {message.content && <p>{message.content}</p>}
@@ -699,10 +719,14 @@ function MessagesContent() {
                                         />
                                       ) : attachment.type?.includes("audio") ||
                                         attachment.type === "VOICE" ? (
-                                        <audio controls className="w-full">
+                                        <audio
+                                          controls
+                                          preload="metadata"
+                                          className="w-full min-w-[220px] max-w-full rounded-md"
+                                        >
                                           <source
                                             src={attachment.url}
-                                            type={attachment.type}
+                                            type={resolveAudioMimeType(attachment)}
                                           />
                                         </audio>
                                       ) : (
@@ -742,7 +766,7 @@ function MessagesContent() {
                 </div>
 
                 {/* Message Input */}
-                <div className="p-4 border-t border-gray-200">
+                <div className="p-4 border-t border-gray-200 bg-white">
                   {/* Selected Files Preview */}
                   {selectedFiles.length > 0 && (
                     <div className="mb-3 flex flex-wrap gap-2">

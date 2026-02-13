@@ -744,52 +744,6 @@ export default function GuestBookingsPage() {
             className="p-4 sm:p-8 mt-8 border border-gray-200 !bg-white shadow-sm"
             style={{ backgroundColor: "#ffffff", color: "#111827" }}
           >
-            <div className="text-center max-w-2xl mx-auto">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-lg mb-6">
-                <MessageCircle className="h-8 w-8 text-red-600" />
-              </div>
-
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                Need Help with Your Bookings?
-              </h3>
-
-              <p className="text-gray-600 mb-8">
-                Our support team is available to assist you with any questions
-                about your reservations or special requests.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/guest/messages")}
-                  className="border border-gray-300 text-gray-700 hover:text-white"
-                  style={{
-                    borderColor: secondaryColor || "#059669",
-                    color: secondaryColor || "#059669",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor =
-                      secondaryColor || "#059669";
-                    e.currentTarget.style.color = "white";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = secondaryColor || "#059669";
-                  }}
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Contact Support
-                </Button>
-                <Button
-                  onClick={() => router.push("/browse")}
-                  className="text-white hover:opacity-90"
-                  style={{ backgroundColor: primaryColor }} // Lighter touch - primary for CTA
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Browse Properties
-                </Button>
-              </div>
-            </div>
           </Card>
         )}
       </main>
