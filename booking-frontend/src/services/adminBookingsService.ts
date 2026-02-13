@@ -178,6 +178,7 @@ export interface BookingStatsResponse {
     };
     metrics: {
       totalRevenue: number;
+      totalCommission?: number;
       averageBookingValue: number;
       conversionRate: number;
       cancellationRate: number;
@@ -231,6 +232,119 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+const toNumber = (value: unknown): number => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (value && typeof value === "object" && "toString" in value) {
+    const parsed = Number((value as { toString: () => string }).toString());
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+};
+
+type AdminBookingPayload = Partial<
+  Omit<
+    AdminBooking,
+    | "bookingReference"
+    | "totalAmount"
+    | "commissionAmount"
+    | "guestName"
+    | "guestEmail"
+    | "propertyTitle"
+    | "propertyLocation"
+  >
+> & {
+  platformFee?: unknown;
+  _count?: {
+    disputes?: unknown;
+  };
+  disputes?: unknown[];
+};
+
+const normalizeAdminBooking = (booking: AdminBookingPayload): AdminBooking => {
+  const bookingId = String(booking.id || "");
+  const totalPrice = toNumber(booking.totalPrice);
+  const paymentAmount = toNumber(booking.payment?.amount);
+  const platformFeeFromBooking = toNumber(booking.platformFee);
+  const platformFeeFromPayment = toNumber(
+    (booking.payment as unknown as { platformFeeAmount?: unknown } | undefined)
+      ?.platformFeeAmount
+  );
+  const refundAmount = toNumber(booking.payment?.refundAmount ?? 0);
+
+  const disputeCount =
+    Array.isArray(booking.disputes) && booking.disputes.length > 0
+      ? booking.disputes.length
+      : toNumber(booking._count?.disputes);
+
+  const hasDisputes = disputeCount > 0;
+  const refundStatus =
+    refundAmount > 0
+      ? booking.payment?.refundedAt
+        ? "completed"
+        : "pending"
+      : null;
+
+  const property = booking.property || {
+    id: "",
+    title: "",
+    address: "",
+    city: "",
+    country: "",
+    pricePerNight: 0,
+    realtor: {
+      id: "",
+      businessName: "",
+      user: {
+        firstName: "",
+        lastName: "",
+        email: "",
+      },
+    },
+  };
+
+  const guest = booking.guest || {
+    id: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  };
+
+  return {
+    ...booking,
+    property,
+    guest,
+    bookingReference: bookingId
+      ? `BK-${bookingId.slice(-8).toUpperCase()}`
+      : "BOOKING",
+    totalPrice,
+    totalAmount: paymentAmount > 0 ? paymentAmount : totalPrice,
+    commissionAmount:
+      platformFeeFromBooking > 0 ? platformFeeFromBooking : platformFeeFromPayment,
+    hasDisputes,
+    disputeCount,
+    refundStatus,
+    refundAmount: refundAmount > 0 ? refundAmount : undefined,
+    guestName: `${guest.firstName || ""} ${guest.lastName || ""}`.trim(),
+    guestEmail: guest.email || "",
+    propertyTitle: property.title || "Property",
+    propertyLocation: [property.city, property.country]
+      .filter((part) => Boolean(part))
+      .join(", "),
+    status: (booking.status || "PENDING") as BookingStatus,
+    currency: booking.currency || "NGN",
+  } as AdminBooking;
+};
+
 // =====================================================
 // ADMIN BOOKING SERVICE FUNCTIONS
 // =====================================================
@@ -254,7 +368,19 @@ export const getAdminBookings = async (
     const response = await apiClient.get<BookingsResponse["data"]>(
       `/admin/bookings?${queryParams.toString()}`
     );
-    return response;
+    const rawBookings = Array.isArray(response.data.bookings)
+      ? response.data.bookings
+      : [];
+
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        bookings: rawBookings.map((booking) =>
+          normalizeAdminBooking(booking as unknown as AdminBookingPayload)
+        ),
+      },
+    };
   } catch (error: any) {
     
     throw new Error(
@@ -273,7 +399,20 @@ export const getBookingStats = async (
     const response = await apiClient.get<BookingStatsResponse["data"]>(
       `/admin/bookings/stats?period=${period}`
     );
-    return response;
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        metrics: {
+          ...response.data.metrics,
+          totalRevenue: toNumber(response.data.metrics.totalRevenue),
+          totalCommission: toNumber(response.data.metrics.totalCommission),
+          averageBookingValue: toNumber(response.data.metrics.averageBookingValue),
+          conversionRate: toNumber(response.data.metrics.conversionRate),
+          cancellationRate: toNumber(response.data.metrics.cancellationRate),
+        },
+      },
+    };
   } catch (error: any) {
     
     throw new Error(

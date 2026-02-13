@@ -154,7 +154,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
         icon: <DollarSign className="h-6 w-6" />,
         color: "bg-green-500",
         change: `Commission: ${formatCurrency(
-          stats.metrics.totalRevenue * 0.05
+          stats.metrics.totalCommission ?? 0
         )}`,
       },
       {

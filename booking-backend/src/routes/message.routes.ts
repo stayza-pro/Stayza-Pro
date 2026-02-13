@@ -608,63 +608,67 @@ router.get(
   }
 );
 
-/**
- * Mark all messages in a booking/property conversation as read for current user.
- */
-router.post(
-  "/mark-read",
-  authenticate,
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const userId = req.user!.id;
-      const propertyId =
-        typeof req.query.propertyId === "string" ? req.query.propertyId : "";
-      const bookingId =
-        typeof req.query.bookingId === "string" ? req.query.bookingId : "";
+const handleMarkConversationRead = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    const userId = req.user!.id;
+    const propertyId =
+      typeof req.query.propertyId === "string" ? req.query.propertyId : "";
+    const bookingId =
+      typeof req.query.bookingId === "string" ? req.query.bookingId : "";
 
-      if (!propertyId && !bookingId) {
-        return res.status(400).json({
-          success: false,
-          error: "propertyId or bookingId is required",
-        });
-      }
-
-      const where: {
-        recipientId: string;
-        isRead: boolean;
-        propertyId?: string;
-        bookingId?: string;
-      } = {
-        recipientId: userId,
-        isRead: false,
-      };
-
-      if (propertyId) where.propertyId = propertyId;
-      if (bookingId) where.bookingId = bookingId;
-
-      const updateResult = await prisma.message.updateMany({
-        where,
-        data: {
-          isRead: true,
-          readAt: new Date(),
-        },
-      });
-
-      return res.json({
-        success: true,
-        data: {
-          success: true,
-          count: updateResult.count,
-        },
-      });
-    } catch (error: any) {
-      return res.status(500).json({
+    if (!propertyId && !bookingId) {
+      return res.status(400).json({
         success: false,
-        error: "Failed to mark conversation as read",
+        error: "propertyId or bookingId is required",
       });
     }
+
+    const where: {
+      recipientId: string;
+      isRead: boolean;
+      propertyId?: string;
+      bookingId?: string;
+    } = {
+      recipientId: userId,
+      isRead: false,
+    };
+
+    if (propertyId) where.propertyId = propertyId;
+    if (bookingId) where.bookingId = bookingId;
+
+    const updateResult = await prisma.message.updateMany({
+      where,
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        success: true,
+        count: updateResult.count,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: "Failed to mark conversation as read",
+    });
   }
-);
+};
+
+/**
+ * Mark all messages in a booking/property conversation as read for current user.
+ * Supports POST/PATCH (preferred) and GET for backwards compatibility.
+ */
+router.post("/mark-read", authenticate, handleMarkConversationRead);
+router.patch("/mark-read", authenticate, handleMarkConversationRead);
+router.get("/mark-read", authenticate, handleMarkConversationRead);
 
 // =====================================================
 // MESSAGE MANAGEMENT

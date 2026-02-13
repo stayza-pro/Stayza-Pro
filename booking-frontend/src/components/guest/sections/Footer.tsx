@@ -41,6 +41,49 @@ export const Footer: React.FC<FooterProps> = ({
   const [resolvedRealtorId, setResolvedRealtorId] = useState(realtorId || "");
   const activeRealtorId = realtorId || resolvedRealtorId;
 
+  const getErrorText = (error: unknown): string => {
+    const fallback = "Unable to send your message right now. Please try again.";
+
+    if (!error || typeof error !== "object") {
+      return fallback;
+    }
+
+    const responseData = (
+      error as {
+        response?: {
+          data?: {
+            message?: unknown;
+            error?: unknown;
+          };
+        };
+      }
+    ).response?.data;
+
+    const maybeMessage = responseData?.message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+      return maybeMessage;
+    }
+
+    const maybeError = responseData?.error;
+    if (typeof maybeError === "string" && maybeError.trim()) {
+      return maybeError;
+    }
+
+    if (
+      maybeError &&
+      typeof maybeError === "object" &&
+      "message" in maybeError &&
+      typeof (maybeError as { message?: unknown }).message === "string"
+    ) {
+      const nestedMessage = (maybeError as { message: string }).message.trim();
+      if (nestedMessage) {
+        return nestedMessage;
+      }
+    }
+
+    return fallback;
+  };
+
   const navLinks = [
     { label: "Home", href: "#hero" },
     { label: "Properties", href: "#properties" },
@@ -142,14 +185,7 @@ export const Footer: React.FC<FooterProps> = ({
         );
       }, 800);
     } catch (error: unknown) {
-      const apiError = error as {
-        response?: { data?: { message?: string; error?: string } };
-      };
-      const apiMessage =
-        apiError.response?.data?.message ||
-        apiError.response?.data?.error ||
-        "Unable to send your message right now. Please try again.";
-      setSubmitError(apiMessage);
+      setSubmitError(getErrorText(error));
     } finally {
       setIsSubmitting(false);
     }

@@ -399,6 +399,22 @@ router.get(
     const statsWhereBase: Prisma.BookingWhereInput = {
       ...getStaleUnpaidBookingFilter(),
     };
+    const financiallyConfirmedPaymentStatuses: PaymentStatus[] = [
+      PaymentStatus.HELD,
+      PaymentStatus.PARTIALLY_RELEASED,
+      PaymentStatus.SETTLED,
+    ];
+    const paidBookingWhere: Prisma.BookingWhereInput = {
+      ...statsWhereBase,
+      status: {
+        in: [BookingStatus.ACTIVE, BookingStatus.DISPUTED, BookingStatus.COMPLETED],
+      },
+      payment: {
+        status: {
+          in: financiallyConfirmedPaymentStatuses,
+        },
+      },
+    };
 
     const [
       totalBookings,
@@ -407,8 +423,7 @@ router.get(
       cancelledBookings,
       completedBookings,
       recentBookings,
-      totalRevenue,
-      averageBookingValue,
+      paidBookingAggregates,
     ] = await Promise.all([
       prisma.booking.count({
         where: statsWhereBase,
@@ -443,18 +458,12 @@ router.get(
           createdAt: { gte: startDate },
         },
       }),
-      prisma.payment.aggregate({
-        where: {
-          status: { in: ["PARTIALLY_RELEASED", "SETTLED"] },
-          booking: {
-            status: BookingStatus.COMPLETED,
-          },
-        },
-        _sum: {
-          amount: true,
-        },
-      }),
       prisma.booking.aggregate({
+        where: paidBookingWhere,
+        _sum: {
+          totalPrice: true,
+          platformFee: true,
+        },
         _avg: {
           totalPrice: true,
         },
@@ -488,8 +497,9 @@ router.get(
           recent: recentBookings,
         },
         metrics: {
-          totalRevenue: totalRevenue._sum.amount || 0,
-          averageBookingValue: averageBookingValue._avg.totalPrice || 0,
+          totalRevenue: Number(paidBookingAggregates._sum.totalPrice || 0),
+          totalCommission: Number(paidBookingAggregates._sum.platformFee || 0),
+          averageBookingValue: Number(paidBookingAggregates._avg.totalPrice || 0),
           conversionRate: Math.round(conversionRate * 100) / 100,
           cancellationRate: Math.round(cancellationRate * 100) / 100,
         },

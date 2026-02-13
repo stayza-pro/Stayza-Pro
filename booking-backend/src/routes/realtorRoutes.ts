@@ -3481,7 +3481,6 @@ router.post(
         properties: {
           where: {
             isActive: true,
-            status: "ACTIVE",
           },
           select: {
             id: true,
@@ -3510,7 +3509,6 @@ router.post(
           id: targetPropertyId,
           realtorId: realtor.id,
           isActive: true,
-          status: "ACTIVE",
         },
         select: { id: true },
       });
@@ -3523,10 +3521,19 @@ router.post(
     }
 
     if (!targetPropertyId) {
-      throw new AppError(
-        "This realtor has no active properties available for messaging",
-        400
-      );
+      const fallbackProperty = await prisma.property.findFirst({
+        where: { realtorId: realtor.id },
+        select: { id: true },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      if (fallbackProperty?.id) {
+        targetPropertyId = fallbackProperty.id;
+      }
+    }
+
+    if (!targetPropertyId) {
+      throw new AppError("This realtor has no properties available for messaging", 400);
     }
 
     const createdMessage = await prisma.message.create({
