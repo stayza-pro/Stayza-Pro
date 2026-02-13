@@ -697,7 +697,7 @@ export default function GuestBookingsPage() {
                       )}
 
                       {/* Action Button */}
-                      <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-6 border-t border-gray-200">
                         <div className="text-sm text-gray-500">
                           Booked on{" "}
                           {formatDate(booking.createdAt || booking.checkInDate)}

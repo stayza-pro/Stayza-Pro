@@ -441,7 +441,7 @@ export default function BookingHistoryPage() {
 
                     {/* Booking Details */}
                     <div className="flex-1">
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
                         <div>
                           <h3 className="text-xl font-semibold text-gray-900 mb-2">
                             {booking.property?.title || "Unknown Property"}
@@ -496,10 +496,10 @@ export default function BookingHistoryPage() {
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                      <div className="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                           <p className="text-sm text-gray-600">Booking ID</p>
-                          <p className="font-mono text-sm text-gray-900">
+                          <p className="font-mono text-sm text-gray-900 break-all">
                             {booking.id}
                           </p>
                         </div>

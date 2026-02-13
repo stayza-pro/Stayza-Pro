@@ -32,7 +32,7 @@ export const PreviewHost: React.FC<{ brand: BrandData }> = ({ brand }) => {
   const src = `/preview/temp?${query.toString()}`;
 
   return (
-    <div className="border rounded-xl overflow-hidden h-[700px] bg-gray-50">
+    <div className="border rounded-xl overflow-hidden h-[55dvh] min-h-[320px] md:h-[65dvh] lg:h-[700px] lg:max-h-[700px] bg-gray-50">
       <iframe
         ref={iframeRef}
         src={src}

@@ -1001,6 +1001,58 @@ export const sendWelcomeEmail = async (to: string, name: string) => {
   return sendEmail(to, template);
 };
 
+export const sendMessageActivityEmail = async (input: {
+  to: string;
+  recipientName: string;
+  senderName: string;
+  propertyTitle?: string;
+  bookingReference?: string;
+  messagePreview?: string;
+  conversationUrl: string;
+  isSenderCopy?: boolean;
+}) => {
+  const {
+    to,
+    recipientName,
+    senderName,
+    propertyTitle,
+    bookingReference,
+    messagePreview,
+    conversationUrl,
+    isSenderCopy = false,
+  } = input;
+
+  const contextLabel = bookingReference
+    ? `Booking: ${bookingReference}`
+    : propertyTitle
+      ? `Property: ${propertyTitle}`
+      : "Conversation";
+
+  const preview =
+    messagePreview && messagePreview.trim().length > 0
+      ? messagePreview.trim().slice(0, 220)
+      : "You have a new message.";
+
+  const template = {
+    subject: isSenderCopy
+      ? `Message sent • ${contextLabel}`
+      : `New message from ${senderName}`,
+    html: getEmailContainer(
+      `<h2 style="color: ${brandColors.primary}; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">${isSenderCopy ? "Message sent" : "You have a new message"}</h2>` +
+        `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">${recipientName ? `Hi ${recipientName}, ` : ""}${isSenderCopy ? `your message to <strong>${senderName}</strong> was delivered.` : `<strong>${senderName}</strong> sent you a message.`}</p>` +
+        getInfoBox(
+          "Conversation",
+          `${contextLabel}`,
+          "info"
+        ) +
+        `<div style="margin: 20px 0; padding: 16px; background-color: ${brandColors.neutralLight}; border-radius: 10px;"><p style="margin: 0; color: ${brandColors.neutralDark}; font-size: 14px; line-height: 1.6;">${preview}</p></div>` +
+        getButton(conversationUrl, "Open messages", "primary")
+    ),
+  };
+
+  return sendEmail(to, template);
+};
+
 // Send realtor welcome email
 export const sendRealtorWelcomeEmail = async (
   to: string,

@@ -4,6 +4,7 @@ import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   MessageCircle,
+  ChevronLeft,
   Send,
   Search,
   Paperclip,
@@ -426,9 +427,13 @@ function MessagesContent() {
           <p className="text-xs text-gray-400 mt-1">Powered by Stayza Pro</p>
         </div>
 
-        <Card className="h-[600px] flex overflow-hidden">
+        <Card className="flex h-[calc(100dvh-10rem)] min-h-[420px] md:h-[600px] flex-col md:flex-row overflow-hidden">
           {/* Conversations List */}
-          <div className="w-full md:w-1/3 border-r border-gray-200 flex flex-col">
+          <div
+            className={`w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col ${
+              selectedConversation ? "hidden md:flex" : "flex"
+            }`}
+          >
             {/* Search */}
             <div className="p-4 border-b border-gray-200">
               <div className="relative">
@@ -475,7 +480,7 @@ function MessagesContent() {
                       <button
                         key={conversationId}
                         onClick={() => setSelectedConversation(conversationId)}
-                        className="w-full p-4 flex items-start space-x-3 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                        className="w-full p-4 flex items-start gap-3 min-w-0 hover:bg-gray-50 transition-colors border-b border-gray-100"
                         style={
                           selectedConversation === conversationId
                             ? { backgroundColor: accentColor + "10" }
@@ -526,11 +531,23 @@ function MessagesContent() {
           </div>
 
           {/* Message Thread */}
-          <div className="flex-1 flex flex-col">
+          <div
+            className={`flex-1 flex flex-col ${
+              selectedConversation ? "flex" : "hidden md:flex"
+            }`}
+          >
             {selectedConversation ? (
               <>
                 {/* Thread Header */}
                 <div className="p-4 border-b border-gray-200 flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedConversation(null)}
+                    className="mr-2 p-1 rounded hover:bg-gray-100 md:hidden"
+                    aria-label="Back to conversations"
+                  >
+                    <ChevronLeft className="h-5 w-5 text-gray-600" />
+                  </button>
                   {(() => {
                     const selectedConv = conversations.find(
                       (c) =>
@@ -620,7 +637,7 @@ function MessagesContent() {
                         }`}
                       >
                         <div
-                          className="max-w-[85%] sm:max-w-[70%] rounded-lg px-4 py-2"
+                          className="max-w-[92%] sm:max-w-[80%] md:max-w-[70%] break-words rounded-lg px-4 py-2"
                           style={
                             message.senderId === user?.id
                               ? {
@@ -654,7 +671,8 @@ function MessagesContent() {
                                           height={150}
                                           className="rounded"
                                         />
-                                      ) : attachment.type?.includes("audio") ? (
+                                      ) : attachment.type?.includes("audio") ||
+                                        attachment.type === "VOICE" ? (
                                         <audio controls className="w-full">
                                           <source
                                             src={attachment.url}
@@ -738,7 +756,7 @@ function MessagesContent() {
                     </div>
                   )}
 
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap sm:flex-nowrap gap-2">
                     <input
                       ref={fileInputRef}
                       type="file"

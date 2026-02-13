@@ -40,7 +40,9 @@ export default function RealtorMessagesPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
   const getConversationKey = (conversation: Conversation): string =>
-    conversation.bookingId || conversation.propertyId || conversation.otherUser.id;
+    conversation.bookingId ||
+    conversation.propertyId ||
+    conversation.otherUser.id;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,7 +89,7 @@ export default function RealtorMessagesPage() {
     try {
       setIsLoadingMessages(true);
       const conversation = conversations.find(
-        (c) => getConversationKey(c) === selectedConversation
+        (c) => getConversationKey(c) === selectedConversation,
       );
 
       if (!conversation) {
@@ -98,15 +100,15 @@ export default function RealtorMessagesPage() {
       const response = conversation.bookingId
         ? await messageService.getBookingMessages(conversation.bookingId)
         : conversation.propertyId
-        ? await messageService.getPropertyMessages(conversation.propertyId)
-        : null;
+          ? await messageService.getPropertyMessages(conversation.propertyId)
+          : null;
 
       if (response) {
         setMessages(response.data || []);
         if (conversation.bookingId || conversation.propertyId) {
           await messageService.markConversationAsRead(
             conversation.propertyId,
-            conversation.bookingId
+            conversation.bookingId,
           );
         }
       }
@@ -133,7 +135,7 @@ export default function RealtorMessagesPage() {
     try {
       setIsSending(true);
       const conversation = conversations.find(
-        (c) => getConversationKey(c) === selectedConversation
+        (c) => getConversationKey(c) === selectedConversation,
       );
 
       const formData = new FormData();
@@ -154,7 +156,7 @@ export default function RealtorMessagesPage() {
       if (conversation?.bookingId) {
         await messageService.sendBookingMessageWithAttachments(
           conversation.bookingId,
-          formData
+          formData,
         );
       } else if (conversation?.propertyId) {
         if (!conversation.otherUser?.id) {
@@ -165,7 +167,7 @@ export default function RealtorMessagesPage() {
         await messageService.sendPropertyInquiryWithAttachments(
           conversation.propertyId,
           formData,
-          conversation.otherUser.id
+          conversation.otherUser.id,
         );
       }
 
@@ -363,7 +365,7 @@ export default function RealtorMessagesPage() {
             {/* Messages Header */}
             <div className="bg-white border-b border-gray-200 p-4">
               {conversations.find(
-                (c) => getConversationKey(c) === selectedConversation
+                (c) => getConversationKey(c) === selectedConversation,
               ) && (
                 <div className="flex items-center space-x-3">
                   <div
@@ -372,12 +374,12 @@ export default function RealtorMessagesPage() {
                   >
                     {
                       conversations.find(
-                        (c) => getConversationKey(c) === selectedConversation
+                        (c) => getConversationKey(c) === selectedConversation,
                       )?.otherUser.firstName[0]
                     }
                     {
                       conversations.find(
-                        (c) => getConversationKey(c) === selectedConversation
+                        (c) => getConversationKey(c) === selectedConversation,
                       )?.otherUser.lastName[0]
                     }
                   </div>
@@ -385,19 +387,19 @@ export default function RealtorMessagesPage() {
                     <h2 className="font-semibold text-gray-900">
                       {
                         conversations.find(
-                          (c) => getConversationKey(c) === selectedConversation
+                          (c) => getConversationKey(c) === selectedConversation,
                         )?.otherUser.firstName
                       }{" "}
                       {
                         conversations.find(
-                          (c) => getConversationKey(c) === selectedConversation
+                          (c) => getConversationKey(c) === selectedConversation,
                         )?.otherUser.lastName
                       }
                     </h2>
                     <p className="text-sm text-gray-500">
                       {
                         conversations.find(
-                          (c) => getConversationKey(c) === selectedConversation
+                          (c) => getConversationKey(c) === selectedConversation,
                         )?.property?.name
                       }
                     </p>
@@ -464,7 +466,8 @@ export default function RealtorMessagesPage() {
                                           height={150}
                                           className="rounded"
                                         />
-                                      ) : attachment.type?.includes("audio") ? (
+                                      ) : attachment.type?.includes("audio") ||
+                                        attachment.type === "VOICE" ? (
                                         <audio controls className="w-full">
                                           <source
                                             src={attachment.url}
@@ -485,7 +488,7 @@ export default function RealtorMessagesPage() {
                                         </a>
                                       )}
                                     </div>
-                                  )
+                                  ),
                                 )}
                               </div>
                             )}

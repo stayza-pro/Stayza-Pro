@@ -244,7 +244,7 @@ export default function GuestProfilePage() {
 
           <div className="relative px-4 sm:px-8 py-8 sm:py-12">
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
                 {/* Profile Picture */}
                 <div className="relative group">
                   <div className="w-28 h-28 rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm border-4 border-white/30 shadow-xl">

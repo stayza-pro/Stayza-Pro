@@ -101,7 +101,9 @@ type BackendConversation = {
   unreadCount: number;
 };
 
-const normalizeConversation = (conversation: BackendConversation): Conversation => {
+const normalizeConversation = (
+  conversation: BackendConversation,
+): Conversation => {
   return {
     id: conversation.id,
     propertyId: conversation.propertyId || undefined,
@@ -165,11 +167,11 @@ class MessageService {
    */
   async sendPropertyInquiry(
     propertyId: string,
-    data: SendPropertyInquiryRequest
+    data: SendPropertyInquiryRequest,
   ): Promise<ApiResponse<Message>> {
     return apiClient.post<Message>(
       `/messages/property/${propertyId}/inquiry`,
-      data
+      data,
     );
   }
 
@@ -178,7 +180,7 @@ class MessageService {
    */
   async sendBookingMessage(
     bookingId: string,
-    data: SendBookingMessageRequest
+    data: SendBookingMessageRequest,
   ): Promise<ApiResponse<Message>> {
     return apiClient.post<Message>(`/messages/booking/${bookingId}`, data);
   }
@@ -195,8 +197,8 @@ class MessageService {
     const conversations = Array.isArray(rawData)
       ? rawData
       : Array.isArray(rawData?.conversations)
-      ? rawData.conversations
-      : [];
+        ? rawData.conversations
+        : [];
 
     return {
       ...response,
@@ -208,10 +210,10 @@ class MessageService {
    * Get messages for a specific property inquiry
    */
   async getPropertyMessages(
-    propertyId: string
+    propertyId: string,
   ): Promise<ApiResponse<Message[]>> {
     const response = await apiClient.get<Message[] | { messages?: Message[] }>(
-      `/messages/property/${propertyId}/inquiry`
+      `/messages/property/${propertyId}/inquiry`,
     );
 
     return {
@@ -225,7 +227,7 @@ class MessageService {
    */
   async getBookingMessages(bookingId: string): Promise<ApiResponse<Message[]>> {
     const response = await apiClient.get<Message[] | { messages?: Message[] }>(
-      `/messages/booking/${bookingId}`
+      `/messages/booking/${bookingId}`,
     );
 
     return {
@@ -246,14 +248,14 @@ class MessageService {
    */
   async markConversationAsRead(
     propertyId?: string,
-    bookingId?: string
+    bookingId?: string,
   ): Promise<ApiResponse<{ success: boolean; count: number }>> {
     const params = new URLSearchParams();
     if (propertyId) params.append("propertyId", propertyId);
     if (bookingId) params.append("bookingId", bookingId);
 
     return apiClient.post<{ success: boolean; count: number }>(
-      `/messages/mark-read?${params.toString()}`
+      `/messages/mark-read?${params.toString()}`,
     );
   }
 
@@ -284,7 +286,7 @@ class MessageService {
   async sendPropertyInquiryWithAttachments(
     propertyId: string,
     formData: FormData,
-    recipientId?: string
+    recipientId?: string,
   ): Promise<ApiResponse<Message>> {
     if (recipientId) {
       formData.append("recipientId", recipientId);
@@ -297,7 +299,7 @@ class MessageService {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      }
+      },
     );
   }
 
@@ -306,7 +308,7 @@ class MessageService {
    */
   async sendBookingMessageWithAttachments(
     bookingId: string,
-    formData: FormData
+    formData: FormData,
   ): Promise<ApiResponse<Message>> {
     return apiClient.post<Message>(`/messages/booking/${bookingId}`, formData, {
       headers: {
@@ -319,9 +321,10 @@ class MessageService {
    * Get unread message count
    */
   async getUnreadCount(): Promise<ApiResponse<{ count: number }>> {
-    const response = await apiClient.get<{ count?: number; unreadCount?: number }>(
-      "/messages/unread-count"
-    );
+    const response = await apiClient.get<{
+      count?: number;
+      unreadCount?: number;
+    }>("/messages/unread-count");
 
     return {
       ...response,

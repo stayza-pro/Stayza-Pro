@@ -21,12 +21,122 @@ import {
   authorize,
   requireRole,
 } from "@/middleware/auth";
+import { config } from "@/config";
+import { sendMessageActivityEmail } from "@/services/email";
 import { MessageFilterService } from "@/services/messageFilter";
 import { SystemMessageService } from "@/services/systemMessage";
 import { uploadMessageAttachments } from "@/services/photoUpload";
 
 const router = Router();
 const prisma = new PrismaClient();
+
+const buildConversationUrl = (input: {
+  role: string;
+  propertyId?: string;
+  bookingId?: string;
+}) => {
+  const basePath =
+    input.role === "REALTOR" ? "/realtor/messages" : "/guest/messages";
+  const params = new URLSearchParams();
+
+  if (input.bookingId) {
+    params.set("bookingId", input.bookingId);
+  } else if (input.propertyId) {
+    params.set("propertyId", input.propertyId);
+  }
+
+  const query = params.toString();
+  return `${config.FRONTEND_URL}${basePath}${query ? `?${query}` : ""}`;
+};
+
+const getMessagePreview = (
+  content: string,
+  files?: Express.Multer.File[],
+  voiceNote?: Express.Multer.File[],
+) => {
+  if (content?.trim()) {
+    return content.trim();
+  }
+
+  if (voiceNote && voiceNote.length > 0) {
+    return "🎤 Voice note";
+  }
+
+  if (files && files.length > 0) {
+    return "📎 Attachment";
+  }
+
+  return "New message";
+};
+
+const notifyMessageParticipantsByEmail = async (input: {
+  senderId: string;
+  recipientId: string;
+  propertyId?: string;
+  bookingId?: string;
+  propertyTitle?: string;
+  bookingReference?: string;
+  messagePreview: string;
+}) => {
+  try {
+    const participants = await prisma.user.findMany({
+      where: {
+        id: {
+          in: [input.senderId, input.recipientId],
+        },
+      },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    const sender = participants.find((user) => user.id === input.senderId);
+    const recipient = participants.find((user) => user.id === input.recipientId);
+
+    if (!sender || !recipient) {
+      return;
+    }
+
+    const senderName = `${sender.firstName} ${sender.lastName}`.trim();
+    const recipientName = `${recipient.firstName} ${recipient.lastName}`.trim();
+
+    await Promise.allSettled([
+      sendMessageActivityEmail({
+        to: sender.email,
+        recipientName: sender.firstName,
+        senderName: recipientName,
+        propertyTitle: input.propertyTitle,
+        bookingReference: input.bookingReference,
+        messagePreview: input.messagePreview,
+        conversationUrl: buildConversationUrl({
+          role: sender.role,
+          propertyId: input.propertyId,
+          bookingId: input.bookingId,
+        }),
+        isSenderCopy: true,
+      }),
+      sendMessageActivityEmail({
+        to: recipient.email,
+        recipientName: recipient.firstName,
+        senderName,
+        propertyTitle: input.propertyTitle,
+        bookingReference: input.bookingReference,
+        messagePreview: input.messagePreview,
+        conversationUrl: buildConversationUrl({
+          role: recipient.role,
+          propertyId: input.propertyId,
+          bookingId: input.bookingId,
+        }),
+      }),
+    ]);
+  } catch {
+    // Email failures should not block messaging
+  }
+};
 
 // =====================================================
 // PROPERTY INQUIRY MESSAGES (Pre-Booking)
@@ -124,7 +234,7 @@ router.post(
           res.status(400).json({
             success: false,
             error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
-              ", "
+              ", ",
             )})`,
           });
           return;
@@ -263,19 +373,26 @@ router.post(
         },
       });
 
+      void notifyMessageParticipantsByEmail({
+        senderId: userId,
+        recipientId,
+        propertyId,
+        propertyTitle: property.title,
+        messagePreview: getMessagePreview(filteredContent, files?.files, files?.voiceNote),
+      });
+
       res.status(201).json({
         success: true,
         message: "Inquiry sent successfully",
         data: messageWithAttachments,
       });
     } catch (error: any) {
-      
       res.status(500).json({
         success: false,
         error: error.message || "Failed to send inquiry",
       });
     }
-  }
+  },
 );
 
 /**
@@ -360,13 +477,12 @@ router.get(
         },
       });
     } catch (error: any) {
-      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch inquiry messages",
       });
     }
-  }
+  },
 );
 
 // =====================================================
@@ -475,7 +591,7 @@ router.post(
           res.status(400).json({
             success: false,
             error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
-              ", "
+              ", ",
             )})`,
           });
           return;
@@ -560,19 +676,28 @@ router.post(
         },
       });
 
+      void notifyMessageParticipantsByEmail({
+        senderId: userId,
+        recipientId,
+        propertyId: booking.propertyId,
+        bookingId,
+        propertyTitle: booking.property.title,
+        bookingReference: booking.bookingReference || booking.id,
+        messagePreview: getMessagePreview(filteredContent, files?.files, files?.voiceNote),
+      });
+
       res.status(201).json({
         success: true,
         message: "Message sent successfully",
         data: messageWithAttachments,
       });
     } catch (error: any) {
-      
       res.status(500).json({
         success: false,
         error: error.message || "Failed to send message",
       });
     }
-  }
+  },
 );
 
 /**
@@ -672,18 +797,17 @@ router.get(
         },
       });
     } catch (error: any) {
-      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch messages",
       });
     }
-  }
+  },
 );
 
 const handleMarkConversationRead = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ) => {
   try {
     const userId = req.user!.id;
@@ -832,13 +956,12 @@ router.get(
         },
       });
     } catch (error: any) {
-      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch conversations",
       });
     }
-  }
+  },
 );
 
 /**
@@ -866,13 +989,12 @@ router.get(
         },
       });
     } catch (error: any) {
-      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch unread count",
       });
     }
-  }
+  },
 );
 
 // =====================================================
@@ -953,13 +1075,12 @@ router.get(
         },
       });
     } catch (error: any) {
-      
       return res.status(500).json({
         success: false,
         error: "Failed to fetch messages",
       });
     }
-  }
+  },
 );
 
 export default router;
