@@ -1,24 +1,22 @@
 "use client";
 
-import React, { useState, Suspense, useEffect, useRef } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  MessageCircle,
-  ChevronLeft,
-  Send,
-  Search,
-  Paperclip,
-  Mic,
-  X,
+  ArrowLeft,
   File,
+  MessageCircle,
+  Mic,
+  Paperclip,
+  Search,
+  Send,
+  X,
 } from "lucide-react";
-import { Card, Input, Button } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { Footer } from "@/components/guest/sections/Footer";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { MessageBubble } from "@/components/messaging/MessageBubble";
 import { messageService, type Conversation, type Message } from "@/services";
 import toast from "react-hot-toast";
 
@@ -26,21 +24,13 @@ function MessagesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading } = useCurrentUser();
-  const [authChecked, setAuthChecked] = useState(false);
   const bookingIdParam = searchParams.get("bookingId");
   const propertyIdParam = searchParams.get("propertyId");
   const hostIdParam = searchParams.get("hostId");
 
-  // Use realtor branding hook for consistent styling
-  const {
-    brandColor: primaryColor, // Lighter touch - primary for CTAs
-    secondaryColor, // Lighter touch - secondary for accents
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
-  } = useRealtorBranding();
+  const { brandColor: primaryColor } = useRealtorBranding();
 
+  const [authChecked, setAuthChecked] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<
     string | null
   >(bookingIdParam || propertyIdParam || hostIdParam || null);
@@ -63,19 +53,17 @@ function MessagesContent() {
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Mark auth as checked once we've gotten a result
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
       setAuthChecked(true);
     }
   }, [isLoading, isAuthenticated, authChecked]);
 
-  // Redirect if not authenticated
-  React.useEffect(() => {
+  useEffect(() => {
     if (authChecked && !isLoading && !isAuthenticated) {
       router.push("/guest/login?returnTo=/guest/messages");
     }
-  }, [isLoading, isAuthenticated, authChecked, router]);
+  }, [authChecked, isLoading, isAuthenticated, router]);
 
   useEffect(() => {
     if (!selectedConversation) {
@@ -107,6 +95,7 @@ function MessagesContent() {
         hostConversation.propertyId ||
         hostConversation.otherUser.id ||
         null;
+
       if (conversationId) {
         setSelectedConversation(conversationId);
       }
@@ -119,48 +108,36 @@ function MessagesContent() {
   }, [
     hostIdParam,
     hasMappedHostId,
-    conversations,
     bookingIdParam,
     propertyIdParam,
-    selectedConversation,
     isLoadingConversations,
+    selectedConversation,
+    conversations,
   ]);
 
-  // Fetch conversations on mount
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchConversations();
     }
   }, [isAuthenticated, user]);
 
-  // Fetch messages when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages();
     }
   }, [selectedConversation]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const fetchConversations = async () => {
     try {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
-
-      // Handle different response structures
-      let conversationsData: Conversation[] = [];
-
-      if (response?.data) {
-        if (Array.isArray(response.data)) {
-          conversationsData = response.data;
-        } else if (typeof response.data === "object") {
-          const dataObj = response.data as any;
-          if (Array.isArray(dataObj.conversations)) {
-            conversationsData = dataObj.conversations;
-          }
-        }
-      }
-
+      const conversationsData = Array.isArray(response?.data) ? response.data : [];
       setConversations(conversationsData);
-    } catch (error) {
+    } catch {
       toast.error("Failed to load conversations");
       setConversations([]);
     } finally {
@@ -174,7 +151,8 @@ function MessagesContent() {
     const selectedConv = conversations.find(
       (c) =>
         c.propertyId === selectedConversation ||
-        c.bookingId === selectedConversation,
+        c.bookingId === selectedConversation ||
+        c.otherUser.id === selectedConversation,
     );
 
     if (selectedConv?.propertyId) {
@@ -193,7 +171,7 @@ function MessagesContent() {
       };
     }
 
-    if (selectedConv?.otherUser?.id) {
+    if (selectedConv?.otherUser.id) {
       return {
         id: selectedConv.otherUser.id,
         type: "direct" as const,
@@ -222,6 +200,7 @@ function MessagesContent() {
     try {
       setIsLoadingMessages(true);
       const context = resolveConversationContext();
+
       if (!context) {
         setMessages([]);
         return;
@@ -239,14 +218,12 @@ function MessagesContent() {
       if (response?.success && response.data) {
         setMessages(response.data);
 
-        // Mark conversation as read
         if (context.conversation) {
           await messageService.markConversationAsRead(
             context.conversation.propertyId,
             context.conversation.bookingId,
             context.conversation.otherUser?.id,
           );
-          // Refresh conversations to update unread count
           fetchConversations();
         }
       }
@@ -265,8 +242,9 @@ function MessagesContent() {
     if (
       (!messageText.trim() && selectedFiles.length === 0 && !audioBlob) ||
       !selectedConversation
-    )
+    ) {
       return;
+    }
 
     const context = resolveConversationContext();
     if (!context) {
@@ -282,18 +260,15 @@ function MessagesContent() {
         formData.append("content", messageText.trim());
       }
 
-      // Add files
       selectedFiles.forEach((file) => {
         formData.append("files", file);
       });
 
-      // Add voice note
       if (audioBlob) {
         formData.append("voiceNote", audioBlob, `voice_${Date.now()}.webm`);
       }
 
       let response;
-
       if (context.type === "property") {
         response = await messageService.sendPropertyInquiryWithAttachments(
           context.id,
@@ -316,14 +291,11 @@ function MessagesContent() {
         setMessageText("");
         setSelectedFiles([]);
         setAudioBlob(null);
-        // Refresh messages
         await fetchMessages();
-        // Refresh conversations to update last message
         await fetchConversations();
-        toast.success("Message sent!");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to send message");
+      toast.error(error?.response?.data?.error || "Failed to send message");
     } finally {
       setIsSending(false);
     }
@@ -335,17 +307,18 @@ function MessagesContent() {
       toast.error("Maximum 5 files allowed");
       return;
     }
-    setSelectedFiles([...selectedFiles, ...files]);
+    setSelectedFiles((prev) => [...prev, ...files]);
   };
 
   const removeFile = (index: number) => {
-    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
+
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -354,10 +327,8 @@ function MessagesContent() {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
-        });
-        setAudioBlob(audioBlob);
+        const voiceBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setAudioBlob(voiceBlob);
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -368,7 +339,7 @@ function MessagesContent() {
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
-    } catch (error) {
+    } catch {
       toast.error("Microphone access denied");
     }
   };
@@ -389,53 +360,49 @@ function MessagesContent() {
     setRecordingTime(0);
   };
 
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
   const formatRecordingTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
-
-  const formatDate = (date: Date) => {
-    const today = new Date();
-    const messageDate = new Date(date);
-
-    if (messageDate.toDateString() === today.toDateString()) {
-      return formatTime(date);
-    } else {
-      return messageDate.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
-    }
-  };
-
   const filteredConversations = conversations.filter((conversation) => {
     const query = searchQuery.toLowerCase();
-    return (
-      conversation.otherUser.firstName.toLowerCase().includes(query) ||
-      conversation.otherUser.lastName.toLowerCase().includes(query)
-    );
+    const fullName = `${conversation.otherUser.firstName} ${conversation.otherUser.lastName}`.toLowerCase();
+    const propertyName = conversation.property?.name?.toLowerCase() || "";
+
+    return fullName.includes(query) || propertyName.includes(query);
   });
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const selectedConversationData = conversations.find(
+    (c) =>
+      c.propertyId === selectedConversation ||
+      c.bookingId === selectedConversation ||
+      c.otherUser.id === selectedConversation,
+  );
 
-  // Show loading state while checking authentication
   if (!authChecked || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <div className="animate-pulse space-y-6">
-            <div className="h-12 bg-gray-100 rounded w-1/3"></div>
-            <div className="h-64 bg-gray-100 rounded"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-10 bg-gray-100 rounded w-1/4" />
+            <div className="h-96 bg-gray-100 rounded" />
           </div>
         </div>
       </div>
@@ -443,390 +410,351 @@ function MessagesContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
-      <GuestHeader
-        currentPage="messages"
-        searchPlaceholder="Search messages..."
-      />
+    <div className="h-[calc(100vh-4rem)] md:h-[calc(100vh-4rem)] pb-16 md:pb-0 bg-gray-50" style={{ colorScheme: "light" }}>
+      <GuestHeader currentPage="messages" />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="flex h-[calc(100dvh-10rem)] min-h-[520px] md:h-[calc(100dvh-12rem)] flex-col md:flex-row overflow-hidden border border-gray-200 !bg-white shadow-sm rounded-2xl">
-          {/* Conversations List */}
-          <div
-            className={`w-full md:w-96 border-b md:border-b-0 md:border-r border-gray-200 flex flex-col ${
-              selectedConversation ? "hidden md:flex" : "flex"
-            }`}
-          >
-            <div className="p-4 border-b border-gray-200">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                Messages
-              </h1>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search conversations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            {/* Conversation List */}
-            <div className="flex-1 overflow-y-auto">
-              {isLoadingConversations ? (
-                <div className="p-4 sm:p-8 text-center">
-                  <div
-                    className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
-                    style={{ borderBottomColor: primaryColor }}
-                  ></div>
-                  <p className="text-gray-600 text-sm">
-                    Loading conversations...
-                  </p>
-                </div>
-              ) : filteredConversations.length === 0 ? (
-                <div className="p-4 sm:p-8 text-center">
-                  <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600 mb-4">No conversations yet</p>
-                  <Link href="/guest/browse">
-                    <Button
-                      className="text-white"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Browse Properties
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                filteredConversations.map((conversation) => {
-                  const conversationId =
-                    conversation.propertyId ||
-                    conversation.bookingId ||
-                    conversation.otherUser.id ||
-                    "";
-                  return (
-                    <button
-                      key={conversationId}
-                      onClick={() => setSelectedConversation(conversationId)}
-                      className={`w-full p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left ${
-                        selectedConversation === conversationId
-                          ? "bg-gray-50"
-                          : ""
-                      }`}
-                      style={
-                        selectedConversation === conversationId
-                          ? { backgroundColor: `${primaryColor}10` }
-                          : {}
-                      }
-                    >
-                      <div className="flex gap-3 min-w-0">
-                        <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          {conversation.otherUser.firstName.charAt(0)}
-                          {conversation.otherUser.lastName.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0 text-left">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <p className="font-semibold text-gray-900 truncate">
-                              {conversation.otherUser.firstName}{" "}
-                              {conversation.otherUser.lastName}
-                            </p>
-                            <p className="text-xs text-gray-400 shrink-0">
-                              {formatDate(
-                                new Date(conversation.lastMessage.createdAt),
-                              )}
-                            </p>
-                          </div>
-                          {conversation.property && (
-                            <p className="text-xs text-gray-500 truncate mb-1">
-                              {conversation.property.name}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm text-gray-600 truncate">
-                              {conversation.lastMessage.content}
-                            </p>
-                            {conversation.unreadCount > 0 && (
-                              <span
-                                className="text-white text-xs font-bold px-2 py-1 rounded-full shrink-0"
-                                style={{ backgroundColor: secondaryColor }}
-                              >
-                                {conversation.unreadCount}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
+      <div className="h-full max-w-7xl mx-auto flex">
+        <div
+          className={`w-full md:w-96 border-r border-gray-200 bg-white flex flex-col ${selectedConversation ? "hidden md:flex" : "flex"}`}
+        >
+          <div className="p-4 border-b border-gray-200">
+            <h1 className="text-2xl font-bold mb-4 text-gray-900">Messages</h1>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search conversations..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
           </div>
 
-          {/* Message Thread */}
-          <div
-            className={`flex-1 flex flex-col ${
-              selectedConversation ? "flex" : "hidden md:flex"
-            }`}
-          >
-            {selectedConversation ? (
-              <>
-                {/* Thread Header */}
-                <div className="p-4 border-b border-gray-200 flex items-center bg-white">
+          <div className="flex-1 overflow-y-auto">
+            {isLoadingConversations ? (
+              <div className="text-center py-12 px-4">
+                <div
+                  className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
+                  style={{ borderBottomColor: primaryColor }}
+                />
+                <p className="text-gray-600 text-sm">Loading conversations...</p>
+              </div>
+            ) : filteredConversations.length > 0 ? (
+              filteredConversations.map((conversation) => {
+                const conversationId =
+                  conversation.propertyId ||
+                  conversation.bookingId ||
+                  conversation.otherUser.id;
+
+                return (
                   <button
-                    type="button"
-                    onClick={() => setSelectedConversation(null)}
-                    className="mr-2 p-1 rounded hover:bg-gray-100 md:hidden"
-                    aria-label="Back to conversations"
+                    key={conversationId}
+                    onClick={() => setSelectedConversation(conversationId)}
+                    className={`w-full p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left ${
+                      selectedConversation === conversationId ? "bg-gray-50" : ""
+                    }`}
                   >
-                    <ChevronLeft className="h-5 w-5 text-gray-600" />
-                  </button>
-                  {(() => {
-                    const selectedConv = conversations.find(
-                      (c) =>
-                        c.propertyId === selectedConversation ||
-                        c.bookingId === selectedConversation,
-                    );
-                    if (!selectedConv) {
-                      const context = resolveConversationContext();
-                      if (!context) return null;
-
-                      return (
-                        <>
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold mr-3"
-                            style={{ backgroundColor: primaryColor }}
-                          >
-                            ?
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-900">
-                              {context.type === "booking"
-                                ? "Booking Conversation"
-                                : context.type === "property"
-                                  ? "Property Inquiry"
-                                  : "Direct Conversation"}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {context.type === "booking"
-                                ? `Booking: ${context.id}`
-                                : context.type === "property"
-                                  ? `Property: ${context.id}`
-                                  : "Chat between guest and host"}
-                            </p>
-                          </div>
-                        </>
-                      );
-                    }
-
-                    return (
-                      <>
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold mr-3"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          {selectedConv.otherUser.firstName.charAt(0)}
-                          {selectedConv.otherUser.lastName.charAt(0)}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-900">
-                            {selectedConv.otherUser.firstName}{" "}
-                            {selectedConv.otherUser.lastName}
-                          </p>
-                          {selectedConv.property && (
-                            <p className="text-sm text-gray-600">
-                              {selectedConv.property.name}
-                            </p>
-                          )}
-                          {selectedConv.booking && (
-                            <p className="text-sm text-gray-600">
-                              Booking: {selectedConv.booking.bookingReference}
-                            </p>
-                          )}
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/30">
-                  {isLoadingMessages ? (
-                    <div className="text-center py-8 sm:py-12">
-                      <div
-                        className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
-                        style={{ borderBottomColor: primaryColor }}
-                      ></div>
-                      <p className="text-gray-600">Loading messages...</p>
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="text-center py-8 sm:py-12">
-                      <p className="text-gray-600">No messages yet</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Start a conversation
-                      </p>
-                    </div>
-                  ) : (
-                    messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${
-                          message.senderId === user?.id
-                            ? "justify-end"
-                            : "justify-start"
-                        }`}
-                      >
-                        <MessageBubble
-                          message={message}
-                          isOwn={message.senderId === user?.id}
-                          primaryColor={primaryColor}
-                          timestamp={formatTime(new Date(message.createdAt))}
-                          className="max-w-[92%] sm:max-w-[80%] md:max-w-[70%] break-words"
-                        />
+                    <div className="flex gap-3">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center text-sm font-semibold text-gray-700">
+                        {conversation.otherUser.avatar ? (
+                          <img
+                            src={conversation.otherUser.avatar}
+                            alt={`${conversation.otherUser.firstName} ${conversation.otherUser.lastName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          `${conversation.otherUser.firstName.charAt(0)}${conversation.otherUser.lastName.charAt(0)}`
+                        )}
                       </div>
-                    ))
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
 
-                {/* Message Input */}
-                <div className="p-4 border-t border-gray-200 bg-white">
-                  {/* Selected Files Preview */}
-                  {selectedFiles.length > 0 && (
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      {selectedFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-lg"
-                        >
-                          <File className="h-4 w-4 text-gray-600" />
-                          <span className="text-sm text-gray-700">
-                            {file.name}
-                          </span>
-                          <button
-                            onClick={() => removeFile(index)}
-                            className="text-gray-500"
-                            style={{ color: primaryColor }}
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="font-semibold truncate text-gray-900">
+                            {conversation.otherUser.firstName} {conversation.otherUser.lastName}
+                          </div>
+                          <div className="text-xs text-gray-500 shrink-0">
+                            {formatTime(conversation.lastMessage.createdAt)}
+                          </div>
                         </div>
-                      ))}
+
+                        <div className="text-sm text-gray-500 truncate mb-1">
+                          {conversation.property?.name || "Direct conversation"}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm text-gray-600 truncate">
+                            {conversation.lastMessage.content || "Sent an attachment"}
+                          </div>
+                          {conversation.unreadCount > 0 && (
+                            <span
+                              className="shrink-0 text-xs text-white rounded-full px-2 py-1 font-semibold"
+                              style={{ backgroundColor: primaryColor }}
+                            >
+                              {conversation.unreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
-
-                  {/* Voice Note Preview */}
-                  {audioBlob && (
-                    <div className="mb-3 flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-lg">
-                      <Mic className="h-4 w-4 text-gray-600" />
-                      <span className="text-sm text-gray-700">
-                        Voice note ({formatRecordingTime(recordingTime)})
-                      </span>
-                      <button
-                        onClick={cancelRecording}
-                        className="text-gray-500"
-                        style={{ color: primaryColor }}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap sm:flex-nowrap gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept="image/*,application/pdf,.doc,.docx"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isSending || isRecording}
-                      className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
-                      title="Attach files"
-                    >
-                      <Paperclip className="h-5 w-5" />
-                    </button>
-
-                    <button
-                      onClick={isRecording ? stopRecording : startRecording}
-                      disabled={isSending}
-                      className={`p-2 ${
-                        isRecording
-                          ? "animate-pulse"
-                          : "text-gray-600 hover:text-gray-900"
-                      } disabled:opacity-50`}
-                      style={isRecording ? { color: primaryColor } : undefined}
-                      title={
-                        isRecording ? "Stop recording" : "Record voice note"
-                      }
-                    >
-                      <Mic className="h-5 w-5" />
-                    </button>
-
-                    <Input
-                      type="text"
-                      placeholder={
-                        isRecording ? "Recording..." : "Type a message..."
-                      }
-                      value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      className="flex-1"
-                      disabled={isSending || isRecording}
-                    />
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={
-                        (!messageText.trim() &&
-                          selectedFiles.length === 0 &&
-                          !audioBlob) ||
-                        isSending
-                      }
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      {isSending ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      ) : (
-                        <Send className="h-5 w-5" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </>
+                  </button>
+                );
+              })
             ) : (
-              <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50/40">
-                <div className="text-center">
-                  <MessageCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600">
-                    Select a conversation to start messaging
-                  </p>
-                </div>
+              <div className="text-center py-12 px-4">
+                <div className="text-muted-foreground mb-4">No conversations yet</div>
+                <Link href="/guest/browse">
+                  <Button variant="primary">Browse Properties</Button>
+                </Link>
               </div>
             )}
           </div>
-        </Card>
-      </main>
+        </div>
 
-      <Footer
-        realtorName={realtorName}
-        logo={logoUrl}
-        tagline={tagline || "Premium short-let properties"}
-        description={description || "Experience luxury accommodations"}
-        primaryColor={primaryColor}
-      />
+        {selectedConversation ? (
+          <div
+            className={`flex-1 flex flex-col bg-white ${
+              selectedConversation ? "flex" : "hidden md:flex"
+            }`}
+          >
+            <div className="p-4 border-b border-gray-200 bg-white flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="md:hidden !p-2"
+                onClick={() => setSelectedConversation(null)}
+                aria-label="Back to conversations"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center text-sm font-semibold text-gray-700">
+                {selectedConversationData?.otherUser.avatar ? (
+                  <img
+                    src={selectedConversationData.otherUser.avatar}
+                    alt={`${selectedConversationData.otherUser.firstName} ${selectedConversationData.otherUser.lastName}`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  `${selectedConversationData?.otherUser.firstName?.charAt(0) || "?"}${selectedConversationData?.otherUser.lastName?.charAt(0) || ""}`
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold truncate text-gray-900">
+                  {selectedConversationData
+                    ? `${selectedConversationData.otherUser.firstName} ${selectedConversationData.otherUser.lastName}`
+                    : "Conversation"}
+                </div>
+                <div className="text-sm text-gray-500 truncate">
+                  {selectedConversationData?.property?.name || "Direct conversation"}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/30">
+              {isLoadingMessages ? (
+                <div className="text-center py-12">
+                  <div
+                    className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
+                    style={{ borderBottomColor: primaryColor }}
+                  />
+                  <p className="text-gray-600">Loading messages...</p>
+                </div>
+              ) : messages.length > 0 ? (
+                messages.map((msg) => {
+                  const isOwn = msg.senderId === user?.id;
+                  const senderName = msg.sender
+                    ? `${msg.sender.firstName} ${msg.sender.lastName}`
+                    : isOwn
+                      ? "You"
+                      : "Host";
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+                    >
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center text-xs font-semibold text-gray-700">
+                        {isOwn
+                          ? "Y"
+                          : senderName
+                              .split(" ")
+                              .slice(0, 2)
+                              .map((p) => p.charAt(0))
+                              .join("")}
+                      </div>
+
+                      <div
+                        className={`flex flex-col gap-1 max-w-[70%] ${
+                          isOwn ? "items-end" : "items-start"
+                        }`}
+                      >
+                        <div
+                          className={`px-4 py-2 rounded-2xl ${
+                            isOwn
+                              ? "rounded-tr-sm text-white"
+                              : "bg-gray-200 rounded-tl-sm"
+                          }`}
+                          style={isOwn ? { backgroundColor: primaryColor } : undefined}
+                        >
+                          {msg.content ? (
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                          ) : null}
+
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className={`${msg.content ? "mt-2" : ""} space-y-1`}>
+                              {msg.attachments.map((attachment) => (
+                                <a
+                                  key={attachment.id}
+                                  href={attachment.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={`flex items-center gap-2 text-xs underline ${
+                                    isOwn ? "text-white" : "text-gray-700"
+                                  }`}
+                                >
+                                  <File className="w-3 h-3" />
+                                  <span className="truncate max-w-[180px]">
+                                    {attachment.filename}
+                                  </span>
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <span className="text-xs text-gray-500 px-2">
+                          {formatTime(msg.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">No messages yet</p>
+                  <p className="text-sm text-gray-500 mt-1">Start a conversation</p>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="p-4 border-t border-gray-200 bg-white">
+              {selectedFiles.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selectedFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg"
+                    >
+                      <File className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-700 max-w-[160px] truncate">
+                        {file.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {audioBlob && (
+                <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                  <Mic className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-700">
+                    Voice note ({formatRecordingTime(recordingTime)})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={cancelRecording}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  multiple
+                  accept="image/*,application/pdf,.doc,.docx"
+                  onChange={handleFileSelect}
+                />
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="!p-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSending || isRecording}
+                >
+                  <Paperclip className="w-5 h-5" />
+                </Button>
+
+                <textarea
+                  placeholder={isRecording ? "Recording..." : "Type your message..."}
+                  className="flex-1 h-10 min-h-0 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  disabled={isSending || isRecording}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                />
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="!p-2"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isSending}
+                >
+                  <Mic className={`w-5 h-5 ${isRecording ? "animate-pulse" : ""}`} />
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  className="!p-2 text-white"
+                  style={{ backgroundColor: primaryColor }}
+                  onClick={handleSendMessage}
+                  disabled={
+                    (!messageText.trim() && selectedFiles.length === 0 && !audioBlob) ||
+                    isSending
+                  }
+                >
+                  {isSending ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50/20">
+            <div className="text-center">
+              <div className="text-gray-500 mb-2">Select a conversation to start messaging</div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -835,9 +763,7 @@ export default function MessagesPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          Loading...
-        </div>
+        <div className="min-h-screen flex items-center justify-center">Loading...</div>
       }
     >
       <MessagesContent />
