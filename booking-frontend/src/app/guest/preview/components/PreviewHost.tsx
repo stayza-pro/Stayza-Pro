@@ -16,7 +16,7 @@ export const PreviewHost: React.FC<{ brand: BrandData }> = ({ brand }) => {
     try {
       iframeRef.current.contentWindow?.postMessage(
         { __PREVIEW_BRAND__: brand },
-        "*"
+        "*",
       );
     } catch (e) {
       // Cross origin might throw; still OK

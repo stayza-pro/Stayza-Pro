@@ -137,7 +137,6 @@ export default function GuestProfilePage() {
 
       toast.success("Profile updated successfully!");
     } catch (error: any) {
-      
       toast.error(error.response?.data?.message || "Failed to update profile");
     } finally {
       setIsSaving(false);
@@ -194,11 +193,10 @@ export default function GuestProfilePage() {
         router.push("/");
       }, 1500);
     } catch (error: any) {
-      
       toast.error(
         error.response?.data?.message ||
           error.message ||
-          "Failed to delete account"
+          "Failed to delete account",
       );
     } finally {
       setIsDeleting(false);
@@ -540,4 +538,3 @@ export default function GuestProfilePage() {
     </div>
   );
 }
-

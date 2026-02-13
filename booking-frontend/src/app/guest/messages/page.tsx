@@ -99,7 +99,7 @@ function MessagesContent() {
     }
 
     const hostConversation = conversations.find(
-      (conversation) => conversation.otherUser.id === hostIdParam
+      (conversation) => conversation.otherUser.id === hostIdParam,
     );
 
     if (hostConversation) {
@@ -113,7 +113,7 @@ function MessagesContent() {
         setSelectedConversation(null);
       }
       toast.error(
-        "No existing conversation with that host yet. Open messages from a property or booking."
+        "No existing conversation with that host yet. Open messages from a property or booking.",
       );
     }
 
@@ -163,7 +163,6 @@ function MessagesContent() {
 
       setConversations(conversationsData);
     } catch (error) {
-      
       toast.error("Failed to load conversations");
       setConversations([]);
     } finally {
@@ -177,7 +176,7 @@ function MessagesContent() {
     const selectedConv = conversations.find(
       (c) =>
         c.propertyId === selectedConversation ||
-        c.bookingId === selectedConversation
+        c.bookingId === selectedConversation,
     );
 
     if (selectedConv?.propertyId) {
@@ -232,7 +231,7 @@ function MessagesContent() {
         if (context.conversation) {
           await messageService.markConversationAsRead(
             context.conversation.propertyId,
-            context.conversation.bookingId
+            context.conversation.bookingId,
           );
           // Refresh conversations to update unread count
           fetchConversations();
@@ -258,7 +257,9 @@ function MessagesContent() {
 
     const context = resolveConversationContext();
     if (!context) {
-      toast.error("Select a conversation or open messages from a booking or property.");
+      toast.error(
+        "Select a conversation or open messages from a booking or property.",
+      );
       return;
     }
 
@@ -285,12 +286,12 @@ function MessagesContent() {
       if (context.type === "property") {
         response = await messageService.sendPropertyInquiryWithAttachments(
           context.id,
-          formData
+          formData,
         );
       } else {
         response = await messageService.sendBookingMessageWithAttachments(
           context.id,
-          formData
+          formData,
         );
       }
 
@@ -305,7 +306,6 @@ function MessagesContent() {
         toast.success("Message sent!");
       }
     } catch (error: any) {
-      
       toast.error(error.response?.data?.error || "Failed to send message");
     } finally {
       setIsSending(false);
@@ -353,7 +353,6 @@ function MessagesContent() {
       }, 1000);
     } catch (error) {
       toast.error("Microphone access denied");
-      
     }
   };
 
@@ -423,7 +422,9 @@ function MessagesContent() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Messages
+          </h1>
           <p className="text-xs text-gray-400 mt-1">Powered by Stayza Pro</p>
         </div>
 
@@ -471,7 +472,7 @@ function MessagesContent() {
                         .includes(searchQuery.toLowerCase()) ||
                       conversation.otherUser.lastName
                         .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
+                        .includes(searchQuery.toLowerCase()),
                   )
                   .map((conversation) => {
                     const conversationId =
@@ -519,7 +520,7 @@ function MessagesContent() {
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             {formatDate(
-                              new Date(conversation.lastMessage.createdAt)
+                              new Date(conversation.lastMessage.createdAt),
                             )}
                           </p>
                         </div>
@@ -552,7 +553,7 @@ function MessagesContent() {
                     const selectedConv = conversations.find(
                       (c) =>
                         c.propertyId === selectedConversation ||
-                        c.bookingId === selectedConversation
+                        c.bookingId === selectedConversation,
                     );
                     if (!selectedConv) {
                       const context = resolveConversationContext();
@@ -693,7 +694,7 @@ function MessagesContent() {
                                         </a>
                                       )}
                                     </div>
-                                  )
+                                  ),
                                 )}
                               </div>
                             )}
@@ -866,4 +867,3 @@ export default function MessagesPage() {
     </Suspense>
   );
 }
-

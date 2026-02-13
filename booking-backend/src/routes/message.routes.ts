@@ -95,7 +95,9 @@ const notifyMessageParticipantsByEmail = async (input: {
     });
 
     const sender = participants.find((user) => user.id === input.senderId);
-    const recipient = participants.find((user) => user.id === input.recipientId);
+    const recipient = participants.find(
+      (user) => user.id === input.recipientId,
+    );
 
     if (!sender || !recipient) {
       return;
@@ -378,7 +380,11 @@ router.post(
         recipientId,
         propertyId,
         propertyTitle: property.title,
-        messagePreview: getMessagePreview(filteredContent, files?.files, files?.voiceNote),
+        messagePreview: getMessagePreview(
+          filteredContent,
+          files?.files,
+          files?.voiceNote,
+        ),
       });
 
       res.status(201).json({
@@ -683,7 +689,11 @@ router.post(
         bookingId,
         propertyTitle: booking.property.title,
         bookingReference: booking.bookingReference || booking.id,
-        messagePreview: getMessagePreview(filteredContent, files?.files, files?.voiceNote),
+        messagePreview: getMessagePreview(
+          filteredContent,
+          files?.files,
+          files?.voiceNote,
+        ),
       });
 
       res.status(201).json({

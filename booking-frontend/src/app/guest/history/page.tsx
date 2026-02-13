@@ -94,10 +94,10 @@ export default function BookingHistoryPage() {
   };
 
   const bookings = toBookingArray(bookingsData).filter(
-    (b: Booking) => b.status === "COMPLETED"
+    (b: Booking) => b.status === "COMPLETED",
   );
   const hasEligibleReceipts = bookings.some((booking: Booking) =>
-    canDownloadReceipt(booking.paymentStatus)
+    canDownloadReceipt(booking.paymentStatus),
   );
 
   // Show loading state while checking authentication
@@ -148,13 +148,13 @@ export default function BookingHistoryPage() {
 
   const totalSpent = bookings.reduce(
     (sum: number, booking: Booking) => sum + booking.totalPrice,
-    0
+    0,
   );
 
   const getRebookDates = (booking: Booking) => {
     const nights = Math.max(
       1,
-      calculateNights(booking.checkInDate, booking.checkOutDate)
+      calculateNights(booking.checkInDate, booking.checkOutDate),
     );
     const checkInDate = new Date();
     checkInDate.setDate(checkInDate.getDate() + 7);
@@ -171,7 +171,7 @@ export default function BookingHistoryPage() {
     const { checkInDate, checkOutDate } = getRebookDates(booking);
     const toIso = (date: Date) => date.toISOString().split("T")[0];
     return `/booking/${booking.propertyId}/checkout?checkIn=${toIso(
-      checkInDate
+      checkInDate,
     )}&checkOut=${toIso(checkOutDate)}&guests=${booking.totalGuests}&rebookFrom=${
       booking.id
     }`;
@@ -207,20 +207,20 @@ export default function BookingHistoryPage() {
       });
 
       router.push(
-        `/booking/${booking.propertyId}/payment?bookingId=${newBooking.id}&paymentMethod=paystack&autopay=1&rebookFrom=${booking.id}`
+        `/booking/${booking.propertyId}/payment?bookingId=${newBooking.id}&paymentMethod=paystack&autopay=1&rebookFrom=${booking.id}`,
       );
     } catch (error: unknown) {
       const message =
         typeof error === "object" &&
         error !== null &&
         "response" in error &&
-        typeof (error as { response?: { data?: { message?: string } } }).response
-          ?.data?.message === "string"
+        typeof (error as { response?: { data?: { message?: string } } })
+          .response?.data?.message === "string"
           ? (error as { response?: { data?: { message?: string } } }).response!
               .data!.message!
           : error instanceof Error
-          ? error.message
-          : "Unable to create instant rebooking. Continue in checkout.";
+            ? error.message
+            : "Unable to create instant rebooking. Continue in checkout.";
 
       toast.error(message);
       router.push(getRebookCheckoutUrl(booking));
@@ -243,7 +243,7 @@ export default function BookingHistoryPage() {
         ? formatPaymentStatus(booking.paymentStatus)
         : "Unknown";
       toast.error(
-        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`,
       );
       return;
     }
@@ -269,7 +269,7 @@ export default function BookingHistoryPage() {
     const paymentIds = bookings
       .filter(
         (booking: Booking) =>
-          canDownloadReceipt(booking.paymentStatus) && booking.payment?.id
+          canDownloadReceipt(booking.paymentStatus) && booking.payment?.id,
       )
       .map((booking: Booking) => booking.payment?.id)
       .filter(Boolean) as string[];
@@ -418,7 +418,10 @@ export default function BookingHistoryPage() {
         ) : (
           <div className="space-y-4">
             {filteredBookings.map((booking: Booking) => {
-              const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
+              const nights = calculateNights(
+                booking.checkInDate,
+                booking.checkOutDate,
+              );
 
               return (
                 <Card key={booking.id} className="p-6">
@@ -455,15 +458,15 @@ export default function BookingHistoryPage() {
                           </div>
                         </div>
 
-                      <Button
-                        onClick={() => handleDownloadReceipt(booking.id)}
-                        variant="outline"
-                        size="sm"
-                        disabled={!canDownloadReceipt(booking.paymentStatus)}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Receipt
-                      </Button>
+                        <Button
+                          onClick={() => handleDownloadReceipt(booking.id)}
+                          variant="outline"
+                          size="sm"
+                          disabled={!canDownloadReceipt(booking.paymentStatus)}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Receipt
+                        </Button>
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -549,4 +552,3 @@ export default function BookingHistoryPage() {
     </div>
   );
 }
-

@@ -173,7 +173,7 @@ export default function BookingDetailsPage() {
         if (refund.totals.customerRefund > 0) {
           message += ` Your refund of ${formatPrice(
             refund.totals.customerRefund,
-            booking?.currency || "NGN"
+            booking?.currency || "NGN",
           )} has been automatically processed.`;
         } else {
           message +=
@@ -226,7 +226,7 @@ export default function BookingDetailsPage() {
         "Dispute created successfully. The host will be notified.",
         {
           duration: 4000,
-        }
+        },
       );
     },
     onError: (error: unknown) => {
@@ -298,7 +298,7 @@ export default function BookingDetailsPage() {
         ? formatPaymentStatus(booking.paymentStatus)
         : "Unknown";
       toast.error(
-        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`,
       );
       return;
     }
@@ -338,7 +338,7 @@ export default function BookingDetailsPage() {
     if (!disputeDescription.trim() || disputeDescription.length < 20) {
       toast.error(
         "Please provide a detailed description (at least 20 characters)",
-        { duration: 3000 }
+        { duration: 3000 },
       );
       return;
     }
@@ -439,8 +439,7 @@ export default function BookingDetailsPage() {
     // Can cancel anytime BEFORE check-in (even with 0% refund in LATE tier)
     // Cannot cancel after check-in time has passed
     return (
-      (booking.status === "PENDING" ||
-        booking.status === "ACTIVE") &&
+      (booking.status === "PENDING" || booking.status === "ACTIVE") &&
       hoursDiff > 0 && // Before check-in time
       booking.paymentStatus !== "REFUNDED"
     );
@@ -518,8 +517,8 @@ export default function BookingDetailsPage() {
               Booking Not Found
             </h2>
             <p className="text-gray-600 mb-6">
-              The booking you&apos;re looking for doesn&apos;t exist or you don&apos;t have
-              access to it.
+              The booking you&apos;re looking for doesn&apos;t exist or you
+              don&apos;t have access to it.
             </p>
             <Button onClick={() => router.push("/guest/bookings")}>
               Back to Bookings
@@ -545,11 +544,10 @@ export default function BookingDetailsPage() {
   const sensitiveDetailsUnlocked =
     booking.sensitiveDetailsUnlocked ??
     ["HELD", "PARTIALLY_RELEASED", "SETTLED"].includes(
-      String(booking.paymentStatus || "")
+      String(booking.paymentStatus || ""),
     );
   const bookingVerificationCode =
-    booking.bookingVerificationCode ||
-    `STZ-${booking.id}`;
+    booking.bookingVerificationCode || `STZ-${booking.id}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -693,7 +691,9 @@ export default function BookingDetailsPage() {
                   <Home className="h-5 w-5 mr-2" />
                   Property & Host
                 </h2>
-                <span className="text-xs text-gray-400">Powered by Stayza Pro</span>
+                <span className="text-xs text-gray-400">
+                  Powered by Stayza Pro
+                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -708,7 +708,10 @@ export default function BookingDetailsPage() {
                   </div>
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-                    <span>{booking.property?.city || "-"}, {booking.property?.state || "-"}</span>
+                    <span>
+                      {booking.property?.city || "-"},{" "}
+                      {booking.property?.state || "-"}
+                    </span>
                   </div>
                   <div className="flex items-center">
                     <Home className="h-4 w-4 mr-2 text-gray-400" />
@@ -721,7 +724,10 @@ export default function BookingDetailsPage() {
                   <div className="flex items-center">
                     <Users className="h-4 w-4 mr-2 text-gray-400" />
                     <span>
-                      {booking.property?.bedrooms || 0} bedrooms / {booking.property?.bathrooms || 0} baths / up to {booking.property?.maxGuests || booking.totalGuests} guests
+                      {booking.property?.bedrooms || 0} bedrooms /{" "}
+                      {booking.property?.bathrooms || 0} baths / up to{" "}
+                      {booking.property?.maxGuests || booking.totalGuests}{" "}
+                      guests
                     </span>
                   </div>
                 </div>
@@ -733,10 +739,10 @@ export default function BookingDetailsPage() {
                   </p>
                   {sensitiveDetailsUnlocked &&
                     booking.property?.realtor?.businessEmail && (
-                    <div className="flex items-center text-sm text-gray-600 mt-2">
-                      <Mail className="h-4 w-4 mr-2" />
-                      <span>{booking.property.realtor.businessEmail}</span>
-                    </div>
+                      <div className="flex items-center text-sm text-gray-600 mt-2">
+                        <Mail className="h-4 w-4 mr-2" />
+                        <span>{booking.property.realtor.businessEmail}</span>
+                      </div>
                     )}
                   {!sensitiveDetailsUnlocked && (
                     <p className="text-xs text-amber-700 mt-2">
@@ -759,20 +765,29 @@ export default function BookingDetailsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Check-in</p>
-                  <p className="text-lg font-semibold text-gray-900">{formatDate(booking.checkInDate)}</p>
-                  <p className="text-sm text-gray-600">After {booking.property?.checkInTime || "2:00 PM"}</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {formatDate(booking.checkInDate)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    After {booking.property?.checkInTime || "2:00 PM"}
+                  </p>
                 </div>
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Check-out</p>
-                  <p className="text-lg font-semibold text-gray-900">{formatDate(booking.checkOutDate)}</p>
-                  <p className="text-sm text-gray-600">Before {booking.property?.checkOutTime || "11:00 AM"}</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {formatDate(booking.checkOutDate)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Before {booking.property?.checkOutTime || "11:00 AM"}
+                  </p>
                 </div>
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Guests</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {booking.totalGuests} {booking.totalGuests === 1 ? "guest" : "guests"}
+                    {booking.totalGuests}{" "}
+                    {booking.totalGuests === 1 ? "guest" : "guests"}
                   </p>
                 </div>
 
@@ -794,12 +809,18 @@ export default function BookingDetailsPage() {
 
             <Card className="p-6 border border-gray-200 shadow-sm bg-transparent">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900" style={{ color: secondaryBrand }}>
+                <h2
+                  className="text-xl font-semibold text-gray-900"
+                  style={{ color: secondaryBrand }}
+                >
                   Payment Summary
                 </h2>
                 <span
                   className="text-xs font-semibold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: primaryColor + "15", color: primaryColor }}
+                  style={{
+                    backgroundColor: primaryColor + "15",
+                    color: primaryColor,
+                  }}
                 >
                   {formatPaymentStatus(booking.paymentStatus)}
                 </span>
@@ -808,7 +829,9 @@ export default function BookingDetailsPage() {
               <div className="space-y-3 text-gray-700">
                 <div className="flex justify-between">
                   <span>Average per night</span>
-                  <span>{formatPrice(booking.totalPrice / nights, booking.currency)}</span>
+                  <span>
+                    {formatPrice(booking.totalPrice / nights, booking.currency)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Total nights</span>
@@ -817,19 +840,25 @@ export default function BookingDetailsPage() {
                 {booking.payment?.method && (
                   <div className="flex justify-between">
                     <span>Payment Method</span>
-                    <span className="capitalize">{booking.payment.method.toLowerCase()}</span>
+                    <span className="capitalize">
+                      {booking.payment.method.toLowerCase()}
+                    </span>
                   </div>
                 )}
                 {booking.payment?.reference && (
                   <div>
                     <p className="text-sm text-gray-500">Payment Reference</p>
-                    <p className="font-mono text-sm text-gray-900 break-all">{booking.payment.reference}</p>
+                    <p className="font-mono text-sm text-gray-900 break-all">
+                      {booking.payment.reference}
+                    </p>
                   </div>
                 )}
 
                 <div className="border-t border-gray-200 pt-3 flex justify-between font-semibold text-gray-900 text-lg">
                   <span>Total Paid</span>
-                  <span>{formatPrice(booking.totalPrice, booking.currency)}</span>
+                  <span>
+                    {formatPrice(booking.totalPrice, booking.currency)}
+                  </span>
                 </div>
               </div>
             </Card>
@@ -880,7 +909,10 @@ export default function BookingDetailsPage() {
                 style={{ borderColor: primaryColor + "30" }}
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900" style={{ color: secondaryBrand }}>
+                  <h3
+                    className="font-semibold text-gray-900"
+                    style={{ color: secondaryBrand }}
+                  >
                     Action Center
                   </h3>
                   <span className="text-xs text-gray-400">Guest</span>
@@ -964,7 +996,10 @@ export default function BookingDetailsPage() {
                 className="p-5 border shadow-sm bg-transparent"
                 style={{ borderColor: accentColor + "35" }}
               >
-                <h3 className="font-semibold text-gray-900 mb-2" style={{ color: secondaryBrand }}>
+                <h3
+                  className="font-semibold text-gray-900 mb-2"
+                  style={{ color: secondaryBrand }}
+                >
                   Need Help?
                 </h3>
                 <p className="text-sm text-gray-700 mb-3">
@@ -982,7 +1017,6 @@ export default function BookingDetailsPage() {
             </div>
           </div>
         </div>
-
       </main>
 
       {/* Cancel Modal */}
@@ -1099,7 +1133,7 @@ export default function BookingDetailsPage() {
                         }`}
                       >
                         {cancellationPreview.refundInfo.hoursUntilCheckIn.toFixed(
-                          1
+                          1,
                         )}{" "}
                         hours
                       </span>
@@ -1154,7 +1188,7 @@ export default function BookingDetailsPage() {
                           Your Refund (
                           {Math.round(
                             cancellationPreview.refundInfo.breakdown
-                              .customerPercent * 100
+                              .customerPercent * 100,
                           )}
                           % of booking):
                         </span>
@@ -1167,7 +1201,7 @@ export default function BookingDetailsPage() {
                         >
                           {formatPrice(
                             cancellationPreview.refundInfo.customerRefund,
-                            booking?.currency || "NGN"
+                            booking?.currency || "NGN",
                           )}
                         </span>
                       </div>
@@ -1207,7 +1241,7 @@ export default function BookingDetailsPage() {
                       >
                         {formatPrice(
                           cancellationPreview.refundInfo.customerRefund,
-                          booking?.currency || "NGN"
+                          booking?.currency || "NGN",
                         )}
                       </span>
                     </div>
@@ -1416,7 +1450,9 @@ export default function BookingDetailsPage() {
                       You can exchange up to 2 messages each to resolve the
                       issue
                     </li>
-                    <li>Our team will review if resolution isn&apos;t reached</li>
+                    <li>
+                      Our team will review if resolution isn&apos;t reached
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -1462,12 +1498,12 @@ export default function BookingDetailsPage() {
                       existingDispute.status === "OPEN"
                         ? "bg-blue-100 text-blue-800"
                         : existingDispute.status === "PENDING_REALTOR_RESPONSE"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : existingDispute.status === "PENDING_GUEST_RESPONSE"
-                        ? "bg-purple-100 text-purple-800"
-                        : existingDispute.status === "RESOLVED"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : existingDispute.status === "PENDING_GUEST_RESPONSE"
+                            ? "bg-purple-100 text-purple-800"
+                            : existingDispute.status === "RESOLVED"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
                     }`}
                   >
                     {existingDispute.status.replace(/_/g, " ")}
@@ -1553,7 +1589,7 @@ export default function BookingDetailsPage() {
                             {message.message}
                           </p>
                         </div>
-                      )
+                      ),
                     )}
                   </div>
                 </div>
@@ -1616,9 +1652,9 @@ export default function BookingDetailsPage() {
                           Maximum responses reached
                         </p>
                         <p className="text-sm text-amber-800">
-                          You&apos;ve sent the maximum number of responses (2). Our
-                          support team will review this dispute and contact you
-                          if additional information is needed.
+                          You&apos;ve sent the maximum number of responses (2).
+                          Our support team will review this dispute and contact
+                          you if additional information is needed.
                         </p>
                       </div>
                     </div>
@@ -1662,5 +1698,3 @@ export default function BookingDetailsPage() {
     </div>
   );
 }
-
-

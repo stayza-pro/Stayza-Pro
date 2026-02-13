@@ -60,7 +60,6 @@ export default function GuestBookingsPage() {
       return failureCount < 2;
     },
     onError: (error: any) => {
-      
       // If it's an auth error, the user will be redirected by the useEffect above
     },
   });
@@ -306,7 +305,7 @@ export default function GuestBookingsPage() {
                 {
                   bookings.filter(
                     (b: Booking) =>
-                      b.status === "ACTIVE" || b.status === "COMPLETED"
+                      b.status === "ACTIVE" || b.status === "COMPLETED",
                   ).length
                 }
               </p>
@@ -411,7 +410,7 @@ export default function GuestBookingsPage() {
                   label: "Cancelled",
                   icon: XCircle,
                   count: bookings.filter(
-                    (b: Booking) => b.status === "CANCELLED"
+                    (b: Booking) => b.status === "CANCELLED",
                   ).length,
                 },
               ].map((tab) => {
@@ -513,7 +512,7 @@ export default function GuestBookingsPage() {
               const StatusIcon = status.icon;
               const nights = calculateNights(
                 booking.checkInDate,
-                booking.checkOutDate
+                booking.checkOutDate,
               );
               const ongoing = isOngoing(booking);
 
@@ -712,7 +711,7 @@ export default function GuestBookingsPage() {
                               booking.payment?.status === "INITIATED"
                             ) {
                               router.push(
-                                `/guest/bookings/${booking.id}/checkout`
+                                `/guest/bookings/${booking.id}/checkout`,
                               );
                             } else {
                               // Otherwise, show booking details
@@ -805,6 +804,3 @@ export default function GuestBookingsPage() {
     </div>
   );
 }
-
-
-

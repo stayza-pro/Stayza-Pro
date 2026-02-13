@@ -77,7 +77,7 @@ const getEmailContainer = (content: string) => `
 const getButton = (
   url: string,
   text: string,
-  type: "primary" | "secondary" | "success" | "warning" = "primary"
+  type: "primary" | "secondary" | "success" | "warning" = "primary",
 ) => {
   const colors = {
     primary: { bg: brandColors.primary, text: brandColors.white },
@@ -98,7 +98,7 @@ const getButton = (
 const getInfoBox = (
   title: string,
   content: string,
-  type: "info" | "success" | "warning" | "error" = "info"
+  type: "info" | "success" | "warning" | "error" = "info",
 ) => {
   const colors = {
     info: {
@@ -278,7 +278,7 @@ export const emailTemplates = {
       
       ${getInfoBox(
         "What You Can Do Now",
-        "Your account is ready! Start exploring all the features Stayza Pro has to offer."
+        "Your account is ready! Start exploring all the features Stayza Pro has to offer.",
       )}
       
       <div style="background-color: ${
@@ -309,7 +309,7 @@ export const emailTemplates = {
     name: string,
     businessName: string,
     dashboardUrl: string,
-    verificationUrl?: string
+    verificationUrl?: string,
   ) => ({
     subject: "Welcome to Stayza Pro - verify your email",
     html: getEmailContainer(`
@@ -519,7 +519,7 @@ export const emailTemplates = {
       ${getInfoBox(
         "Security First",
         "Email verification helps keep your account secure and ensures you receive important updates about your bookings and account.",
-        "info"
+        "info",
       )}
       
       ${getButton(verificationUrl, "Verify email address", "primary")}
@@ -536,14 +536,14 @@ export const emailTemplates = {
         <p style="word-break: break-all; color: ${
           brandColors.primary
         }; background: ${
-      brandColors.white
-    }; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 0;">${verificationUrl}</p>
+          brandColors.white
+        }; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 0;">${verificationUrl}</p>
       </div>
       
       ${getInfoBox(
         "Important",
         "This verification link will expire in 24 hours for security reasons. If it expires, you can request a new one from your account settings.",
-        "warning"
+        "warning",
       )}
       
       <p style="font-size: 14px; color: ${
@@ -583,20 +583,20 @@ export const emailTemplates = {
         <p style="word-break: break-all; color: ${
           brandColors.primary
         }; background: ${
-      brandColors.white
-    }; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 0;">${resetUrl}</p>
+          brandColors.white
+        }; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 0;">${resetUrl}</p>
       </div>
       
       ${getInfoBox(
         "Time sensitive",
         "This password reset link will expire in 1 hour for security reasons. If you need more time, you can request a new reset link.",
-        "warning"
+        "warning",
       )}
       
       ${getInfoBox(
         "Security tip",
         "Choose a strong password with at least 8 characters, including uppercase letters, lowercase letters, numbers, and special characters.",
-        "info"
+        "info",
       )}
       
       <p style="font-size: 14px; color: ${
@@ -613,8 +613,8 @@ export const emailTemplates = {
       <div style="text-align: center; padding: 30px; background-color: ${
         brandColors.success
       }; border-radius: 16px; margin: 0 0 30px 0; color: ${
-      brandColors.white
-    }; box-shadow: 0 6px 16px rgba(0,0,0,0.12);">
+        brandColors.white
+      }; box-shadow: 0 6px 16px rgba(0,0,0,0.12);">
         <h2 style="color: ${
           brandColors.white
         }; font-size: 26px; font-weight: 700; margin: 0 0 10px 0;">Account approved</h2>
@@ -634,8 +634,8 @@ export const emailTemplates = {
       <div style="background-color: ${
         brandColors.neutralLight
       }; border: 2px solid ${
-      brandColors.success
-    }30; padding: 25px; border-radius: 16px; margin: 30px 0;">
+        brandColors.success
+      }30; padding: 25px; border-radius: 16px; margin: 30px 0;">
         <h3 style="color: ${
           brandColors.success
         }; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">You can now:</h3>
@@ -643,8 +643,8 @@ export const emailTemplates = {
           <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: ${
             brandColors.white
           }; border-radius: 8px; border-left: 3px solid ${
-      brandColors.success
-    };">
+            brandColors.success
+          };">
             <div><strong>List Unlimited Properties</strong><br><span style="color: ${
               brandColors.neutralDark
             }; font-size: 14px;">Upload photos, set descriptions, and showcase your entire portfolio</span></div>
@@ -652,8 +652,8 @@ export const emailTemplates = {
           <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: ${
             brandColors.white
           }; border-radius: 8px; border-left: 3px solid ${
-      brandColors.success
-    };">
+            brandColors.success
+          };">
             <div><strong>Set Custom Pricing & Policies</strong><br><span style="color: ${
               brandColors.neutralDark
             }; font-size: 14px;">Dynamic pricing, cancellation policies, and special offers</span></div>
@@ -661,8 +661,8 @@ export const emailTemplates = {
           <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: ${
             brandColors.white
           }; border-radius: 8px; border-left: 3px solid ${
-      brandColors.success
-    };">
+            brandColors.success
+          };">
             <div><strong>Track Bookings & Earnings</strong><br><span style="color: ${
               brandColors.neutralDark
             }; font-size: 14px;">Real-time analytics, revenue reports, and performance insights</span></div>
@@ -670,8 +670,8 @@ export const emailTemplates = {
           <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: ${
             brandColors.white
           }; border-radius: 8px; border-left: 3px solid ${
-      brandColors.success
-    };">
+            brandColors.success
+          };">
             <div><strong>Customize Your Brand Profile</strong><br><span style="color: ${
               brandColors.neutralDark
             }; font-size: 14px;">Logo, colors, and branding throughout the booking experience</span></div>
@@ -682,7 +682,7 @@ export const emailTemplates = {
       ${getInfoBox(
         "Next steps",
         "Start by adding your first property listing. High-quality photos and detailed descriptions help guests choose faster.",
-        "info"
+        "info",
       )}
       
       <div style="text-align: center; padding: 25px; background: ${
@@ -738,23 +738,23 @@ export const emailTemplates = {
         <div style="background-color: #f9fafb; padding: 20px; border-radius: 5px; margin: 20px 0;">
           <h3 style="margin-top: 0;">${property.title}</h3>
           <p><strong>Check-in:</strong> ${new Date(
-            booking.checkInDate
+            booking.checkInDate,
           ).toLocaleDateString()}</p>
           <p><strong>Check-out:</strong> ${new Date(
-            booking.checkOutDate
+            booking.checkOutDate,
           ).toLocaleDateString()}</p>
           <p><strong>Guests:</strong> ${booking.totalGuests}</p>
           <p><strong>Total Amount:</strong> ${booking.currency} ${
-      booking.totalPrice
-    }</p>
+            booking.totalPrice
+          }</p>
           <p><strong>Booking ID:</strong> ${booking.id}</p>
         </div>
 
         <div style="background-color: #eff6ff; padding: 20px; border-radius: 5px; margin: 20px 0;">
           <h4 style="margin-top: 0;">Property Details</h4>
           <p><strong>Address:</strong> ${property.address}, ${property.city}, ${
-      property.country
-    }</p>
+            property.country
+          }</p>
           <p><strong>Host:</strong> ${realtor.businessName}</p>
           ${
             realtor.businessEmail
@@ -779,7 +779,7 @@ export const emailTemplates = {
   bookingCancellation: (
     booking: any,
     property: any,
-    refundAmount?: number
+    refundAmount?: number,
   ) => ({
     subject: `Booking Cancelled - ${property.title}`,
     html: `
@@ -790,14 +790,14 @@ export const emailTemplates = {
         <div style="background-color: #fef3c7; padding: 20px; border-radius: 5px; margin: 20px 0;">
           <h3 style="margin-top: 0;">${property.title}</h3>
           <p><strong>Check-in:</strong> ${new Date(
-            booking.checkInDate
+            booking.checkInDate,
           ).toLocaleDateString()}</p>
           <p><strong>Check-out:</strong> ${new Date(
-            booking.checkOutDate
+            booking.checkOutDate,
           ).toLocaleDateString()}</p>
           <p><strong>Original Amount:</strong> ${booking.currency} ${
-      booking.totalPrice
-    }</p>
+            booking.totalPrice
+          }</p>
           <p><strong>Booking ID:</strong> ${booking.id}</p>
         </div>
 
@@ -834,8 +834,8 @@ export const emailTemplates = {
           <h3 style="margin-top: 0;">Payment Details</h3>
           <p><strong>Receipt ID:</strong> ${payment.id}</p>
           <p><strong>Amount Paid:</strong> ${payment.currency} ${
-      payment.amount
-    }</p>
+            payment.amount
+          }</p>
           <p><strong>Payment Method:</strong> ${payment.method}</p>
           <p><strong>Payment Date:</strong> ${payment.createdAt.toLocaleDateString()}</p>
           <p><strong>Status:</strong> Completed</p>
@@ -845,10 +845,10 @@ export const emailTemplates = {
           <h4 style="margin-top: 0;">Booking Information</h4>
           <p><strong>Property:</strong> ${property.title}</p>
           <p><strong>Check-in:</strong> ${new Date(
-            booking.checkInDate
+            booking.checkInDate,
           ).toLocaleDateString()}</p>
           <p><strong>Check-out:</strong> ${new Date(
-            booking.checkOutDate
+            booking.checkOutDate,
           ).toLocaleDateString()}</p>
           <p><strong>Booking ID:</strong> ${booking.id}</p>
         </div>
@@ -863,7 +863,7 @@ export const emailTemplates = {
     realtor: any,
     amount: number,
     currency: string,
-    bookingId: string
+    bookingId: string,
   ) => ({
     subject: "Payout Processed - Booking Payment Released",
     html: `
@@ -893,7 +893,7 @@ export const emailTemplates = {
     refundAmount: number,
     totalRefunded: number,
     remaining: number,
-    reason: string
+    reason: string,
   ) => ({
     subject: `Refund ${remaining === 0 ? "Completed" : "Processed"} - Booking ${
       booking.id
@@ -937,10 +937,10 @@ export const emailTemplates = {
         getInfoBox(
           "What This Means",
           "You can now upload and manage properties on Stayza Pro. Your business credentials have been verified and you're ready to start earning!",
-          "success"
+          "success",
         ) +
         getButton(dashboardUrl, "Access your dashboard", "success") +
-        `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;"><p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Help?</strong> Contact us at <a href="mailto:support@stayza.com" style="color: ${brandColors.primary};">support@stayza.com</a></p></div>`
+        `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;"><p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Help?</strong> Contact us at <a href="mailto:support@stayza.com" style="color: ${brandColors.primary};">support@stayza.com</a></p></div>`,
     ),
   }),
 
@@ -953,9 +953,9 @@ export const emailTemplates = {
           "Verification Issue",
           reason ||
             "The provided CAC information requires clarification or additional documentation.",
-          "warning"
+          "warning",
         ) +
-        `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;"><p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Assistance?</strong> Contact us at <a href="mailto:verification@stayza.com" style="color: ${brandColors.primary};">verification@stayza.com</a></p></div>`
+        `<div style="margin-top: 30px; padding: 20px; background-color: ${brandColors.neutralLight}; border-radius: 8px;"><p style="margin: 0; font-size: 14px; color: ${brandColors.neutralDark};"><strong>Need Assistance?</strong> Contact us at <a href="mailto:verification@stayza.com" style="color: ${brandColors.primary};">verification@stayza.com</a></p></div>`,
     ),
   }),
 };
@@ -964,7 +964,7 @@ export const emailTemplates = {
 export const sendEmail = async (
   to: string | string[],
   template: { subject: string; html: string },
-  attachments?: any[]
+  attachments?: any[],
 ) => {
   try {
     const result = await queueAndSendEmail({
@@ -1040,13 +1040,9 @@ export const sendMessageActivityEmail = async (input: {
     html: getEmailContainer(
       `<h2 style="color: ${brandColors.primary}; font-size: 24px; font-weight: 700; margin: 0 0 16px 0;">${isSenderCopy ? "Message sent" : "You have a new message"}</h2>` +
         `<p style="font-size: 16px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">${recipientName ? `Hi ${recipientName}, ` : ""}${isSenderCopy ? `your message to <strong>${senderName}</strong> was delivered.` : `<strong>${senderName}</strong> sent you a message.`}</p>` +
-        getInfoBox(
-          "Conversation",
-          `${contextLabel}`,
-          "info"
-        ) +
+        getInfoBox("Conversation", `${contextLabel}`, "info") +
         `<div style="margin: 20px 0; padding: 16px; background-color: ${brandColors.neutralLight}; border-radius: 10px;"><p style="margin: 0; color: ${brandColors.neutralDark}; font-size: 14px; line-height: 1.6;">${preview}</p></div>` +
-        getButton(conversationUrl, "Open messages", "primary")
+        getButton(conversationUrl, "Open messages", "primary"),
     ),
   };
 
@@ -1059,7 +1055,7 @@ export const sendRealtorWelcomeEmail = async (
   name: string,
   businessName: string,
   dashboardUrl: string,
-  verificationUrl?: string
+  verificationUrl?: string,
 ) => {
   // Log verification URL in development for easy access
   if (process.env.NODE_ENV === "development" && verificationUrl) {
@@ -1074,7 +1070,7 @@ export const sendRealtorWelcomeEmail = async (
     name,
     businessName,
     dashboardUrl,
-    verificationUrl
+    verificationUrl,
   );
   return sendEmail(to, template);
 };
@@ -1083,7 +1079,7 @@ export const sendRealtorWelcomeEmail = async (
 export const sendEmailVerification = async (
   to: string,
   tokenOrUrl: string,
-  name?: string
+  name?: string,
 ) => {
   // Log verification URL in development for easy access
   if (process.env.NODE_ENV === "development" && !tokenOrUrl.match(/^\d{6}$/)) {
@@ -1118,8 +1114,8 @@ export const sendEmailVerification = async (
           <div style="display: inline-block; background: ${
             brandColors.neutralLight
           }; border: 2px solid ${
-        brandColors.primary
-      }; border-radius: 12px; padding: 20px 40px;">
+            brandColors.primary
+          }; border-radius: 12px; padding: 20px 40px;">
             <div style="font-size: 36px; font-weight: 700; color: ${
               brandColors.primary
             }; letter-spacing: 8px; font-family: 'Courier New', monospace;">
@@ -1135,8 +1131,8 @@ export const sendEmailVerification = async (
         <div style="background: ${
           brandColors.neutralLight
         }; border-left: 4px solid ${
-        brandColors.warning
-      }; padding: 16px 20px; margin: 30px 0; border-radius: 4px;">
+          brandColors.warning
+        }; padding: 16px 20px; margin: 30px 0; border-radius: 4px;">
           <p style="margin: 0; font-size: 14px; color: ${
             brandColors.neutralDark
           };">
@@ -1153,7 +1149,7 @@ export const sendEmailVerification = async (
     // Send traditional verification URL
     const template = emailTemplates.emailVerification(
       name || "User",
-      tokenOrUrl
+      tokenOrUrl,
     );
     return sendEmail(to, template);
   }
@@ -1163,7 +1159,7 @@ export const sendEmailVerification = async (
 export const sendPasswordReset = async (
   to: string,
   name: string,
-  resetUrl: string
+  resetUrl: string,
 ) => {
   const template = emailTemplates.passwordReset(name, resetUrl);
   return sendEmail(to, template);
@@ -1173,7 +1169,7 @@ export const sendPasswordReset = async (
 export const sendRealtorApproval = async (
   to: string,
   businessName: string,
-  dashboardUrl: string
+  dashboardUrl: string,
 ) => {
   const template = emailTemplates.realtorApproved(businessName, dashboardUrl);
   return sendEmail(to, template);
@@ -1183,7 +1179,7 @@ export const sendRealtorApproval = async (
 export const sendRealtorRejection = async (
   to: string,
   businessName: string,
-  reason: string
+  reason: string,
 ) => {
   const template = emailTemplates.realtorRejected(businessName, reason);
   return sendEmail(to, template);
@@ -1193,7 +1189,7 @@ export const sendRealtorRejection = async (
 export const sendRealtorSuspension = async (
   to: string,
   businessName: string,
-  reason: string
+  reason: string,
 ) => {
   const template = emailTemplates.realtorSuspended(businessName, reason);
   return sendEmail(to, template);
@@ -1204,12 +1200,12 @@ export const sendBookingConfirmation = async (
   to: string,
   booking: any,
   property: any,
-  realtor: any
+  realtor: any,
 ) => {
   const template = emailTemplates.bookingConfirmation(
     booking,
     property,
-    realtor
+    realtor,
   );
   return sendEmail(to, template);
 };
@@ -1219,12 +1215,12 @@ export const sendBookingCancellation = async (
   to: string,
   booking: any,
   property: any,
-  refundAmount?: number
+  refundAmount?: number,
 ) => {
   const template = emailTemplates.bookingCancellation(
     booking,
     property,
-    refundAmount
+    refundAmount,
   );
   return sendEmail(to, template);
 };
@@ -1235,7 +1231,7 @@ export const sendPaymentReceipt = async (
   booking: any,
   payment: any,
   property: any,
-  pdfAttachment?: any
+  pdfAttachment?: any,
 ) => {
   const template = emailTemplates.paymentReceipt(booking, payment, property);
   return sendEmail(to, template, pdfAttachment ? [pdfAttachment] : undefined);
@@ -1247,13 +1243,13 @@ export const sendRealtorPayout = async (
   realtor: any,
   amount: number,
   currency: string,
-  bookingId: string
+  bookingId: string,
 ) => {
   const template = emailTemplates.realtorPayout(
     realtor,
     amount,
     currency,
-    bookingId
+    bookingId,
   );
   return sendEmail(to, template);
 };
@@ -1265,14 +1261,14 @@ export const sendRefundProcessed = async (
   refundAmount: number,
   totalRefunded: number,
   remaining: number,
-  reason: string
+  reason: string,
 ) => {
   const template = emailTemplates.refundProcessed(
     booking,
     refundAmount,
     totalRefunded,
     remaining,
-    reason
+    reason,
   );
   return sendEmail(to, template);
 };
@@ -1281,7 +1277,7 @@ export const sendRefundProcessed = async (
 export const sendCacApprovalEmail = async (
   to: string,
   name: string,
-  businessName: string
+  businessName: string,
 ) => {
   const dashboardUrl = `https://${businessName
     .toLowerCase()
@@ -1296,7 +1292,7 @@ export const sendCacRejectionEmail = async (
   name: string,
   businessName: string,
   reason: string,
-  appealUrl: string
+  appealUrl: string,
 ) => {
   const template = {
     subject: "CAC verification requires attention - appeal available",
@@ -1308,7 +1304,7 @@ export const sendCacRejectionEmail = async (
           "Verification Issue",
           reason ||
             "The provided CAC information requires clarification or additional documentation.",
-          "warning"
+          "warning",
         ) +
         `<h3 style="color: ${brandColors.primary}; font-size: 18px; margin: 30px 0 15px 0;">What Happens Next?</h3>` +
         `<p style="font-size: 15px; margin: 0 0 20px 0; color: ${brandColors.neutralDark};">Click the button below to start your appeal process. You'll be redirected to your dashboard where you can:</p>` +
@@ -1326,7 +1322,7 @@ export const sendCacRejectionEmail = async (
         <p style="margin: 0; font-size: 13px; color: ${brandColors.neutralDark};">
           <strong>Appeal link expiry:</strong> This appeal link is valid for 7 days. After that, you'll need to contact support to request a new one.
         </p>
-      </div>`
+      </div>`,
     ),
   };
   return sendEmail(to, template);
@@ -1341,7 +1337,7 @@ export const sendBookingSuspensionNotification = async (
     propertyTitle: string;
     realtorBusinessName: string;
     reason: string;
-  }
+  },
 ) => {
   const guestName = `${guest.firstName} ${guest.lastName}`.trim();
   const template = {
@@ -1376,7 +1372,7 @@ export const sendRefundRequestToRealtor = async (
     reason: string;
     customerNotes?: string;
   },
-  dashboardUrl: string
+  dashboardUrl: string,
 ) => {
   // Create a simple template since we're not adding to the main templates object
   const template = {
@@ -1388,12 +1384,12 @@ export const sendRefundRequestToRealtor = async (
       <h3>Refund Details:</h3>
       <ul>
         <li><strong>Guest:</strong> ${guestDetails.firstName} ${
-      guestDetails.lastName
-    } (${guestDetails.email})</li>
+          guestDetails.lastName
+        } (${guestDetails.email})</li>
         <li><strong>Property:</strong> ${refundDetails.propertyTitle}</li>
         <li><strong>Refund Amount:</strong> ${refundDetails.currency} ${
-      refundDetails.amount
-    }</li>
+          refundDetails.amount
+        }</li>
         <li><strong>Reason:</strong> ${refundDetails.reason}</li>
         ${
           refundDetails.customerNotes
@@ -1419,7 +1415,7 @@ export const sendRefundDecisionToGuest = async (
     approved: boolean;
     realtorReason: string;
     realtorNotes?: string;
-  }
+  },
 ) => {
   const template = {
     subject: `Refund request ${
@@ -1437,8 +1433,8 @@ export const sendRefundDecisionToGuest = async (
       <ul>
         <li><strong>Property:</strong> ${refundDetails.propertyTitle}</li>
         <li><strong>Refund Amount:</strong> ${refundDetails.currency} ${
-      refundDetails.amount
-    }</li>
+          refundDetails.amount
+        }</li>
         <li><strong>Decision:</strong> ${
           refundDetails.approved ? "Approved" : "Not Approved"
         }</li>
@@ -1469,7 +1465,7 @@ export const sendRefundProcessedToGuest = async (
     propertyTitle: string;
     processedAt: Date;
     paymentMethod: string;
-  }
+  },
 ) => {
   const template = {
     subject: `💸 Refund Processed Successfully - ${refundDetails.propertyTitle}`,
@@ -1481,8 +1477,8 @@ export const sendRefundProcessedToGuest = async (
       <ul>
         <li><strong>Property:</strong> ${refundDetails.propertyTitle}</li>
         <li><strong>Refund Amount:</strong> ${refundDetails.currency} ${
-      refundDetails.amount
-    }</li>
+          refundDetails.amount
+        }</li>
         <li><strong>Processed On:</strong> ${refundDetails.processedAt.toLocaleDateString()}</li>
         <li><strong>Refund Method:</strong> ${
           refundDetails.paymentMethod
@@ -1512,13 +1508,13 @@ export const sendCommissionRateChangeEmail = async (
     newRate: number;
     reason: string;
     effectiveDate?: Date;
-  }
+  },
 ) => {
   const { realtorFirstName, oldRate, newRate, reason, effectiveDate } = data;
 
   const template = {
     subject: `Important: Commission Rate Update - Now ${(newRate * 100).toFixed(
-      1
+      1,
     )}%`,
     html: `
       <!DOCTYPE html>
@@ -1548,10 +1544,10 @@ export const sendCommissionRateChangeEmail = async (
             
             <div class="rate-box">
               <p><strong>Previous Rate:</strong> ${(oldRate * 100).toFixed(
-                1
+                1,
               )}%</p>
               <p class="rate-change">New Rate: ${(newRate * 100).toFixed(
-                1
+                1,
               )}%</p>
               <p><strong>Effective Date:</strong> ${
                 effectiveDate
@@ -1570,16 +1566,18 @@ export const sendCommissionRateChangeEmail = async (
                     (newRate - oldRate) *
                     100
                   ).toFixed(
-                    1
+                    1,
                   )}%. This means for every ₦100,000 booking, the commission will be ₦${(
                     newRate * 100000
                   ).toFixed(0)} instead of ₦${(oldRate * 100000).toFixed(0)}.`
                 : newRate < oldRate
-                ? `Great news! The platform commission will decrease by ${(
-                    (oldRate - newRate) *
-                    100
-                  ).toFixed(1)}%. This means you'll keep more of your earnings!`
-                : "The rate remains unchanged."
+                  ? `Great news! The platform commission will decrease by ${(
+                      (oldRate - newRate) *
+                      100
+                    ).toFixed(
+                      1,
+                    )}%. This means you'll keep more of your earnings!`
+                  : "The rate remains unchanged."
             }</p>
             
             <p>If you have any questions or concerns about this change, please don't hesitate to contact our support team.</p>
@@ -1608,7 +1606,7 @@ export const sendWithdrawalOtpEmail = async (
   name: string,
   otp: string,
   amount: number,
-  expiresInMinutes: number = 10
+  expiresInMinutes: number = 10,
 ) => {
   const template = {
     subject: "Withdrawal verification code - Stayza Pro",
@@ -1629,7 +1627,7 @@ export const sendWithdrawalOtpEmail = async (
           {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
-          }
+          },
         )}</strong>.
       </p>
 
@@ -1644,7 +1642,7 @@ export const sendWithdrawalOtpEmail = async (
       ${getInfoBox(
         "Security Notice",
         `This code expires in ${expiresInMinutes} minutes. Never share this code with anyone.`,
-        "warning"
+        "warning",
       )}
 
       <p style="font-size: 15px; margin-top: 28px; color: ${
@@ -1675,7 +1673,7 @@ export const sendPayoutAccountOtpEmail = async (
     bankName?: string;
     accountNumber?: string | null;
     accountName?: string;
-  }
+  },
 ) => {
   const template = {
     subject: "Payout account update verification code - Stayza Pro",
@@ -1723,7 +1721,7 @@ export const sendPayoutAccountOtpEmail = async (
       ${getInfoBox(
         "Security Notice",
         `This code expires in ${expiresInMinutes} minutes. Never share this code with anyone.`,
-        "warning"
+        "warning",
       )}
 
       <p style="font-size: 15px; margin-top: 28px; color: ${
@@ -1749,7 +1747,7 @@ export const sendWithdrawalRequestedEmail = async (
   to: string,
   name: string,
   amount: number,
-  reference: string
+  reference: string,
 ) => {
   const template = {
     subject: "Withdrawal request received - Stayza Pro",
@@ -1797,8 +1795,8 @@ export const sendWithdrawalRequestedEmail = async (
               <span style="display: inline-block; padding: 4px 12px; background-color: ${
                 brandColors.warning
               }; color: ${
-      brandColors.white
-    }; border-radius: 4px; font-size: 14px; font-weight: 600;">
+                brandColors.white
+              }; border-radius: 4px; font-size: 14px; font-weight: 600;">
                 Processing
               </span>
             </td>
@@ -1835,7 +1833,7 @@ export const sendWithdrawalCompletedEmail = async (
   to: string,
   name: string,
   amount: number,
-  reference: string
+  reference: string,
 ) => {
   const template = {
     subject: "Withdrawal completed - Stayza Pro",
@@ -1883,8 +1881,8 @@ export const sendWithdrawalCompletedEmail = async (
               <span style="display: inline-block; padding: 4px 12px; background-color: ${
                 brandColors.success
               }; color: ${
-      brandColors.white
-    }; border-radius: 4px; font-size: 14px; font-weight: 600;">
+                brandColors.white
+              }; border-radius: 4px; font-size: 14px; font-weight: 600;">
                 Completed
               </span>
             </td>
@@ -1925,7 +1923,7 @@ export const sendWithdrawalFailedEmail = async (
   to: string,
   name: string,
   amount: number,
-  reason: string
+  reason: string,
 ) => {
   const template = {
     subject: "Withdrawal not processed - action needed",
@@ -1965,8 +1963,8 @@ export const sendWithdrawalFailedEmail = async (
               <span style="display: inline-block; padding: 4px 12px; background-color: ${
                 brandColors.error
               }; color: ${
-      brandColors.white
-    }; border-radius: 4px; font-size: 14px; font-weight: 600;">
+                brandColors.white
+              }; border-radius: 4px; font-size: 14px; font-weight: 600;">
                 Failed
               </span>
             </td>
@@ -2006,7 +2004,7 @@ export const sendWithdrawalFailedEmail = async (
       ${getButton(
         `${config.FRONTEND_URL}/settings?tab=payout`,
         "Check Payout Settings",
-        "warning"
+        "warning",
       )}
       
       <div style="margin-top: 30px; padding: 20px; background-color: ${
@@ -2031,4 +2029,3 @@ export const sendWithdrawalFailedEmail = async (
 
   return sendEmail(to, template);
 };
-
