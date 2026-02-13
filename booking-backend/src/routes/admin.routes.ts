@@ -70,8 +70,8 @@ router.use(authenticate, requireRole("ADMIN"));
  *   - GET    /api/admin/bookings                      - List all bookings
  *   - GET    /api/admin/bookings/stats                - Booking statistics
  *   - GET    /api/admin/bookings/:id                  - Get booking details
- *   - PUT    /api/admin/bookings/:id/status           - Update booking status
- *   - POST   /api/admin/bookings/:id/cancel           - Cancel booking
+ *   - PUT    /api/admin/bookings/:id/status           - Disabled (read-only policy)
+ *   - POST   /api/admin/bookings/:id/cancel           - Disabled (read-only policy)
  *   - GET    /api/admin/bookings/disputes/all         - Get all open disputes
  *   - GET    /api/admin/bookings/refunds/pending      - Get pending refund requests
  *   - POST   /api/admin/bookings/refunds/:id/process  - Process refund request

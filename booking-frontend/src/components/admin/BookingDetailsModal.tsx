@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Calendar,
@@ -20,12 +20,6 @@ interface BookingDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   bookingId: string;
-  onStatusUpdate: (bookingId: string, status: string, reason?: string) => void;
-  onCancelBooking: (
-    bookingId: string,
-    reason: string,
-    refundAmount: number
-  ) => void;
 }
 
 interface DisputeInfo {
@@ -101,10 +95,12 @@ interface RawRefundRequest {
 
 interface RawBooking {
   id: string;
+  bookingReference?: string;
   status?: string;
   checkInDate: string;
   checkOutDate: string;
   totalPrice?: number;
+  platformFee?: number;
   currency?: string;
   createdAt: string;
   guest?: RawBookingGuest;
@@ -137,10 +133,33 @@ interface BookingDisputesResponse {
   disputes?: RawDispute[];
   data?: {
     disputes?: RawDispute[];
+    data?: {
+      disputes?: RawDispute[];
+    };
   };
 }
 
 const toArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? value : []);
+
+const isRawDispute = (value: unknown): value is RawDispute =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  typeof (value as { id?: unknown }).id === "string";
+
+const extractRawDisputes = (payload: unknown): RawDispute[] => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return toArray<RawDispute>(payload);
+  if (isRawDispute(payload)) return [payload];
+
+  const response = payload as BookingDisputesResponse;
+  return toArray<RawDispute>(
+    response.disputes ||
+      response.data?.disputes ||
+      response.data?.data?.disputes ||
+      []
+  );
+};
 
 const formatMoney = (amount: number, currency: string) =>
   new Intl.NumberFormat("en-US", {
@@ -150,7 +169,6 @@ const formatMoney = (amount: number, currency: string) =>
   }).format(amount);
 
 const formatDate = (value: string) => new Date(value).toLocaleDateString();
-
 const formatDateTime = (value: string) => new Date(value).toLocaleString();
 
 const getStatusColor = (status: string) => {
@@ -178,15 +196,16 @@ const mapBooking = (rawBooking: RawBooking): BookingDetails => {
 
   return {
     id: rawBooking.id,
-    reference: `BK-${rawBooking.id.slice(-8).toUpperCase()}`,
+    reference:
+      rawBooking.bookingReference || `BK-${rawBooking.id.slice(-8).toUpperCase()}`,
     status: rawBooking.status || "PENDING",
     paymentStatus: rawBooking.payment?.status || "INITIATED",
     checkInDate: rawBooking.checkInDate,
     checkOutDate: rawBooking.checkOutDate,
     totalAmount: Number(rawBooking.totalPrice || 0),
-    commissionAmount:
-      Number(rawBooking.payment?.platformFeeAmount || 0) ||
-      Math.round(Number(rawBooking.totalPrice || 0) * 0.1),
+    commissionAmount: Number(
+      rawBooking.payment?.platformFeeAmount ?? rawBooking.platformFee ?? 0
+    ),
     currency: rawBooking.currency || "NGN",
     guestName,
     guestEmail: rawBooking.guest?.email || "N/A",
@@ -195,13 +214,10 @@ const mapBooking = (rawBooking: RawBooking): BookingDetails => {
     hostEmail: rawBooking.property?.realtor?.user?.email || "N/A",
     hostPhone: rawBooking.property?.realtor?.businessPhone || "Not provided",
     propertyTitle: rawBooking.property?.title || "Property",
-    propertyAddress: [
-      rawBooking.property?.address,
-      rawBooking.property?.city,
-      rawBooking.property?.country,
-    ]
-      .filter(Boolean)
-      .join(", "),
+    propertyAddress:
+      [rawBooking.property?.address, rawBooking.property?.city, rawBooking.property?.country]
+        .filter(Boolean)
+        .join(", ") || "Address unavailable",
   };
 };
 
@@ -220,7 +236,7 @@ const buildTimeline = (
 
   if (rawBooking.payment?.paidAt) {
     timeline.push({
-      id: `payment-${rawBooking.payment.id}`,
+      id: `payment-${rawBooking.payment.id || rawBooking.id}`,
       timestamp: rawBooking.payment.paidAt,
       title: "Payment completed",
       description: `Payment moved to ${rawBooking.payment.status}.`,
@@ -256,23 +272,15 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
   isOpen,
   onClose,
   bookingId,
-  onStatusUpdate,
-  onCancelBooking,
 }) => {
   const [booking, setBooking] = useState<BookingDetails | null>(null);
   const [disputes, setDisputes] = useState<DisputeInfo[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    "details" | "timeline" | "disputes" | "refund"
-  >("details");
-  const [showStatusUpdate, setShowStatusUpdate] = useState(false);
-  const [showCancelBooking, setShowCancelBooking] = useState(false);
-  const [newStatus, setNewStatus] = useState("ACTIVE");
-  const [updateReason, setUpdateReason] = useState("");
-  const [cancelReason, setCancelReason] = useState("");
-  const [refundAmount, setRefundAmount] = useState(0);
+  const [activeTab, setActiveTab] = useState<"details" | "timeline" | "disputes">(
+    "details"
+  );
 
   useEffect(() => {
     if (!isOpen || !bookingId) return;
@@ -282,13 +290,16 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
       setError(null);
 
       try {
-        const [bookingResponse, disputesResponse] = await Promise.all([
+        const [bookingResult, disputesResult] = await Promise.allSettled([
           getBookingById(bookingId) as Promise<BookingByIdResponse>,
-          apiClient.get<BookingDisputesResponse>(
-            `/disputes/booking/${bookingId}`
-          ),
+          apiClient.get<BookingDisputesResponse>(`/disputes/booking/${bookingId}`),
         ]);
 
+        if (bookingResult.status !== "fulfilled") {
+          throw bookingResult.reason;
+        }
+
+        const bookingResponse = bookingResult.value;
         const rawBooking =
           bookingResponse.data?.booking ||
           bookingResponse.booking ||
@@ -298,21 +309,27 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
           throw new Error("Booking details are unavailable.");
         }
 
-        const mappedDisputes = toArray<RawDispute>(
-          disputesResponse.data?.disputes || disputesResponse.data?.data?.disputes
-        ).map((item) => ({
-          id: item.id,
-          type: item.disputeSubject || item.category || "DISPUTE",
-          description: item.writeup || "No dispute details available.",
-          status: item.status || "OPEN",
-          createdAt: item.openedAt || item.createdAt,
-        }));
+        let mappedDisputes: DisputeInfo[] = [];
+        if (disputesResult.status === "fulfilled") {
+          mappedDisputes = extractRawDisputes(disputesResult.value).map((item) => ({
+            id: item.id,
+            type: item.disputeSubject || item.category || "DISPUTE",
+            description: item.writeup || "No dispute details available.",
+            status: item.status || "OPEN",
+            createdAt: item.openedAt || item.createdAt,
+          }));
+        } else {
+          logError(disputesResult.reason, {
+            component: "BookingDetailsModal",
+            action: "load_booking_disputes",
+            metadata: { bookingId },
+          });
+        }
 
         const mappedBooking = mapBooking(rawBooking);
         setBooking(mappedBooking);
         setDisputes(mappedDisputes);
         setTimeline(buildTimeline(rawBooking, mappedDisputes));
-        setRefundAmount(mappedBooking.totalAmount);
       } catch (loadError) {
         logError(loadError, {
           component: "BookingDetailsModal",
@@ -328,16 +345,6 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
     loadData();
   }, [isOpen, bookingId]);
 
-  const canUpdateStatus = useMemo(
-    () => Boolean(newStatus.trim()) && Boolean(updateReason.trim()),
-    [newStatus, updateReason]
-  );
-
-  const canCancelBooking = useMemo(
-    () => Boolean(cancelReason.trim()) && refundAmount >= 0,
-    [cancelReason, refundAmount]
-  );
-
   if (!isOpen) return null;
 
   return (
@@ -350,7 +357,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
             </h2>
             {booking && (
               <p className="text-gray-600 mt-1">
-                {booking.guestName} • {formatDate(booking.checkInDate)} -{" "}
+                {booking.guestName} - {formatDate(booking.checkInDate)} to{" "}
                 {formatDate(booking.checkOutDate)}
               </p>
             )}
@@ -373,13 +380,11 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
         ) : booking ? (
           <div className="h-[calc(90vh-120px)] flex flex-col">
             <div className="border-b border-gray-200 px-6 py-3 flex gap-3 overflow-x-auto">
-              {["details", "timeline", "disputes", "refund"].map((tab) => (
+              {["details", "timeline", "disputes"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() =>
-                    setActiveTab(
-                      tab as "details" | "timeline" | "disputes" | "refund"
-                    )
+                    setActiveTab(tab as "details" | "timeline" | "disputes")
                   }
                   className={`text-sm font-medium px-3 py-1.5 rounded ${
                     activeTab === tab
@@ -397,9 +402,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                      <h3 className="font-semibold text-gray-900">
-                        Booking Details
-                      </h3>
+                      <h3 className="font-semibold text-gray-900">Booking Details</h3>
                       <div className="text-sm flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-gray-400" />
                         <span>
@@ -472,21 +475,6 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
                         <span>{booking.propertyAddress}</span>
                       </div>
                     </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowStatusUpdate(true)}
-                        className="flex-1 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm"
-                      >
-                        Update Status
-                      </button>
-                      <button
-                        onClick={() => setShowCancelBooking(true)}
-                        className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm"
-                      >
-                        Cancel Booking
-                      </button>
-                    </div>
                   </div>
                 </div>
               )}
@@ -501,9 +489,7 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
                           {formatDateTime(event.timestamp)}
                         </p>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {event.description}
-                      </p>
+                      <p className="text-sm text-gray-600 mt-1">{event.description}</p>
                     </div>
                   ))}
                 </div>
@@ -526,143 +512,16 @@ const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
                           {dispute.description}
                         </p>
                         <p className="text-xs text-red-600 mt-2">
-                          {dispute.status} • {formatDateTime(dispute.createdAt)}
+                          {dispute.status} - {formatDateTime(dispute.createdAt)}
                         </p>
                       </div>
                     ))
                   )}
                 </div>
               )}
-
-              {activeTab === "refund" && (
-                <div className="max-w-lg space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Refund amount ({booking.currency})
-                  </label>
-                  <input
-                    type="number"
-                    value={refundAmount}
-                    onChange={(event) => setRefundAmount(Number(event.target.value))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                    min={0}
-                    max={booking.totalAmount}
-                  />
-                  <label className="block text-sm font-medium text-gray-700">
-                    Refund reason
-                  </label>
-                  <textarea
-                    value={cancelReason}
-                    onChange={(event) => setCancelReason(event.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                    rows={3}
-                  />
-                  <button
-                    onClick={() =>
-                      onCancelBooking(booking.id, cancelReason, refundAmount)
-                    }
-                    disabled={!canCancelBooking}
-                    className="w-full rounded-lg bg-blue-600 text-white px-4 py-2 disabled:bg-gray-300"
-                  >
-                    Process Refund
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         ) : null}
-
-        {showStatusUpdate && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">Update booking status</h3>
-              <div className="space-y-3">
-                <select
-                  value={newStatus}
-                  onChange={(event) => setNewStatus(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                >
-                  <option value="PENDING">PENDING</option>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="DISPUTED">DISPUTED</option>
-                  <option value="COMPLETED">COMPLETED</option>
-                  <option value="CANCELLED">CANCELLED</option>
-                </select>
-                <textarea
-                  value={updateReason}
-                  onChange={(event) => setUpdateReason(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                  rows={3}
-                  placeholder="Reason for status change..."
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowStatusUpdate(false)}
-                    className="flex-1 rounded-lg bg-gray-100 px-4 py-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!canUpdateStatus) return;
-                      onStatusUpdate(bookingId, newStatus, updateReason);
-                      setShowStatusUpdate(false);
-                      setUpdateReason("");
-                    }}
-                    disabled={!canUpdateStatus}
-                    className="flex-1 rounded-lg bg-blue-600 text-white px-4 py-2 disabled:bg-gray-300"
-                  >
-                    Update
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showCancelBooking && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">Cancel booking</h3>
-              <div className="space-y-3">
-                <textarea
-                  value={cancelReason}
-                  onChange={(event) => setCancelReason(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                  rows={3}
-                  placeholder="Reason for cancellation..."
-                />
-                <input
-                  type="number"
-                  value={refundAmount}
-                  onChange={(event) => setRefundAmount(Number(event.target.value))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                  min={0}
-                  max={booking?.totalAmount || 0}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowCancelBooking(false)}
-                    className="flex-1 rounded-lg bg-gray-100 px-4 py-2"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!canCancelBooking) return;
-                      onCancelBooking(bookingId, cancelReason, refundAmount);
-                      setShowCancelBooking(false);
-                      setCancelReason("");
-                    }}
-                    disabled={!canCancelBooking}
-                    className="flex-1 rounded-lg bg-red-600 text-white px-4 py-2 disabled:bg-gray-300"
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

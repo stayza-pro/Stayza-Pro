@@ -3,14 +3,11 @@
 import React, { useState } from "react";
 import { useBookingsData } from "@/hooks/realtor/useBookingsData";
 import { useBranding } from "@/hooks/useBranding";
-import { useAlert } from "@/context/AlertContext";
-import { useAuth } from "@/context/AuthContext";
-import { Booking, BookingStatus } from "@/types";
+import { BookingStatus } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
   User,
-  MapPin,
   Clock,
   CheckCircle,
   XCircle,
@@ -20,17 +17,13 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
-  Copy,
   Eye,
 } from "lucide-react";
 import { format } from "date-fns";
-import { motion } from "framer-motion";
 
 export default function RealtorBookingsPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const { branding } = useBranding();
-  const { showSuccess, showConfirm } = useAlert();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">(
     "all"
@@ -43,9 +36,6 @@ export default function RealtorBookingsPage() {
     totalPages,
     isLoading,
     error,
-    confirmBooking,
-    cancelBooking,
-    refetch,
   } = useBookingsData({
     page: currentPage,
     limit: 10,
@@ -63,36 +53,13 @@ export default function RealtorBookingsPage() {
       currency: "NGN",
     }).format(amount || 0);
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    showSuccess("Copied to clipboard!");
-  };
-
-  const handleConfirm = async (bookingId: string) => {
-    showConfirm(
-      "Are you sure you want to confirm this booking?",
-      async () => {
-        await confirmBooking(bookingId);
-        showSuccess("Booking confirmed successfully!");
-      },
-      "Confirm Booking"
-    );
-  };
-
-  const handleCancel = async (bookingId: string) => {
-    showConfirm(
-      "Are you sure you want to cancel this booking? This action cannot be undone.",
-      async () => {
-        await cancelBooking(bookingId);
-        showSuccess("Booking cancelled successfully!");
-      },
-      "Cancel Booking"
-    );
-  };
-
   const statusConfig: Record<
     BookingStatus,
-    { label: string; color: string; icon: any }
+    {
+      label: string;
+      color: string;
+      icon: React.ComponentType<{ className?: string }>;
+    }
   > = {
     PENDING: {
       label: "Pending",
@@ -367,26 +334,8 @@ export default function RealtorBookingsPage() {
                             className="px-4 py-2 border border-gray-300 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all flex items-center gap-2"
                           >
                             <Eye className="w-4 h-4" />
-                            Details
+                            View
                           </button>
-
-                          {booking.status === "PENDING" && (
-                            <>
-                              <button
-                                onClick={() => handleConfirm(booking.id)}
-                                className="px-4 py-2 text-white rounded-xl text-sm font-bold transition-all hover:opacity-90"
-                                style={{ backgroundColor: brandColor }}
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => handleCancel(booking.id)}
-                                className="px-4 py-2 border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 transition-all"
-                              >
-                                Decline
-                              </button>
-                            </>
-                          )}
                         </div>
                       </div>
                     </div>

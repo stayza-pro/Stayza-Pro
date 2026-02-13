@@ -6,8 +6,6 @@ import {
   Search,
   Filter,
   Eye,
-  Edit,
-  Ban,
   DollarSign,
   Users,
   AlertTriangle,
@@ -18,14 +16,11 @@ import DisputeResolutionModal from "@/components/admin/DisputeResolutionModal";
 import {
   getAdminBookings,
   getBookingStats,
-  updateBookingStatus,
-  cancelBooking,
   formatBookingStatus,
   getBookingStatusColor,
   formatCurrency,
   getBookingDuration,
   BookingStatsResponse,
-  canCancelBooking,
   buildFilterSummary,
   type AdminBooking,
   type BookingSearchFilters,
@@ -71,9 +66,6 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
     sortBy: "createdAt",
     sortOrder: "desc",
   });
-
-  // Action states
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Fetch bookings data
   const fetchBookings = React.useCallback(async () => {
@@ -142,46 +134,6 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
   const handleViewDispute = (disputeId: string) => {
     setSelectedDisputeId(disputeId);
     setShowDisputeModal(true);
-  };
-
-  const handleBookingStatusUpdate = async (
-    bookingId: string,
-    status: string,
-    reason?: string
-  ) => {
-    try {
-      setActionLoading(bookingId);
-      await updateBookingStatus(bookingId, {
-        status: status as BookingStatus,
-        reason: reason || "",
-      });
-      await fetchBookings();
-    } catch (error: unknown) {
-      setError(getErrorMessage(error, "Failed to update booking status"));
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleBookingCancellation = async (
-    bookingId: string,
-    reason: string,
-    refundAmount: number
-  ) => {
-    try {
-      setActionLoading(bookingId);
-      // Convert refund amount to percentage for the service call
-      const booking = bookings.find((b) => b.id === bookingId);
-      const refundPercentage = booking
-        ? (refundAmount / booking.totalPrice) * 100
-        : 100;
-      await cancelBooking(bookingId, { reason, refundPercentage });
-      await fetchBookings();
-    } catch (error: unknown) {
-      setError(getErrorMessage(error, "Failed to cancel booking"));
-    } finally {
-      setActionLoading(null);
-    }
   };
 
   // Statistics cards component
@@ -305,12 +257,11 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="checked-in">Checked In</option>
-                    <option value="checked-out">Checked Out</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="DISPUTED">Disputed</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
                   </select>
                 </div>
 
@@ -599,7 +550,6 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleViewBooking(booking.id)}
-                        disabled={actionLoading === booking.id}
                         className="text-blue-600 p-1 rounded"
                         title="View Details"
                       >
@@ -615,26 +565,6 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
                           title="View Dispute"
                         >
                           <AlertTriangle className="h-4 w-4" />
-                        </button>
-                      )}
-
-                      {canCancelBooking(booking) && (
-                        <button
-                          onClick={() => handleViewBooking(booking.id)}
-                          className="text-green-600 p-1 rounded"
-                          title="Update Status"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                      )}
-
-                      {canCancelBooking(booking) && (
-                        <button
-                          onClick={() => handleViewBooking(booking.id)}
-                          className="text-red-600 p-1 rounded"
-                          title="Cancel Booking"
-                        >
-                          <Ban className="h-4 w-4" />
                         </button>
                       )}
                     </div>
@@ -763,8 +693,6 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
               isOpen={showDetailsModal}
               onClose={() => setShowDetailsModal(false)}
               bookingId={selectedBookingId}
-              onStatusUpdate={handleBookingStatusUpdate}
-              onCancelBooking={handleBookingCancellation}
             />
 
             <DisputeResolutionModal

@@ -9,15 +9,6 @@ import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
 import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { auditLogger } from "@/services/auditLogger";
-import {
-  safeTransitionBookingStatus,
-  BookingStatusConflictError,
-  InvalidStatusTransitionError,
-} from "@/services/bookingStatus";
-import {
-  NotificationService,
-  notificationHelpers,
-} from "@/services/notificationService";
 import { logger } from "@/utils/logger";
 import disputeService from "@/services/disputeService";
 
@@ -538,8 +529,8 @@ router.get(
  * @swagger
  * /api/admin/bookings/{id}/status:
  *   put:
- *     summary: Update booking status (admin override)
- *     description: Update booking status with admin privileges, bypassing normal validation
+ *     summary: Disabled endpoint (admin status update)
+ *     description: Manual admin status updates are disabled. Booking state is system-managed.
  *     tags: [Admin - Booking Management]
  *     security:
  *       - BearerAuth: []
@@ -577,98 +568,11 @@ router.get(
  */
 router.put(
   "/:id/status",
-  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
-    const { status, reason } = req.body;
-
-    if (!Object.values(BookingStatus).includes(status)) {
-      throw new AppError("Invalid booking status", 400);
-    }
-
-    if (!reason || reason.trim().length === 0) {
-      throw new AppError("Reason for status change is required", 400);
-    }
-
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        property: {
-          include: {
-            realtor: {
-              include: {
-                user: true,
-              },
-            },
-          },
-        },
-        guest: true,
-        payment: true,
-      },
-    });
-
-    if (!booking) {
-      throw new AppError("Booking not found", 404);
-    }
-
-    try {
-      const updatedBooking = await safeTransitionBookingStatus(
-        booking.id,
-        status,
-        {
-          adminId: req.user!.id,
-          reason,
-          skipValidation: true,
-        }
-      );
-
-      const notificationData = {
-        bookingId: booking.id,
-        propertyTitle: booking.property.title,
-        newStatus: status,
-        reason,
-        adminName: `${req.user!.firstName} ${req.user!.lastName}`,
-      };
-
-      const guestNotificationData =
-        notificationHelpers.bookingStatusChanged(notificationData);
-      await NotificationService.getInstance().createAndSendNotification({
-        userId: booking.guestId,
-        ...guestNotificationData,
-      });
-
-      const realtorNotificationData =
-        notificationHelpers.bookingStatusChanged(notificationData);
-      await NotificationService.getInstance().createAndSendNotification({
-        userId: booking.property.realtor.userId,
-        ...realtorNotificationData,
-      });
-
-      await auditLogger.log("BOOKING_STATUS_UPDATE", "BOOKING", {
-        adminId: req.user!.id,
-        entityId: id,
-        details: {
-          action: "UPDATE_BOOKING_STATUS",
-          fromStatus: booking.status,
-          toStatus: status,
-          reason,
-        },
-        req,
-      });
-
-      res.status(200).json({
-        success: true,
-        data: { booking: updatedBooking },
-        message: `Booking status updated to ${status}`,
-      });
-    } catch (error) {
-      if (
-        error instanceof BookingStatusConflictError ||
-        error instanceof InvalidStatusTransitionError
-      ) {
-        throw new AppError(error.message, 400);
-      }
-      throw error;
-    }
+  asyncHandler(async (_req: AuthenticatedRequest, _res: Response) => {
+    throw new AppError(
+      "Manual admin booking status updates are disabled. Booking state is managed automatically by payment, stay, and dispute flows.",
+      410
+    );
   })
 );
 
@@ -676,8 +580,8 @@ router.put(
  * @swagger
  * /api/admin/bookings/{id}/cancel:
  *   post:
- *     summary: Cancel booking with refund processing
- *     description: Cancel a booking and process refund based on specified percentage
+ *     summary: Disabled endpoint (admin cancellation)
+ *     description: Manual admin cancellation is disabled. Use refunds/disputes workflows.
  *     tags: [Admin - Booking Management]
  *     security:
  *       - BearerAuth: []
@@ -732,123 +636,11 @@ router.put(
  */
 router.post(
   "/:id/cancel",
-  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
-    const { reason, refundPercentage = 100 } = req.body;
-
-    if (!reason || reason.trim().length === 0) {
-      throw new AppError("Cancellation reason is required", 400);
-    }
-
-    if (refundPercentage < 0 || refundPercentage > 100) {
-      throw new AppError("Refund percentage must be between 0 and 100", 400);
-    }
-
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        property: {
-          include: {
-            realtor: {
-              include: { user: true },
-            },
-          },
-        },
-        guest: true,
-        payment: true,
-      },
-    });
-
-    if (!booking) {
-      throw new AppError("Booking not found", 404);
-    }
-
-    if (booking.status === BookingStatus.CANCELLED) {
-      throw new AppError("Booking is already cancelled", 400);
-    }
-
-    if (booking.status === BookingStatus.COMPLETED) {
-      throw new AppError("Cannot cancel completed booking", 400);
-    }
-
-    try {
-      const refundAmount = booking.payment
-        ? (Number(booking.payment.amount) * refundPercentage) / 100
-        : 0;
-
-      const updatedBooking = await safeTransitionBookingStatus(
-        booking.id,
-        BookingStatus.CANCELLED,
-        {
-          adminId: req.user!.id,
-          reason,
-          skipValidation: true,
-        }
-      );
-
-      if (booking.payment && refundAmount > 0) {
-        await prisma.payment.update({
-          where: { id: booking.payment.id },
-          data: {
-            refundAmount,
-            refundedAt: new Date(),
-          },
-        });
-
-        logger.info(`Refund of ${refundAmount} processed for booking ${id}`);
-      }
-
-      const notificationData = {
-        bookingId: booking.id,
-        propertyTitle: booking.property.title,
-        reason,
-        refundAmount,
-        adminName: `${req.user!.firstName} ${req.user!.lastName}`,
-      };
-
-      const guestNotificationData =
-        notificationHelpers.adminBookingCancelled(notificationData);
-      await NotificationService.getInstance().createAndSendNotification({
-        userId: booking.guestId,
-        ...guestNotificationData,
-      });
-
-      const realtorNotificationData =
-        notificationHelpers.adminBookingCancelled(notificationData);
-      await NotificationService.getInstance().createAndSendNotification({
-        userId: booking.property.realtor.userId,
-        ...realtorNotificationData,
-      });
-
-      await auditLogger.log("BOOKING_CANCEL", "BOOKING", {
-        adminId: req.user!.id,
-        entityId: id,
-        details: {
-          action: "CANCEL_BOOKING",
-          reason,
-          refundAmount,
-          refundPercentage,
-        },
-        req,
-      });
-
-      res.status(200).json({
-        success: true,
-        data: {
-          booking: updatedBooking,
-          refundAmount,
-        },
-        message: `Booking cancelled successfully. Refund of ₦${refundAmount.toLocaleString()} processed.`,
-      });
-    } catch (error) {
-      if (
-        error instanceof BookingStatusConflictError ||
-        error instanceof InvalidStatusTransitionError
-      ) {
-        throw new AppError(error.message, 400);
-      }
-      throw error;
-    }
+  asyncHandler(async (_req: AuthenticatedRequest, _res: Response) => {
+    throw new AppError(
+      "Manual admin booking cancellations are disabled. Use refund and dispute workflows instead.",
+      410
+    );
   })
 );
 
@@ -1207,3 +999,4 @@ router.post(
 );
 
 export default router;
+

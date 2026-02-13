@@ -27,8 +27,6 @@ interface UseBookingsDataReturn {
   refetch: () => Promise<void>;
   setPage: (page: number) => void;
   setStatus: (status: BookingStatus | "ALL") => void;
-  confirmBooking: (bookingId: string) => Promise<boolean>;
-  cancelBooking: (bookingId: string, reason?: string) => Promise<boolean>;
 }
 
 export function useBookingsData(
@@ -104,34 +102,6 @@ export function useBookingsData(
     setCurrentPage(1); // Reset to first page on status change
   }, []);
 
-  const confirmBooking = useCallback(
-    async (bookingId: string): Promise<boolean> => {
-      try {
-        await bookingService.updateBookingStatus(bookingId, "ACTIVE");
-        await fetchBookings(); // Refresh bookings after confirmation
-        return true;
-      } catch (err) {
-        
-        return false;
-      }
-    },
-    [fetchBookings]
-  );
-
-  const cancelBooking = useCallback(
-    async (bookingId: string, reason?: string): Promise<boolean> => {
-      try {
-        await bookingService.cancelBooking(bookingId, reason);
-        await fetchBookings(); // Refresh bookings after cancellation
-        return true;
-      } catch (err) {
-        
-        return false;
-      }
-    },
-    [fetchBookings]
-  );
-
   return {
     bookings,
     total,
@@ -144,7 +114,5 @@ export function useBookingsData(
     refetch: fetchBookings,
     setPage,
     setStatus,
-    confirmBooking,
-    cancelBooking,
   };
 }

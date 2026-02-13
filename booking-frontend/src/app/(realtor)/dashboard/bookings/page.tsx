@@ -3,21 +3,15 @@
 import React, { useState, useEffect } from "react";
 import { bookingService } from "@/services/bookings";
 import { Booking } from "@/types";
-import { useAlert } from "@/context/AlertContext";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import {
   Calendar,
-  Clock,
   User,
   Home,
-  DollarSign,
-  Check,
   X,
   Eye,
-  Filter,
   Search,
   Loader2,
-  MapPin,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -44,7 +38,6 @@ const STATUS_FILTERS: { value: BookingStatus; label: string }[] = [
 ];
 
 export default function BookingsPage() {
-  const { showSuccess, showError } = useAlert();
   const { brandColor } = useRealtorBranding();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,21 +72,6 @@ export default function BookingsPage() {
       
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleStatusUpdate = async (
-    bookingId: string,
-    newStatus: "ACTIVE" | "CANCELLED"
-  ) => {
-    try {
-      await bookingService.updateBookingStatus(bookingId, newStatus);
-      fetchBookings(); // Refresh list
-      setShowDetailModal(false);
-      showSuccess(`Booking ${newStatus.toLowerCase()} successfully!`);
-    } catch (error) {
-      
-      showError("Failed to update booking status");
     }
   };
 
@@ -297,33 +275,12 @@ export default function BookingsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => openDetailModal(booking)}
-                        className="mr-4 hover:opacity-80"
+                        className="hover:opacity-80"
                         style={{ color: brandColor }}
+                        title="View booking details"
                       >
                         <Eye className="h-5 w-5" />
                       </button>
-                      {booking.status === "PENDING" && (
-                        <>
-                          <button
-                            onClick={() =>
-                              handleStatusUpdate(booking.id, "ACTIVE")
-                            }
-                            className="text-green-600 hover:text-green-900 mr-2"
-                            title="Confirm"
-                          >
-                            <Check className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleStatusUpdate(booking.id, "CANCELLED")
-                            }
-                            className="text-red-600 hover:text-red-900"
-                            title="Cancel"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
-                        </>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -382,10 +339,20 @@ export default function BookingsPage() {
                 <div>
                   <span
                     className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${
-                      STATUS_COLORS[
-                        selectedBooking.status as keyof typeof STATUS_COLORS
-                      ]
+                      selectedBooking.status === "COMPLETED"
+                        ? ""
+                        : STATUS_COLORS[
+                            selectedBooking.status as keyof typeof STATUS_COLORS
+                          ]
                     }`}
+                    style={
+                      selectedBooking.status === "COMPLETED"
+                        ? {
+                            backgroundColor: brandColor + "20",
+                            color: brandColor,
+                          }
+                        : undefined
+                    }
                   >
                     {selectedBooking.status}
                   </span>
@@ -494,30 +461,6 @@ export default function BookingsPage() {
                     </div>
                   </div>
                 </div>
-
-                {/* Actions */}
-                {selectedBooking.status === "PENDING" && (
-                  <div className="flex gap-3 pt-4 border-t border-gray-200">
-                    <button
-                      onClick={() =>
-                        handleStatusUpdate(selectedBooking.id, "ACTIVE")
-                      }
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                    >
-                      <Check className="h-4 w-4" />
-                      Confirm Booking
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleStatusUpdate(selectedBooking.id, "CANCELLED")
-                      }
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                    >
-                      <X className="h-4 w-4" />
-                      Cancel Booking
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           </div>

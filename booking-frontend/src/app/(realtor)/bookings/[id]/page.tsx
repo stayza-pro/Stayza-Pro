@@ -1,28 +1,24 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Calendar,
   MapPin,
   Users,
-  Phone,
   Mail,
   Home,
   Download,
-  X,
   ArrowLeft,
   CheckCircle,
   Clock,
   XCircle,
   AlertCircle,
-  Ban,
-  RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
-import { useQuery, useMutation, useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 import { bookingService } from "@/services/bookings";
 import { paymentService } from "@/services/payments";
 import { BookingStatus } from "@/types";
@@ -36,14 +32,7 @@ export default function RealtorBookingDetailsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { branding } = useBranding();
-  const queryClient = useQueryClient();
   const bookingId = params.id as string;
-
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showRefundModal, setShowRefundModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
-  const [refundAmount, setRefundAmount] = useState("");
-  const [refundReason, setRefundReason] = useState("");
 
   const brandColor = branding?.colors?.primary || "#3B82F6";
 
@@ -53,77 +42,6 @@ export default function RealtorBookingDetailsPage() {
     queryFn: () => bookingService.getRealtorBooking(bookingId),
     enabled: !!user && !!bookingId,
   });
-
-  // Cancel booking mutation
-  const cancelMutation = useMutation({
-    mutationFn: (reason: string) =>
-      bookingService.cancelBooking(bookingId, reason),
-    onSuccess: (response) => {
-      queryClient.invalidateQueries({
-        queryKey: ["realtor-booking", bookingId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["realtor-bookings"] });
-      setShowCancelModal(false);
-      setCancelReason("");
-
-      // Show refund breakdown using new structure
-      if (response?.data?.refund) {
-        const refund = response.data.refund;
-        const totals = refund.totals;
-
-        showToast.success(
-          `Booking Cancelled. Refund processed automatically (${
-            refund.tier
-          } tier). Guest receives: ${formatCurrency(
-            totals.customerRefund || 0
-          )}, You receive: ${formatCurrency(totals.realtorPortion || 0)}`,
-          { duration: 6000 }
-        );
-      } else {
-        showToast.success("Booking cancelled successfully");
-      }
-    },
-    onError: (error: any) => {
-      showToast.error(
-        error?.response?.data?.message || "Failed to cancel booking"
-      );
-    },
-  });
-
-  // Request refund mutation (for disputes/cancellations)
-  const refundMutation = useMutation({
-    mutationFn: ({ amount, reason }: { amount: number; reason: string }) =>
-      bookingService.requestRefund(bookingId, amount, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["realtor-booking", bookingId],
-      });
-      setShowRefundModal(false);
-      setRefundAmount("");
-      setRefundReason("");
-    },
-  });
-
-  const handleCancelBooking = () => {
-    if (!cancelReason.trim()) {
-      alert("Please provide a cancellation reason");
-      return;
-    }
-    cancelMutation.mutate(cancelReason);
-  };
-
-  const handleRequestRefund = () => {
-    const amount = parseFloat(refundAmount);
-    if (!amount || amount <= 0) {
-      alert("Please provide a valid refund amount");
-      return;
-    }
-    if (!refundReason.trim()) {
-      alert("Please provide a refund reason");
-      return;
-    }
-    refundMutation.mutate({ amount, reason: refundReason });
-  };
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-NG", {
@@ -232,19 +150,6 @@ export default function RealtorBookingDetailsPage() {
       },
     };
     return configs[status] || configs.PENDING;
-  };
-
-  const canCancel = () => {
-    return booking && (booking.status === "PENDING" || booking.status === "ACTIVE");
-  };
-
-  const canRequestRefund = () => {
-    return (
-      booking &&
-      (booking.status === "CANCELLED" ||
-        booking.status === "DISPUTED" ||
-        booking.status === "COMPLETED")
-    );
   };
 
   if (isLoading) {
@@ -526,7 +431,7 @@ export default function RealtorBookingDetailsPage() {
         <div className="lg:col-span-1">
           <div className="sticky top-24 space-y-4">
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-4">Actions</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">Booking Tools</h3>
               <div className="space-y-3">
                 <button
                   onClick={handleDownloadReceipt}
@@ -536,27 +441,6 @@ export default function RealtorBookingDetailsPage() {
                   <Download className="h-4 w-4 mr-2" />
                   Download Receipt
                 </button>
-
-                {canCancel() && (
-                  <button
-                    onClick={() => setShowCancelModal(true)}
-                    className="w-full px-4 py-3 border border-red-300 text-red-600 rounded-xl hover:bg-red-50 transition-all flex items-center justify-center font-medium"
-                  >
-                    <Ban className="h-4 w-4 mr-2" />
-                    Cancel Booking
-                  </button>
-                )}
-
-                {canRequestRefund() && (
-                  <button
-                    onClick={() => setShowRefundModal(true)}
-                    className="w-full px-4 py-3 rounded-xl text-white font-medium hover:opacity-90 transition-all flex items-center justify-center"
-                    style={{ backgroundColor: brandColor }}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Request Refund
-                  </button>
-                )}
               </div>
             </div>
 
@@ -583,106 +467,6 @@ export default function RealtorBookingDetailsPage() {
         </div>
       </div>
 
-      {/* Cancel Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Cancel Booking
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Are you sure you want to cancel this booking? Please provide a
-              reason for cancellation.
-            </p>
-
-            <textarea
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-              placeholder="Reason for cancellation..."
-            />
-
-            <div className="flex space-x-3">
-              <button
-                onClick={handleCancelBooking}
-                className="flex-1 px-4 py-3 rounded-xl font-medium text-white"
-                style={{ backgroundColor: brandColor }}
-                disabled={cancelMutation.isLoading}
-              >
-                {cancelMutation.isLoading ? "Cancelling..." : "Confirm Cancel"}
-              </button>
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-50"
-                disabled={cancelMutation.isLoading}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Refund Modal */}
-      {showRefundModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Request Refund
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Submit a refund request for this booking. The admin will review
-              and process it.
-            </p>
-
-            {/* Refund info displayed in cancellation toast - removed complex breakdown */}
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Refund Amount (NGN)
-              </label>
-              <input
-                type="number"
-                value={refundAmount}
-                onChange={(e) => setRefundAmount(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="0.00"
-                max={booking.totalPrice}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Max: {formatCurrency(booking.totalPrice || 0)}
-              </p>
-            </div>
-
-            <textarea
-              value={refundReason}
-              onChange={(e) => setRefundReason(e.target.value)}
-              rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-              placeholder="Reason for refund..."
-            />
-
-            <div className="flex space-x-3">
-              <button
-                onClick={handleRequestRefund}
-                className="flex-1 px-4 py-3 rounded-xl font-medium text-white"
-                style={{ backgroundColor: brandColor }}
-                disabled={refundMutation.isLoading}
-              >
-                {refundMutation.isLoading ? "Requesting..." : "Submit Request"}
-              </button>
-              <button
-                onClick={() => setShowRefundModal(false)}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-50"
-                disabled={refundMutation.isLoading}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1172,8 +1172,8 @@ router.get(
  * @swagger
  * /api/bookings/{id}/status:
  *   put:
- *     summary: Update booking status
- *     description: Update booking status (HOST or ADMIN only)
+ *     summary: Disabled endpoint (manual status update)
+ *     description: Manual status updates are disabled. Booking state is system-managed.
  *     tags: [Bookings]
  *     security:
  *       - BearerAuth: []
@@ -1210,12 +1210,12 @@ router.put(
   authenticate,
   authorize("REALTOR", "ADMIN"),
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    throw new AppError(
+      "Manual booking status updates are disabled. Booking state is now managed automatically by payment, check-in/check-out, and dispute workflows.",
+      410
+    );
     const { id } = req.params;
     const { status } = req.body;
-
-    if (!status || !Object.values(BookingStatus).includes(status)) {
-      throw new AppError("Valid status is required", 400);
-    }
 
     const booking = await prisma.booking.findUnique({
       where: { id },
@@ -1344,7 +1344,7 @@ router.put(
  * /api/bookings/{id}/cancel-preview:
  *   get:
  *     summary: Preview cancellation refund amount
- *     description: Get refund breakdown before confirming cancellation
+ *     description: Get refund breakdown before confirming guest cancellation
  *     tags: [Bookings]
  *     security:
  *       - BearerAuth: []
@@ -1395,10 +1395,12 @@ router.get(
     }
 
     const isGuest = booking.guestId === userId;
-    const isAdmin = req.user!.role === "ADMIN";
 
-    if (!isGuest && !isAdmin) {
-      throw new AppError("Not authorized to cancel this booking", 403);
+    if (!isGuest) {
+      throw new AppError(
+        "Only the booking guest can preview cancellation for this booking",
+        403
+      );
     }
 
     const cancellationCheck = await canCancelBooking(id);
@@ -1501,7 +1503,7 @@ router.get(
  * /api/bookings/{id}/cancel:
  *   put:
  *     summary: Cancel booking
- *     description: Cancel booking with refund processing (owner or admin only)
+ *     description: Cancel booking with refund processing (guest owner only)
  *     tags: [Bookings]
  *     security:
  *       - BearerAuth: []
@@ -1573,10 +1575,12 @@ router.put(
     }
 
     const isOwner = booking.guestId === req.user!.id;
-    const isAdmin = req.user!.role === "ADMIN";
 
-    if (!isOwner && !isAdmin) {
-      throw new AppError("Not authorized to cancel this booking", 403);
+    if (!isOwner) {
+      throw new AppError(
+        "Only the booking guest can cancel this booking",
+        403
+      );
     }
 
     const cancellationCheck = await canCancelBooking(id);
@@ -1591,8 +1595,7 @@ router.put(
       id,
       BookingStatus.CANCELLED,
       {
-        userId: isOwner ? req.user!.id : undefined,
-        adminId: isAdmin ? req.user!.id : undefined,
+        userId: req.user!.id,
         reason: reason || "Booking cancelled by user",
       }
     );
@@ -1727,7 +1730,7 @@ router.put(
         refund: refundInfo,
         cancellation: {
           reason: reason || "Booking cancelled by user",
-          cancelledBy: isAdmin ? "admin" : "guest",
+          cancelledBy: "guest",
           cancelledAt: new Date(),
           refundEligible: cancellationCheck.refundEligible,
         },
