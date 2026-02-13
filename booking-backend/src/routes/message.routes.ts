@@ -18,6 +18,7 @@ import { PrismaClient } from "@prisma/client";
 import {
   authenticate,
   AuthenticatedRequest,
+  authorize,
   requireRole,
 } from "@/middleware/auth";
 import { MessageFilterService } from "@/services/messageFilter";
@@ -39,7 +40,7 @@ const prisma = new PrismaClient();
 router.post(
   "/property/:propertyId/inquiry",
   authenticate,
-  requireRole("GUEST"),
+  authorize("GUEST", "REALTOR"),
   (req: AuthenticatedRequest, res: Response, next: any) => {
     uploadMessageAttachments(req, res, (err: any) => {
       if (err) {
@@ -55,8 +56,10 @@ router.post(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { propertyId } = req.params;
-      const { content } = req.body;
+      const { content, recipientId: rawRecipientId } = req.body;
       const userId = req.user!.id;
+      const requestedRecipientId =
+        typeof rawRecipientId === "string" ? rawRecipientId.trim() : "";
       const files = req.files as {
         files?: Express.Multer.File[];
         voiceNote?: Express.Multer.File[];
@@ -80,6 +83,17 @@ router.post(
         res.status(404).json({
           success: false,
           error: "Property not found",
+        });
+        return;
+      }
+
+      const isPropertyRealtor = property.realtor.userId === userId;
+      const isGuest = req.user!.role === "GUEST";
+
+      if (!isGuest && !isPropertyRealtor) {
+        res.status(403).json({
+          success: false,
+          error: "Access denied",
         });
         return;
       }
@@ -118,12 +132,71 @@ router.post(
         filteredContent = filterResult.filteredContent;
       }
 
+      let recipientId = property.realtor.userId;
+
+      if (isPropertyRealtor) {
+        recipientId = requestedRecipientId;
+
+        if (!recipientId) {
+          const latestThreadMessage = await prisma.message.findFirst({
+            where: {
+              propertyId,
+              type: "INQUIRY",
+              OR: [{ senderId: userId }, { recipientId: userId }],
+            },
+            select: {
+              senderId: true,
+              recipientId: true,
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+          });
+
+          if (latestThreadMessage) {
+            recipientId =
+              latestThreadMessage.senderId === userId
+                ? latestThreadMessage.recipientId
+                : latestThreadMessage.senderId;
+          }
+        }
+
+        if (!recipientId) {
+          res.status(400).json({
+            success: false,
+            error: "Recipient is required to reply to this inquiry",
+          });
+          return;
+        }
+
+        if (recipientId === userId || recipientId === property.realtor.userId) {
+          res.status(400).json({
+            success: false,
+            error: "Invalid inquiry recipient",
+          });
+          return;
+        }
+
+        const recipient = await prisma.user.findUnique({
+          where: { id: recipientId },
+          select: { role: true },
+        });
+
+        if (!recipient || recipient.role !== "GUEST") {
+          res.status(400).json({
+            success: false,
+            error: "Inquiry recipient must be a guest",
+          });
+          return;
+        }
+      }
+
       // Create inquiry message
       const message = await prisma.message.create({
         data: {
           propertyId,
           senderId: userId,
-          recipientId: property.realtor.userId,
+          recipientId,
           content: filteredContent,
           type: "INQUIRY",
           wasFiltered: filterResult.violations.length > 0,

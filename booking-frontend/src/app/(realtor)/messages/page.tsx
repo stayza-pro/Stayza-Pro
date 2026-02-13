@@ -157,9 +157,15 @@ export default function RealtorMessagesPage() {
           formData
         );
       } else if (conversation?.propertyId) {
+        if (!conversation.otherUser?.id) {
+          toast.error("Unable to identify inquiry recipient");
+          return;
+        }
+
         await messageService.sendPropertyInquiryWithAttachments(
           conversation.propertyId,
-          formData
+          formData,
+          conversation.otherUser.id
         );
       }
 

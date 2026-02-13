@@ -152,6 +152,7 @@ const extractMessagesPayload = (payload: unknown): Message[] => {
 
 export interface SendPropertyInquiryRequest {
   content: string;
+  recipientId?: string;
 }
 
 export interface SendBookingMessageRequest {
@@ -282,8 +283,13 @@ class MessageService {
    */
   async sendPropertyInquiryWithAttachments(
     propertyId: string,
-    formData: FormData
+    formData: FormData,
+    recipientId?: string
   ): Promise<ApiResponse<Message>> {
+    if (recipientId) {
+      formData.append("recipientId", recipientId);
+    }
+
     return apiClient.post<Message>(
       `/messages/property/${propertyId}/inquiry`,
       formData,
