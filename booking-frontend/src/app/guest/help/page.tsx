@@ -1,337 +1,135 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import {
-  HelpCircle,
-  ExternalLink,
-  MessageCircle,
-  Book,
-  FileText,
-  Shield,
-  CreditCard,
-  Users,
-  Mail,
-  Phone,
-  AlertCircle,
-} from "lucide-react";
-import { Card, Button } from "@/components/ui";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { Footer } from "@/components/guest/sections/Footer";
+import React, { useMemo, useState } from "react";
+import Link from "next/link";
+import { HelpCircle, Search, MessageSquare, Phone, Mail } from "lucide-react";
+import { Button, Input, Card } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { Footer } from "@/components/guest/sections/Footer";
+import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 
 export default function HelpPage() {
-  const router = useRouter();
-  const { user } = useCurrentUser();
+  const [searchQuery, setSearchQuery] = useState("");
   const {
-    brandColor: primaryColor, // Lighter touch - primary for CTAs
-    secondaryColor, // Lighter touch - secondary for accents
-    accentColor, // Lighter touch - accent for highlights
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
     realtorName,
     logoUrl,
     tagline,
     description,
   } = useRealtorBranding();
 
-  const [showRedirectModal, setShowRedirectModal] = useState(false);
-  const [redirectUrl, setRedirectUrl] = useState("");
-
-  const helpCategories = [
+  const faqs = [
     {
-      icon: Book,
-      title: "Getting Started",
-      description: "Learn how to book your first property",
-      topics: [
-        "How to search for properties",
-        "Understanding property listings",
-        "Creating an account",
-        "Managing your profile",
-      ],
+      question: "How do I book a property?",
+      answer:
+        "Browse our properties, select one you like, choose your dates, and click Request to Book. You need to provide payment information and agree to terms.",
     },
     {
-      icon: CreditCard,
-      title: "Payments & Billing",
-      description: "Payment methods and billing information",
-      topics: [
-        "Accepted payment methods",
-        "Understanding pricing",
-        "Refund policy",
-        "Payment security",
-      ],
+      question: "What is your cancellation policy?",
+      answer:
+        "Cancellation and refund eligibility depends on how close check-in is. You can preview your refund from the booking details page before cancelling.",
     },
     {
-      icon: FileText,
-      title: "Bookings",
-      description: "Managing your reservations",
-      topics: [
-        "How to book a property",
-        "Modifying bookings",
-        "Cancellation policy",
-        "Check-in/Check-out process",
-      ],
+      question: "How do I contact my realtor?",
+      answer:
+        "You can message your realtor directly through the Messages page for booking updates or property questions.",
     },
     {
-      icon: Shield,
-      title: "Safety & Security",
-      description: "Your safety is our priority",
-      topics: [
-        "Guest safety guidelines",
-        "Property verification",
-        "Secure payments",
-        "Privacy policy",
-      ],
+      question: "When will I be charged?",
+      answer:
+        "Your payment method is charged when the booking is confirmed and you receive a receipt immediately.",
     },
     {
-      icon: Users,
-      title: "Account Management",
-      description: "Manage your account settings",
-      topics: [
-        "Update profile information",
-        "Change password",
-        "Notification preferences",
-        "Account deletion",
-      ],
+      question: "Can I modify my booking?",
+      answer:
+        "You can request booking changes through messages with your realtor. Changes depend on availability and may update pricing.",
     },
     {
-      icon: MessageCircle,
-      title: "Communication",
-      description: "Connect with hosts and support",
-      topics: [
-        "Messaging hosts",
-        "Contact support",
-        "Language preferences",
-        "Response time expectations",
-      ],
+      question: "What if I have issues during my stay?",
+      answer:
+        "Contact your realtor right away through messaging, or reach support for urgent assistance.",
     },
   ];
 
-  const handleExternalRedirect = (url: string) => {
-    setRedirectUrl(url);
-    setShowRedirectModal(true);
-  };
-
-  const confirmRedirect = () => {
-    if (redirectUrl) {
-      window.open(redirectUrl, "_blank", "noopener,noreferrer");
-      setShowRedirectModal(false);
-      setRedirectUrl("");
+  const filteredFaqs = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return faqs;
     }
-  };
 
-  const cancelRedirect = () => {
-    setShowRedirectModal(false);
-    setRedirectUrl("");
-  };
+    const query = searchQuery.toLowerCase();
+    return faqs.filter(
+      (faq) => faq.question.toLowerCase().includes(query) || faq.answer.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
-      <GuestHeader
-        currentPage="help"
-        searchPlaceholder="Search help topics..."
-      />
+    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ colorScheme: "light" }}>
+      <GuestHeader currentPage="help" searchPlaceholder="Search help..." />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-        {/* Header Section */}
-        <div className="mb-16 text-center">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div className="text-center mb-12">
           <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-8"
-            style={{ backgroundColor: `${accentColor}15` }}
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-white"
+            style={{ backgroundColor: primaryColor }}
           >
-            <HelpCircle className="h-8 w-8" style={{ color: accentColor }} />
+            <HelpCircle className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-            How can we help you?
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Find answers to common questions or contact our support team
-          </p>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">How can we help?</h1>
+          <p className="text-gray-600">Find answers to common questions or contact our support team</p>
         </div>
 
-        {/* Quick Contact */}
-        <Card className="p-4 sm:p-8 mb-12 border-2 border-gray-200 !bg-white">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Need immediate assistance?
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Our support team is here to help you with any questions or
-              concerns
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                onClick={() => router.push("/guest/messages")}
-                className="flex items-center justify-center"
-                style={{ backgroundColor: primaryColor }} // Lighter touch - primary for CTA
-              >
-                <MessageCircle className="h-5 w-5 mr-2" />
-                Message Support
-              </Button>
-              <Button
-                onClick={() =>
-                  handleExternalRedirect("https://stayzapro.com/contact")
-                }
-                variant="outline"
-                className="flex items-center justify-center"
-              >
-                <ExternalLink className="h-5 w-5 mr-2" />
-                Visit Stayza Pro Support
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Help Categories */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Browse by Category
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {helpCategories.map((category, index) => {
-              const Icon = category.icon;
-              return (
-                <Card
-                  key={index}
-                  className="p-6 hover:shadow-lg transition-all duration-200 cursor-pointer group"
-                  onClick={() =>
-                    handleExternalRedirect(
-                      `https://stayzapro.com/help/${category.title
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")}`,
-                    )
-                  }
-                >
-                  <div
-                    className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
-                    style={{ backgroundColor: `${accentColor}15` }}
-                  >
-                    <Icon className="h-6 w-6" style={{ color: accentColor }} />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:opacity-80 transition-opacity">
-                    {category.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    {category.description}
-                  </p>
-                  <ul className="space-y-2">
-                    {category.topics.map((topic, topicIndex) => (
-                      <li
-                        key={topicIndex}
-                        className="text-sm text-gray-500 flex items-start"
-                      >
-                        <span
-                          className="mr-2 mt-1.5 w-1 h-1 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: accentColor }}
-                        />
-                        {topic}
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              );
-            })}
-          </div>
+        <div className="relative mb-12">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+          <Input
+            type="text"
+            placeholder="Search for help..."
+            className="pl-12 h-14 text-lg"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
         </div>
 
-        {/* Additional Resources */}
-        <Card className="p-4 sm:p-8 !bg-white">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-            Additional Resources
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button
-              onClick={() =>
-                handleExternalRedirect("https://stayzapro.com/faq")
-              }
-              className="p-6 border-2 border-gray-200 rounded-lg hover:border-gray-300 transition-colors text-left group"
-            >
-              <FileText
-                className="h-8 w-8 mb-3"
-                style={{ color: accentColor }}
-              />
-              <h3 className="font-semibold text-gray-900 mb-2 group-hover:opacity-80">
-                Frequently Asked Questions
-              </h3>
-              <p className="text-sm text-gray-600">
-                Quick answers to common questions
-              </p>
-            </button>
-
-            <button
-              onClick={() =>
-                handleExternalRedirect("https://stayzapro.com/terms")
-              }
-              className="p-6 border-2 border-gray-200 rounded-lg hover:border-gray-300 transition-colors text-left group"
-            >
-              <Shield className="h-8 w-8 mb-3" style={{ color: accentColor }} />
-              <h3 className="font-semibold text-gray-900 mb-2 group-hover:opacity-80">
-                Terms & Policies
-              </h3>
-              <p className="text-sm text-gray-600">
-                Terms of service and privacy policy
-              </p>
-            </button>
-          </div>
-        </Card>
-
-        {/* Powered by Stayza Pro */}
-        <div className="mt-8 text-center">
-          <p className="text-xs text-gray-400">
-            Powered by Stayza Pro - Professional Property Management
-          </p>
+        <div className="mb-12 space-y-3">
+          <h2 className="text-2xl font-bold mb-6 text-gray-900">Frequently Asked Questions</h2>
+          {filteredFaqs.map((faq) => (
+            <Card key={faq.question} className="bg-white border border-gray-200 rounded-xl p-6">
+              <h3 className="font-semibold text-gray-900 mb-2">{faq.question}</h3>
+              <p className="text-gray-600">{faq.answer}</p>
+            </Card>
+          ))}
         </div>
-      </main>
 
-      {/* Redirect Confirmation Modal */}
-      {showRedirectModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-4 sm:p-8 !bg-white animate-in fade-in zoom-in duration-200">
-            <div className="text-center mb-6">
-              <div
-                className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-                style={{ backgroundColor: `${accentColor}15` }}
-              >
-                <AlertCircle
-                  className="h-8 w-8"
-                  style={{ color: accentColor }}
-                />
+        <Card className="bg-white rounded-xl border border-gray-200 p-8">
+          <h2 className="text-2xl font-bold mb-6 text-center text-gray-900">Still need help?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Link href="/guest/messages" className="flex flex-col items-center text-center p-6 rounded-xl hover:bg-gray-50 transition-colors">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 text-white" style={{ backgroundColor: primaryColor }}>
+                <MessageSquare className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Leaving {realtorName}
-              </h3>
-              <p className="text-gray-600">
-                You're about to visit the Stayza Pro main website for additional
-                support and resources.
-              </p>
-            </div>
+              <h3 className="font-semibold mb-1 text-gray-900">Live Chat</h3>
+              <p className="text-sm text-gray-600">Chat with our support team</p>
+            </Link>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="text-sm text-gray-700 mb-2">
-                <strong>You'll be redirected to:</strong>
-              </p>
-              <p className="text-sm text-gray-600 break-all">{redirectUrl}</p>
-            </div>
+            <a href="tel:+2340000000000" className="flex flex-col items-center text-center p-6 rounded-xl hover:bg-gray-50 transition-colors">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 text-white" style={{ backgroundColor: primaryColor }}>
+                <Phone className="w-6 h-6" />
+              </div>
+              <h3 className="font-semibold mb-1 text-gray-900">Call Us</h3>
+              <p className="text-sm text-gray-600">+234 000 000 0000</p>
+            </a>
 
-            <div className="flex gap-3">
-              <Button
-                onClick={cancelRedirect}
-                variant="outline"
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={confirmRedirect}
-                className="flex-1"
-                style={{ backgroundColor: primaryColor }} // Lighter touch - primary for CTA
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Continue
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+            <a href="mailto:support@stayza.com" className="flex flex-col items-center text-center p-6 rounded-xl hover:bg-gray-50 transition-colors">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 text-white" style={{ backgroundColor: primaryColor }}>
+                <Mail className="w-6 h-6" />
+              </div>
+              <h3 className="font-semibold mb-1 text-gray-900">Email</h3>
+              <p className="text-sm text-gray-600">support@stayza.com</p>
+            </a>
+          </div>
+        </Card>
+      </main>
 
       <Footer
         realtorName={realtorName}
@@ -339,6 +137,8 @@ export default function HelpPage() {
         logo={logoUrl}
         description={description}
         primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
       />
     </div>
   );

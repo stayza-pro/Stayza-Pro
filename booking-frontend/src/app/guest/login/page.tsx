@@ -1,551 +1,138 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, ArrowRight, Check } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Mail, Home } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 
-// Force dynamic rendering since this page uses search params
-export const dynamic = "force-dynamic";
-
-interface LoginResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    user: {
-      id: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-      role: "GUEST" | "REALTOR" | "ADMIN";
-      realtor?: {
-        status: "PENDING" | "APPROVED" | "REJECTED";
-        businessName: string;
-        slug: string;
-      };
-    };
-    accessToken: string;
-    refreshToken: string;
-  };
-  errors?: string[];
-}
-
-function GuestLoginContent() {
+export default function GuestLoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const returnTo = searchParams.get("returnTo") || "/guest-landing";
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subdomain, setSubdomain] = useState<string | null>(null);
 
-  // Use the reusable realtor branding hook
-  const {
-    realtorBranding,
-    brandColor: primaryColor, // 60% - Primary brand color for backgrounds and dominant elements
-    secondaryColor, // 30% - Secondary color for text and borders
-    accentColor, // 10% - Accent color for CTAs and highlights
-    realtorName,
-    logoUrl,
-    tagline,
-    isLoading: brandingLoading,
-  } = useRealtorBranding();
+  const { brandColor: primaryColor, realtorName, tagline } = useRealtorBranding();
 
-  // State for hydration-safe subdomain detection
-  const [realtorSubdomain, setRealtorSubdomain] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
-
-  // Handle client-side hydration
-  React.useEffect(() => {
-    setIsClient(true);
-    const subdomain = getRealtorSubdomain();
-    setRealtorSubdomain(subdomain);
+  useEffect(() => {
+    setSubdomain(getRealtorSubdomain());
   }, []);
 
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-  const validateForm = (): boolean => {
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) {
-      setEmailError("Email is required");
-      return false;
-    } else if (!emailRegex.test(email)) {
-      setEmailError("Please enter a valid email address");
-      return false;
-    } else {
-      setEmailError("");
-      return true;
-    }
-  };
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
+    if (!validateEmail(email)) {
+      toast.error("Please enter a valid email address");
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
       const response = await fetch(`${backendUrl}/auth/request-otp`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, type: "login" }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        // Handle specific error status codes with user-friendly messages
-        let errorMessage = result.message;
-
-        if (response.status === 404) {
-          errorMessage =
-            "No account found with this email address. Please sign up first or check your email.";
-        } else if (response.status === 400) {
-          if (result.message?.includes("guest accounts")) {
-            errorMessage =
-              "This login method is only for guest accounts. Please use the regular login page.";
-          } else if (result.message?.includes("valid email")) {
-            errorMessage = "Please enter a valid email address.";
-          } else {
-            errorMessage =
-              result.message ||
-              "Invalid request. Please check your email and try again.";
-          }
-        }
-
-        throw new Error(errorMessage);
+        throw new Error(result?.message || "Failed to send verification code");
       }
 
-      // Show OTP in toast if in development mode
-      if (result.data?.otp) {
-        toast.success(`Dev Mode: Your OTP is ${result.data.otp}`, {
-          duration: 10000,
-        });
+      if (result?.data?.otp) {
+        toast.success(`Dev Mode OTP: ${result.data.otp}`, { duration: 9000 });
       } else {
-        toast.success(
-          result.message || "Verification code sent! Check your email.",
-        );
+        toast.success(result?.message || "Verification code sent!");
       }
 
-      // Redirect to OTP verification page with email
+      const search = new URLSearchParams(window.location.search);
+      const returnTo = search.get("returnTo") || "/guest-landing";
       const otpParams = new URLSearchParams({
-        email: email,
+        email,
         type: "login",
-        ...(returnTo && { returnTo }),
+        returnTo,
       });
 
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
-    } catch (error: any) {
-      toast.error(
-        error.message || "Failed to send verification code. Please try again.",
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to send verification code. Please try again.";
+      toast.error(message);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Use realtor branding colors or defaults
-  const businessName = realtorName;
-  const logo = logoUrl || "";
-
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: primaryColor ? `${primaryColor}05` : "#FFF8F0", // Subtle brand-tinted background
-        colorScheme: "light",
-      }}
-    >
-      {/* Header - Minimal & Clean */}
-      <div
-        style={{
-          background: "white",
-          borderBottom: `1px solid ${
-            secondaryColor ? `${secondaryColor}30` : "#e5e7eb"
-          }`,
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "1rem clamp(0.75rem, 4vw, 2rem)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-            flexWrap: "wrap",
-          }}
-        >
-          {/* Logo/Brand */}
-          <Link
-            href="/"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-              textDecoration: "none",
-              minWidth: 0,
-            }}
-          >
-            {logo && logo.trim() !== "" ? (
-              <img
-                src={logo}
-                alt={businessName}
-                style={{
-                  height: "clamp(2.25rem, 8vw, 3rem)",
-                  width: "clamp(2.25rem, 8vw, 3rem)",
-                  borderRadius: 12,
-                  objectFit: "cover",
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: "clamp(2.25rem, 8vw, 3rem)",
-                  height: "clamp(2.25rem, 8vw, 3rem)",
-                  borderRadius: 12,
-                  background: primaryColor,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.5rem",
-                  fontWeight: 700,
-                  color: "white",
-                }}
-              >
-                {businessName.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div>
-              <h1
-                style={{
-                  fontSize: "clamp(1rem, 3.5vw, 1.25rem)",
-                  fontWeight: 700,
-                  color: secondaryColor, // 30% - Secondary for brand name
-                  margin: 0,
-                }}
-              >
-                {businessName}
-              </h1>
-              <p
-                style={{
-                  fontSize: "0.75rem",
-                  color: `${secondaryColor}99`, // 30% - Secondary with opacity
-                  margin: 0,
-                }}
-              >
-                {tagline}
-              </p>
-            </div>
-          </Link>
-
-          {/* Register Link */}
-          <Link
-            href="/guest/register"
-            style={{
-              color: accentColor, // 10% - Accent for CTA link
-              fontSize: "0.8125rem",
-              fontWeight: 600,
-              textDecoration: "none",
-              padding: "0.5rem 0.75rem",
-              borderRadius: 8,
-              transition: "all 0.2s",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <span className="sm:hidden">Sign up</span>
-            <span className="hidden sm:inline">
-              Don&apos;t have an account? Sign up
-            </span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div
-        style={{
-          maxWidth: "480px",
-          width: "100%",
-          margin: "0 auto",
-          padding: "2rem 1rem 3rem",
-        }}
-      >
-        {/* Title Section */}
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <h2
-            style={{
-              fontSize: "clamp(1.625rem, 7vw, 2rem)",
-              fontWeight: 700,
-              color: secondaryColor, // 30% - Secondary for heading
-              marginBottom: "0.75rem",
-            }}
-          >
-            Welcome Back
-          </h2>
-          <p
-            style={{
-              color: `${secondaryColor}80`,
-              fontSize: "0.9375rem",
-              margin: 0,
-            }}
-          >
-            {/* 30% - Secondary with opacity */}
-            {isClient && realtorSubdomain
-              ? `Sign in to continue booking with ${businessName}`
-              : "Sign in to your guest account"}
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-50" style={{ colorScheme: "light" }}>
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white" style={{ backgroundColor: primaryColor }}>
+            <Home className="w-8 h-8" />
+          </div>
+          <h1 className="text-3xl font-bold mb-2 text-gray-900">Welcome Back</h1>
+          <p className="text-gray-600">
+            {subdomain ? `Sign in to ${realtorName}` : "Sign in to your guest account"}
           </p>
-          {isClient && realtorSubdomain && (
-            <div
-              style={{
-                marginTop: "1rem",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.5rem 1rem",
-                background: `${accentColor}15`, // 10% - Accent for badge
-                borderRadius: 999,
-                fontSize: "0.8125rem",
-                color: accentColor, // 10% - Accent for text
-                fontWeight: 500,
-              }}
-            >
-              <Check size={14} />
-              Signed in with {businessName}
-            </div>
-          )}
+          {tagline ? <p className="text-sm text-gray-500 mt-1">{tagline}</p> : null}
         </div>
 
-        {/* Login Form Card */}
-        <div
-          style={{
-            background: "white",
-            borderRadius: 20,
-            padding: "clamp(1rem, 4vw, 2.5rem)",
-            boxShadow:
-              "0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
-            border: "1px solid rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
-          >
-            {/* Email */}
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label
-                htmlFor="email"
-                style={{
-                  display: "block",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  color: secondaryColor, // 30% - Secondary for labels
-                  marginBottom: "0.5rem",
-                }}
-              >
-                Email Address
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email
               </label>
-              <div style={{ position: "relative" }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "1rem",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: `${secondaryColor}60`, // 30% - Secondary for icon
-                  }}
-                >
-                  <Mail size={18} />
-                </div>
-                <input
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <Input
                   id="email"
                   type="email"
+                  placeholder="your@email.com"
+                  className="pl-10"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (emailError) setEmailError("");
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1rem 0.875rem 2.75rem",
-                    border: `1.5px solid ${emailError ? "#ef4444" : "#e5e7eb"}`,
-                    borderRadius: 12,
-                    fontSize: "0.9375rem",
-                    outline: "none",
-                    transition: "all 0.2s",
-                    boxSizing: "border-box",
-                  }}
-                  placeholder="you@example.com"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = emailError
-                      ? "#ef4444"
-                      : secondaryColor; // 30% - Secondary on focus
-                    e.target.style.boxShadow = `0 0 0 3px ${secondaryColor}15`;
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = emailError
-                      ? "#ef4444"
-                      : "#e5e7eb";
-                    e.target.style.boxShadow = "none";
-                  }}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
-              {emailError && (
-                <p
-                  style={{
-                    color: "#ef4444",
-                    fontSize: "0.8125rem",
-                    marginTop: "0.375rem",
-                  }}
-                >
-                  {emailError}
-                </p>
-              )}
+              <p className="mt-2 text-xs text-gray-500">We’ll send a one-time login code to your email.</p>
             </div>
 
-            {/* Security Note */}
-            <div
-              style={{
-                padding: "1rem",
-                background: `${primaryColor}08`, // 60% - Primary for info box
-                borderRadius: 8,
-                border: `1px solid ${primaryColor}30`,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "0.8125rem",
-                  color: secondaryColor,
-                  margin: 0,
-                }}
-              >
-                {" "}
-                {/* 30% - Secondary for text */}
-                🔐 We'll send a verification code to your email. No password
-                needed!
-              </p>
-            </div>
-
-            {/* Submit Button */}
-            <button
+            <Button
               type="submit"
-              disabled={isLoading}
-              style={{
-                width: "100%",
-                padding: "1rem",
-                background: accentColor, // 10% - Accent for primary CTA
-                color: "white",
-                border: "none",
-                borderRadius: 12,
-                fontSize: "1rem",
-                fontWeight: 600,
-                cursor: isLoading ? "not-allowed" : "pointer",
-                opacity: isLoading ? 0.7 : 1,
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading) {
-                  e.currentTarget.style.transform = "translateY(-1px)";
-                  e.currentTarget.style.boxShadow = `0 8px 20px ${accentColor}40`;
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
+              className="w-full text-white"
+              style={{ backgroundColor: primaryColor }}
+              size="lg"
+              loading={isSubmitting}
             >
-              {isLoading ? (
-                <div
-                  style={{
-                    display: "inline-block",
-                    width: 20,
-                    height: 20,
-                    border: "2px solid rgba(255, 255, 255, 0.3)",
-                    borderTop: "2px solid white",
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
-                  }}
-                />
-              ) : (
-                <>
-                  Continue
-                  <ArrowRight size={18} />
-                </>
-              )}
-            </button>
+              Continue with OTP
+            </Button>
           </form>
+
+          <div className="mt-6 text-center">
+            <span className="text-sm text-gray-600">Don&apos;t have an account? </span>
+            <Link href="/guest/register" className="text-sm font-medium hover:underline" style={{ color: primaryColor }}>
+              Sign up
+            </Link>
+          </div>
         </div>
 
-        {/* Footer Branding */}
-        <p
-          style={{
-            textAlign: "center",
-            color: `${secondaryColor}60`, // 30% - Secondary for footer text
-            fontSize: "0.8125rem",
-            marginTop: "1.5rem",
-          }}
-        >
-          Powered by Stayza Pro
-        </p>
+        <div className="text-center mt-6">
+          <Link href="/guest-landing" className="text-sm text-gray-600 hover:text-gray-900">
+            ← Back to Home
+          </Link>
+        </div>
       </div>
-
-      {/* CSS Animation for spinner */}
-      <style jsx>{`
-        @keyframes spin {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
-  );
-}
-
-export default function GuestLoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              border: "3px solid #e5e7eb",
-              borderTop: "3px solid #3B82F6",
-              borderRadius: "50%",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
-        </div>
-      }
-    >
-      <GuestLoginContent />
-    </Suspense>
   );
 }

@@ -135,7 +135,9 @@ function MessagesContent() {
     try {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
-      const conversationsData = Array.isArray(response?.data) ? response.data : [];
+      const conversationsData = Array.isArray(response?.data)
+        ? response.data
+        : [];
       setConversations(conversationsData);
     } catch {
       toast.error("Failed to load conversations");
@@ -327,7 +329,9 @@ function MessagesContent() {
       };
 
       mediaRecorder.onstop = () => {
-        const voiceBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const voiceBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
         setAudioBlob(voiceBlob);
         stream.getTracks().forEach((track) => track.stop());
       };
@@ -383,7 +387,8 @@ function MessagesContent() {
 
   const filteredConversations = conversations.filter((conversation) => {
     const query = searchQuery.toLowerCase();
-    const fullName = `${conversation.otherUser.firstName} ${conversation.otherUser.lastName}`.toLowerCase();
+    const fullName =
+      `${conversation.otherUser.firstName} ${conversation.otherUser.lastName}`.toLowerCase();
     const propertyName = conversation.property?.name?.toLowerCase() || "";
 
     return fullName.includes(query) || propertyName.includes(query);
@@ -410,7 +415,10 @@ function MessagesContent() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] md:h-[calc(100vh-4rem)] pb-16 md:pb-0 bg-gray-50" style={{ colorScheme: "light" }}>
+    <div
+      className="h-[calc(100vh-4rem)] md:h-[calc(100vh-4rem)] pb-16 md:pb-0 bg-gray-50"
+      style={{ colorScheme: "light" }}
+    >
       <GuestHeader currentPage="messages" />
 
       <div className="h-full max-w-7xl mx-auto flex">
@@ -438,7 +446,9 @@ function MessagesContent() {
                   className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
                   style={{ borderBottomColor: primaryColor }}
                 />
-                <p className="text-gray-600 text-sm">Loading conversations...</p>
+                <p className="text-gray-600 text-sm">
+                  Loading conversations...
+                </p>
               </div>
             ) : filteredConversations.length > 0 ? (
               filteredConversations.map((conversation) => {
@@ -452,7 +462,9 @@ function MessagesContent() {
                     key={conversationId}
                     onClick={() => setSelectedConversation(conversationId)}
                     className={`w-full p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left ${
-                      selectedConversation === conversationId ? "bg-gray-50" : ""
+                      selectedConversation === conversationId
+                        ? "bg-gray-50"
+                        : ""
                     }`}
                   >
                     <div className="flex gap-3">
@@ -471,7 +483,8 @@ function MessagesContent() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="font-semibold truncate text-gray-900">
-                            {conversation.otherUser.firstName} {conversation.otherUser.lastName}
+                            {conversation.otherUser.firstName}{" "}
+                            {conversation.otherUser.lastName}
                           </div>
                           <div className="text-xs text-gray-500 shrink-0">
                             {formatTime(conversation.lastMessage.createdAt)}
@@ -484,7 +497,8 @@ function MessagesContent() {
 
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-sm text-gray-600 truncate">
-                            {conversation.lastMessage.content || "Sent an attachment"}
+                            {conversation.lastMessage.content ||
+                              "Sent an attachment"}
                           </div>
                           {conversation.unreadCount > 0 && (
                             <span
@@ -502,7 +516,9 @@ function MessagesContent() {
               })
             ) : (
               <div className="text-center py-12 px-4">
-                <div className="text-muted-foreground mb-4">No conversations yet</div>
+                <div className="text-muted-foreground mb-4">
+                  No conversations yet
+                </div>
                 <Link href="/guest/browse">
                   <Button variant="primary">Browse Properties</Button>
                 </Link>
@@ -547,7 +563,8 @@ function MessagesContent() {
                     : "Conversation"}
                 </div>
                 <div className="text-sm text-gray-500 truncate">
-                  {selectedConversationData?.property?.name || "Direct conversation"}
+                  {selectedConversationData?.property?.name ||
+                    "Direct conversation"}
                 </div>
               </div>
             </div>
@@ -596,14 +613,22 @@ function MessagesContent() {
                               ? "rounded-tr-sm text-white"
                               : "bg-gray-200 rounded-tl-sm"
                           }`}
-                          style={isOwn ? { backgroundColor: primaryColor } : undefined}
+                          style={
+                            isOwn
+                              ? { backgroundColor: primaryColor }
+                              : undefined
+                          }
                         >
                           {msg.content ? (
-                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                              {msg.content}
+                            </p>
                           ) : null}
 
                           {msg.attachments && msg.attachments.length > 0 && (
-                            <div className={`${msg.content ? "mt-2" : ""} space-y-1`}>
+                            <div
+                              className={`${msg.content ? "mt-2" : ""} space-y-1`}
+                            >
                               {msg.attachments.map((attachment) => (
                                 <a
                                   key={attachment.id}
@@ -634,7 +659,9 @@ function MessagesContent() {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-gray-600">No messages yet</p>
-                  <p className="text-sm text-gray-500 mt-1">Start a conversation</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Start a conversation
+                  </p>
                 </div>
               )}
 
@@ -703,7 +730,9 @@ function MessagesContent() {
                 </Button>
 
                 <textarea
-                  placeholder={isRecording ? "Recording..." : "Type your message..."}
+                  placeholder={
+                    isRecording ? "Recording..." : "Type your message..."
+                  }
                   className="flex-1 h-10 min-h-0 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
@@ -724,7 +753,9 @@ function MessagesContent() {
                   onClick={isRecording ? stopRecording : startRecording}
                   disabled={isSending}
                 >
-                  <Mic className={`w-5 h-5 ${isRecording ? "animate-pulse" : ""}`} />
+                  <Mic
+                    className={`w-5 h-5 ${isRecording ? "animate-pulse" : ""}`}
+                  />
                 </Button>
 
                 <Button
@@ -734,7 +765,9 @@ function MessagesContent() {
                   style={{ backgroundColor: primaryColor }}
                   onClick={handleSendMessage}
                   disabled={
-                    (!messageText.trim() && selectedFiles.length === 0 && !audioBlob) ||
+                    (!messageText.trim() &&
+                      selectedFiles.length === 0 &&
+                      !audioBlob) ||
                     isSending
                   }
                 >
@@ -750,7 +783,9 @@ function MessagesContent() {
         ) : (
           <div className="hidden md:flex flex-1 items-center justify-center bg-gray-50/20">
             <div className="text-center">
-              <div className="text-gray-500 mb-2">Select a conversation to start messaging</div>
+              <div className="text-gray-500 mb-2">
+                Select a conversation to start messaging
+              </div>
             </div>
           </div>
         )}
@@ -763,7 +798,9 @@ export default function MessagesPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">Loading...</div>
+        <div className="min-h-screen flex items-center justify-center">
+          Loading...
+        </div>
       }
     >
       <MessagesContent />

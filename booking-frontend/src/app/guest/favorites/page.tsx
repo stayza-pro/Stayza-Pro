@@ -1,26 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart, MapPin, Star, Search, X } from "lucide-react";
-import Image from "next/image";
-import { Card, Button, Input } from "@/components/ui";
+import { Heart } from "lucide-react";
+import { Button } from "@/components/ui";
+import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { Footer } from "@/components/guest/sections/Footer";
+import { PropertyCard } from "@/components/property/PropertyCard";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { Footer } from "@/components/guest/sections/Footer";
-import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { favoritesService, type FavoriteProperty } from "@/services";
 import toast from "react-hot-toast";
 
 export default function FavoritesPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useCurrentUser();
-  const [searchQuery, setSearchQuery] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteProperty[]>([]);
-  const [isLoadingFavorites, setIsLoadingFavorites] = useState(true);
+  const [loadingFavorites, setLoadingFavorites] = useState(true);
 
-  // Use realtor branding hook for consistent styling
   const {
     brandColor: primaryColor,
     secondaryColor,
@@ -31,85 +30,76 @@ export default function FavoritesPage() {
     description,
   } = useRealtorBranding();
 
-  // Mark auth as checked once we've gotten a result
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
       setAuthChecked(true);
     }
   }, [isLoading, isAuthenticated, authChecked]);
 
-  // Redirect if not authenticated
-  React.useEffect(() => {
+  useEffect(() => {
     if (authChecked && !isLoading && !isAuthenticated) {
       router.push("/guest/login?returnTo=/guest/favorites");
     }
-  }, [isLoading, isAuthenticated, authChecked, router]);
+  }, [authChecked, isLoading, isAuthenticated, router]);
 
-  // Fetch favorites on mount
   useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchFavorites();
-    }
+    const fetchFavorites = async () => {
+      if (!isAuthenticated || !user) {
+        return;
+      }
+
+      try {
+        setLoadingFavorites(true);
+        const response = await favoritesService.getFavorites();
+        setFavorites(response.data || []);
+      } catch {
+        toast.error("Failed to load favorites");
+      } finally {
+        setLoadingFavorites(false);
+      }
+    };
+
+    fetchFavorites();
   }, [isAuthenticated, user]);
 
-  const fetchFavorites = async () => {
+  const favoriteProperties = useMemo(
+    () =>
+      favorites.map((item) => ({
+        ...item.property,
+        realtorId: item.property.realtor?.id || "",
+        type: item.property.type as any,
+        status: item.property.status as any,
+        state: "",
+        amenities: [],
+        houseRules: [],
+        checkInTime: "14:00",
+        checkOutTime: "11:00",
+        isApproved: true,
+        realtor: undefined,
+        createdAt: new Date(item.createdAt),
+        updatedAt: new Date(item.createdAt),
+      })),
+    [favorites]
+  );
+
+  const handleFavoriteToggle = async (propertyId: string) => {
     try {
-      setIsLoadingFavorites(true);
-      const response = await favoritesService.getFavorites();
-      if (response.success && response.data) {
-        setFavorites(response.data);
-      }
-    } catch (error) {
-      
-      toast.error("Failed to load favorites");
-    } finally {
-      setIsLoadingFavorites(false);
+      await favoritesService.removeFavorite(propertyId);
+      setFavorites((prev) => prev.filter((item) => item.propertyId !== propertyId));
+      toast.success("Removed from favorites");
+    } catch {
+      toast.error("Failed to update favorites");
     }
   };
 
-  const handleRemoveFavorite = async (propertyId: string) => {
-    try {
-      const response = await favoritesService.removeFavorite(propertyId);
-      if (response.success) {
-        toast.success("Removed from favorites");
-        // Remove from local state
-        setFavorites((prev) =>
-          prev.filter((fav) => fav.propertyId !== propertyId)
-        );
-      }
-    } catch (error: any) {
-      
-      toast.error(
-        error.response?.data?.error || "Failed to remove from favorites"
-      );
-    }
-  };
-
-  const handleBookNow = (propertyId: string) => {
-    router.push(`/browse/${propertyId}`);
-  };
-
-  const formatPrice = (price: number, currency: string = "NGN") => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
-  // Show loading state while checking authentication or loading favorites
-  if (!authChecked || isLoading || isLoadingFavorites) {
+  if (!authChecked || isLoading || loadingFavorites) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <GuestHeader
-          currentPage="favorites"
-          searchPlaceholder="Search properties..."
-        />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <GuestHeader currentPage="favorites" searchPlaceholder="Search properties..." />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-6">
-            <div className="h-12 bg-gray-100 rounded w-1/3"></div>
-            <div className="h-64 bg-gray-100 rounded"></div>
-            <div className="h-64 bg-gray-100 rounded"></div>
+            <div className="h-10 bg-gray-200 rounded w-1/3" />
+            <div className="h-48 bg-gray-200 rounded" />
           </div>
         </div>
       </div>
@@ -117,221 +107,60 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
-      <GuestHeader
-        currentPage="favorites"
-        searchPlaceholder="Search properties..."
-      />
+    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ colorScheme: "light" }}>
+      <GuestHeader currentPage="favorites" searchPlaceholder="Search properties..." />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-        {/* Hero Header Section */}
-        <div className="mb-16 text-center">
-          <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-lg mb-8"
-            style={{ backgroundColor: `${primaryColor}15` }}
-          >
-            <Heart className="h-8 w-8" style={{ color: primaryColor }} />
-          </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-            My Favorites
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Properties you've saved for your dream stay
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div className="mb-6">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">My Favorites</h1>
+          <p className="text-gray-600">
+            {favoriteProperties.length > 0
+              ? `${favoriteProperties.length} saved propert${favoriteProperties.length !== 1 ? "ies" : "y"}`
+              : "Save properties you love to view them later"}
           </p>
         </div>
 
-        {/* Stats Overview */}
-        {favorites.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <Card
-              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <div
-                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
-                style={{ backgroundColor: `${primaryColor}15` }}
-              >
-                <Heart className="h-6 w-6" style={{ color: primaryColor }} />
-              </div>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                {favorites.length}
-              </p>
-              <p className="text-sm text-gray-600">Saved Properties</p>
-            </Card>
-
-            <Card
-              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <div
-                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
-                style={{ backgroundColor: `${secondaryColor || "#059669"}15` }}
-              >
-                <MapPin
-                  className="h-6 w-6"
-                  style={{ color: secondaryColor || "#059669" }}
-                />
-              </div>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                {new Set(favorites.map((f) => f.property.city)).size}
-              </p>
-              <p className="text-sm text-gray-600">Cities</p>
-            </Card>
-
-            <Card
-              className="p-6 text-center border border-gray-200 !bg-white hover:shadow-md transition-shadow duration-200"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <div
-                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4"
-                style={{ backgroundColor: `${accentColor || "#D97706"}15` }}
-              >
-                <Star
-                  className="h-6 w-6"
-                  style={{ color: accentColor || "#D97706" }}
-                />
-              </div>
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                {favorites.length > 0
-                  ? (
-                      favorites.reduce(
-                        (acc, f) => acc + (f.property.averageRating || 0),
-                        0
-                      ) / favorites.length
-                    ).toFixed(1)
-                  : "0.0"}
-              </p>
-              <p className="text-sm text-gray-600">Avg Rating</p>
-            </Card>
+        {favoriteProperties.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {favoriteProperties.map((property) => (
+              <PropertyCard
+                key={property.id}
+                property={property as any}
+                onFavorite={handleFavoriteToggle}
+                isFavorited={true}
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+                accentColor={accentColor}
+              />
+            ))}
           </div>
-        )}
-
-        {/* Empty State */}
-        {favorites.length === 0 ? (
-          <Card
-            className="p-16 text-center border border-gray-200 !bg-white shadow-sm"
-            style={{ backgroundColor: "#ffffff", color: "#111827" }}
-          >
-            <div className="max-w-md mx-auto">
-              <div
-                className="inline-flex items-center justify-center w-20 h-20 rounded-lg mb-6"
-                style={{ backgroundColor: `${primaryColor}15` }}
-              >
-                <Heart className="h-10 w-10" style={{ color: primaryColor }} />
-              </div>
-
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                No favorites yet
-              </h3>
-
-              <p className="text-gray-600 mb-8">
-                Start exploring and save properties you love to easily find them
-                later.
-              </p>
-
-              <Button
-                onClick={() => router.push("/browse")}
-                className="text-white font-semibold py-2 px-6 hover:opacity-90"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <Search className="h-4 w-4 mr-2" />
+        ) : (
+          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Heart className="w-8 h-8 text-gray-500" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">No favorites yet</h3>
+            <p className="text-gray-600 mb-4">
+              Start browsing and save properties you love by clicking the heart icon
+            </p>
+            <Link href="/guest/browse">
+              <Button className="text-white" style={{ backgroundColor: primaryColor }}>
                 Browse Properties
               </Button>
-            </div>
-          </Card>
-        ) : (
-          <>
-            {/* Favorites Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {favorites.map((favorite) => (
-                <Card
-                  key={favorite.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow border border-gray-200 !bg-white"
-                  style={{ backgroundColor: "#ffffff", color: "#111827" }}
-                >
-                  <div className="relative h-48">
-                    {favorite.property.images?.[0]?.url ? (
-                      <Image
-                        src={favorite.property.images[0].url}
-                        alt={favorite.property.title}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-200" />
-                    )}
-                    <button
-                      onClick={() => handleRemoveFavorite(favorite.propertyId)}
-                      className="absolute top-3 right-3 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100"
-                    >
-                      <Heart className="h-5 w-5 fill-red-500 text-red-500" />
-                    </button>
-                  </div>
-
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2 truncate">
-                      {favorite.property.title}
-                    </h3>
-
-                    <div className="flex items-center text-gray-600 mb-3">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      <span className="text-sm truncate">
-                        {favorite.property.city}, {favorite.property.country}
-                      </span>
-                    </div>
-
-                    {favorite.property.averageRating && (
-                      <div className="flex items-center mb-3">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                        <span className="font-semibold text-gray-900 mr-1">
-                          {favorite.property.averageRating.toFixed(1)}
-                        </span>
-                        <span className="text-gray-600 text-sm">
-                          ({favorite.property.reviewCount} reviews)
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-baseline justify-between mb-4">
-                      <div>
-                        <span className="text-xl font-bold text-gray-900">
-                          {formatPrice(
-                            favorite.property.pricePerNight,
-                            favorite.property.currency
-                          )}
-                        </span>
-                        <span className="text-gray-600 text-sm ml-1">
-                          / night
-                        </span>
-                      </div>
-                    </div>
-
-                    <Button
-                      onClick={() => handleBookNow(favorite.propertyId)}
-                      className="w-full text-white font-semibold hover:opacity-90"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Book Now
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </>
+            </Link>
+          </div>
         )}
       </main>
 
       <Footer
         realtorName={realtorName}
-        tagline={tagline || "Premium short-let properties"}
+        tagline={tagline}
         logo={logoUrl}
-        description={description || "Experience luxury accommodations"}
+        description={description}
         primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
       />
     </div>
   );
 }
-

@@ -1,25 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useProperties } from "@/hooks/useProperties";
+import React, { useEffect, useMemo, useState } from "react";
+import { Search, SlidersHorizontal, MapPin, Home, Building2, Castle } from "lucide-react";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections/Footer";
-import { PropertyGrid } from "@/components/property/PropertyGrid";
-import { SearchFilters } from "@/components/property/SearchFilters";
+import { PropertyCard } from "@/components/property/PropertyCard";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import type { PropertyFilters, PropertyType, PropertyAmenity } from "@/types";
-
-interface FiltersState {
-  priceRange: { min: number; max: number };
-  propertyType: string;
-  minRating: number;
-  amenities: string[];
-  instantBook: boolean;
-}
+import { useProperties } from "@/hooks/useProperties";
+import { Button, Input, Select, Skeleton } from "@/components/ui";
+import type { PropertyFilters, PropertyType } from "@/types";
 
 export default function BrowsePropertiesPage() {
-  const [filters, setFilters] = useState<PropertyFilters>({});
-  const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [propertyType, setPropertyType] = useState<string>("all");
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(10000000);
+  const [bedrooms, setBedrooms] = useState<string>("any");
+  const [sortBy, setSortBy] = useState<string>("relevant");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const {
     brandColor: primaryColor,
     secondaryColor,
@@ -29,103 +27,269 @@ export default function BrowsePropertiesPage() {
     tagline,
     description,
     realtorId,
-  } = useRealtorBranding(); // 60-30-10 color rule
+  } = useRealtorBranding();
+
+  useEffect(() => {
+    const location = new URLSearchParams(window.location.search).get("location");
+    if (location) {
+      setSearchQuery(location);
+    }
+  }, []);
+
+  const filters: PropertyFilters = useMemo(
+    () => ({
+      city: searchQuery || undefined,
+      minPrice: minPrice > 0 ? minPrice : undefined,
+      maxPrice: maxPrice < 10000000 ? maxPrice : undefined,
+      type:
+        propertyType !== "all"
+          ? (propertyType.toUpperCase() as PropertyType)
+          : undefined,
+      isActive: true,
+      isApproved: true,
+    }),
+    [searchQuery, minPrice, maxPrice, propertyType]
+  );
 
   const { data: propertiesResponse, isLoading } = useProperties(filters, {
     page: 1,
-    limit: 20,
+    limit: 30,
   });
 
-  // Prevent hydration errors
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const properties = useMemo(() => {
+    const items = [...(propertiesResponse?.data || [])];
+    const bedroomFiltered =
+      bedrooms === "any"
+        ? items
+        : items.filter((property) => property.bedrooms >= Number(bedrooms));
 
-  const handleFiltersChange = (filtersState: FiltersState) => {
-    // Convert FiltersState to PropertyFilters
-    const convertedFilters: PropertyFilters = {
-      minPrice:
-        filtersState.priceRange.min > 0
-          ? filtersState.priceRange.min
-          : undefined,
-      maxPrice:
-        filtersState.priceRange.max < 1000
-          ? filtersState.priceRange.max
-          : undefined,
-      type: filtersState.propertyType
-        ? (filtersState.propertyType.toUpperCase() as PropertyType)
-        : undefined,
-      amenities:
-        filtersState.amenities.length > 0
-          ? filtersState.amenities.map(
-              (a) => a.toUpperCase() as PropertyAmenity
-            )
-          : undefined,
-    };
+    if (sortBy === "price-low") {
+      bedroomFiltered.sort((a, b) => a.pricePerNight - b.pricePerNight);
+    } else if (sortBy === "price-high") {
+      bedroomFiltered.sort((a, b) => b.pricePerNight - a.pricePerNight);
+    } else if (sortBy === "rating") {
+      bedroomFiltered.sort(
+        (a, b) => (b.averageRating || 0) - (a.averageRating || 0)
+      );
+    } else if (sortBy === "newest") {
+      bedroomFiltered.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
 
-    setFilters(convertedFilters);
-  };
+    return bedroomFiltered;
+  }, [propertiesResponse?.data, bedrooms, sortBy]);
 
-  // Prevent hydration mismatch
-  if (!mounted) {
-    return null;
-  }
+  const FilterPanel = () => (
+    <div className="space-y-6">
+      <div>
+        <label className="text-sm font-medium mb-3 block text-gray-800">Property Type</label>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { value: "all", label: "All", icon: Home },
+            { value: "house", label: "House", icon: Home },
+            { value: "apartment", label: "Apartment", icon: Building2 },
+            { value: "villa", label: "Villa", icon: Castle },
+          ].map((type) => (
+            <button
+              key={type.value}
+              onClick={() => setPropertyType(type.value)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                propertyType === type.value
+                  ? "border-gray-300 bg-gray-100"
+                  : "border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              <type.icon className="w-4 h-4" />
+              <span className="text-sm">{type.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-  return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
-      <GuestHeader
-        currentPage="browse"
-        searchPlaceholder="Search location..."
+      <div>
+        <label className="text-sm font-medium mb-3 block text-gray-800">
+          Price Range: ₦{minPrice.toLocaleString()} - ₦{maxPrice.toLocaleString()}
+        </label>
+        <div className="space-y-3">
+          <input
+            type="range"
+            min={0}
+            max={10000000}
+            step={50000}
+            value={minPrice}
+            onChange={(e) => setMinPrice(Number(e.target.value))}
+            className="w-full"
+          />
+          <input
+            type="range"
+            min={0}
+            max={10000000}
+            step={50000}
+            value={maxPrice}
+            onChange={(e) => setMaxPrice(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
+      </div>
+
+      <Select
+        label="Bedrooms"
+        value={bedrooms}
+        onChange={setBedrooms}
+        options={[
+          { value: "any", label: "Any" },
+          { value: "1", label: "1+" },
+          { value: "2", label: "2+" },
+          { value: "3", label: "3+" },
+          { value: "4", label: "4+" },
+        ]}
       />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16 animate-in fade-in duration-500">
-        <div className="space-y-8">
-          {/* Hero Header Section */}
-          <div className="text-center mb-10 sm:mb-16">
-            <div
-              className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-lg mb-6 sm:mb-8"
-              style={{ backgroundColor: `${primaryColor}15` }}
-            >
-              <svg
-                className="h-8 w-8"
-                style={{ color: primaryColor }}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                />
-              </svg>
-            </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Browse Properties
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Discover amazing places to stay around the world
-            </p>
+      <Button
+        className="w-full text-white"
+        style={{ backgroundColor: primaryColor }}
+        onClick={() => setShowMobileFilters(false)}
+      >
+        Apply Filters
+      </Button>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ colorScheme: "light" }}>
+      <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div className="mb-6">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">Browse Properties</h1>
+          <p className="text-gray-600">Find your perfect home from our collection</p>
+        </div>
+
+        <div className="flex gap-2 mb-6">
+          <div className="relative flex-1">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            <Input
+              type="text"
+              placeholder="Search by location, city, or property name..."
+              className="pl-10 h-12"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
+          <Button size="lg" variant="outline" className="hidden md:flex">
+            <Search className="w-5 h-5" />
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="md:hidden"
+            onClick={() => setShowMobileFilters((prev) => !prev)}
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+          </Button>
+        </div>
 
-          <SearchFilters
-            onFiltersChange={handleFiltersChange}
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-            accentColor={accentColor}
-          />
+        {showMobileFilters && (
+          <div className="md:hidden mb-6 bg-white rounded-xl border border-gray-200 p-4">
+            <FilterPanel />
+          </div>
+        )}
 
-          <PropertyGrid
-            properties={propertiesResponse?.data || []}
-            loading={isLoading}
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-            accentColor={accentColor}
-          />
+        <div className="flex gap-6">
+          <aside className="hidden md:block w-64 shrink-0">
+            <div className="sticky top-20 bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">Filters</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setPropertyType("all");
+                    setBedrooms("any");
+                    setMinPrice(0);
+                    setMaxPrice(10000000);
+                  }}
+                >
+                  Reset
+                </Button>
+              </div>
+              <FilterPanel />
+            </div>
+          </aside>
+
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-6 gap-4">
+              <p className="text-sm text-gray-600">{properties.length} properties found</p>
+              <div className="w-44">
+                <Select
+                  value={sortBy}
+                  onChange={setSortBy}
+                  options={[
+                    { value: "relevant", label: "Most Relevant" },
+                    { value: "price-low", label: "Price: Low to High" },
+                    { value: "price-high", label: "Price: High to Low" },
+                    { value: "rating", label: "Highest Rated" },
+                    { value: "newest", label: "Newest" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((item) => (
+                  <div key={item} className="space-y-3">
+                    <Skeleton className="aspect-[4/3] rounded-xl" />
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : properties.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {properties.map((property) => (
+                  <PropertyCard
+                    key={property.id}
+                    property={property}
+                    primaryColor={primaryColor}
+                    secondaryColor={secondaryColor}
+                    accentColor={accentColor}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-gray-500" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2 text-gray-900">No properties found</h3>
+                <p className="text-gray-600 mb-4">Try adjusting your filters or search criteria</p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPropertyType("all");
+                    setBedrooms("any");
+                    setMinPrice(0);
+                    setMaxPrice(10000000);
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            )}
+
+            {!isLoading && properties.length > 0 && (
+              <div className="text-center mt-8">
+                <Button variant="outline" size="lg">
+                  Load More Properties
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </main>
 

@@ -1,216 +1,88 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import {
-  User,
   Mail,
   Phone,
-  Save,
-  Upload,
-  AlertCircle,
-  CheckCircle2,
+  User,
+  Settings,
+  LogOut,
+  ChevronRight,
+  Bell,
+  Shield,
+  CreditCard,
+  HelpCircle,
 } from "lucide-react";
-import { Card, Button, Input } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
+import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { Footer } from "@/components/guest/sections/Footer";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { Footer } from "@/components/guest/sections";
-import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { authService } from "@/services/auth";
-import toast from "react-hot-toast";
+import { authService } from "@/services";
 
-export default function GuestProfilePage() {
+export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useCurrentUser();
+  const [authChecked, setAuthChecked] = useState(false);
+
   const {
     brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
     realtorName,
     logoUrl,
     tagline,
     description,
   } = useRealtorBranding();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-  });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [deletePassword, setDeletePassword] = useState("");
-  const [deleteReason, setDeleteReason] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // Mark auth as checked once we've gotten a result
   useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
       setAuthChecked(true);
     }
   }, [isLoading, isAuthenticated, authChecked]);
 
-  // Initialize form data when user loads
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        email: user.email || "",
-      });
-
-      // Set profile image from user avatar
-      if (user.avatar) {
-        setProfileImage(user.avatar);
-      }
-    }
-  }, [user]);
-
-  // Redirect if not authenticated
   useEffect(() => {
     if (authChecked && !isLoading && !isAuthenticated) {
-      router.push("/guest/login?redirect=/guest/profile");
+      router.push("/guest/login?returnTo=/guest/profile");
     }
-  }, [isLoading, isAuthenticated, authChecked, router]);
+  }, [authChecked, isLoading, isAuthenticated, router]);
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
-    }
+  const menuItems = [
+    {
+      section: "Account",
+      items: [
+        { icon: User, label: "Personal Information", href: "/guest/profile" },
+        { icon: Bell, label: "Notifications", href: "/guest/notifications" },
+        { icon: Shield, label: "Privacy & Security", href: "/guest/profile" },
+      ],
+    },
+    {
+      section: "Bookings",
+      items: [{ icon: CreditCard, label: "Payment & Booking History", href: "/guest/bookings" }],
+    },
+    {
+      section: "Support",
+      items: [{ icon: HelpCircle, label: "Help Center", href: "/guest/help" }],
+    },
+  ];
+
+  const fullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Guest User";
+
+  const handleLogout = async () => {
+    await authService.logout();
+    router.push("/guest/login");
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSaveProfile = async () => {
-    if (!validateForm()) {
-      toast.error("Please fix the errors in the form");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // Prepare FormData for API (supports both regular fields and file upload)
-      const formDataToSend = new FormData();
-
-      // Add text fields
-      if (formData.firstName)
-        formDataToSend.append("firstName", formData.firstName);
-      if (formData.lastName)
-        formDataToSend.append("lastName", formData.lastName);
-
-      // Add avatar file if selected
-      if (avatarFile) {
-        formDataToSend.append("avatar", avatarFile);
-      }
-
-      // Call API to update profile
-      const updatedUser = await authService.updateProfile(formDataToSend);
-
-      // Update localStorage with new user data
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        const mergedUser = { ...parsedUser, ...updatedUser };
-        localStorage.setItem("user", JSON.stringify(mergedUser));
-      }
-
-      // Update profile image if avatar was uploaded
-      if (avatarFile && updatedUser.avatar) {
-        setProfileImage(updatedUser.avatar);
-        setAvatarFile(null); // Clear the pending file
-      }
-
-      toast.success("Profile updated successfully!");
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to update profile");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file size (2MB for API limit)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image size should be less than 2MB");
-      return;
-    }
-
-    // Validate file type
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Please upload a JPEG, PNG, or WebP image");
-      return;
-    }
-
-    // Store the file to be uploaded with the profile update
-    setAvatarFile(file);
-
-    // Show preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setProfileImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-
-    toast.success("Profile picture selected. Click 'Save Changes' to upload.");
-  };
-
-  const handleDeleteAccount = async () => {
-    if (!deletePassword.trim()) {
-      toast.error("Please enter your password to confirm deletion");
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      await authService.deleteAccount({
-        password: deletePassword,
-        reason: deleteReason || undefined,
-      });
-
-      toast.success("Account successfully deleted");
-
-      // Redirect to home page after short delay
-      setTimeout(() => {
-        router.push("/");
-      }, 1500);
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to delete account",
-      );
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Show loading state while checking authentication
   if (!authChecked || isLoading) {
     return (
-      <div className="min-h-screen bg-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <div className="animate-pulse space-y-6">
-            <div className="h-12 bg-gray-100 rounded w-1/3"></div>
-            <div className="h-64 bg-gray-100 rounded"></div>
+      <div className="min-h-screen bg-gray-50">
+        <GuestHeader currentPage="profile" searchPlaceholder="Search..." />
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-28 bg-gray-200 rounded-xl" />
+            <div className="h-48 bg-gray-200 rounded-xl" />
           </div>
         </div>
       </div>
@@ -218,334 +90,88 @@ export default function GuestProfilePage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
-      <GuestHeader
-        currentPage="profile"
-        searchPlaceholder="Search location..."
-      />
+    <div className="min-h-screen bg-slate-50 flex flex-col" style={{ colorScheme: "light" }}>
+      <GuestHeader currentPage="profile" searchPlaceholder="Search..." />
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-        {/* Hero Header with Brand Color */}
-        <div
-          className="relative rounded-3xl overflow-hidden mb-12 shadow-lg"
-          style={{
-            background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd)`,
-          }}
-        >
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-10 right-10 w-40 h-40 bg-white rounded-full blur-3xl" />
-            <div className="absolute bottom-10 left-10 w-32 h-32 bg-white rounded-full blur-2xl" />
-          </div>
-
-          <div className="relative px-4 sm:px-8 py-8 sm:py-12">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                {/* Profile Picture */}
-                <div className="relative group">
-                  <div className="w-28 h-28 rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm border-4 border-white/30 shadow-xl">
-                    {profileImage ? (
-                      <img
-                        src={profileImage}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-white/20">
-                        <User size={48} className="text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <label
-                    htmlFor="profile-upload"
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity duration-200"
-                  >
-                    <Upload size={24} className="text-white" />
-                  </label>
-                  <input
-                    id="profile-upload"
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                </div>
-
-                <div className="text-white">
-                  <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-                    {user?.firstName} {user?.lastName}
-                  </h1>
-                  <p className="text-white/80 text-lg mb-3 flex items-center gap-2">
-                    <Mail size={18} />
-                    {user?.email}
-                  </p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
-                      <CheckCircle2 size={16} className="inline mr-2" />
-                      Verified Guest
-                    </div>
-                  </div>
-                </div>
-              </div>
+      <main className="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <Card className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-semibold text-gray-700">
+              {(fullName[0] || "G").toUpperCase()}
+            </div>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold mb-1 text-gray-900">{fullName}</h1>
+              <p className="text-gray-600 mb-3">Manage your account and preferences</p>
+              <Button variant="outline" size="sm">
+                <Settings className="w-4 h-4 mr-2" />
+                Edit Profile
+              </Button>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-200 pt-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+                <Mail className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Email</div>
+                <div className="font-medium text-gray-900">{user?.email || "-"}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+                <Phone className="w-5 h-5" />
+              </div>
+              {/* <div>
+                <div className="text-sm text-gray-500">Phone</div>
+                <div className="font-medium text-gray-900">{user?. || "Not set"}</div>
+              </div> */}
+            </div>
+          </div>
+        </Card>
+
+        <div className="space-y-6">
+          {menuItems.map((section) => (
+            <Card key={section.section} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-6 py-3 border-b border-gray-200">
+                <h3 className="font-semibold text-sm text-gray-500 uppercase tracking-wide">{section.section}</h3>
+              </div>
+              <div>
+                {section.items.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon className="w-5 h-5 text-gray-500" />
+                      <span className="text-gray-900">{item.label}</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-500" />
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          ))}
         </div>
 
-        {/* Profile Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Form - 2/3 width */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Personal Information Card */}
-            <Card
-              className="p-4 sm:p-8 border-2 border-gray-100 !bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <div className="flex items-center gap-3 mb-6">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: `${primaryColor}15` }}
-                >
-                  <User size={20} style={{ color: primaryColor }} />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  Personal Information
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    First Name
-                  </label>
-                  <Input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      handleInputChange("firstName", e.target.value)
-                    }
-                    className="w-full !bg-gray-50 border-gray-200 focus:border-2 rounded-xl transition-all duration-200"
-                    style={{ backgroundColor: "#f9fafb", color: "#111827" }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = primaryColor;
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = "";
-                    }}
-                    disabled
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Last Name
-                  </label>
-                  <Input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      handleInputChange("lastName", e.target.value)
-                    }
-                    className="w-full !bg-gray-50 border-gray-200 rounded-xl"
-                    style={{ backgroundColor: "#f9fafb", color: "#111827" }}
-                    disabled
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Mail size={16} />
-                    Email Address
-                  </label>
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    disabled
-                    className="w-full !bg-gray-50 border-gray-200 rounded-xl"
-                    style={{ backgroundColor: "#f9fafb", color: "#111827" }}
-                  />
-                  <p className="text-xs text-gray-500 mt-1.5">
-                    Email cannot be changed
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-gray-100 flex gap-3">
-                <Button
-                  onClick={handleSaveProfile}
-                  disabled={isSaving}
-                  className="text-white border-0 rounded-xl px-8 py-3 font-semibold shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2 inline-block" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={18} className="mr-2 inline" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
-          </div>
-
-          {/* Sidebar - 1/3 width */}
-          <div className="space-y-6">
-            {/* Account Status Card */}
-            <Card
-              className="p-6 border-2 !bg-white rounded-2xl shadow-sm"
-              style={{
-                borderColor: `${primaryColor}30`,
-                backgroundColor: "#ffffff",
-                color: "#111827",
-              }}
-            >
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Account Status
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-gray-600">Email Verified</span>
-                  <CheckCircle2 size={18} style={{ color: primaryColor }} />
-                </div>
-                <div className="flex items-center justify-between py-2 border-t border-gray-100">
-                  <span className="text-sm text-gray-600">Member Since</span>
-                  <span className="text-sm font-semibold text-gray-900">
-                    {new Date().toLocaleDateString("en-US", {
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Delete Account Card */}
-            <Card
-              className="p-6 border-2 rounded-2xl shadow-sm"
-              style={{
-                backgroundColor: `${primaryColor}10`,
-                borderColor: `${primaryColor}30`,
-                color: "#111827",
-              }}
-            >
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                Danger Zone
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Permanently delete your account and all data.
-              </p>
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="w-full px-4 py-2.5 text-sm font-semibold bg-white border-2 rounded-xl transition-all duration-200"
-                style={{
-                  color: primaryColor,
-                  borderColor: `${primaryColor}35`,
-                }}
-              >
-                Delete Account
-              </button>
-            </Card>
-          </div>
+        <div className="mt-6">
+          <Button variant="outline" className="w-full" size="lg" onClick={handleLogout}>
+            <LogOut className="w-5 h-5 mr-2" />
+            Log Out
+          </Button>
         </div>
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-            <Card
-              className="max-w-md w-full p-4 sm:p-8 border-2 border-gray-100 !bg-white rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <div className="flex items-start gap-4 mb-6">
-                <div
-                  className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: `${primaryColor}18` }}
-                >
-                  <AlertCircle
-                    className="h-6 w-6"
-                    style={{ color: primaryColor }}
-                  />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    Delete Account?
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    This action cannot be undone. All your data, bookings, and
-                    reviews will be permanently deleted.
-                  </p>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Confirm Password *
-                      </label>
-                      <Input
-                        type="password"
-                        value={deletePassword}
-                        onChange={(e) => setDeletePassword(e.target.value)}
-                        placeholder="Enter your password"
-                        className="w-full"
-                        disabled={isDeleting}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Reason (Optional)
-                      </label>
-                      <Input
-                        type="text"
-                        value={deleteReason}
-                        onChange={(e) => setDeleteReason(e.target.value)}
-                        placeholder="Help us understand why you're leaving"
-                        className="w-full"
-                        disabled={isDeleting}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 justify-end">
-                <Button
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setDeletePassword("");
-                    setDeleteReason("");
-                  }}
-                  variant="outline"
-                  className="border-2 border-gray-200 text-gray-700 rounded-xl px-6 py-2.5 font-semibold hover:bg-gray-50 transition-all duration-200"
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleDeleteAccount}
-                  className="text-white border-0 rounded-xl px-6 py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  style={{ backgroundColor: primaryColor }}
-                  disabled={isDeleting || !deletePassword.trim()}
-                >
-                  {isDeleting ? "Deleting..." : "Delete Account"}
-                </Button>
-              </div>
-            </Card>
-          </div>
-        )}
       </main>
 
-      {/* Footer */}
       <Footer
         realtorName={realtorName}
         tagline={tagline}
         logo={logoUrl}
         description={description}
         primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
       />
     </div>
   );
