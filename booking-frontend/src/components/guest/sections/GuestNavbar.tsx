@@ -2,11 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import {
-  User,
-  LogOut,
-  ChevronDown,
-} from "lucide-react";
+import { User, LogOut, ChevronDown } from "lucide-react";
 import { guestUserMenuItems } from "./guestUserMenuItems";
 
 interface GuestNavbarProps {
@@ -189,7 +185,8 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                             e.currentTarget.style.backgroundColor = `${primaryColor}10`;
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = "transparent";
+                            e.currentTarget.style.backgroundColor =
+                              "transparent";
                           }}
                         >
                           <Icon size={18} style={{ color: primaryColor }} />

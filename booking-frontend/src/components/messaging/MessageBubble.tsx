@@ -33,7 +33,9 @@ export function MessageBubble({
               }
         }
       >
-        {message.content && <p className="text-sm break-words">{message.content}</p>}
+        {message.content && (
+          <p className="text-sm break-words">{message.content}</p>
+        )}
 
         {message.attachments && message.attachments.length > 0 && (
           <div className="mt-2 space-y-2">

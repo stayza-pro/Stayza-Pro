@@ -1048,7 +1048,10 @@ export default function BookingDetailsPage() {
                 <p className="font-medium" style={{ color: primaryColor }}>
                   Error loading cancellation details
                 </p>
-                <p className="text-sm mt-1" style={{ color: `${primaryColor}dd` }}>
+                <p
+                  className="text-sm mt-1"
+                  style={{ color: `${primaryColor}dd` }}
+                >
                   {getApiErrorMessage(previewError, "Please try again later")}
                 </p>
                 <Button
@@ -1070,7 +1073,10 @@ export default function BookingDetailsPage() {
                 <p className="font-medium" style={{ color: primaryColor }}>
                   Cannot cancel this booking
                 </p>
-                <p className="text-sm mt-1" style={{ color: `${primaryColor}dd` }}>
+                <p
+                  className="text-sm mt-1"
+                  style={{ color: `${primaryColor}dd` }}
+                >
                   {cancellationPreview.reason}
                 </p>
                 <Button
@@ -1099,10 +1105,16 @@ export default function BookingDetailsPage() {
                         style={{ color: primaryColor }}
                       />
                       <div>
-                        <p className="font-bold text-lg mb-1" style={{ color: primaryColor }}>
+                        <p
+                          className="font-bold text-lg mb-1"
+                          style={{ color: primaryColor }}
+                        >
                           Late Cancellation
                         </p>
-                        <p className="text-sm" style={{ color: `${primaryColor}dd` }}>
+                        <p
+                          className="text-sm"
+                          style={{ color: `${primaryColor}dd` }}
+                        >
                           You are cancelling within 12 hours of check-in. Your
                           security deposit will be returned, but there is{" "}
                           <strong>no room fee refund</strong>. Service and
@@ -1121,7 +1133,10 @@ export default function BookingDetailsPage() {
                     borderColor: `${primaryColor}30`,
                   }}
                 >
-                  <h4 className="font-semibold mb-3" style={{ color: primaryColor }}>
+                  <h4
+                    className="font-semibold mb-3"
+                    style={{ color: primaryColor }}
+                  >
                     Refund Breakdown
                   </h4>
 
@@ -1131,10 +1146,16 @@ export default function BookingDetailsPage() {
                       className="flex justify-between items-center py-2 border-b"
                       style={{ borderColor: `${primaryColor}30` }}
                     >
-                      <span className="text-sm" style={{ color: `${primaryColor}dd` }}>
+                      <span
+                        className="text-sm"
+                        style={{ color: `${primaryColor}dd` }}
+                      >
                         Time until check-in:
                       </span>
-                      <span className="font-medium" style={{ color: primaryColor }}>
+                      <span
+                        className="font-medium"
+                        style={{ color: primaryColor }}
+                      >
                         {cancellationPreview.refundInfo.hoursUntilCheckIn.toFixed(
                           1,
                         )}{" "}
@@ -1147,10 +1168,16 @@ export default function BookingDetailsPage() {
                       className="flex justify-between items-center py-2 border-b"
                       style={{ borderColor: `${primaryColor}30` }}
                     >
-                      <span className="text-sm" style={{ color: `${primaryColor}dd` }}>
+                      <span
+                        className="text-sm"
+                        style={{ color: `${primaryColor}dd` }}
+                      >
                         Cancellation Tier:
                       </span>
-                      <span className="font-medium" style={{ color: primaryColor }}>
+                      <span
+                        className="font-medium"
+                        style={{ color: primaryColor }}
+                      >
                         {cancellationPreview.refundInfo.tier === "EARLY" &&
                           "Early (24+ hours) - 90% room fee"}
                         {cancellationPreview.refundInfo.tier === "MEDIUM" &&
@@ -1174,7 +1201,10 @@ export default function BookingDetailsPage() {
                           )}
                           % of booking):
                         </span>
-                        <span className="font-medium text-lg" style={{ color: primaryColor }}>
+                        <span
+                          className="font-medium text-lg"
+                          style={{ color: primaryColor }}
+                        >
                           {formatPrice(
                             cancellationPreview.refundInfo.customerRefund,
                             booking?.currency || "NGN",
@@ -1196,10 +1226,16 @@ export default function BookingDetailsPage() {
                       className="flex justify-between items-center py-3 -mx-4 px-4 rounded"
                       style={{ backgroundColor: `${primaryColor}18` }}
                     >
-                      <span className="text-base font-semibold" style={{ color: primaryColor }}>
+                      <span
+                        className="text-base font-semibold"
+                        style={{ color: primaryColor }}
+                      >
                         Total You Will Receive:
                       </span>
-                      <span className="text-lg font-bold" style={{ color: primaryColor }}>
+                      <span
+                        className="text-lg font-bold"
+                        style={{ color: primaryColor }}
+                      >
                         {formatPrice(
                           cancellationPreview.refundInfo.customerRefund,
                           booking?.currency || "NGN",

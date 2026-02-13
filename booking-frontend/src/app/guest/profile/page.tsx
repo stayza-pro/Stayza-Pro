@@ -443,7 +443,10 @@ export default function GuestProfilePage() {
               <button
                 onClick={() => setShowDeleteModal(true)}
                 className="w-full px-4 py-2.5 text-sm font-semibold bg-white border-2 rounded-xl transition-all duration-200"
-                style={{ color: primaryColor, borderColor: `${primaryColor}35` }}
+                style={{
+                  color: primaryColor,
+                  borderColor: `${primaryColor}35`,
+                }}
               >
                 Delete Account
               </button>
@@ -463,7 +466,10 @@ export default function GuestProfilePage() {
                   className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
                   style={{ backgroundColor: `${primaryColor}18` }}
                 >
-                  <AlertCircle className="h-6 w-6" style={{ color: primaryColor }} />
+                  <AlertCircle
+                    className="h-6 w-6"
+                    style={{ color: primaryColor }}
+                  />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">

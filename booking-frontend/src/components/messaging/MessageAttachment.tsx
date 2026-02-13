@@ -16,7 +16,10 @@ interface MessageAttachmentProps {
   isOwn: boolean;
 }
 
-export function MessageAttachment({ attachment, isOwn }: MessageAttachmentProps) {
+export function MessageAttachment({
+  attachment,
+  isOwn,
+}: MessageAttachmentProps) {
   if (attachment.type?.includes("image")) {
     return (
       <Image

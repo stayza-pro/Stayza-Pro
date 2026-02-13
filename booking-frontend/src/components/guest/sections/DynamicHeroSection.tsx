@@ -4,11 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { apiClient } from "@/services/api";
 import { guestUserMenuItems } from "./guestUserMenuItems";
-import {
-  User,
-  LogOut,
-  ChevronDown,
-} from "lucide-react";
+import { User, LogOut, ChevronDown } from "lucide-react";
 
 interface DynamicHeroSectionProps {
   agencyName: string;
@@ -414,13 +410,17 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
                 <div className="text-3xl sm:text-[2.5rem] font-bold mb-2">
                   {stats.propertiesCount}+
                 </div>
-                <div className="text-white/70 text-xs sm:text-sm">Properties</div>
+                <div className="text-white/70 text-xs sm:text-sm">
+                  Properties
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-3xl sm:text-[2.5rem] font-bold mb-2">
                   {stats.totalGuests}
                 </div>
-                <div className="text-white/70 text-xs sm:text-sm">Happy Guests</div>
+                <div className="text-white/70 text-xs sm:text-sm">
+                  Happy Guests
+                </div>
               </div>
               <div className="text-center col-span-2 sm:col-span-1">
                 <div className="text-3xl sm:text-[2.5rem] font-bold mb-2">
@@ -428,7 +428,9 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
                     ? `${stats.averageRating.toFixed(1)}★`
                     : "0★"}
                 </div>
-                <div className="text-white/70 text-xs sm:text-sm">Avg Rating</div>
+                <div className="text-white/70 text-xs sm:text-sm">
+                  Avg Rating
+                </div>
               </div>
             </div>
 
@@ -534,7 +536,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
                             checkIn: checkInDate,
                             checkOut: checkOutDate,
                           },
-                        })
+                        }),
                       );
 
                       propertiesSection.scrollIntoView({ behavior: "smooth" });

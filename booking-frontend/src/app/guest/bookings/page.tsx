@@ -696,7 +696,10 @@ export default function GuestBookingsPage() {
                             borderColor: `${primaryColor}30`,
                           }}
                         >
-                          <p className="text-sm" style={{ color: primaryColor }}>
+                          <p
+                            className="text-sm"
+                            style={{ color: primaryColor }}
+                          >
                             <strong>Cancelled:</strong> Refund processed
                             automatically based on cancellation policy. View
                             details for breakdown.
@@ -752,8 +755,7 @@ export default function GuestBookingsPage() {
           <Card
             className="p-4 sm:p-8 mt-8 border border-gray-200 !bg-white shadow-sm"
             style={{ backgroundColor: "#ffffff", color: "#111827" }}
-          >
-          </Card>
+          ></Card>
         )}
       </main>
 

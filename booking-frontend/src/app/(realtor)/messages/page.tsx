@@ -462,7 +462,9 @@ export default function RealtorMessagesPage() {
                         message={message}
                         isOwn={isOwn}
                         primaryColor={primaryColor}
-                        timestamp={new Date(message.createdAt).toLocaleTimeString([], {
+                        timestamp={new Date(
+                          message.createdAt,
+                        ).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
