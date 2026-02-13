@@ -427,8 +427,12 @@ export default function GuestProfilePage() {
 
             {/* Delete Account Card */}
             <Card
-              className="p-6 border-2 border-red-100 !bg-red-50/50 rounded-2xl shadow-sm"
-              style={{ backgroundColor: "#fef2f2", color: "#111827" }}
+              className="p-6 border-2 rounded-2xl shadow-sm"
+              style={{
+                backgroundColor: `${primaryColor}10`,
+                borderColor: `${primaryColor}30`,
+                color: "#111827",
+              }}
             >
               <h3 className="text-lg font-bold text-gray-900 mb-2">
                 Danger Zone
@@ -438,7 +442,8 @@ export default function GuestProfilePage() {
               </p>
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="w-full px-4 py-2.5 text-sm font-semibold text-red-600 bg-white border-2 border-red-200 rounded-xl hover:bg-red-50 hover:border-red-300 transition-all duration-200"
+                className="w-full px-4 py-2.5 text-sm font-semibold bg-white border-2 rounded-xl transition-all duration-200"
+                style={{ color: primaryColor, borderColor: `${primaryColor}35` }}
               >
                 Delete Account
               </button>
@@ -456,9 +461,9 @@ export default function GuestProfilePage() {
               <div className="flex items-start gap-4 mb-6">
                 <div
                   className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: "#FEE2E2" }}
+                  style={{ backgroundColor: `${primaryColor}18` }}
                 >
-                  <AlertCircle className="h-6 w-6 text-red-600" />
+                  <AlertCircle className="h-6 w-6" style={{ color: primaryColor }} />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
@@ -516,7 +521,8 @@ export default function GuestProfilePage() {
                 </Button>
                 <Button
                   onClick={handleDeleteAccount}
-                  className="bg-red-600 hover:bg-red-700 text-white border-0 rounded-xl px-6 py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="text-white border-0 rounded-xl px-6 py-2.5 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  style={{ backgroundColor: primaryColor }}
                   disabled={isDeleting || !deletePassword.trim()}
                 >
                   {isDeleting ? "Deleting..." : "Delete Account"}

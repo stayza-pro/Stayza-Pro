@@ -90,7 +90,10 @@ export default function GuestBookingsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div
+            className="animate-spin rounded-full h-32 w-32 border-b-2 mx-auto mb-4"
+            style={{ borderBottomColor: primaryColor }}
+          ></div>
           <p className="text-gray-600">Loading...</p>
         </div>
       </div>
@@ -686,8 +689,14 @@ export default function GuestBookingsPage() {
 
                       {/* Cancelled booking info */}
                       {booking.status === "CANCELLED" && (
-                        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-sm text-red-800">
+                        <div
+                          className="mb-4 p-4 border rounded-lg"
+                          style={{
+                            backgroundColor: `${primaryColor}12`,
+                            borderColor: `${primaryColor}30`,
+                          }}
+                        >
+                          <p className="text-sm" style={{ color: primaryColor }}>
                             <strong>Cancelled:</strong> Refund processed
                             automatically based on cancellation policy. View
                             details for breakdown.

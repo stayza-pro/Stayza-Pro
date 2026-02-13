@@ -11,14 +11,13 @@ import {
   Mic,
   X,
   File,
-  Download,
 } from "lucide-react";
 import { Card, Input, Button } from "@/components/ui";
-import Image from "next/image";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { Footer } from "@/components/guest/sections/Footer";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { MessageBubble } from "@/components/messaging/MessageBubble";
 import { messageService, type Conversation, type Message } from "@/services";
 import toast from "react-hot-toast";
 
@@ -417,22 +416,6 @@ function MessagesContent() {
     }
   };
 
-  const resolveAudioMimeType = (attachment: {
-    type?: string;
-    filename?: string;
-    url?: string;
-  }) => {
-    const rawType = (attachment.type || "").toLowerCase();
-    if (rawType.startsWith("audio/")) return rawType;
-
-    const sourceName = `${attachment.filename || ""} ${attachment.url || ""}`.toLowerCase();
-    if (sourceName.includes(".mp3")) return "audio/mpeg";
-    if (sourceName.includes(".wav")) return "audio/wav";
-    if (sourceName.includes(".ogg")) return "audio/ogg";
-    if (sourceName.includes(".m4a")) return "audio/mp4";
-    return "audio/webm";
-  };
-
   // Show loading state while checking authentication
   if (!authChecked || isLoading) {
     return (
@@ -491,7 +474,10 @@ function MessagesContent() {
             <div className="flex-1 overflow-y-auto">
               {isLoadingConversations ? (
                 <div className="p-4 sm:p-8 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
+                  <div
+                    className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
+                    style={{ borderBottomColor: primaryColor }}
+                  ></div>
                   <p className="text-gray-600 text-sm">
                     Loading conversations...
                   </p>
@@ -662,7 +648,10 @@ function MessagesContent() {
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
                   {isLoadingMessages ? (
                     <div className="text-center py-8 sm:py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-3"></div>
+                      <div
+                        className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-3"
+                        style={{ borderBottomColor: primaryColor }}
+                      ></div>
                       <p className="text-gray-600">Loading messages...</p>
                     </div>
                   ) : messages.length === 0 ? (
@@ -682,84 +671,13 @@ function MessagesContent() {
                             : "justify-start"
                         }`}
                       >
-                        <div
-                          className="max-w-[92%] sm:max-w-[80%] md:max-w-[70%] break-words rounded-2xl px-4 py-3 shadow-sm"
-                          style={
-                            message.senderId === user?.id
-                              ? {
-                                  backgroundColor: primaryColor,
-                                  color: "white",
-                                }
-                              : { backgroundColor: "#ffffff", color: "#111827" }
-                          }
-                        >
-                          {message.content && <p>{message.content}</p>}
-
-                          {/* Attachments */}
-                          {message.attachments &&
-                            message.attachments.length > 0 && (
-                              <div className="mt-2 space-y-2">
-                                {message.attachments.map(
-                                  (attachment: any, index: number) => (
-                                    <div
-                                      key={index}
-                                      className={`p-2 rounded ${
-                                        message.senderId === user?.id
-                                          ? "bg-black bg-opacity-10"
-                                          : "bg-gray-200"
-                                      }`}
-                                    >
-                                      {attachment.type?.includes("image") ? (
-                                        <Image
-                                          src={attachment.url}
-                                          alt={attachment.filename}
-                                          width={200}
-                                          height={150}
-                                          className="rounded"
-                                        />
-                                      ) : attachment.type?.includes("audio") ||
-                                        attachment.type === "VOICE" ? (
-                                        <audio
-                                          controls
-                                          preload="metadata"
-                                          className="w-full min-w-[220px] max-w-full rounded-md"
-                                        >
-                                          <source
-                                            src={attachment.url}
-                                            type={resolveAudioMimeType(attachment)}
-                                          />
-                                        </audio>
-                                      ) : (
-                                        <a
-                                          href={attachment.url}
-                                          download
-                                          className="flex items-center space-x-2 hover:underline"
-                                        >
-                                          <File className="h-4 w-4" />
-                                          <span className="text-sm">
-                                            {attachment.filename}
-                                          </span>
-                                          <Download className="h-4 w-4" />
-                                        </a>
-                                      )}
-                                    </div>
-                                  ),
-                                )}
-                              </div>
-                            )}
-
-                          <p
-                            className="text-xs mt-1"
-                            style={{
-                              color:
-                                message.senderId === user?.id
-                                  ? "#ffffff"
-                                  : "#6b7280",
-                            }}
-                          >
-                            {formatTime(new Date(message.createdAt))}
-                          </p>
-                        </div>
+                        <MessageBubble
+                          message={message}
+                          isOwn={message.senderId === user?.id}
+                          primaryColor={primaryColor}
+                          timestamp={formatTime(new Date(message.createdAt))}
+                          className="max-w-[92%] sm:max-w-[80%] md:max-w-[70%] break-words"
+                        />
                       </div>
                     ))
                   )}
@@ -781,7 +699,8 @@ function MessagesContent() {
                           </span>
                           <button
                             onClick={() => removeFile(index)}
-                            className="text-gray-500 hover:text-red-500"
+                            className="text-gray-500"
+                            style={{ color: primaryColor }}
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -799,7 +718,8 @@ function MessagesContent() {
                       </span>
                       <button
                         onClick={cancelRecording}
-                        className="text-gray-500 hover:text-red-500"
+                        className="text-gray-500"
+                        style={{ color: primaryColor }}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -830,9 +750,10 @@ function MessagesContent() {
                       disabled={isSending}
                       className={`p-2 ${
                         isRecording
-                          ? "text-red-500 animate-pulse"
+                          ? "animate-pulse"
                           : "text-gray-600 hover:text-gray-900"
                       } disabled:opacity-50`}
+                      style={isRecording ? { color: primaryColor } : undefined}
                       title={
                         isRecording ? "Stop recording" : "Record voice note"
                       }

@@ -1029,17 +1029,26 @@ export default function BookingDetailsPage() {
 
             {previewLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <div
+                  className="animate-spin rounded-full h-8 w-8 border-b-2"
+                  style={{ borderBottomColor: primaryColor }}
+                ></div>
                 <span className="ml-3 text-gray-600">
                   Calculating refund...
                 </span>
               </div>
             ) : previewError ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="text-red-800 font-medium">
+              <div
+                className="border rounded-lg p-4 mb-4"
+                style={{
+                  backgroundColor: `${primaryColor}10`,
+                  borderColor: `${primaryColor}30`,
+                }}
+              >
+                <p className="font-medium" style={{ color: primaryColor }}>
                   Error loading cancellation details
                 </p>
-                <p className="text-red-600 text-sm mt-1">
+                <p className="text-sm mt-1" style={{ color: `${primaryColor}dd` }}>
                   {getApiErrorMessage(previewError, "Please try again later")}
                 </p>
                 <Button
@@ -1051,11 +1060,17 @@ export default function BookingDetailsPage() {
                 </Button>
               </div>
             ) : cancellationPreview && !cancellationPreview.canCancel ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="text-red-800 font-medium">
+              <div
+                className="border rounded-lg p-4 mb-4"
+                style={{
+                  backgroundColor: `${primaryColor}10`,
+                  borderColor: `${primaryColor}30`,
+                }}
+              >
+                <p className="font-medium" style={{ color: primaryColor }}>
                   Cannot cancel this booking
                 </p>
-                <p className="text-red-600 text-sm mt-1">
+                <p className="text-sm mt-1" style={{ color: `${primaryColor}dd` }}>
                   {cancellationPreview.reason}
                 </p>
                 <Button
@@ -1071,14 +1086,23 @@ export default function BookingDetailsPage() {
               <>
                 {/* Warning for LATE tier */}
                 {cancellationPreview.refundInfo.tier === "LATE" && (
-                  <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 mb-4">
+                  <div
+                    className="border-2 rounded-lg p-4 mb-4"
+                    style={{
+                      backgroundColor: `${primaryColor}10`,
+                      borderColor: primaryColor,
+                    }}
+                  >
                     <div className="flex items-start gap-3">
-                      <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                      <AlertCircle
+                        className="w-6 h-6 flex-shrink-0 mt-0.5"
+                        style={{ color: primaryColor }}
+                      />
                       <div>
-                        <p className="text-red-900 font-bold text-lg mb-1">
+                        <p className="font-bold text-lg mb-1" style={{ color: primaryColor }}>
                           Late Cancellation
                         </p>
-                        <p className="text-red-800 text-sm">
+                        <p className="text-sm" style={{ color: `${primaryColor}dd` }}>
                           You are cancelling within 12 hours of check-in. Your
                           security deposit will be returned, but there is{" "}
                           <strong>no room fee refund</strong>. Service and
@@ -1091,47 +1115,26 @@ export default function BookingDetailsPage() {
 
                 {/* Refund Breakdown */}
                 <div
-                  className={`${
-                    cancellationPreview.refundInfo.tier === "LATE"
-                      ? "bg-red-50 border-red-200"
-                      : "bg-green-50 border-green-200"
-                  } border rounded-lg p-4 mb-4`}
+                  className="border rounded-lg p-4 mb-4"
+                  style={{
+                    backgroundColor: `${primaryColor}10`,
+                    borderColor: `${primaryColor}30`,
+                  }}
                 >
-                  <h4
-                    className={`font-semibold mb-3 ${
-                      cancellationPreview.refundInfo.tier === "LATE"
-                        ? "text-red-900"
-                        : "text-green-900"
-                    }`}
-                  >
+                  <h4 className="font-semibold mb-3" style={{ color: primaryColor }}>
                     Refund Breakdown
                   </h4>
 
                   <div className="space-y-3">
                     {/* Time Until Check-in */}
                     <div
-                      className={`flex justify-between items-center py-2 border-b ${
-                        cancellationPreview.refundInfo.tier === "LATE"
-                          ? "border-red-200"
-                          : "border-green-200"
-                      }`}
+                      className="flex justify-between items-center py-2 border-b"
+                      style={{ borderColor: `${primaryColor}30` }}
                     >
-                      <span
-                        className={`text-sm ${
-                          cancellationPreview.refundInfo.tier === "LATE"
-                            ? "text-red-800"
-                            : "text-green-800"
-                        }`}
-                      >
+                      <span className="text-sm" style={{ color: `${primaryColor}dd` }}>
                         Time until check-in:
                       </span>
-                      <span
-                        className={`font-medium ${
-                          cancellationPreview.refundInfo.tier === "LATE"
-                            ? "text-red-900"
-                            : "text-green-900"
-                        }`}
-                      >
+                      <span className="font-medium" style={{ color: primaryColor }}>
                         {cancellationPreview.refundInfo.hoursUntilCheckIn.toFixed(
                           1,
                         )}{" "}
@@ -1141,28 +1144,13 @@ export default function BookingDetailsPage() {
 
                     {/* Refund Tier */}
                     <div
-                      className={`flex justify-between items-center py-2 border-b ${
-                        cancellationPreview.refundInfo.tier === "LATE"
-                          ? "border-red-200"
-                          : "border-green-200"
-                      }`}
+                      className="flex justify-between items-center py-2 border-b"
+                      style={{ borderColor: `${primaryColor}30` }}
                     >
-                      <span
-                        className={`text-sm ${
-                          cancellationPreview.refundInfo.tier === "LATE"
-                            ? "text-red-800"
-                            : "text-green-800"
-                        }`}
-                      >
+                      <span className="text-sm" style={{ color: `${primaryColor}dd` }}>
                         Cancellation Tier:
                       </span>
-                      <span
-                        className={`font-medium ${
-                          cancellationPreview.refundInfo.tier === "LATE"
-                            ? "text-red-900"
-                            : "text-green-900"
-                        }`}
-                      >
+                      <span className="font-medium" style={{ color: primaryColor }}>
                         {cancellationPreview.refundInfo.tier === "EARLY" &&
                           "Early (24+ hours) - 90% room fee"}
                         {cancellationPreview.refundInfo.tier === "MEDIUM" &&
@@ -1178,13 +1166,7 @@ export default function BookingDetailsPage() {
                     <div className="space-y-2 pt-2">
                       {/* Total Refund */}
                       <div className="flex justify-between items-center text-sm">
-                        <span
-                          className={
-                            cancellationPreview.refundInfo.tier === "LATE"
-                              ? "text-red-700"
-                              : "text-green-700"
-                          }
-                        >
+                        <span style={{ color: `${primaryColor}dd` }}>
                           Your Refund (
                           {Math.round(
                             cancellationPreview.refundInfo.breakdown
@@ -1192,13 +1174,7 @@ export default function BookingDetailsPage() {
                           )}
                           % of booking):
                         </span>
-                        <span
-                          className={`font-medium text-lg ${
-                            cancellationPreview.refundInfo.tier === "LATE"
-                              ? "text-red-800"
-                              : "text-green-800"
-                          }`}
-                        >
+                        <span className="font-medium text-lg" style={{ color: primaryColor }}>
                           {formatPrice(
                             cancellationPreview.refundInfo.customerRefund,
                             booking?.currency || "NGN",
@@ -1217,28 +1193,13 @@ export default function BookingDetailsPage() {
 
                     {/* Total Refund */}
                     <div
-                      className={`flex justify-between items-center py-3 -mx-4 px-4 rounded ${
-                        cancellationPreview.refundInfo.tier === "LATE"
-                          ? "bg-red-100"
-                          : "bg-green-100"
-                      }`}
+                      className="flex justify-between items-center py-3 -mx-4 px-4 rounded"
+                      style={{ backgroundColor: `${primaryColor}18` }}
                     >
-                      <span
-                        className={`text-base font-semibold ${
-                          cancellationPreview.refundInfo.tier === "LATE"
-                            ? "text-red-900"
-                            : "text-green-900"
-                        }`}
-                      >
+                      <span className="text-base font-semibold" style={{ color: primaryColor }}>
                         Total You Will Receive:
                       </span>
-                      <span
-                        className={`text-lg font-bold ${
-                          cancellationPreview.refundInfo.tier === "LATE"
-                            ? "text-red-900"
-                            : "text-green-900"
-                        }`}
-                      >
+                      <span className="text-lg font-bold" style={{ color: primaryColor }}>
                         {formatPrice(
                           cancellationPreview.refundInfo.customerRefund,
                           booking?.currency || "NGN",
@@ -1256,7 +1217,8 @@ export default function BookingDetailsPage() {
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent mb-4"
+                  style={{ outlineColor: primaryColor }}
                   placeholder="Reason for cancellation..."
                 />
 

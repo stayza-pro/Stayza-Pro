@@ -3,12 +3,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { apiClient } from "@/services/api";
+import { guestUserMenuItems } from "./guestUserMenuItems";
 import {
   User,
-  Calendar,
-  MessageCircle,
-  Heart,
-  HelpCircle,
   LogOut,
   ChevronDown,
 } from "lucide-react";
@@ -106,9 +103,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
         const parsedUser = JSON.parse(userData) as AuthenticatedUser;
         setUser(parsedUser);
         setIsAuthenticated(true);
-      } catch (error) {
-        
-      }
+      } catch (error) {}
     }
   }, []);
 
@@ -148,7 +143,6 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
   };
 
   useEffect(() => {
-    // If stats are provided in props, use them
     if (propStats) {
       setStats({
         propertiesCount: propStats.totalProperties,
@@ -158,31 +152,28 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
       return;
     }
 
-    // Otherwise fetch from API (fallback)
     const fetchStats = async () => {
       try {
         const response = await apiClient.get<HostPropertySummary[]>(
-          `/properties/host/${realtorId}`
+          `/properties/host/${realtorId}`,
         );
         const properties = toPropertyArray(response.data);
         const activeProperties = properties.filter(
-          (property) => property.status === "ACTIVE"
+          (property) => property.status === "ACTIVE",
         );
 
-        // Calculate average rating
         const ratingsSum = activeProperties.reduce(
           (sum, property) => sum + (property.averageRating || 0),
-          0
+          0,
         );
         const avgRating =
           activeProperties.length > 0
             ? ratingsSum / activeProperties.length
             : 0;
 
-        // Calculate total guests from review count (guests who left reviews)
         const totalGuestsSum = activeProperties.reduce(
           (sum, property) => sum + (property.reviewCount || 0),
-          0
+          0,
         );
 
         setStats({
@@ -190,9 +181,7 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
           averageRating: avgRating,
           totalGuests: totalGuestsSum,
         });
-      } catch (error) {
-        
-      }
+      } catch (error) {}
     };
 
     if (realtorId) {
@@ -311,75 +300,25 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
 
                 {/* Menu Items */}
                 <div className="p-2">
-                  <button
-                    onClick={() => (window.location.href = "/guest/profile")}
-                    className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <User size={18} style={{ color: primaryColor }} />
-                    <span>Profile</span>
-                  </button>
-
-                  <button
-                    onClick={() => (window.location.href = "/guest/bookings")}
-                    className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <Calendar size={18} style={{ color: primaryColor }} />
-                    <span>Bookings</span>
-                  </button>
-
-                  <button
-                    onClick={() => (window.location.href = "/guest/favorites")}
-                    className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <Heart size={18} style={{ color: primaryColor }} />
-                    <span>Favourites</span>
-                  </button>
-
-                  <button
-                    onClick={() => (window.location.href = "/guest/messages")}
-                    className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <MessageCircle size={18} style={{ color: primaryColor }} />
-                    <span>Messages</span>
-                  </button>
-
-                  <button
-                    onClick={() => (window.location.href = "/help")}
-                    className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <HelpCircle size={18} style={{ color: primaryColor }} />
-                    <span>Help & Support</span>
-                  </button>
+                  {guestUserMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.href}
+                        onClick={() => (window.location.href = item.href)}
+                        className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                        }}
+                      >
+                        <Icon size={18} style={{ color: primaryColor }} />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Sign Out */}

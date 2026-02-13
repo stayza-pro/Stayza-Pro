@@ -10,14 +10,13 @@ import {
   Mic,
   X,
   File,
-  Download,
 } from "lucide-react";
 import { Input, Button } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { MessageBubble } from "@/components/messaging/MessageBubble";
 import { messageService, type Conversation, type Message } from "@/services";
 import toast from "react-hot-toast";
-import Image from "next/image";
 
 export default function RealtorMessagesPage() {
   const router = useRouter();
@@ -271,22 +270,6 @@ export default function RealtorMessagesPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const resolveAudioMimeType = (attachment: {
-    type?: string;
-    filename?: string;
-    url?: string;
-  }) => {
-    const rawType = (attachment.type || "").toLowerCase();
-    if (rawType.startsWith("audio/")) return rawType;
-
-    const sourceName = `${attachment.filename || ""} ${attachment.url || ""}`.toLowerCase();
-    if (sourceName.includes(".mp3")) return "audio/mpeg";
-    if (sourceName.includes(".wav")) return "audio/wav";
-    if (sourceName.includes(".ogg")) return "audio/ogg";
-    if (sourceName.includes(".m4a")) return "audio/mp4";
-    return "audio/webm";
-  };
-
   const filteredConversations = Array.isArray(conversations)
     ? conversations.filter((conv) => {
         const searchLower = searchQuery.toLowerCase();
@@ -303,7 +286,10 @@ export default function RealtorMessagesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <div
+          className="animate-spin rounded-full h-12 w-12 border-b-2"
+          style={{ borderBottomColor: primaryColor }}
+        ></div>
       </div>
     );
   }
@@ -328,7 +314,10 @@ export default function RealtorMessagesPage() {
         <div className="flex-1 overflow-y-auto">
           {isLoadingConversations ? (
             <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <div
+                className="animate-spin rounded-full h-8 w-8 border-b-2"
+                style={{ borderBottomColor: primaryColor }}
+              ></div>
             </div>
           ) : filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -446,7 +435,10 @@ export default function RealtorMessagesPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {isLoadingMessages ? (
                 <div className="flex items-center justify-center h-full">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  <div
+                    className="animate-spin rounded-full h-8 w-8 border-b-2"
+                    style={{ borderBottomColor: primaryColor }}
+                  ></div>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
@@ -466,80 +458,16 @@ export default function RealtorMessagesPage() {
                         isOwn ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div className={`max-w-md ${isOwn ? "order-2" : "order-1"}`}>
-                        <div
-                          className="rounded-2xl px-4 py-3 shadow-sm"
-                          style={
-                            isOwn
-                              ? { backgroundColor: primaryColor, color: "#fff" }
-                              : { backgroundColor: "#fff", color: "#111827", border: "1px solid #e5e7eb" }
-                          }
-                        >
-                          {message.content && (
-                            <p className="text-sm">{message.content}</p>
-                          )}
-
-                          {/* Attachments */}
-                          {message.attachments &&
-                            message.attachments.length > 0 && (
-                              <div className="mt-2 space-y-2">
-                                {message.attachments.map(
-                                  (attachment, index: number) => (
-                                    <div
-                                      key={index}
-                                      className="p-2 rounded"
-                                      style={
-                                        isOwn
-                                          ? { backgroundColor: "rgba(0,0,0,0.12)" }
-                                          : { backgroundColor: "#f3f4f6" }
-                                      }
-                                    >
-                                      {attachment.type?.includes("image") ? (
-                                        <Image
-                                          src={attachment.url}
-                                          alt={attachment.filename}
-                                          width={200}
-                                          height={150}
-                                          className="rounded"
-                                        />
-                                      ) : attachment.type?.includes("audio") ||
-                                        attachment.type === "VOICE" ? (
-                                        <audio
-                                          controls
-                                          preload="metadata"
-                                          className="w-full min-w-[220px] max-w-full rounded-md"
-                                        >
-                                          <source
-                                            src={attachment.url}
-                                            type={resolveAudioMimeType(attachment)}
-                                          />
-                                        </audio>
-                                      ) : (
-                                        <a
-                                          href={attachment.url}
-                                          download
-                                          className="flex items-center space-x-2 hover:underline"
-                                        >
-                                          <File className="h-4 w-4" />
-                                          <span className="text-sm">
-                                            {attachment.filename}
-                                          </span>
-                                          <Download className="h-4 w-4" />
-                                        </a>
-                                      )}
-                                    </div>
-                                  ),
-                                )}
-                              </div>
-                            )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(message.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
+                      <MessageBubble
+                        message={message}
+                        isOwn={isOwn}
+                        primaryColor={primaryColor}
+                        timestamp={new Date(message.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        className={`max-w-md ${isOwn ? "order-2" : "order-1"}`}
+                      />
                     </div>
                   );
                 })
@@ -561,7 +489,8 @@ export default function RealtorMessagesPage() {
                       <span className="text-sm text-gray-700">{file.name}</span>
                       <button
                         onClick={() => removeFile(index)}
-                        className="text-gray-500 hover:text-red-500"
+                        className="text-gray-500"
+                        style={{ color: primaryColor }}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -579,7 +508,8 @@ export default function RealtorMessagesPage() {
                   </span>
                   <button
                     onClick={cancelRecording}
-                    className="text-gray-500 hover:text-red-500"
+                    className="text-gray-500"
+                    style={{ color: primaryColor }}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -609,9 +539,10 @@ export default function RealtorMessagesPage() {
                   disabled={isSending}
                   className={`p-2 ${
                     isRecording
-                      ? "text-red-500 animate-pulse"
+                      ? "animate-pulse"
                       : "text-gray-600 hover:text-gray-900"
                   } disabled:opacity-50`}
+                  style={isRecording ? { color: primaryColor } : undefined}
                 >
                   <Mic className="h-5 w-5" />
                 </button>
@@ -629,7 +560,10 @@ export default function RealtorMessagesPage() {
                     placeholder={
                       isRecording ? "Recording..." : "Type a message..."
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-300 focus:border-transparent resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg resize-none"
+                    style={{
+                      outlineColor: primaryColor,
+                    }}
                     rows={1}
                     disabled={isSending || isRecording}
                   />
