@@ -11,6 +11,7 @@ import { AppError, asyncHandler } from "@/middleware/errorHandler";
 import { auditLogger } from "@/services/auditLogger";
 import { logger } from "@/utils/logger";
 import disputeService from "@/services/disputeService";
+import { config } from "@/config";
 
 const router = express.Router();
 
@@ -28,6 +29,43 @@ interface AdminBookingSearchQuery {
   minAmount?: string;
   maxAmount?: string;
 }
+
+const BOOKING_PAYMENT_TIMEOUT_MS =
+  config.BOOKING_PAYMENT_TIMEOUT_MINUTES * 60 * 1000;
+
+const getStaleUnpaidBookingFilter = (): Prisma.BookingWhereInput => {
+  const paymentUnpaidOrFailed: Prisma.BookingWhereInput["OR"] = [
+    { payment: { is: null } },
+    {
+      payment: {
+        is: {
+          paidAt: null,
+          status: {
+            in: [PaymentStatus.INITIATED, PaymentStatus.FAILED],
+          },
+        },
+      },
+    },
+  ];
+
+  return {
+    NOT: {
+      OR: [
+        {
+          status: BookingStatus.PENDING,
+          createdAt: {
+            lt: new Date(Date.now() - BOOKING_PAYMENT_TIMEOUT_MS),
+          },
+          OR: paymentUnpaidOrFailed,
+        },
+        {
+          status: BookingStatus.CANCELLED,
+          OR: paymentUnpaidOrFailed,
+        },
+      ],
+    },
+  };
+};
 
 /**
  * @swagger
@@ -151,7 +189,9 @@ router.get(
     const limitNum = Math.min(parseInt(limit, 10), 100);
     const skip = (pageNum - 1) * limitNum;
 
-    const where: Prisma.BookingWhereInput = {};
+    const where: Prisma.BookingWhereInput = {
+      ...getStaleUnpaidBookingFilter(),
+    };
 
     if (status) {
       where.status = status;
@@ -356,6 +396,10 @@ router.get(
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
 
+    const statsWhereBase: Prisma.BookingWhereInput = {
+      ...getStaleUnpaidBookingFilter(),
+    };
+
     const [
       totalBookings,
       pendingBookings,
@@ -366,21 +410,36 @@ router.get(
       totalRevenue,
       averageBookingValue,
     ] = await Promise.all([
-      prisma.booking.count(),
       prisma.booking.count({
-        where: { status: BookingStatus.PENDING },
-      }),
-      prisma.booking.count({
-        where: { status: BookingStatus.ACTIVE },
-      }),
-      prisma.booking.count({
-        where: { status: BookingStatus.CANCELLED },
-      }),
-      prisma.booking.count({
-        where: { status: BookingStatus.COMPLETED },
+        where: statsWhereBase,
       }),
       prisma.booking.count({
         where: {
+          ...statsWhereBase,
+          status: BookingStatus.PENDING,
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          ...statsWhereBase,
+          status: BookingStatus.ACTIVE,
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          ...statsWhereBase,
+          status: BookingStatus.CANCELLED,
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          ...statsWhereBase,
+          status: BookingStatus.COMPLETED,
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          ...statsWhereBase,
           createdAt: { gte: startDate },
         },
       }),

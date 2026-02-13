@@ -9,7 +9,6 @@ import { BookingStatus, PaymentStatus } from "@prisma/client";
 import {
   sendCacApprovalEmail,
   sendCacRejectionEmail,
-  sendEmail,
   sendEmailVerification,
   sendPayoutAccountOtpEmail,
   sendRealtorWelcomeEmail,
@@ -51,6 +50,7 @@ import {
   BLOCKED_DATES_MARKER,
   LEGACY_BLOCKED_DATES_MARKER,
 } from "@/services/bookingAccessControl";
+import { MessageFilterService } from "@/services/messageFilter";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -85,14 +85,6 @@ const generateUniqueSlug = async (businessName: string): Promise<string> => {
 
   return slug;
 };
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
 const PAYOUT_ACCOUNT_OTP_EXPIRY_MINUTES = 10;
 const PAYOUT_ACCOUNT_OTP_MAX_ATTEMPTS = 5;
@@ -3457,36 +3449,48 @@ router.get(
  */
 router.post(
   "/:realtorId/contact",
-  asyncHandler(async (req: Request, res: Response) => {
+  authenticate,
+  requireRole("GUEST"),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { realtorId } = req.params;
-    const name = String(req.body?.name ?? "").trim();
-    const email = String(req.body?.email ?? "")
-      .trim()
-      .toLowerCase();
     const message = String(req.body?.message ?? "").trim();
+    const requestedPropertyId = String(req.body?.propertyId ?? "").trim();
+    const userId = req.user!.id;
 
-    if (name.length < 2) {
-      throw new AppError("Name must be at least 2 characters", 400);
+    if (message.length < 2) {
+      throw new AppError("Message must be at least 2 characters", 400);
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new AppError("A valid email address is required", 400);
-    }
-
-    if (message.length < 10) {
-      throw new AppError("Message must be at least 10 characters", 400);
+    const filterResult = MessageFilterService.filterMessage(message);
+    if (filterResult.isBlocked) {
+      throw new AppError(
+        `Message blocked: Contains prohibited content (${filterResult.violations.join(
+          ", "
+        )})`,
+        400
+      );
     }
 
     const realtor = await prisma.realtor.findUnique({
       where: {
         id: realtorId,
         isActive: true,
+        status: "APPROVED",
       },
       include: {
-        user: {
-          select: {
-            email: true,
+        properties: {
+          where: {
+            isActive: true,
+            status: "ACTIVE",
           },
+          select: {
+            id: true,
+            title: true,
+          },
+          orderBy: {
+            updatedAt: "desc",
+          },
+          take: 1,
         },
       },
     });
@@ -3495,34 +3499,67 @@ router.post(
       throw new AppError("Realtor not found", 404);
     }
 
-    const recipient = realtor.user?.email;
-    if (!recipient) {
-      throw new AppError("Realtor contact email is not configured", 503);
+    if (realtor.userId === userId) {
+      throw new AppError("You cannot message yourself", 400);
     }
 
-    const safeRealtorName = escapeHtml(realtor.businessName);
-    const safeName = escapeHtml(name);
-    const safeEmail = escapeHtml(email);
-    const safeMessage = escapeHtml(message).replace(/\n/g, "<br/>");
+    let targetPropertyId = requestedPropertyId;
+    if (targetPropertyId) {
+      const property = await prisma.property.findFirst({
+        where: {
+          id: targetPropertyId,
+          realtorId: realtor.id,
+          isActive: true,
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
 
-    await sendEmail(recipient, {
-      subject: `New guest inquiry for ${realtor.businessName}`,
-      html: `
-        <h2>New inquiry from your booking site</h2>
-        <p>You received a new guest message.</p>
-        <ul>
-          <li><strong>Guest name:</strong> ${safeName}</li>
-          <li><strong>Guest email:</strong> ${safeEmail}</li>
-          <li><strong>Realtor:</strong> ${safeRealtorName}</li>
-        </ul>
-        <p><strong>Message</strong></p>
-        <p>${safeMessage}</p>
-      `,
+      if (!property) {
+        throw new AppError("Selected property is not available", 400);
+      }
+    } else {
+      targetPropertyId = realtor.properties[0]?.id || "";
+    }
+
+    if (!targetPropertyId) {
+      throw new AppError(
+        "This realtor has no active properties available for messaging",
+        400
+      );
+    }
+
+    const createdMessage = await prisma.message.create({
+      data: {
+        propertyId: targetPropertyId,
+        senderId: userId,
+        recipientId: realtor.userId,
+        content: filterResult.filteredContent,
+        type: "INQUIRY",
+        wasFiltered: filterResult.violations.length > 0,
+        violations: filterResult.violations,
+        isRead: false,
+      },
     });
 
-    res.status(202).json({
+    await prisma.notification.create({
+      data: {
+        userId: realtor.userId,
+        type: "MESSAGE_RECEIVED",
+        title: "New guest inquiry",
+        message: `You received a new guest inquiry on ${realtor.businessName}.`,
+        propertyId: targetPropertyId,
+      },
+    });
+
+    res.status(201).json({
       success: true,
-      message: "Message sent successfully",
+      message: "Inquiry sent successfully",
+      data: {
+        messageId: createdMessage.id,
+        propertyId: targetPropertyId,
+        realtorUserId: realtor.userId,
+      },
     });
   }),
 );

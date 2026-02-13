@@ -50,6 +50,7 @@ export interface Message {
 }
 
 export interface Conversation {
+  id?: string;
   propertyId?: string;
   bookingId?: string;
   otherUser: {
@@ -73,6 +74,81 @@ export interface Conversation {
   unreadCount: number;
   messages: Message[];
 }
+
+type BackendConversation = {
+  id?: string;
+  propertyId?: string | null;
+  bookingId?: string | null;
+  otherUser: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+    avatar?: string;
+  };
+  property?: {
+    id: string;
+    name?: string;
+    title?: string;
+    images?: string[];
+  } | null;
+  booking?: {
+    id: string;
+    bookingReference?: string;
+    status: string;
+  } | null;
+  lastMessage: Message;
+  unreadCount: number;
+};
+
+const normalizeConversation = (conversation: BackendConversation): Conversation => {
+  return {
+    id: conversation.id,
+    propertyId: conversation.propertyId || undefined,
+    bookingId: conversation.bookingId || undefined,
+    otherUser: {
+      id: conversation.otherUser.id,
+      firstName: conversation.otherUser.firstName,
+      lastName: conversation.otherUser.lastName,
+      email: conversation.otherUser.email || "",
+      avatar: conversation.otherUser.avatar,
+    },
+    property: conversation.property
+      ? {
+          id: conversation.property.id,
+          name:
+            conversation.property.name ||
+            conversation.property.title ||
+            "Property",
+          images: conversation.property.images || [],
+        }
+      : undefined,
+    booking: conversation.booking
+      ? {
+          id: conversation.booking.id,
+          bookingReference:
+            conversation.booking.bookingReference || conversation.booking.id,
+          status: conversation.booking.status,
+        }
+      : undefined,
+    lastMessage: conversation.lastMessage,
+    unreadCount: Number(conversation.unreadCount || 0),
+    messages: [],
+  };
+};
+
+const extractMessagesPayload = (payload: unknown): Message[] => {
+  if (Array.isArray(payload)) {
+    return payload as Message[];
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+
+  const record = payload as { messages?: unknown };
+  return Array.isArray(record.messages) ? (record.messages as Message[]) : [];
+};
 
 export interface SendPropertyInquiryRequest {
   content: string;
@@ -110,7 +186,21 @@ class MessageService {
    * Get all conversations for the current user
    */
   async getConversations(): Promise<ApiResponse<Conversation[]>> {
-    return apiClient.get<Conversation[]>("/messages/conversations");
+    const response = await apiClient.get<
+      BackendConversation[] | { conversations?: BackendConversation[] }
+    >("/messages/conversations");
+
+    const rawData = response.data;
+    const conversations = Array.isArray(rawData)
+      ? rawData
+      : Array.isArray(rawData?.conversations)
+      ? rawData.conversations
+      : [];
+
+    return {
+      ...response,
+      data: conversations.map(normalizeConversation),
+    };
   }
 
   /**
@@ -119,14 +209,28 @@ class MessageService {
   async getPropertyMessages(
     propertyId: string
   ): Promise<ApiResponse<Message[]>> {
-    return apiClient.get<Message[]>(`/messages/property/${propertyId}`);
+    const response = await apiClient.get<Message[] | { messages?: Message[] }>(
+      `/messages/property/${propertyId}/inquiry`
+    );
+
+    return {
+      ...response,
+      data: extractMessagesPayload(response.data),
+    };
   }
 
   /**
    * Get messages for a specific booking
    */
   async getBookingMessages(bookingId: string): Promise<ApiResponse<Message[]>> {
-    return apiClient.get<Message[]>(`/messages/booking/${bookingId}`);
+    const response = await apiClient.get<Message[] | { messages?: Message[] }>(
+      `/messages/booking/${bookingId}`
+    );
+
+    return {
+      ...response,
+      data: extractMessagesPayload(response.data),
+    };
   }
 
   /**
@@ -209,7 +313,17 @@ class MessageService {
    * Get unread message count
    */
   async getUnreadCount(): Promise<ApiResponse<{ count: number }>> {
-    return apiClient.get<{ count: number }>("/messages/unread-count");
+    const response = await apiClient.get<{ count?: number; unreadCount?: number }>(
+      "/messages/unread-count"
+    );
+
+    return {
+      ...response,
+      data: {
+        count:
+          Number(response.data?.count ?? response.data?.unreadCount ?? 0) || 0,
+      },
+    };
   }
 }
 

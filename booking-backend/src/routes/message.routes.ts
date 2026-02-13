@@ -590,7 +590,7 @@ router.get(
               city: booking.property.city,
             },
           },
-          messages: [], // Will be populated from database
+          messages,
           messagingStatus: MessageFilterService.canSendMessage({
             hasBooking: true,
             bookingStatus: booking.status,
@@ -603,6 +603,64 @@ router.get(
       return res.status(500).json({
         success: false,
         error: "Failed to fetch messages",
+      });
+    }
+  }
+);
+
+/**
+ * Mark all messages in a booking/property conversation as read for current user.
+ */
+router.post(
+  "/mark-read",
+  authenticate,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const propertyId =
+        typeof req.query.propertyId === "string" ? req.query.propertyId : "";
+      const bookingId =
+        typeof req.query.bookingId === "string" ? req.query.bookingId : "";
+
+      if (!propertyId && !bookingId) {
+        return res.status(400).json({
+          success: false,
+          error: "propertyId or bookingId is required",
+        });
+      }
+
+      const where: {
+        recipientId: string;
+        isRead: boolean;
+        propertyId?: string;
+        bookingId?: string;
+      } = {
+        recipientId: userId,
+        isRead: false,
+      };
+
+      if (propertyId) where.propertyId = propertyId;
+      if (bookingId) where.bookingId = bookingId;
+
+      const updateResult = await prisma.message.updateMany({
+        where,
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          success: true,
+          count: updateResult.count,
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to mark conversation as read",
       });
     }
   }

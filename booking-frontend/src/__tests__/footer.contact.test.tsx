@@ -1,6 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Footer } from "@/components/guest/sections/Footer";
 import { apiClient } from "@/services/api";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+
+const mockPush = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
 
 jest.mock("@/services/api", () => ({
   apiClient: {
@@ -13,17 +22,29 @@ jest.mock("@/utils/subdomain", () => ({
   getRealtorSubdomain: jest.fn(() => null),
 }));
 
+jest.mock("@/hooks/useCurrentUser", () => ({
+  useCurrentUser: jest.fn(),
+}));
+
 const mockPost = apiClient.post as jest.Mock;
+const mockUseCurrentUser = useCurrentUser as jest.Mock;
 
 describe("Footer contact form", () => {
   beforeEach(() => {
     mockPost.mockReset();
+    mockPush.mockReset();
+    mockUseCurrentUser.mockReturnValue({ isAuthenticated: true });
   });
 
   it("submits a realtor contact request through the backend", async () => {
     mockPost.mockResolvedValue({
       success: true,
-      message: "Message sent successfully",
+      data: {
+        messageId: "msg-1",
+        propertyId: "property-1",
+        realtorUserId: "user-1",
+      },
+      message: "Inquiry sent successfully",
     });
 
     render(
@@ -43,12 +64,6 @@ describe("Footer contact form", () => {
       screen.getByRole("button", { name: /Contact Test Realty/i })
     );
 
-    fireEvent.change(screen.getByPlaceholderText("John Doe"), {
-      target: { value: "Jane Doe" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("john@example.com"), {
-      target: { value: "jane@example.com" },
-    });
     fireEvent.change(screen.getByPlaceholderText("Tell us how we can help..."), {
       target: { value: "I need help choosing a property for next week." },
     });
@@ -57,8 +72,6 @@ describe("Footer contact form", () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith("/realtors/realtor-1/contact", {
-        name: "Jane Doe",
-        email: "jane@example.com",
         message: "I need help choosing a property for next week.",
       });
     });

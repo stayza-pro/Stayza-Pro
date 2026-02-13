@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MessageCircle, HelpCircle, X, Send } from "lucide-react";
 import { apiClient } from "@/services/api";
 import { getRealtorSubdomain } from "@/utils/subdomain";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface FooterProps {
   realtorName: string;
@@ -26,13 +28,13 @@ export const Footer: React.FC<FooterProps> = ({
   accentColor = "#F59E0B", // Default accent color
   realtorId,
 }) => {
+  const router = useRouter();
+  const { isAuthenticated } = useCurrentUser();
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactType, setContactType] = useState<"realtor" | "support" | null>(
     null
   );
   const [message, setMessage] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -89,6 +91,13 @@ export const Footer: React.FC<FooterProps> = ({
       setShowContactModal(false);
       setSubmitError("");
     } else {
+      if (!isAuthenticated) {
+        setShowContactModal(false);
+        router.push(
+          `/guest/login?returnTo=${encodeURIComponent("/guest/messages")}`
+        );
+        return;
+      }
       setContactType(type);
     }
   };
@@ -99,33 +108,39 @@ export const Footer: React.FC<FooterProps> = ({
     setSubmitError("");
 
     try {
-      if (activeRealtorId) {
-        await apiClient.post<unknown, { name: string; email: string; message: string }>(
-          `/realtors/${activeRealtorId}/contact`,
-          {
-            name: name.trim(),
-            email: email.trim(),
-            message: message.trim(),
-          }
+      if (!isAuthenticated) {
+        router.push(
+          `/guest/login?returnTo=${encodeURIComponent("/guest/messages")}`
         );
-      } else {
-        const subject = encodeURIComponent(`Guest inquiry for ${realtorName}`);
-        const body = encodeURIComponent(
-          `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`
-        );
-        window.location.href = `mailto:support@stayza.com?subject=${subject}&body=${body}`;
+        return;
       }
+
+      if (!activeRealtorId) {
+        setSubmitError("Unable to locate this realtor. Please try again.");
+        return;
+      }
+
+      const response = await apiClient.post<
+        { messageId: string; propertyId?: string; realtorUserId: string },
+        { message: string }
+      >(`/realtors/${activeRealtorId}/contact`, {
+        message: message.trim(),
+      });
 
       setSubmitSuccess(true);
       setMessage("");
-      setName("");
-      setEmail("");
 
       setTimeout(() => {
         setShowContactModal(false);
         setSubmitSuccess(false);
         setContactType(null);
-      }, 2000);
+        const propertyId = response.data?.propertyId;
+        router.push(
+          propertyId
+            ? `/guest/messages?propertyId=${propertyId}`
+            : "/guest/messages"
+        );
+      }, 800);
     } catch (error: unknown) {
       const apiError = error as {
         response?: { data?: { message?: string; error?: string } };
@@ -251,7 +266,7 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="pt-8 border-t border-gray-800">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-gray-500 text-sm">
-                © {new Date().getFullYear()} {realtorName}. All rights reserved.
+                Copyright {new Date().getFullYear()} {realtorName}. All rights reserved.
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 text-xs">Powered by</span>
@@ -348,34 +363,6 @@ export const Footer: React.FC<FooterProps> = ({
                 <form onSubmit={handleSubmitMessage} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 outline-none"
-                      placeholder="John Doe"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Email
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 outline-none"
-                      placeholder="john@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Message
                     </label>
                     <textarea
@@ -444,7 +431,7 @@ export const Footer: React.FC<FooterProps> = ({
                     Message Sent!
                   </h4>
                   <p className="text-gray-600">
-                    {realtorName} will get back to you shortly.
+                    Your message is now in your in-app conversation with {realtorName}.
                   </p>
                 </div>
               )}
@@ -455,3 +442,4 @@ export const Footer: React.FC<FooterProps> = ({
     </>
   );
 };
+

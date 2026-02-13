@@ -39,6 +39,9 @@ export default function RealtorMessagesPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
+  const getConversationKey = (conversation: Conversation): string =>
+    conversation.bookingId || conversation.propertyId || conversation.otherUser.id;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -69,11 +72,7 @@ export default function RealtorMessagesPage() {
     try {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
-
-      const conversationsData = Array.isArray(response?.data)
-        ? response.data
-        : [];
-      setConversations(conversationsData);
+      setConversations(Array.isArray(response?.data) ? response.data : []);
     } catch {
       toast.error("Failed to load conversations");
       setConversations([]);
@@ -88,9 +87,7 @@ export default function RealtorMessagesPage() {
     try {
       setIsLoadingMessages(true);
       const conversation = conversations.find(
-        (c) =>
-          c.otherUser.id === selectedConversation ||
-          c.bookingId === selectedConversation
+        (c) => getConversationKey(c) === selectedConversation
       );
 
       if (!conversation) {
@@ -136,9 +133,7 @@ export default function RealtorMessagesPage() {
     try {
       setIsSending(true);
       const conversation = conversations.find(
-        (c) =>
-          c.otherUser.id === selectedConversation ||
-          c.bookingId === selectedConversation
+        (c) => getConversationKey(c) === selectedConversation
       );
 
       const formData = new FormData();
@@ -306,12 +301,12 @@ export default function RealtorMessagesPage() {
           ) : (
             filteredConversations.map((conversation) => (
               <div
-                key={conversation.otherUser.id}
+                key={getConversationKey(conversation)}
                 onClick={() =>
-                  setSelectedConversation(conversation.otherUser.id)
+                  setSelectedConversation(getConversationKey(conversation))
                 }
                 className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition ${
-                  selectedConversation === conversation.otherUser.id
+                  selectedConversation === getConversationKey(conversation)
                     ? "bg-blue-50"
                     : ""
                 }`}
@@ -362,7 +357,7 @@ export default function RealtorMessagesPage() {
             {/* Messages Header */}
             <div className="bg-white border-b border-gray-200 p-4">
               {conversations.find(
-                (c) => c.otherUser.id === selectedConversation
+                (c) => getConversationKey(c) === selectedConversation
               ) && (
                 <div className="flex items-center space-x-3">
                   <div
@@ -371,12 +366,12 @@ export default function RealtorMessagesPage() {
                   >
                     {
                       conversations.find(
-                        (c) => c.otherUser.id === selectedConversation
+                        (c) => getConversationKey(c) === selectedConversation
                       )?.otherUser.firstName[0]
                     }
                     {
                       conversations.find(
-                        (c) => c.otherUser.id === selectedConversation
+                        (c) => getConversationKey(c) === selectedConversation
                       )?.otherUser.lastName[0]
                     }
                   </div>
@@ -384,19 +379,19 @@ export default function RealtorMessagesPage() {
                     <h2 className="font-semibold text-gray-900">
                       {
                         conversations.find(
-                          (c) => c.otherUser.id === selectedConversation
+                          (c) => getConversationKey(c) === selectedConversation
                         )?.otherUser.firstName
                       }{" "}
                       {
                         conversations.find(
-                          (c) => c.otherUser.id === selectedConversation
+                          (c) => getConversationKey(c) === selectedConversation
                         )?.otherUser.lastName
                       }
                     </h2>
                     <p className="text-sm text-gray-500">
                       {
                         conversations.find(
-                          (c) => c.otherUser.id === selectedConversation
+                          (c) => getConversationKey(c) === selectedConversation
                         )?.property?.name
                       }
                     </p>

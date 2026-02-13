@@ -39,6 +39,7 @@ import {
 import { logger } from "@/utils/logger";
 import { authenticate, authorize } from "@/middleware/auth";
 import { bookingLimiter } from "@/middleware/rateLimiter";
+import { config } from "@/config";
 
 const router = express.Router();
 
@@ -47,6 +48,43 @@ const CONFIRMED_PAYMENT_STATUSES: PaymentStatus[] = [
   PaymentStatus.PARTIALLY_RELEASED,
   PaymentStatus.SETTLED,
 ];
+
+const BOOKING_PAYMENT_TIMEOUT_MS =
+  config.BOOKING_PAYMENT_TIMEOUT_MINUTES * 60 * 1000;
+
+const getStaleUnpaidBookingFilter = (): Prisma.BookingWhereInput => {
+  const paymentUnpaidOrFailed: Prisma.BookingWhereInput["OR"] = [
+    { payment: { is: null } },
+    {
+      payment: {
+        is: {
+          paidAt: null,
+          status: {
+            in: [PaymentStatus.INITIATED, PaymentStatus.FAILED],
+          },
+        },
+      },
+    },
+  ];
+
+  return {
+    NOT: {
+      OR: [
+        {
+          status: BookingStatus.PENDING,
+          createdAt: {
+            lt: new Date(Date.now() - BOOKING_PAYMENT_TIMEOUT_MS),
+          },
+          OR: paymentUnpaidOrFailed,
+        },
+        {
+          status: BookingStatus.CANCELLED,
+          OR: paymentUnpaidOrFailed,
+        },
+      ],
+    },
+  };
+};
 
 const getMonthlyConfirmedRoomFeeVolume = async (
   realtorId: string,
@@ -782,6 +820,7 @@ router.get(
 
     const where: Prisma.BookingWhereInput = {
       guestId: req.user!.id,
+      ...getStaleUnpaidBookingFilter(),
     };
 
     if (status) {
@@ -923,6 +962,7 @@ router.get(
       property: {
         realtorId: realtor.id,
       },
+      ...getStaleUnpaidBookingFilter(),
     };
 
     if (status) {

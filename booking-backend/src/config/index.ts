@@ -86,7 +86,7 @@ export const config = {
   // Booking
   REFUND_WINDOW_HOURS: parseInt(process.env.REFUND_WINDOW_HOURS || "24", 10),
   BOOKING_PAYMENT_TIMEOUT_MINUTES: parseInt(
-    process.env.BOOKING_PAYMENT_TIMEOUT_MINUTES || "30",
+    process.env.BOOKING_PAYMENT_TIMEOUT_MINUTES || "60",
     10,
   ),
 
