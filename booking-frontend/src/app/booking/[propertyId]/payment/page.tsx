@@ -1081,7 +1081,7 @@ export default function PaymentPage() {
                                 priceBreakdown.pricePerNight,
                                 priceBreakdown.currency
                               )}{" "}
-                              Ã— {priceBreakdown.nights} nights
+                              x {priceBreakdown.nights} nights
                             </span>
                             <span className="font-medium">
                               {formatPrice(

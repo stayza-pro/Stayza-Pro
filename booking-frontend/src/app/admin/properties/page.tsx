@@ -234,7 +234,7 @@ export default function PropertiesPage() {
                 </div>
                 <div className="absolute bottom-3 left-3 text-white">
                   <p className="text-lg font-bold">
-                    Ã¢â€šÂ¦{Number(property.pricePerNight ?? 0).toLocaleString("en-NG")}/night
+                    NGN {Number(property.pricePerNight ?? 0).toLocaleString("en-NG")}/night
                   </p>
                 </div>
               </div>
@@ -254,7 +254,7 @@ export default function PropertiesPage() {
 
                 <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
                   <span>
-                    {property.bedrooms} bed Ã¢â‚¬Â¢ {property.bathrooms} bath
+                    {property.bedrooms} bed | {property.bathrooms} bath
                   </span>
                   <span>Max {property.maxGuests} guests</span>
                 </div>
@@ -332,7 +332,7 @@ export default function PropertiesPage() {
                 onClick={() => setShowDetailsModal(false)}
                 className="text-gray-400 text-xl font-bold"
               >
-                Ãƒâ€”
+                x
               </button>
             </div>
 
@@ -355,7 +355,7 @@ export default function PropertiesPage() {
                       {selectedProperty.state}
                     </div>
                     <div>
-                      <strong>Price:</strong> Ã¢â€šÂ¦
+                      <strong>Price:</strong> NGN 
                       {Number(selectedProperty.pricePerNight ?? 0).toLocaleString("en-NG")}/night
                     </div>
                     <div>

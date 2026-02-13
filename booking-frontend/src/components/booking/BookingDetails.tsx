@@ -397,7 +397,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = ({
           <div className="space-y-3">
             <div className="flex justify-between text-gray-600">
               <span>
-                {booking.currency} {booking.property?.pricePerNight ?? 0} Ã—{" "}
+                {booking.currency} {booking.property?.pricePerNight ?? 0} x{" "}
                 {nights} nights
               </span>
               <span>

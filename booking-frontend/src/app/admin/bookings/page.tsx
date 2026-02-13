@@ -344,7 +344,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
               {/* Active Filter Summary */}
               <div className="mt-4">
                 <div className="text-sm text-gray-600">
-                  {buildFilterSummary(filters)} Ã¢â‚¬Â¢ {totalItems} bookings found
+                  {buildFilterSummary(filters)} | {totalItems} bookings found
                 </div>
               </div>
             </div>

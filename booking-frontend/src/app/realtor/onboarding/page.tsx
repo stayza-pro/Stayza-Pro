@@ -885,7 +885,7 @@ export default function OnboardingPage() {
                 </h1>
 
                 <p className="text-lg text-white/85 font-normal leading-relaxed">
-                  Guided setup that mirrors the Realtor portal aestheticâ€”keep
+                  Guided setup that mirrors the Realtor portal aesthetic - keep
                   guests impressed from day one.
                 </p>
               </motion.div>
@@ -1726,9 +1726,9 @@ function BrandingStep({
               Upload your business logo to appear on your booking site
             </p>
             <ul className="text-xs text-marketing-muted space-y-1">
-              <li>â€¢ Recommended: Square image (500x500px)</li>
-              <li>â€¢ Max file size: 5MB</li>
-              <li>â€¢ Format: JPG, PNG, or SVG</li>
+              <li>- Recommended: Square image (500x500px)</li>
+              <li>- Max file size: 5MB</li>
+              <li>- Format: JPG, PNG, or SVG</li>
             </ul>
           </div>
         </div>
