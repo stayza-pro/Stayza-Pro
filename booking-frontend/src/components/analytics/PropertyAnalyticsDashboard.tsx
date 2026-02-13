@@ -53,6 +53,12 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 0,
   }).format(value);
 
+const formatCount = (value: unknown) => {
+  const count = Number(value);
+  const safeCount = Number.isFinite(count) ? count : 0;
+  return safeCount.toLocaleString("en-US");
+};
+
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
 export const PropertyAnalyticsDashboard: React.FC<
@@ -386,7 +392,7 @@ export const PropertyAnalyticsDashboard: React.FC<
                         <div>
                           <p className="text-sm text-gray-600">Total Guests</p>
                           <p className="text-2xl font-bold text-blue-600">
-                            {analytics.guests.totalGuests.value.toLocaleString()}
+                            {formatCount(analytics.guests.totalGuests.value)}
                           </p>
                         </div>
                         <div>
@@ -478,7 +484,7 @@ export const PropertyAnalyticsDashboard: React.FC<
                         <div>
                           <p className="text-sm text-gray-600">Total Reviews</p>
                           <p className="text-2xl font-bold text-blue-600">
-                            {analytics.reviews.totalReviews.value.toLocaleString()}
+                            {formatCount(analytics.reviews.totalReviews.value)}
                           </p>
                         </div>
                         <div>

@@ -19,6 +19,12 @@ interface RealtorRefundResponse {
   data?: RefundRequest[];
 }
 
+const formatNgnAmount = (value: unknown): string => {
+  const amount = Number(value);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  return safeAmount.toLocaleString("en-NG");
+};
+
 const STATUS_BADGE_CONFIG: Record<
   RefundStatus,
   { bg: string; text: string; label: string }
@@ -156,7 +162,7 @@ export default function RefundRequestsContent() {
                 <div>
                   <p className="text-sm text-gray-600">Total Refunded</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
-                    NGN {stats.totalRefunded.toLocaleString()}
+                    NGN {formatNgnAmount(stats.totalRefunded)}
                   </p>
                 </div>
                 <div className="p-3 bg-blue-100 rounded-lg">
@@ -245,11 +251,11 @@ export default function RefundRequestsContent() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          NGN {refund.requestedAmount.toLocaleString()}
+                          NGN {formatNgnAmount(refund.requestedAmount)}
                         </div>
                         {refund.actualRefundAmount !== undefined && (
                           <div className="text-xs text-gray-500">
-                            Actual: NGN {refund.actualRefundAmount.toLocaleString()}
+                            Actual: NGN {formatNgnAmount(refund.actualRefundAmount)}
                           </div>
                         )}
                       </td>

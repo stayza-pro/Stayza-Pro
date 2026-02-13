@@ -17,6 +17,12 @@ interface AdminRealtorManagementProps {
   className?: string;
 }
 
+const formatNgnAmount = (value: unknown): string => {
+  const amount = Number(value);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  return safeAmount.toLocaleString("en-NG");
+};
+
 export const AdminRealtorManagement: React.FC<AdminRealtorManagementProps> = ({
   className = "",
 }) => {
@@ -212,7 +218,7 @@ export const AdminRealtorManagement: React.FC<AdminRealtorManagementProps> = ({
                 Total Revenue
               </div>
               <div className="text-2xl font-bold text-gray-900 mt-1">
-                ₦{analytics.overview.revenue.total.toLocaleString()}
+                NGN {formatNgnAmount(analytics.overview.revenue.total)}
               </div>
               <div className="text-sm text-gray-500 mt-1">
                 All time platform revenue
@@ -224,12 +230,12 @@ export const AdminRealtorManagement: React.FC<AdminRealtorManagementProps> = ({
                 This Month
               </div>
               <div className="text-2xl font-bold text-green-600 mt-1">
-                ₦
+                NGN{" "}
                 {(
                   (analytics.overview.revenue.total *
                     analytics.overview.revenue.growth) /
                   100
-                ).toLocaleString()}
+                ).toLocaleString("en-NG")}
               </div>
               <div className="text-sm text-green-500 mt-1">
                 +{analytics.overview.revenue.growth.toFixed(1)}% from last month
@@ -241,7 +247,7 @@ export const AdminRealtorManagement: React.FC<AdminRealtorManagementProps> = ({
                 Commission Earned
               </div>
               <div className="text-2xl font-bold text-blue-600 mt-1">
-                ₦{(analytics.overview.revenue.total * 0.1).toLocaleString()}
+                NGN {formatNgnAmount(analytics.overview.revenue.total * 0.1)}
               </div>
               <div className="text-sm text-gray-500 mt-1">
                 Platform commission revenue
@@ -828,3 +834,4 @@ const ApprovalModal: React.FC<{
 };
 
 export default AdminRealtorManagement;
+

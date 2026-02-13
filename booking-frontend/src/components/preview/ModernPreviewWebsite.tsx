@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
@@ -61,6 +61,12 @@ interface ModernPreviewWebsiteProps {
   language: string;
   currency: string;
 }
+
+const formatAmount = (value: unknown): string => {
+  const amount = Number(value);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  return safeAmount.toLocaleString("en-NG");
+};
 
 export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
   data,
@@ -292,7 +298,7 @@ export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
             <div className="flex items-baseline space-x-1">
               <span className="text-2xl font-bold text-gray-900">
                 {getCurrencySymbol()}
-                {property.price.toLocaleString()}
+                {formatAmount(property.price)}
               </span>
               <span className="text-gray-600 text-sm">/night</span>
             </div>

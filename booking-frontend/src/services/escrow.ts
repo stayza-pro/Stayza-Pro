@@ -113,6 +113,11 @@ export interface EscrowStatusData {
   }>;
 }
 
+const toSafeNumber = (value: unknown): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 /**
  * Get escrow events for a booking
  */
@@ -121,7 +126,14 @@ export async function getBookingEscrowEvents(
 ): Promise<EscrowEvent[]> {
   const response = await api.get(`/bookings/${bookingId}/escrow-events`);
   const data = response.data?.data ?? response.data;
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.map((event) => ({
+    ...event,
+    amount: toSafeNumber(event?.amount),
+  })) as EscrowEvent[];
 }
 
 /**

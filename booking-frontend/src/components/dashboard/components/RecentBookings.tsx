@@ -103,7 +103,8 @@ export default function RecentBookings({
       return amount;
     }
     // If it's a number, format it
-    return `₦${amount.toLocaleString()}`;
+    const safeAmount = Number.isFinite(amount) ? amount : 0;
+    return `NGN ${safeAmount.toLocaleString("en-NG")}`;
   };
 
   const formatDate = (dateStr: string) => {
@@ -315,3 +316,4 @@ export default function RecentBookings({
     </motion.div>
   );
 }
+

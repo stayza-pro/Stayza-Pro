@@ -19,8 +19,11 @@ const RANGE_OPTIONS: Array<{ value: TimeRange; label: string }> = [
   { value: "all", label: "All Time" },
 ];
 
-const formatCurrency = (value: number) =>
-  `NGN ${value.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
+const formatCurrency = (value: unknown) => {
+  const amount = Number(value);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  return `NGN ${safeAmount.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
+};
 
 export default function RevenueChartPanel() {
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");

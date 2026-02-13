@@ -406,8 +406,9 @@ export const formatCurrency = (
   amount: number,
   currency: string = "NGN"
 ): string => {
-  const currencySymbol = currency === "NGN" ? "₦" : currency;
-  return `${currencySymbol}${amount.toLocaleString()}`;
+  const currencySymbol = currency === "NGN" ? "Ã¢â€šÂ¦" : currency;
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  return `${currencySymbol}${safeAmount.toLocaleString("en-NG")}`;
 };
 
 /**
@@ -465,5 +466,5 @@ export const buildFilterSummary = (filters: BookingSearchFilters): string => {
     parts.push(`Amount: ${amountRange}`);
   }
 
-  return parts.length > 0 ? parts.join(" • ") : "No filters applied";
+  return parts.length > 0 ? parts.join(" Ã¢â‚¬Â¢ ") : "No filters applied";
 };

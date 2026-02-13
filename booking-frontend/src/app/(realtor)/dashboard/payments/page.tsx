@@ -71,6 +71,15 @@ export default function PaymentsPage() {
     pendingPayouts: 0,
   });
 
+  const formatMoney = (value: unknown): string => {
+    const amount = Number(value);
+    const safeAmount = Number.isFinite(amount) ? amount : 0;
+    return safeAmount.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
   useEffect(() => {
     fetchPayments();
   }, [currentPage, selectedStatus]);
@@ -215,10 +224,7 @@ export default function PaymentsPage() {
               </p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 $
-                {stats.totalEarnings.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatMoney(stats.totalEarnings)}
               </p>
               <p className="text-sm text-gray-500 mt-1">All time</p>
             </div>
@@ -234,10 +240,7 @@ export default function PaymentsPage() {
               <p className="text-sm font-medium text-gray-600">This Month</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 $
-                {stats.thisMonth.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatMoney(stats.thisMonth)}
               </p>
               <p
                 className={`text-sm mt-1 ${
@@ -260,10 +263,7 @@ export default function PaymentsPage() {
               <p className="text-sm font-medium text-gray-600">Last Month</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 $
-                {stats.lastMonth.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatMoney(stats.lastMonth)}
               </p>
               <p className="text-sm text-gray-500 mt-1">Previous period</p>
             </div>
@@ -281,10 +281,7 @@ export default function PaymentsPage() {
               </p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
                 $
-                {stats.pendingPayouts.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatMoney(stats.pendingPayouts)}
               </p>
               <p className="text-sm text-gray-500 mt-1">Being processed</p>
             </div>
@@ -409,10 +406,7 @@ export default function PaymentsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           $
-                          {(payment.amount / 100).toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatMoney((Number(payment.amount) || 0) / 100)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

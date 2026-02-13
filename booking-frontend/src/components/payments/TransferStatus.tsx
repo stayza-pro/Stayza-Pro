@@ -77,7 +77,7 @@ export const TransferStatusBadge: React.FC<TransferStatusBadgeProps> = ({
           )}
           {confirmation.webhookReceived === false && (
             <div className="text-yellow-600 mt-1">
-              ⚠️ Awaiting webhook confirmation
+              Warning: Awaiting webhook confirmation
             </div>
           )}
         </div>
@@ -91,6 +91,12 @@ import { EscrowEvent } from "@/services/escrow";
 interface TransferTimelineProps {
   events: EscrowEvent[];
 }
+
+const formatCurrencyAmount = (value: unknown): string => {
+  const amount = Number(value);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  return safeAmount.toLocaleString("en-NG");
+};
 
 export const TransferTimeline: React.FC<TransferTimelineProps> = ({
   events,
@@ -166,7 +172,7 @@ export const TransferTimeline: React.FC<TransferTimelineProps> = ({
                       {new Date(event.executedAt).toLocaleString()}
                     </p>
                     <p className="text-sm font-semibold text-gray-900 mt-1">
-                      ₦{event.amount.toLocaleString()}
+                      NGN {formatCurrencyAmount(event.amount)}
                     </p>
                     {event.transactionReference && (
                       <p className="text-xs text-gray-400 mt-1 font-mono">
@@ -199,3 +205,4 @@ export const TransferTimeline: React.FC<TransferTimelineProps> = ({
     </div>
   );
 };
+

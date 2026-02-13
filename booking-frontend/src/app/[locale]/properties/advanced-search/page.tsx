@@ -187,7 +187,7 @@ export default function AdvancedPropertySearchPage() {
                 <p className="text-gray-600 mt-1">
                   {isLoading
                     ? "Searching properties..."
-                    : `${totalCount.toLocaleString()} ${
+                    : `${Number(totalCount || 0).toLocaleString("en-NG")} ${
                         totalCount === 1 ? "property" : "properties"
                       } found`}
                 </p>

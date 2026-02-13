@@ -191,7 +191,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
     const cards = [
       {
         title: "Total Bookings",
-        value: stats.overview.total.toLocaleString(),
+        value: Number(stats.overview.total ?? 0).toLocaleString("en-NG"),
         icon: <Calendar className="h-6 w-6" />,
         color: "bg-blue-500",
         change: `+${stats.overview.recent} this period`,
@@ -393,7 +393,7 @@ const BookingsManagementPage: React.FC<BookingsPageProps> = () => {
               {/* Active Filter Summary */}
               <div className="mt-4">
                 <div className="text-sm text-gray-600">
-                  {buildFilterSummary(filters)} • {totalItems} bookings found
+                  {buildFilterSummary(filters)} Ã¢â‚¬Â¢ {totalItems} bookings found
                 </div>
               </div>
             </div>

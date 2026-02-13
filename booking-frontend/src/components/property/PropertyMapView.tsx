@@ -62,6 +62,12 @@ const toNumber = (value: unknown): number | null => {
   return null;
 };
 
+const formatPriceAmount = (value: unknown): string => {
+  const amount = Number(value);
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  return safeAmount.toLocaleString("en-US");
+};
+
 const latLngToWorld = (lat: number, lng: number, zoom: number) => {
   const scale = 2 ** zoom;
   const safeLat = clampLatitude(lat);
@@ -125,7 +131,7 @@ const MapMarker: React.FC<MapMarkerProps> = ({
         `}
       >
         <div className="text-sm font-semibold">
-          ${property.pricePerNight.toLocaleString()}
+          ${formatPriceAmount(property.pricePerNight)}
         </div>
 
         <div
@@ -196,7 +202,7 @@ const PropertyPreviewCard: React.FC<{
 
                 <div className="mt-2">
                   <span className="font-semibold text-gray-900">
-                    ${property.pricePerNight.toLocaleString()}
+                    ${formatPriceAmount(property.pricePerNight)}
                   </span>
                   <span className="text-sm text-gray-600"> / night</span>
                 </div>
