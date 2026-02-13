@@ -101,7 +101,9 @@ export default function RealtorMessagesPage() {
         ? await messageService.getBookingMessages(conversation.bookingId)
         : conversation.propertyId
           ? await messageService.getPropertyMessages(conversation.propertyId)
-          : null;
+          : conversation.otherUser?.id
+            ? await messageService.getDirectMessages(conversation.otherUser.id)
+            : null;
 
       if (response) {
         setMessages(response.data || []);
@@ -109,6 +111,12 @@ export default function RealtorMessagesPage() {
           await messageService.markConversationAsRead(
             conversation.propertyId,
             conversation.bookingId,
+          );
+        } else if (conversation.otherUser?.id) {
+          await messageService.markConversationAsRead(
+            undefined,
+            undefined,
+            conversation.otherUser.id,
           );
         }
       }
@@ -168,6 +176,11 @@ export default function RealtorMessagesPage() {
           conversation.propertyId,
           formData,
           conversation.otherUser.id,
+        );
+      } else if (conversation?.otherUser?.id) {
+        await messageService.sendDirectMessageWithAttachments(
+          conversation.otherUser.id,
+          formData,
         );
       }
 

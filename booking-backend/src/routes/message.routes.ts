@@ -14,7 +14,7 @@
 
 import { Router, Response } from "express";
 import "multer";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 import {
   authenticate,
   AuthenticatedRequest,
@@ -67,6 +67,13 @@ const getMessagePreview = (
   }
 
   return "New message";
+};
+
+const canDirectMessage = (senderRole: UserRole, recipientRole: UserRole) => {
+  return (
+    (senderRole === "GUEST" && recipientRole === "REALTOR") ||
+    (senderRole === "REALTOR" && recipientRole === "GUEST")
+  );
 };
 
 const notifyMessageParticipantsByEmail = async (input: {
@@ -139,6 +146,306 @@ const notifyMessageParticipantsByEmail = async (input: {
     // Email failures should not block messaging
   }
 };
+
+// =====================================================
+// DIRECT MESSAGES (No Booking/Inquiry Context Required)
+// =====================================================
+
+router.post(
+  "/direct/:otherUserId",
+  authenticate,
+  authorize("GUEST", "REALTOR"),
+  (req: AuthenticatedRequest, res: Response, next: any) => {
+    uploadMessageAttachments(req, res, (err: any) => {
+      if (err) {
+        res.status(400).json({
+          success: false,
+          error: err.message || "File upload failed",
+        });
+        return;
+      }
+      next();
+    });
+  },
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { otherUserId } = req.params;
+      const { content, taggedPropertyId } = req.body;
+      const senderId = req.user!.id;
+      const senderRole = req.user!.role as UserRole;
+      const files = req.files as {
+        files?: Express.Multer.File[];
+        voiceNote?: Express.Multer.File[];
+      };
+
+      if (!content?.trim() && !files?.files && !files?.voiceNote) {
+        res.status(400).json({
+          success: false,
+          error: "Message content or attachments are required",
+        });
+        return;
+      }
+
+      if (otherUserId === senderId) {
+        res.status(400).json({
+          success: false,
+          error: "You cannot message yourself",
+        });
+        return;
+      }
+
+      const recipient = await prisma.user.findUnique({
+        where: { id: otherUserId },
+        select: {
+          id: true,
+          role: true,
+        },
+      });
+
+      if (!recipient) {
+        res.status(404).json({
+          success: false,
+          error: "Recipient not found",
+        });
+        return;
+      }
+
+      if (!canDirectMessage(senderRole, recipient.role)) {
+        res.status(403).json({
+          success: false,
+          error: "Direct messaging is only available between guest and realtor accounts",
+        });
+        return;
+      }
+
+      let taggedPropertyTitle: string | undefined;
+      if (typeof taggedPropertyId === "string" && taggedPropertyId.trim()) {
+        const property = await prisma.property.findUnique({
+          where: { id: taggedPropertyId.trim() },
+          include: { realtor: true },
+        });
+
+        if (!property) {
+          res.status(404).json({
+            success: false,
+            error: "Tagged property not found",
+          });
+          return;
+        }
+
+        if (
+          property.realtor.userId !== senderId &&
+          property.realtor.userId !== recipient.id
+        ) {
+          res.status(403).json({
+            success: false,
+            error: "Tagged property must belong to the realtor in this chat",
+          });
+          return;
+        }
+
+        taggedPropertyTitle = property.title;
+      }
+
+      let filteredContent = content || "";
+      let filterResult: {
+        violations: string[];
+        isBlocked: boolean;
+        filteredContent: string;
+      } = {
+        violations: [],
+        isBlocked: false,
+        filteredContent: "",
+      };
+
+      if (content?.trim()) {
+        filterResult = MessageFilterService.filterMessage(content);
+        if (filterResult.isBlocked) {
+          res.status(400).json({
+            success: false,
+            error: `Message blocked: Contains prohibited content (${filterResult.violations.join(
+              ", ",
+            )})`,
+          });
+          return;
+        }
+        filteredContent = filterResult.filteredContent;
+      }
+
+      if (taggedPropertyTitle) {
+        filteredContent = `${filteredContent ? `${filteredContent}\n\n` : ""}🏠 Tagged property: ${taggedPropertyTitle}`;
+      }
+
+      const message = await prisma.message.create({
+        data: {
+          senderId,
+          recipientId: recipient.id,
+          content: filteredContent,
+          type: "BOOKING_MESSAGE",
+          wasFiltered: filterResult.violations.length > 0,
+          violations: filterResult.violations,
+          isRead: false,
+        },
+      });
+
+      if (files?.files) {
+        for (const file of files.files) {
+          await prisma.messageAttachment.create({
+            data: {
+              messageId: message.id,
+              url: file.path,
+              type: file.mimetype.startsWith("image/") ? "IMAGE" : "DOCUMENT",
+              filename: file.originalname,
+              size: file.size,
+            },
+          });
+        }
+      }
+
+      if (files?.voiceNote && files.voiceNote.length > 0) {
+        const voiceFile = files.voiceNote[0];
+        await prisma.messageAttachment.create({
+          data: {
+            messageId: message.id,
+            url: voiceFile.path,
+            type: "VOICE",
+            filename: voiceFile.originalname,
+            size: voiceFile.size,
+          },
+        });
+      }
+
+      const messageWithAttachments = await prisma.message.findUnique({
+        where: { id: message.id },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+            },
+          },
+          attachments: true,
+        },
+      });
+
+      void notifyMessageParticipantsByEmail({
+        senderId,
+        recipientId: recipient.id,
+        propertyTitle: taggedPropertyTitle,
+        messagePreview: getMessagePreview(
+          filteredContent,
+          files?.files,
+          files?.voiceNote,
+        ),
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "Message sent successfully",
+        data: messageWithAttachments,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to send message",
+      });
+    }
+  },
+);
+
+router.get(
+  "/direct/:otherUserId",
+  authenticate,
+  authorize("GUEST", "REALTOR"),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { otherUserId } = req.params;
+      const userId = req.user!.id;
+      const userRole = req.user!.role as UserRole;
+
+      if (otherUserId === userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid direct conversation target",
+        });
+      }
+
+      const otherUser = await prisma.user.findUnique({
+        where: { id: otherUserId },
+        select: {
+          id: true,
+          role: true,
+        },
+      });
+
+      if (!otherUser) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+
+      if (!canDirectMessage(userRole, otherUser.role)) {
+        return res.status(403).json({
+          success: false,
+          error: "Direct messaging is only available between guest and realtor accounts",
+        });
+      }
+
+      const messages = await prisma.message.findMany({
+        where: {
+          bookingId: null,
+          type: "BOOKING_MESSAGE",
+          OR: [
+            { senderId: userId, recipientId: otherUserId },
+            { senderId: otherUserId, recipientId: userId },
+          ],
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+            },
+          },
+          attachments: true,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      await prisma.message.updateMany({
+        where: {
+          senderId: otherUserId,
+          recipientId: userId,
+          bookingId: null,
+          type: "BOOKING_MESSAGE",
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          otherUserId,
+          messages,
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch direct messages",
+      });
+    }
+  },
+);
 
 // =====================================================
 // PROPERTY INQUIRY MESSAGES (Pre-Booking)
@@ -825,26 +1132,30 @@ const handleMarkConversationRead = async (
       typeof req.query.propertyId === "string" ? req.query.propertyId : "";
     const bookingId =
       typeof req.query.bookingId === "string" ? req.query.bookingId : "";
+    const otherUserId =
+      typeof req.query.otherUserId === "string" ? req.query.otherUserId : "";
 
-    if (!propertyId && !bookingId) {
+    if (!propertyId && !bookingId && !otherUserId) {
       return res.status(400).json({
         success: false,
-        error: "propertyId or bookingId is required",
+        error: "propertyId, bookingId or otherUserId is required",
       });
     }
 
-    const where: {
-      recipientId: string;
-      isRead: boolean;
-      propertyId?: string;
-      bookingId?: string;
-    } = {
+    const where: any = {
       recipientId: userId,
       isRead: false,
     };
 
     if (propertyId) where.propertyId = propertyId;
     if (bookingId) where.bookingId = bookingId;
+    if (otherUserId) {
+      where.senderId = otherUserId;
+      where.type = "BOOKING_MESSAGE";
+      if (!propertyId && !bookingId) {
+        where.bookingId = null;
+      }
+    }
 
     const updateResult = await prisma.message.updateMany({
       where,
@@ -936,15 +1247,30 @@ router.get(
       // Group by booking/property to create conversation threads
       const conversationMap = new Map();
       for (const msg of messages) {
-        const key = msg.bookingId || msg.propertyId;
+        const isDirectMessage = !msg.bookingId && msg.type === "BOOKING_MESSAGE";
+        const directOtherUserId =
+          msg.senderId === userId ? msg.recipientId : msg.senderId;
+        const key = isDirectMessage
+          ? `direct:${directOtherUserId}`
+          : msg.bookingId || msg.propertyId;
+
+        if (!key) {
+          continue;
+        }
+
         if (!conversationMap.has(key)) {
           const otherUser =
             msg.senderId === userId ? msg.recipient : msg.sender;
           conversationMap.set(key, {
             id: key,
-            type: msg.bookingId ? "booking" : "property",
+            type: msg.bookingId
+              ? "booking"
+              : isDirectMessage
+                ? "direct"
+                : "property",
             bookingId: msg.bookingId,
             propertyId: msg.propertyId,
+            otherUserId: directOtherUserId,
             property: msg.property,
             booking: msg.booking,
             otherUser,

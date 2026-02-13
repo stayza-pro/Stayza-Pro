@@ -53,6 +53,7 @@ export interface Conversation {
   id?: string;
   propertyId?: string;
   bookingId?: string;
+  otherUserId?: string;
   otherUser: {
     id: string;
     firstName: string;
@@ -79,6 +80,7 @@ type BackendConversation = {
   id?: string;
   propertyId?: string | null;
   bookingId?: string | null;
+  otherUserId?: string | null;
   otherUser: {
     id: string;
     firstName: string;
@@ -108,6 +110,7 @@ const normalizeConversation = (
     id: conversation.id,
     propertyId: conversation.propertyId || undefined,
     bookingId: conversation.bookingId || undefined,
+    otherUserId: conversation.otherUserId || undefined,
     otherUser: {
       id: conversation.otherUser.id,
       firstName: conversation.otherUser.firstName,
@@ -159,6 +162,11 @@ export interface SendPropertyInquiryRequest {
 
 export interface SendBookingMessageRequest {
   content: string;
+}
+
+export interface SendDirectMessageRequest {
+  content?: string;
+  taggedPropertyId?: string;
 }
 
 class MessageService {
@@ -236,6 +244,17 @@ class MessageService {
     };
   }
 
+  async getDirectMessages(otherUserId: string): Promise<ApiResponse<Message[]>> {
+    const response = await apiClient.get<Message[] | { messages?: Message[] }>(
+      `/messages/direct/${otherUserId}`,
+    );
+
+    return {
+      ...response,
+      data: extractMessagesPayload(response.data),
+    };
+  }
+
   /**
    * Mark a message as read
    */
@@ -249,10 +268,12 @@ class MessageService {
   async markConversationAsRead(
     propertyId?: string,
     bookingId?: string,
+    otherUserId?: string,
   ): Promise<ApiResponse<{ success: boolean; count: number }>> {
     const params = new URLSearchParams();
     if (propertyId) params.append("propertyId", propertyId);
     if (bookingId) params.append("bookingId", bookingId);
+    if (otherUserId) params.append("otherUserId", otherUserId);
 
     return apiClient.post<{ success: boolean; count: number }>(
       `/messages/mark-read?${params.toString()}`,
@@ -311,6 +332,29 @@ class MessageService {
     formData: FormData,
   ): Promise<ApiResponse<Message>> {
     return apiClient.post<Message>(`/messages/booking/${bookingId}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  }
+
+  async sendDirectMessage(
+    otherUserId: string,
+    data: SendDirectMessageRequest,
+  ): Promise<ApiResponse<Message>> {
+    return apiClient.post<Message>(`/messages/direct/${otherUserId}`, data);
+  }
+
+  async sendDirectMessageWithAttachments(
+    otherUserId: string,
+    formData: FormData,
+    taggedPropertyId?: string,
+  ): Promise<ApiResponse<Message>> {
+    if (taggedPropertyId) {
+      formData.append("taggedPropertyId", taggedPropertyId);
+    }
+
+    return apiClient.post<Message>(`/messages/direct/${otherUserId}`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

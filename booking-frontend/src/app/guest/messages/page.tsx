@@ -104,17 +104,16 @@ function MessagesContent() {
 
     if (hostConversation) {
       const conversationId =
-        hostConversation.bookingId || hostConversation.propertyId || null;
+        hostConversation.bookingId ||
+        hostConversation.propertyId ||
+        hostConversation.otherUser.id ||
+        null;
       if (conversationId) {
         setSelectedConversation(conversationId);
       }
     } else {
-      if (selectedConversation === hostIdParam) {
-        setSelectedConversation(null);
-      }
-      toast.error(
-        "No existing conversation with that host yet. Open messages from a property or booking.",
-      );
+      setSelectedConversation(hostIdParam);
+      toast.success("You can start a direct conversation with this host.");
     }
 
     setHasMappedHostId(true);
@@ -195,12 +194,24 @@ function MessagesContent() {
       };
     }
 
+    if (selectedConv?.otherUser?.id) {
+      return {
+        id: selectedConv.otherUser.id,
+        type: "direct" as const,
+        conversation: selectedConv,
+      };
+    }
+
     if (bookingIdParam && selectedConversation === bookingIdParam) {
       return { id: bookingIdParam, type: "booking" as const };
     }
 
     if (propertyIdParam && selectedConversation === propertyIdParam) {
       return { id: propertyIdParam, type: "property" as const };
+    }
+
+    if (hostIdParam && selectedConversation === hostIdParam) {
+      return { id: hostIdParam, type: "direct" as const };
     }
 
     return null;
@@ -220,8 +231,10 @@ function MessagesContent() {
       let response;
       if (context.type === "property") {
         response = await messageService.getPropertyMessages(context.id);
-      } else {
+      } else if (context.type === "booking") {
         response = await messageService.getBookingMessages(context.id);
+      } else {
+        response = await messageService.getDirectMessages(context.id);
       }
 
       if (response?.success && response.data) {
@@ -232,6 +245,7 @@ function MessagesContent() {
           await messageService.markConversationAsRead(
             context.conversation.propertyId,
             context.conversation.bookingId,
+            context.conversation.otherUser?.id,
           );
           // Refresh conversations to update unread count
           fetchConversations();
@@ -257,9 +271,7 @@ function MessagesContent() {
 
     const context = resolveConversationContext();
     if (!context) {
-      toast.error(
-        "Select a conversation or open messages from a booking or property.",
-      );
+      toast.error("Select a conversation to send a message.");
       return;
     }
 
@@ -288,10 +300,16 @@ function MessagesContent() {
           context.id,
           formData,
         );
-      } else {
+      } else if (context.type === "booking") {
         response = await messageService.sendBookingMessageWithAttachments(
           context.id,
           formData,
+        );
+      } else {
+        response = await messageService.sendDirectMessageWithAttachments(
+          context.id,
+          formData,
+          propertyIdParam || undefined,
         );
       }
 
@@ -476,7 +494,10 @@ function MessagesContent() {
                   )
                   .map((conversation) => {
                     const conversationId =
-                      conversation.propertyId || conversation.bookingId || "";
+                      conversation.propertyId ||
+                      conversation.bookingId ||
+                      conversation.otherUser.id ||
+                      "";
                     return (
                       <button
                         key={conversationId}
@@ -571,12 +592,16 @@ function MessagesContent() {
                             <p className="font-semibold text-gray-900">
                               {context.type === "booking"
                                 ? "Booking Conversation"
-                                : "Property Inquiry"}
+                                : context.type === "property"
+                                  ? "Property Inquiry"
+                                  : "Direct Conversation"}
                             </p>
                             <p className="text-sm text-gray-600">
                               {context.type === "booking"
                                 ? `Booking: ${context.id}`
-                                : `Property: ${context.id}`}
+                                : context.type === "property"
+                                  ? `Property: ${context.id}`
+                                  : "Chat between guest and host"}
                             </p>
                           </div>
                         </>
