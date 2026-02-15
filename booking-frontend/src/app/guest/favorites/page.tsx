@@ -177,7 +177,10 @@ export default function FavoritesPage() {
                   >
                     <Heart
                       className="w-5 h-5"
-                      style={{ color: accentColor || primaryColor, fill: accentColor || primaryColor }}
+                      style={{
+                        color: accentColor || primaryColor,
+                        fill: accentColor || primaryColor,
+                      }}
                     />
                   </button>
 
@@ -223,7 +226,7 @@ export default function FavoritesPage() {
                     </div>
                   </div>
 
-                  <Link href={`/guest/property/${property.id}`}>
+                  <Link href={`/browse/${property.id}`}>
                     <Button
                       className="w-full h-11 rounded-xl font-medium text-white"
                       style={{

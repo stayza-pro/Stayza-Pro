@@ -11,8 +11,6 @@ import {
   Heart,
   MessageSquare,
   Bell,
-  History,
-  HelpCircle,
   User,
 } from "lucide-react";
 
@@ -41,14 +39,20 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
       { name: "Favorites", href: "/guest/favorites", icon: Heart },
       { name: "Messages", href: "/guest/messages", icon: MessageSquare },
       { name: "Notifications", href: "/guest/notifications", icon: Bell },
-      { name: "History", href: "/guest/history", icon: History },
-      { name: "Help", href: "/guest/help", icon: HelpCircle },
       { name: "Profile", href: "/guest/profile", icon: User },
     ],
     [],
   );
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) => {
+    if (href === "/guest/bookings") {
+      return (
+        pathname.startsWith("/guest/bookings") ||
+        pathname.startsWith("/guest/booking")
+      );
+    }
+    return pathname === href;
+  };
 
   return (
     <>
@@ -58,7 +62,10 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <Link href="/guest-landing" className="flex items-center gap-3 min-w-0">
+            <Link
+              href="/guest-landing"
+              className="flex items-center gap-3 min-w-0"
+            >
               {logo && logo.trim() !== "" ? (
                 <img src={logo} alt={agencyName} className="h-10 w-auto" />
               ) : (
@@ -93,7 +100,9 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                     href={item.href}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
                     style={{
-                      backgroundColor: active ? `${primaryColor}12` : "transparent",
+                      backgroundColor: active
+                        ? `${primaryColor}12`
+                        : "transparent",
                       color: active ? primaryColor : "#374151",
                     }}
                   >
@@ -114,13 +123,18 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                     href={item.href}
                     className="p-2 rounded-lg transition-all relative"
                     style={{
-                      backgroundColor: active ? `${primaryColor}12` : "transparent",
+                      backgroundColor: active
+                        ? `${primaryColor}12`
+                        : "transparent",
                       color: active ? primaryColor : "#374151",
                     }}
                   >
                     <Icon className="w-5 h-5" />
                     {item.name === "Notifications" && (
-                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ backgroundColor: primaryColor }} />
+                      <span
+                        className="absolute top-1 right-1 w-2 h-2 rounded-full"
+                        style={{ backgroundColor: primaryColor }}
+                      />
                     )}
                   </Link>
                 );
@@ -136,7 +150,10 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
       >
         <div className="px-4">
           <div className="flex items-center justify-between h-16">
-            <Link href="/guest-landing" className="flex items-center gap-2 min-w-0">
+            <Link
+              href="/guest-landing"
+              className="flex items-center gap-2 min-w-0"
+            >
               {logo && logo.trim() !== "" ? (
                 <img src={logo} alt={agencyName} className="h-8 w-auto" />
               ) : (
@@ -159,13 +176,20 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
               className="p-2 rounded-lg text-gray-700"
               aria-label="Toggle menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
             </button>
           </div>
         </div>
 
         {mobileMenuOpen && (
-          <div className="border-t px-4 py-4 space-y-1" style={{ borderColor: "#e5e7eb" }}>
+          <div
+            className="border-t px-4 py-4 space-y-1"
+            style={{ borderColor: "#e5e7eb" }}
+          >
             {navigation.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -176,7 +200,9 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
                   style={{
-                    backgroundColor: active ? `${primaryColor}12` : "transparent",
+                    backgroundColor: active
+                      ? `${primaryColor}12`
+                      : "transparent",
                     color: active ? primaryColor : "#374151",
                   }}
                 >
@@ -188,6 +214,33 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
           </div>
         )}
       </nav>
+
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[55] border-t bg-white"
+        style={{ borderColor: "#e5e7eb" }}
+      >
+        <div className="flex items-center justify-around px-2 py-2">
+          {navigation.slice(0, 5).map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="flex flex-col items-center gap-1 p-2 rounded-lg min-w-[64px]"
+                style={{
+                  color: active ? primaryColor : "#374151",
+                }}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-xs">{item.name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="md:hidden h-20" />
     </>
   );
 };

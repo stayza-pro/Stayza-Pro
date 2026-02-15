@@ -7,12 +7,12 @@ import {
   Bell,
   Calendar,
   Check,
+  Heart,
   MessageSquare,
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections/Footer";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { notificationApiService } from "@/services/notifications";
@@ -21,7 +21,7 @@ import toast from "react-hot-toast";
 
 const TYPE_ICON_MAP: Record<
   string,
-  React.ComponentType<{ className?: string }>
+  React.ComponentType<{ className?: string; style?: React.CSSProperties }>
 > = {
   BOOKING_CONFIRMED: Calendar,
   BOOKING_CANCELLED: Calendar,
@@ -33,7 +33,20 @@ const TYPE_ICON_MAP: Record<
   REVIEW_RESPONSE: Star,
   SYSTEM_MAINTENANCE: AlertCircle,
   MARKETING: MessageSquare,
+  FAVORITE: Heart,
 };
+
+function getIconColor(
+  type: string,
+  colors: { primary: string; secondary?: string; accent?: string },
+) {
+  if (type.includes("BOOKING")) return colors.accent || colors.primary;
+  if (type.includes("PAYMENT")) return colors.primary;
+  if (type.includes("REVIEW")) return colors.secondary || colors.primary;
+  if (type.includes("MARKETING") || type.includes("MESSAGE"))
+    return colors.primary;
+  return "#6b7280";
+}
 
 function formatTime(timestamp: string) {
   const date = new Date(timestamp);
@@ -60,10 +73,6 @@ export default function GuestNotificationsPage() {
     brandColor: primaryColor,
     secondaryColor,
     accentColor,
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
   } = useRealtorBranding();
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -155,22 +164,13 @@ export default function GuestNotificationsPage() {
         style={{ colorScheme: "light" }}
       >
         <GuestHeader currentPage="notifications" />
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1">
+        <div className="max-w-[900px] mx-auto px-6 py-12 flex-1 w-full">
           <div className="animate-pulse space-y-4">
-            <div className="h-10 w-1/3 rounded bg-gray-200" />
-            <div className="h-20 rounded bg-gray-200" />
-            <div className="h-20 rounded bg-gray-200" />
+            <div className="h-10 w-1/3 rounded bg-gray-200 mb-8" />
+            <div className="h-24 rounded-2xl bg-gray-200" />
+            <div className="h-24 rounded-2xl bg-gray-200" />
           </div>
         </div>
-        <Footer
-          realtorName={realtorName}
-          tagline={tagline}
-          logo={logoUrl}
-          description={description}
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          accentColor={accentColor}
-        />
       </div>
     );
   }
@@ -182,10 +182,10 @@ export default function GuestNotificationsPage() {
     >
       <GuestHeader currentPage="notifications" />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 flex-1 w-full">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-[900px] mx-auto px-6 py-12 flex-1 w-full">
+        <div className="flex items-center justify-between mb-12">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">
+            <h1 className="font-semibold mb-2 text-[36px] text-gray-900">
               Notifications
             </h1>
             <p className="text-gray-600">
@@ -199,6 +199,7 @@ export default function GuestNotificationsPage() {
             <Button
               variant="outline"
               size="sm"
+              className="rounded-xl"
               onClick={markAllAsRead}
               disabled={isMarkingAll}
             >
@@ -217,15 +218,15 @@ export default function GuestNotificationsPage() {
             <p className="text-gray-600">Loading notifications...</p>
           </div>
         ) : notifications.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {notifications.map((notification) => {
               const Icon = TYPE_ICON_MAP[notification.type] || Bell;
               const actionUrl = getActionUrl(notification);
 
               const content = (
                 <div
-                  className={`flex gap-4 p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors ${
-                    !notification.isRead ? "bg-gray-100" : "bg-white"
+                  className={`flex gap-4 p-6 rounded-2xl border border-gray-200 transition-all hover:shadow-md ${
+                    !notification.isRead ? "bg-[#EEF5FF]" : "bg-white"
                   }`}
                   onClick={() => {
                     if (!notification.isRead) {
@@ -233,11 +234,17 @@ export default function GuestNotificationsPage() {
                     }
                   }}
                 >
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    <Icon className="w-5 h-5" />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 bg-white">
+                    <Icon
+                      className="w-6 h-6"
+                      style={{
+                        color: getIconColor(notification.type, {
+                          primary: primaryColor,
+                          secondary: secondaryColor,
+                          accent: accentColor,
+                        }),
+                      }}
+                    />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -246,12 +253,12 @@ export default function GuestNotificationsPage() {
                         {notification.title}
                       </h3>
                       {!notification.isRead && (
-                        <span
-                          className="shrink-0 text-xs text-white rounded-full px-2 py-1 font-semibold"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          New
-                        </span>
+                        <div
+                          className="w-2.5 h-2.5 rounded-full shrink-0 mt-1.5"
+                          style={{
+                            backgroundColor: accentColor || primaryColor,
+                          }}
+                        />
                       )}
                     </div>
 
@@ -288,16 +295,6 @@ export default function GuestNotificationsPage() {
           </div>
         )}
       </div>
-
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-      />
     </div>
   );
 }

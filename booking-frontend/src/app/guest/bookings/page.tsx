@@ -202,9 +202,7 @@ export default function GuestBookingsPage() {
         <div className="grid gap-6">
           {visibleBookings.length === 0 ? (
             <EmptyState
-              message={
-                `You don't have any ${activeTab} property viewings at the moment`
-              }
+              message={`You don't have any ${activeTab} property viewings at the moment`}
             />
           ) : (
             visibleBookings.map((booking) => {

@@ -124,7 +124,9 @@ export default function ProfilePage() {
       <GuestHeader currentPage="profile" searchPlaceholder="Search..." />
 
       <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 py-12">
-        <h1 className="font-semibold mb-12 text-[40px] text-gray-900">My Profile</h1>
+        <h1 className="font-semibold mb-12 text-[40px] text-gray-900">
+          My Profile
+        </h1>
 
         <div className="grid lg:grid-cols-[300px_1fr] gap-8">
           <div className="space-y-6">
@@ -146,7 +148,9 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <h2 className="font-semibold text-xl mb-1 text-gray-900">{fullName}</h2>
+              <h2 className="font-semibold text-xl mb-1 text-gray-900">
+                {fullName}
+              </h2>
               <p className="text-sm text-gray-600">Member since 2026</p>
             </Card>
 
@@ -154,22 +158,33 @@ export default function ProfilePage() {
               className="p-6 rounded-2xl border-0"
               style={{ backgroundColor: `${secondaryColor || primaryColor}14` }}
             >
-              <h3 className="font-semibold mb-4 text-gray-900">Account Stats</h3>
+              <h3 className="font-semibold mb-4 text-gray-900">
+                Account Stats
+              </h3>
               <div className="space-y-3">
                 <div>
-                  <div className="text-2xl font-bold" style={{ color: primaryColor }}>
+                  <div
+                    className="text-2xl font-bold"
+                    style={{ color: primaryColor }}
+                  >
                     12
                   </div>
                   <div className="text-sm text-gray-600">Properties Viewed</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold" style={{ color: primaryColor }}>
+                  <div
+                    className="text-2xl font-bold"
+                    style={{ color: primaryColor }}
+                  >
                     5
                   </div>
                   <div className="text-sm text-gray-600">Saved Favorites</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold" style={{ color: primaryColor }}>
+                  <div
+                    className="text-2xl font-bold"
+                    style={{ color: primaryColor }}
+                  >
                     3
                   </div>
                   <div className="text-sm text-gray-600">Active Bookings</div>
@@ -215,21 +230,31 @@ export default function ProfilePage() {
 
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-900">First Name</label>
+                    <label className="text-sm font-medium text-gray-900">
+                      First Name
+                    </label>
                     <Input
                       value={formData.firstName}
                       onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, firstName: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          firstName: e.target.value,
+                        }))
                       }
                       className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-900">Last Name</label>
+                    <label className="text-sm font-medium text-gray-900">
+                      Last Name
+                    </label>
                     <Input
                       value={formData.lastName}
                       onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, lastName: e.target.value }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          lastName: e.target.value,
+                        }))
                       }
                       className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     />
@@ -237,24 +262,34 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">Email</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    Email
+                  </label>
                   <Input
                     type="email"
                     value={formData.email}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, email: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
                     }
                     className="h-12 rounded-xl bg-gray-50 border-gray-200"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">Phone</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    Phone
+                  </label>
                   <Input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
                     }
                     className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     placeholder="Enter phone number"
@@ -262,11 +297,16 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">Location</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    Location
+                  </label>
                   <Input
                     value={formData.location}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, location: e.target.value }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        location: e.target.value,
+                      }))
                     }
                     className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     placeholder="City, State"
@@ -332,10 +372,14 @@ export default function ProfilePage() {
 
             {activeTab === "security" && (
               <Card className="p-8 rounded-2xl border border-gray-200 bg-white space-y-6">
-                <h3 className="font-semibold text-xl text-gray-900">Security Settings</h3>
+                <h3 className="font-semibold text-xl text-gray-900">
+                  Security Settings
+                </h3>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">Current Password</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    Current Password
+                  </label>
                   <Input
                     type="password"
                     placeholder="Enter current password"
@@ -351,7 +395,9 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">New Password</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    New Password
+                  </label>
                   <Input
                     type="password"
                     placeholder="Enter new password"
@@ -367,7 +413,9 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">Confirm New Password</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    Confirm New Password
+                  </label>
                   <Input
                     type="password"
                     placeholder="Confirm new password"
