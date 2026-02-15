@@ -568,10 +568,7 @@ export default function PropertyDetailsPage() {
   };
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <GuestHeader
         currentPage="browse"
         searchPlaceholder="Search location..."

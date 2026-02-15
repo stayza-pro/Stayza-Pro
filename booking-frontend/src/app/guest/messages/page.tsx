@@ -407,10 +407,7 @@ function MessagesContent() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <GuestHeader currentPage="messages" />
 
       <div className="h-[calc(100vh-80px)] md:h-[calc(100vh-80px)] max-w-[1440px] mx-auto w-full">

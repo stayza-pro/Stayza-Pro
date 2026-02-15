@@ -70,10 +70,7 @@ export default function HelpPage() {
   }, [searchQuery, faqs]);
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <GuestHeader currentPage="help" searchPlaceholder="Search help..." />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8">

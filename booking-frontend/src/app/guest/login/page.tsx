@@ -170,14 +170,14 @@ export default function GuestLoginPage() {
             </Link>
             <h1 className="font-semibold text-[32px] text-gray-900">Sign In</h1>
             <p className="text-gray-600">
-              {tagline || "Welcome back! Please enter your email"}
+              {tagline || "Welcome back! Please enter your details"}
             </p>
           </div>
 
           <div className="hidden lg:block space-y-2">
             <h2 className="font-semibold text-[32px] text-gray-900">Sign In</h2>
             <p className="text-gray-600">
-              Enter your email to receive a one-time login code
+              Enter your credentials to access your account
             </p>
           </div>
 
@@ -226,7 +226,9 @@ export default function GuestLoginPage() {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -289,15 +291,6 @@ export default function GuestLoginPage() {
             >
               Create an account
               <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="text-center pt-2">
-            <Link
-              href="/guest-landing"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              ← Back to Home
             </Link>
           </div>
         </div>

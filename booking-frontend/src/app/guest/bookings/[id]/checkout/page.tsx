@@ -242,10 +242,7 @@ export default function GuestBookingCheckoutPage() {
 
   if (!authChecked || authLoading || isLoading) {
     return (
-      <div
-        className="min-h-screen bg-slate-50"
-        style={{ colorScheme: "light" }}
-      >
+      <div className="min-h-screen bg-slate-50">
         <GuestHeader currentPage="bookings" />
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="animate-pulse space-y-4">
@@ -259,10 +256,7 @@ export default function GuestBookingCheckoutPage() {
 
   if (!booking) {
     return (
-      <div
-        className="min-h-screen bg-slate-50"
-        style={{ colorScheme: "light" }}
-      >
+      <div className="min-h-screen bg-slate-50">
         <GuestHeader currentPage="bookings" />
         <div className="max-w-3xl mx-auto px-4 py-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-3">
@@ -277,10 +271,7 @@ export default function GuestBookingCheckoutPage() {
   }
 
   return (
-    <div
-      className="min-h-screen pb-20 md:pb-8 bg-slate-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen pb-20 md:pb-8 bg-slate-50 flex flex-col">
       <GuestHeader currentPage="bookings" />
 
       <div className="border-b border-gray-200 bg-white">

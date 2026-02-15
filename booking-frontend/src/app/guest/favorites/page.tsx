@@ -127,10 +127,7 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <GuestHeader
         currentPage="favorites"
         searchPlaceholder="Search properties..."

@@ -381,7 +381,9 @@ export default function GuestRegisterPage() {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -480,17 +482,8 @@ export default function GuestRegisterPage() {
               className="inline-flex items-center gap-2 font-medium hover:underline"
               style={{ color: primaryColor }}
             >
-              Sign in
+              Sign in instead
               <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="text-center pt-2">
-            <Link
-              href="/guest-landing"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              ← Back to Home
             </Link>
           </div>
         </div>

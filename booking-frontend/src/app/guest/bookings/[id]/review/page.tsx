@@ -172,10 +172,7 @@ export default function WriteReviewPage() {
 
   if (!authChecked || isLoading || bookingLoading) {
     return (
-      <div
-        className="min-h-screen bg-slate-50"
-        style={{ colorScheme: "light" }}
-      >
+      <div className="min-h-screen bg-slate-50">
         <GuestHeader
           currentPage="bookings"
           searchPlaceholder="Search your bookings..."
@@ -192,10 +189,7 @@ export default function WriteReviewPage() {
 
   if (!booking) {
     return (
-      <div
-        className="min-h-screen bg-slate-50 flex flex-col"
-        style={{ colorScheme: "light" }}
-      >
+      <div className="min-h-screen bg-slate-50 flex flex-col">
         <GuestHeader
           currentPage="bookings"
           searchPlaceholder="Search your bookings..."
@@ -224,10 +218,7 @@ export default function WriteReviewPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-slate-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <GuestHeader
         currentPage="bookings"
         searchPlaceholder="Search your bookings..."
