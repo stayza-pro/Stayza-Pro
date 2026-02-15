@@ -3,20 +3,12 @@
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  File,
-  MessageCircle,
-  Mic,
-  Paperclip,
-  Search,
-  Send,
-  X,
-} from "lucide-react";
+import { ArrowLeft, File, Mic, Paperclip, Search, Send, X } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { Footer } from "@/components/guest/sections/Footer";
 import { messageService, type Conversation, type Message } from "@/services";
 import toast from "react-hot-toast";
 
@@ -28,7 +20,15 @@ function MessagesContent() {
   const propertyIdParam = searchParams.get("propertyId");
   const hostIdParam = searchParams.get("hostId");
 
-  const { brandColor: primaryColor } = useRealtorBranding();
+  const {
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
+    realtorName,
+    logoUrl,
+    tagline,
+    description,
+  } = useRealtorBranding();
 
   const [authChecked, setAuthChecked] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<
@@ -403,25 +403,34 @@ function MessagesContent() {
 
   if (!authChecked || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-4">
             <div className="h-10 bg-gray-100 rounded w-1/4" />
             <div className="h-96 bg-gray-100 rounded" />
           </div>
         </div>
+        <Footer
+          realtorName={realtorName}
+          tagline={tagline}
+          logo={logoUrl}
+          description={description}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+          accentColor={accentColor}
+        />
       </div>
     );
   }
 
   return (
     <div
-      className="h-[calc(100vh-4rem)] md:h-[calc(100vh-4rem)] pb-16 md:pb-0 bg-gray-50"
+      className="min-h-screen bg-gray-50 flex flex-col"
       style={{ colorScheme: "light" }}
     >
       <GuestHeader currentPage="messages" />
 
-      <div className="h-full max-w-7xl mx-auto flex">
+      <div className="flex-1 h-[calc(100vh-4rem)] max-w-7xl mx-auto flex w-full">
         <div
           className={`w-full md:w-96 border-r border-gray-200 bg-white flex flex-col ${selectedConversation ? "hidden md:flex" : "flex"}`}
         >
@@ -790,6 +799,16 @@ function MessagesContent() {
           </div>
         )}
       </div>
+
+      <Footer
+        realtorName={realtorName}
+        tagline={tagline}
+        logo={logoUrl}
+        description={description}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
+      />
     </div>
   );
 }

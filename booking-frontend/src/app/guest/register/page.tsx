@@ -1,672 +1,392 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { User, Mail, ArrowRight, Check } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Mail, ArrowRight, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 
-// Force dynamic rendering since this page uses search params
-export const dynamic = "force-dynamic";
-
 interface GuestRegistrationData {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
+  agreedToTerms: boolean;
 }
 
-function GuestRegistrationContent() {
+export default function GuestRegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const returnTo = searchParams.get("returnTo") || "/guest-landing";
-  const propertyId = searchParams.get("propertyId");
-
-  // Use the reusable realtor branding hook
-  const {
-    realtorBranding,
-    realtorId, // Now directly available from the hook
-    brandColor: primaryColor, // 60% - Primary brand color for backgrounds and dominant elements
-    secondaryColor, // 30% - Secondary color for text and borders
-    accentColor, // 10% - Accent color for CTAs and highlights
-    realtorName,
-    logoUrl,
-    tagline,
-    isLoading: brandingLoading,
-  } = useRealtorBranding();
-
-  // State for hydration-safe subdomain detection
-  const [realtorSubdomain, setRealtorSubdomain] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
-
-  // Handle client-side hydration
-  React.useEffect(() => {
-    setIsClient(true);
-    const subdomain = getRealtorSubdomain();
-    setRealtorSubdomain(subdomain);
-  }, []);
-
+  const [subdomain, setSubdomain] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [data, setData] = useState<GuestRegistrationData>({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
+    agreedToTerms: false,
   });
 
-  const [errors, setErrors] = useState<Partial<GuestRegistrationData>>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    realtorId,
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
+    realtorName,
+    tagline,
+    logoUrl,
+    description,
+  } = useRealtorBranding();
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<GuestRegistrationData> = {};
+  useEffect(() => {
+    setSubdomain(getRealtorSubdomain());
+  }, []);
 
-    if (!data.fullName.trim()) {
-      newErrors.fullName = "Full name is required";
-    } else if (data.fullName.trim().length < 2) {
-      newErrors.fullName = "Full name must be at least 2 characters";
+  const validateForm = () => {
+    if (!data.firstName.trim() || data.firstName.trim().length < 2) {
+      toast.error("Please enter your first name");
+      return false;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!data.email) {
-      newErrors.email = "Email is required";
-    } else if (!emailRegex.test(data.email)) {
-      newErrors.email = "Please enter a valid email address";
+    if (!data.lastName.trim() || data.lastName.trim().length < 2) {
+      toast.error("Please enter your last name");
+      return false;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      toast.error("Please enter a valid email");
+      return false;
+    }
+
+    if (!data.agreedToTerms) {
+      toast.error("Please agree to the Terms and Privacy Policy");
+      return false;
+    }
+
+    return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      const [firstName, ...lastNameParts] = data.fullName.trim().split(" ");
-      const lastName = lastNameParts.join(" ") || firstName;
-
-      const payload = {
-        firstName,
-        lastName,
-        email: data.email,
-        role: "GUEST",
-        realtorId: realtorId || undefined,
-        referralSource: realtorSubdomain
-          ? `subdomain:${realtorSubdomain}`
-          : undefined,
-      };
-
       const backendUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
       const response = await fetch(`${backendUrl}/auth/register-passwordless`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: data.firstName.trim(),
+          lastName: data.lastName.trim(),
+          email: data.email,
+          role: "GUEST",
+          realtorId: realtorId || undefined,
+          referralSource: subdomain ? `subdomain:${subdomain}` : undefined,
+        }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        // Handle specific error status codes with user-friendly messages
-        let errorMessage = result.message;
-
-        if (response.status === 409 || response.status === 400) {
-          if (
-            result.message?.includes("already exists") ||
-            result.message?.includes("already registered")
-          ) {
-            errorMessage =
-              "An account with this email already exists. Please login instead.";
-          } else if (result.message?.includes("email")) {
-            errorMessage =
-              result.message ||
-              "Invalid email address. Please check and try again.";
-          } else {
-            errorMessage =
-              result.message ||
-              "Registration failed. Please check your information.";
-          }
-        } else if (response.status === 429) {
-          errorMessage =
-            "Too many registration attempts. Please wait a moment and try again.";
-        }
-
-        throw new Error(errorMessage);
+        throw new Error(result?.message || "Registration failed");
       }
 
-      // Show OTP in toast if in development mode
-      if (result.data?.otp) {
-        toast.success(`Dev Mode: Your OTP is ${result.data.otp}`, {
-          duration: 10000,
-        });
+      if (result?.data?.otp) {
+        toast.success(`Dev Mode OTP: ${result.data.otp}`, { duration: 9000 });
       } else {
-        toast.success(
-          result.message || "Verification code sent! Check your email.",
-        );
+        toast.success(result?.message || "Verification code sent!");
       }
 
-      // Redirect to OTP verification page with email and context
       const otpParams = new URLSearchParams({
         email: data.email,
         type: "register",
-        firstName,
-        lastName,
-        ...(realtorId && { realtorId }),
-        ...(realtorSubdomain && {
-          referralSource: `subdomain:${realtorSubdomain}`,
-        }),
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
       });
 
+      if (realtorId) {
+        otpParams.append("realtorId", realtorId);
+      }
+      if (subdomain) {
+        otpParams.append("referralSource", `subdomain:${subdomain}`);
+      }
+
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
-    } catch (error: any) {
-      toast.error(error.message || "Registration failed. Please try again.");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Registration failed. Please try again.";
+      toast.error(message);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleInputChange = (
-    field: keyof GuestRegistrationData,
-    value: string,
-  ) => {
-    setData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-  };
-
-  // Use realtor branding colors or defaults
-  const businessName = realtorName;
-  const logo = logoUrl || "";
+  const benefits = [
+    "Save favorite properties and create wishlists",
+    "Book property viewings instantly",
+    "Receive personalized property recommendations",
+    "Track your booking history and preferences",
+    "Priority access to new listings",
+    "Direct messaging with property agents",
+  ];
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: primaryColor ? `${primaryColor}05` : "#FFF8F0", // Subtle brand-tinted background
-        colorScheme: "light",
-      }}
-    >
-      {/* Header - Minimal & Clean */}
+    <div className="min-h-screen flex" style={{ colorScheme: "light" }}>
       <div
+        className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
         style={{
-          background: "white",
-          borderBottom: `1px solid ${
-            secondaryColor ? `${secondaryColor}30` : "#e5e7eb"
-          }`,
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor || primaryColor} 100%)`,
         }}
       >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "1rem clamp(0.75rem, 4vw, 2rem)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-            flexWrap: "wrap",
-          }}
-        >
-          {/* Logo/Brand */}
-          <Link
-            href="/"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-              textDecoration: "none",
-              minWidth: 0,
-            }}
-          >
-            {logo && logo.trim() !== "" ? (
-              <img
-                src={logo}
-                alt={businessName}
-                style={{
-                  height: "clamp(2.25rem, 8vw, 3rem)",
-                  width: "clamp(2.25rem, 8vw, 3rem)",
-                  borderRadius: 12,
-                  objectFit: "cover",
-                }}
-              />
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
+
+        <div className="relative flex flex-col justify-center px-12 xl:px-16 py-16">
+          <Link href="/guest-landing" className="flex items-center gap-3 mb-12">
+            {logoUrl ? (
+              <img src={logoUrl} alt={realtorName} className="h-12 w-auto" />
             ) : (
-              <div
-                style={{
-                  width: "clamp(2.25rem, 8vw, 3rem)",
-                  height: "clamp(2.25rem, 8vw, 3rem)",
-                  borderRadius: 12,
-                  background: primaryColor,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.5rem",
-                  fontWeight: 700,
-                  color: "white",
-                }}
-              >
-                {businessName.charAt(0).toUpperCase()}
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-white/20">
+                <span className="text-white text-xl font-bold">
+                  {(realtorName || "S").charAt(0)}
+                </span>
               </div>
             )}
-            <div>
-              <h1
-                style={{
-                  fontSize: "clamp(1rem, 3.5vw, 1.25rem)",
-                  fontWeight: 700,
-                  color: secondaryColor, // 30% - Secondary for brand name
-                  margin: 0,
-                }}
-              >
-                {businessName}
-              </h1>
-              <p
-                style={{
-                  fontSize: "0.75rem",
-                  color: `${secondaryColor}99`, // 30% - Secondary with opacity
-                  margin: 0,
-                }}
-              >
-                {tagline}
-              </p>
-            </div>
-          </Link>
-
-          {/* Login Link */}
-          <Link
-            href="/guest/login"
-            style={{
-              color: accentColor, // 10% - Accent for CTA link
-              fontSize: "0.8125rem",
-              fontWeight: 600,
-              textDecoration: "none",
-              padding: "0.5rem 0.75rem",
-              borderRadius: 8,
-              transition: "all 0.2s",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <span className="sm:hidden">Sign in</span>
-            <span className="hidden sm:inline">
-              Already have an account? Sign in
+            <span className="text-2xl font-semibold text-white">
+              {realtorName || "Stayza Pro"}
             </span>
           </Link>
+
+          <div className="space-y-6">
+            <h1 className="font-semibold leading-tight text-[40px] text-white">
+              Join Our Exclusive Community
+            </h1>
+            <p className="text-lg leading-relaxed text-white/90">
+              {description ||
+                "Create your account to unlock premium features and personalized property experiences."}
+            </p>
+
+            <div className="space-y-4 pt-8">
+              {benefits.map((benefit) => (
+                <div key={benefit} className="flex items-start gap-3">
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{
+                      backgroundColor:
+                        secondaryColor || "rgba(255,255,255,0.35)",
+                    }}
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-base leading-relaxed text-white/95">
+                    {benefit}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div
-        style={{
-          maxWidth: "480px",
-          width: "100%",
-          margin: "0 auto",
-          padding: "2rem 1rem 3rem",
-        }}
-      >
-        {/* Title Section */}
-        <div
-          style={{
-            position: "relative",
-            textAlign: "center",
-            marginBottom: "2.5rem",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: "clamp(1.625rem, 7vw, 2rem)",
-              fontWeight: 700,
-              color: secondaryColor, // 30% - Secondary for heading
-              marginBottom: "0.75rem",
-            }}
-          >
-            Create Your Account
-          </h2>
-          <p style={{ color: `${secondaryColor}80`, fontSize: "0.9375rem" }}>
-            {" "}
-            {/* 30% - Secondary with opacity */}
-            {isClient && realtorSubdomain
-              ? `Join ${businessName} to book amazing properties`
-              : "Get started with your booking journey"}
-          </p>
-          {isClient && realtorSubdomain && (
-            <div
-              style={{
-                marginTop: "1rem",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.5rem 1rem",
-                background: `${primaryColor}10`,
-                borderRadius: 999,
-                fontSize: "0.8125rem",
-                color: primaryColor,
-                fontWeight: 500,
-              }}
+      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-slate-50">
+        <div className="w-full max-w-md space-y-8">
+          <div className="lg:hidden text-center space-y-4">
+            <Link
+              href="/guest-landing"
+              className="inline-flex items-center gap-2 mb-4"
             >
-              <Check size={14} />
-              Registering with {businessName}
-            </div>
-          )}
-        </div>
-
-        {/* Registration Form Card */}
-        <div
-          style={{
-            background: "white",
-            borderRadius: 20,
-            padding: "clamp(1rem, 4vw, 2.5rem)",
-            boxShadow:
-              "0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
-            border: "1px solid rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}
-          >
-            {/* Full Name */}
-            <div>
-              <label
-                htmlFor="fullName"
-                style={{
-                  display: "block",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  color: secondaryColor, // 30% - Secondary for labels
-                  marginBottom: "0.5rem",
-                }}
-              >
-                Full Name
-              </label>
-              <div style={{ position: "relative" }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "1rem",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: `${secondaryColor}60`, // 30% - Secondary for icon
-                  }}
-                >
-                  <User size={18} />
-                </div>
-                <input
-                  id="fullName"
-                  type="text"
-                  value={data.fullName}
-                  onChange={(e) =>
-                    handleInputChange("fullName", e.target.value)
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1rem 0.875rem 2.75rem",
-                    border: `1.5px solid ${
-                      errors.fullName ? "#ef4444" : "#e5e7eb"
-                    }`,
-                    borderRadius: 12,
-                    fontSize: "0.9375rem",
-                    outline: "none",
-                    transition: "all 0.2s",
-                    boxSizing: "border-box",
-                  }}
-                  placeholder="Enter your full name"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = errors.fullName
-                      ? "#ef4444"
-                      : secondaryColor; // 30% - Secondary on focus
-                    e.target.style.boxShadow = `0 0 0 3px ${secondaryColor}15`;
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = errors.fullName
-                      ? "#ef4444"
-                      : "#e5e7eb";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-              {errors.fullName && (
-                <p
-                  style={{
-                    color: "#ef4444",
-                    fontSize: "0.8125rem",
-                    marginTop: "0.375rem",
-                  }}
-                >
-                  {errors.fullName}
-                </p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="email"
-                style={{
-                  display: "block",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  color: secondaryColor, // 30% - Secondary for labels
-                  marginBottom: "0.5rem",
-                }}
-              >
-                Email Address
-              </label>
-              <div style={{ position: "relative" }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "1rem",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: `${secondaryColor}60`, // 30% - Secondary for icon
-                  }}
-                >
-                  <Mail size={18} />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  value={data.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1rem 0.875rem 2.75rem",
-                    border: `1.5px solid ${
-                      errors.email ? "#ef4444" : "#e5e7eb"
-                    }`,
-                    borderRadius: 12,
-                    fontSize: "0.9375rem",
-                    outline: "none",
-                    transition: "all 0.2s",
-                    boxSizing: "border-box",
-                  }}
-                  placeholder="you@example.com"
-                  onFocus={(e) => {
-                    e.target.style.borderColor = errors.email
-                      ? "#ef4444"
-                      : secondaryColor; // 30% - Secondary on focus
-                    e.target.style.boxShadow = `0 0 0 3px ${secondaryColor}15`;
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = errors.email
-                      ? "#ef4444"
-                      : "#e5e7eb";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-              {errors.email && (
-                <p
-                  style={{
-                    color: "#ef4444",
-                    fontSize: "0.8125rem",
-                    marginTop: "0.375rem",
-                  }}
-                >
-                  {errors.email}
-                </p>
-              )}
-            </div>
-
-            {/* Security Note */}
-            <div
-              style={{
-                padding: "1rem",
-                background: `${primaryColor}08`, // 60% - Primary for subtle background
-                borderRadius: 8,
-                border: `1px solid ${primaryColor}30`,
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "0.8125rem",
-                  color: secondaryColor,
-                  margin: 0,
-                }}
-              >
-                {" "}
-                {/* 30% - Secondary for text */}
-                🔐 We'll send a verification code to your email. No password
-                needed!
-              </p>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              style={{
-                width: "100%",
-                padding: "1rem",
-                background: accentColor, // 10% - Accent for primary CTA
-                color: "white",
-                border: "none",
-                borderRadius: 12,
-                fontSize: "1rem",
-                fontWeight: 600,
-                cursor: isLoading ? "not-allowed" : "pointer",
-                opacity: isLoading ? 0.7 : 1,
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading) {
-                  e.currentTarget.style.transform = "translateY(-1px)";
-                  e.currentTarget.style.boxShadow = `0 8px 20px ${accentColor}40`;
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            >
-              {isLoading ? (
-                <div
-                  style={{
-                    display: "inline-block",
-                    width: 20,
-                    height: 20,
-                    border: "2px solid rgba(255, 255, 255, 0.3)",
-                    borderTop: "2px solid white",
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
-                  }}
-                />
+              {logoUrl ? (
+                <img src={logoUrl} alt={realtorName} className="h-10 w-auto" />
               ) : (
-                <>
-                  Continue
-                  <ArrowRight size={18} />
-                </>
+                <div
+                  className="h-10 w-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <span className="text-white font-semibold">
+                    {(realtorName || "S").charAt(0)}
+                  </span>
+                </div>
               )}
-            </button>
+              <span className="text-xl font-semibold text-gray-900">
+                {realtorName || "Stayza Pro"}
+              </span>
+            </Link>
+            <h1 className="font-semibold text-[32px] text-gray-900">
+              Create Account
+            </h1>
+            <p className="text-gray-600">
+              {tagline || "Start your journey to finding the perfect property"}
+            </p>
+          </div>
+
+          <div className="hidden lg:block space-y-2">
+            <h2 className="font-semibold text-[32px] text-gray-900">
+              Create Account
+            </h2>
+            <p className="text-gray-600">Fill in your details to get started</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="p-8 rounded-2xl border space-y-6 bg-white border-gray-200">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="firstName"
+                    className="text-sm font-medium text-gray-900"
+                  >
+                    First Name
+                  </label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    value={data.firstName}
+                    onChange={(e) =>
+                      setData((prev) => ({
+                        ...prev,
+                        firstName: e.target.value,
+                      }))
+                    }
+                    className="h-12 rounded-xl border text-base bg-gray-50 border-gray-200 text-gray-900"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label
+                    htmlFor="lastName"
+                    className="text-sm font-medium text-gray-900"
+                  >
+                    Last Name
+                  </label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Doe"
+                    value={data.lastName}
+                    onChange={(e) =>
+                      setData((prev) => ({ ...prev, lastName: e.target.value }))
+                    }
+                    className="h-12 rounded-xl border text-base bg-gray-50 border-gray-200 text-gray-900"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="email"
+                  className="text-sm font-medium text-gray-900"
+                >
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={data.email}
+                    onChange={(e) =>
+                      setData((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                    className="pl-12 h-12 rounded-xl border text-base bg-gray-50 border-gray-200 text-gray-900"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  We&apos;ll send a one-time verification code to your email.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-3 pt-2">
+                <input
+                  id="terms"
+                  type="checkbox"
+                  checked={data.agreedToTerms}
+                  onChange={(e) =>
+                    setData((prev) => ({
+                      ...prev,
+                      agreedToTerms: e.target.checked,
+                    }))
+                  }
+                  className="mt-1 h-4 w-4 rounded border-gray-300"
+                />
+                <label
+                  htmlFor="terms"
+                  className="text-sm leading-relaxed text-gray-600 cursor-pointer"
+                >
+                  I agree to the{" "}
+                  <Link
+                    href="/terms"
+                    className="font-medium hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link
+                    href="/privacy"
+                    className="font-medium hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              size="lg"
+              disabled={!data.agreedToTerms}
+              className="w-full h-12 rounded-xl font-semibold text-base shadow-sm hover:shadow-md transition-all text-white disabled:opacity-50"
+              style={{ backgroundColor: accentColor || primaryColor }}
+              loading={isSubmitting}
+            >
+              Continue with OTP
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
           </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 rounded-full bg-slate-50 text-gray-500">
+                Already have an account?
+              </span>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link
+              href="/guest/login"
+              className="inline-flex items-center gap-2 font-medium hover:underline"
+              style={{ color: primaryColor }}
+            >
+              Sign in
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="text-center pt-2">
+            <Link
+              href="/guest-landing"
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              ← Back to Home
+            </Link>
+          </div>
         </div>
-
-        {/* Footer Note */}
-        <p
-          style={{
-            textAlign: "center",
-            color: `${secondaryColor}60`, // 30% - Secondary for footer text
-            fontSize: "0.8125rem",
-            marginTop: "1.5rem",
-          }}
-        >
-          By creating an account, you agree to our{" "}
-          <Link href="/legal/terms" style={{ color: accentColor }}>
-            {" "}
-            {/* 10% - Accent for link CTAs */}
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link href="/legal/privacy" style={{ color: accentColor }}>
-            Privacy Policy
-          </Link>
-        </p>
-
-        {/* Footer Branding */}
-        <p
-          style={{
-            textAlign: "center",
-            color: `${secondaryColor}60`, // 30% - Secondary for footer text
-            fontSize: "0.8125rem",
-            marginTop: "1rem",
-          }}
-        >
-          Powered by Stayza Pro
-        </p>
       </div>
-
-      {/* CSS Animation for spinner */}
-      <style jsx>{`
-        @keyframes spin {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
-  );
-}
-
-export default function GuestRegisterPage() {
-  return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            minHeight: "100vh",
-            backgroundColor: "#FFF8F0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              border: "3px solid #e5e7eb",
-              borderTop: "3px solid #3B82F6", // Keep default blue for fallback loader
-              borderRadius: "50%",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
-        </div>
-      }
-    >
-      <GuestRegistrationContent />
-    </Suspense>
   );
 }

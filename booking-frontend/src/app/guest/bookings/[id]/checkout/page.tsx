@@ -1,21 +1,23 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  Calendar,
+  Users,
   CreditCard,
+  Check,
   Shield,
-  CheckCircle,
-  Loader2,
 } from "lucide-react";
-import { Card, Button } from "@/components/ui";
+import { toast } from "react-hot-toast";
+import { Button, Card, Input } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections/Footer";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { bookingService, paymentService } from "@/services";
-import toast from "react-hot-toast";
 
 interface PaystackPopup {
   setup: (config: {
@@ -27,19 +29,17 @@ interface PaystackPopup {
     metadata: Record<string, unknown>;
     callback: (response: { reference: string }) => void;
     onClose: () => void;
-  }) => {
-    openIframe: () => void;
-  };
+  }) => { openIframe: () => void };
 }
 
 interface CheckoutBooking {
   id: string;
   propertyId: string;
   guestId: string;
+  totalGuests?: number;
   checkInDate: string | Date;
   checkOutDate: string | Date;
   status: string;
-  totalAmount?: number;
   roomFee: number;
   securityDeposit: number;
   cleaningFee: number;
@@ -50,10 +50,7 @@ interface CheckoutBooking {
     amount: number;
     currency?: string;
   };
-  guest: {
-    email: string;
-    firstName: string;
-  };
+  guest: { email: string };
   property: {
     name?: string;
     title?: string;
@@ -63,20 +60,15 @@ interface CheckoutBooking {
   };
 }
 
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return fallback;
-};
-
-export default function CheckoutPage() {
+export default function GuestBookingCheckoutPage() {
   const params = useParams();
   const router = useRouter();
   const bookingId = params.id as string;
 
   const {
     brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
     realtorName,
     logoUrl,
     tagline,
@@ -86,28 +78,25 @@ export default function CheckoutPage() {
   const [booking, setBooking] = useState<CheckoutBooking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [guests, setGuests] = useState(1);
+  const [authChecked, setAuthChecked] = useState(false);
+  const { isAuthenticated, isLoading: authLoading } = useCurrentUser();
 
-  const fetchBookingDetails = useCallback(async () => {
+  const fetchBooking = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = (await bookingService.getBooking(
+      const data = (await bookingService.getBooking(
         bookingId,
       )) as unknown as CheckoutBooking;
-
-      if (response) {
-        setBooking(response);
-
-        // If payment is already completed, redirect to booking details
-        if (
-          response.payment?.status === "SETTLED" ||
-          response.status !== "PENDING"
-        ) {
-          toast.success("Payment already completed!");
-          router.push(`/guest/bookings/${bookingId}`);
-        }
+      setBooking(data || null);
+      if (data?.status !== "PENDING") {
+        router.push(`/guest/bookings/${bookingId}`);
       }
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Failed to load booking details"));
+      if (typeof data?.totalGuests === "number") {
+        setGuests(data.totalGuests);
+      }
+    } catch {
+      toast.error("Failed to load checkout details");
       router.push("/guest/bookings");
     } finally {
       setIsLoading(false);
@@ -115,90 +104,128 @@ export default function CheckoutPage() {
   }, [bookingId, router]);
 
   useEffect(() => {
-    void fetchBookingDetails();
-  }, [fetchBookingDetails]);
+    if (authChecked && isAuthenticated) {
+      void fetchBooking();
+    }
+  }, [fetchBooking, authChecked, isAuthenticated]);
 
   useEffect(() => {
-    // Load Paystack script
+    if (!authLoading && (isAuthenticated || !authChecked)) {
+      setAuthChecked(true);
+    }
+  }, [authLoading, isAuthenticated, authChecked]);
+
+  useEffect(() => {
+    if (authChecked && !authLoading && !isAuthenticated) {
+      router.push(
+        `/guest/login?returnTo=/guest/bookings/${bookingId}/checkout`,
+      );
+    }
+  }, [authChecked, authLoading, isAuthenticated, router, bookingId]);
+
+  useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://js.paystack.co/v1/inline.js";
     script.async = true;
     document.body.appendChild(script);
-
     return () => {
       document.body.removeChild(script);
     };
   }, []);
 
+  const amount = booking?.payment?.amount || 0;
+  const currency = booking?.payment?.currency || "NGN";
+
+  const getPropertyImage = () => {
+    const firstImage = booking?.property?.images?.[0];
+    if (!firstImage) {
+      return null;
+    }
+    if (typeof firstImage === "string") {
+      return firstImage;
+    }
+    if (typeof firstImage === "object" && "url" in firstImage) {
+      return (firstImage as { url?: string }).url || null;
+    }
+    return null;
+  };
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+    }).format(value);
+
+  const nights = useMemo(() => {
+    if (!booking) {
+      return 0;
+    }
+    const start = new Date(booking.checkInDate);
+    const end = new Date(booking.checkOutDate);
+    return Math.max(
+      1,
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+    );
+  }, [booking]);
+
   const handlePayment = async () => {
     if (!booking || !booking.payment) {
-      toast.error("Payment information not found");
+      toast.error("Payment information not available");
       return;
     }
 
-    const paystackPop = (window as unknown as { PaystackPop?: PaystackPopup })
+    const paystack = (window as unknown as { PaystackPop?: PaystackPopup })
       .PaystackPop;
-
-    if (!paystackPop) {
-      toast.error("Payment system not loaded. Please refresh the page.");
+    if (!paystack) {
+      toast.error("Payment system not loaded. Please refresh and try again.");
       return;
     }
 
     try {
       setIsProcessing(true);
 
-      let paymentReference = booking.payment.reference;
-
-      // Only initialize payment if reference doesn't exist
-      if (!paymentReference) {
-        const response = await paymentService.initializePaystackPayment({
-          bookingId: bookingId,
+      let reference = booking.payment.reference;
+      if (!reference) {
+        const initResponse = await paymentService.initializePaystackPayment({
+          bookingId,
         });
-
-        if (!response || !response.reference) {
-          throw new Error("Failed to initialize payment");
-        }
-
-        paymentReference = response.reference;
+        reference = initResponse.reference;
       }
 
-      // Open Paystack payment modal with existing or new reference
-      const handler = paystackPop.setup({
+      if (!reference) {
+        throw new Error("Unable to initialize payment reference");
+      }
+
+      const handler = paystack.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_xxxxx",
         email: booking.guest.email,
-        amount: (booking.payment.amount ?? booking.totalAmount ?? 0) * 100, // Convert to kobo
-        currency: booking.payment.currency || "NGN",
-        ref: paymentReference,
+        amount: amount * 100,
+        currency,
+        ref: reference,
         metadata: {
           bookingId: booking.id,
           propertyId: booking.propertyId,
           guestId: booking.guestId,
         },
-        callback: function (response: { reference: string }) {
-          toast.success("Payment successful! Verifying...");
-
-          // Verify payment (handle async operation)
+        callback: (response: { reference: string }) => {
           paymentService
-            .verifyPaystackPayment({
-              reference: response.reference,
-            })
+            .verifyPaystackPayment({ reference: response.reference })
             .then((verifyResponse) => {
               if (verifyResponse.success) {
-                toast.success("Booking confirmed!");
+                toast.success("Booking payment successful!");
                 router.push(`/guest/bookings/${bookingId}`);
               } else {
-                toast.error(
-                  "Payment verification failed. Please contact support.",
-                );
+                toast.error("Payment verification failed.");
+                setIsProcessing(false);
               }
             })
             .catch(() => {
-              toast.error(
-                "Payment verification failed. Please contact support.",
-              );
+              toast.error("Payment verification failed.");
+              setIsProcessing(false);
             });
         },
-        onClose: function () {
+        onClose: () => {
           setIsProcessing(false);
           toast("Payment cancelled");
         },
@@ -206,34 +233,24 @@ export default function CheckoutPage() {
 
       handler.openIframe();
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Failed to process payment"));
+      const message =
+        error instanceof Error ? error.message : "Failed to process payment";
+      toast.error(message);
       setIsProcessing(false);
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = "NGN") => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: currency,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string | Date) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  if (isLoading) {
+  if (!authChecked || authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
+      <div
+        className="min-h-screen bg-slate-50"
+        style={{ colorScheme: "light" }}
+      >
         <GuestHeader currentPage="bookings" />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Loading checkout...</p>
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-10 bg-gray-200 rounded w-1/3" />
+            <div className="h-60 bg-gray-200 rounded" />
           </div>
         </div>
       </div>
@@ -242,237 +259,231 @@ export default function CheckoutPage() {
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
+      <div
+        className="min-h-screen bg-slate-50"
+        style={{ colorScheme: "light" }}
+      >
         <GuestHeader currentPage="bookings" />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <p className="text-gray-600 mb-4">Booking not found</p>
-            <Button onClick={() => router.push("/guest/bookings")}>
-              Back to Bookings
-            </Button>
-          </div>
+        <div className="max-w-3xl mx-auto px-4 py-12 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">
+            Booking not found
+          </h2>
+          <Link href="/guest/bookings">
+            <Button>Back to bookings</Button>
+          </Link>
         </div>
       </div>
     );
   }
 
-  const totalPayableAmount =
-    booking.payment?.amount ?? booking.totalAmount ?? 0;
-
   return (
-    <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
+    <div
+      className="min-h-screen pb-20 md:pb-8 bg-slate-50 flex flex-col"
+      style={{ colorScheme: "light" }}
+    >
       <GuestHeader currentPage="bookings" />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
-        >
-          <ArrowLeft className="h-5 w-5 mr-2" />
-          Back
-        </button>
+      <div className="border-b border-gray-200 bg-white">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <Link href={`/guest/bookings/${booking.id}`}>
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Booking
+            </Button>
+          </Link>
+        </div>
+      </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Booking Summary */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+          Request to Book
+        </h1>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="p-6 !bg-white">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Complete Your Payment
+            <Card className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">
+                Your Trip
               </h2>
-
-              {/* Property Info */}
-              <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0 mb-6 pb-6 border-b border-gray-200">
-                {booking.property.images?.[0] && (
-                  <Image
-                    src={booking.property.images[0]}
-                    alt={
-                      booking.property.name ||
-                      booking.property.title ||
-                      "Property"
-                    }
-                    width={96}
-                    height={96}
-                    unoptimized
-                    className="w-24 h-24 object-cover rounded-lg"
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Check-in
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <Input
+                      type="date"
+                      className="pl-10"
+                      value={
+                        new Date(booking.checkInDate)
+                          .toISOString()
+                          .split("T")[0]
+                      }
+                      readOnly
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Check-out
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <Input
+                      type="date"
+                      className="pl-10"
+                      value={
+                        new Date(booking.checkOutDate)
+                          .toISOString()
+                          .split("T")[0]
+                      }
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Number of Guests
+                </label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Input
+                    type="number"
+                    min={1}
+                    className="pl-10"
+                    value={guests}
+                    onChange={(e) => setGuests(Number(e.target.value))}
                   />
-                )}
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-1">
-                    {booking.property.name ||
-                      booking.property.title ||
-                      "Property"}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {booking.property.city}, {booking.property.state}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {formatDate(booking.checkInDate)} -{" "}
-                    {formatDate(booking.checkOutDate)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Price Breakdown */}
-              <div className="space-y-3 mb-6">
-                <h3 className="font-semibold text-gray-900 mb-3">
-                  Price Breakdown
-                </h3>
-
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Room Fee</span>
-                  <span className="text-gray-900">
-                    {formatCurrency(booking.roomFee, booking.payment?.currency)}
-                  </span>
-                </div>
-
-                {booking.securityDeposit > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Security Deposit</span>
-                    <span className="text-gray-900">
-                      {formatCurrency(
-                        booking.securityDeposit,
-                        booking.payment?.currency,
-                      )}
-                    </span>
-                  </div>
-                )}
-
-                {booking.cleaningFee > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Cleaning Fee</span>
-                    <span className="text-gray-900">
-                      {formatCurrency(
-                        booking.cleaningFee,
-                        booking.payment?.currency,
-                      )}
-                    </span>
-                  </div>
-                )}
-
-                {booking.serviceFee > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Service Fee</span>
-                    <span className="text-gray-900">
-                      {formatCurrency(
-                        booking.serviceFee,
-                        booking.payment?.currency,
-                      )}
-                    </span>
-                  </div>
-                )}
-
-                <div className="border-t border-gray-200 pt-3 mt-3">
-                  <div className="flex justify-between">
-                    <span className="font-semibold text-gray-900">
-                      Total Amount
-                    </span>
-                    <span
-                      className="font-bold text-xl"
-                      style={{ color: primaryColor }}
-                    >
-                      {formatCurrency(
-                        totalPayableAmount,
-                        booking.payment?.currency,
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Reference */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Payment Reference</span>
-                  <span className="font-mono text-gray-900">
-                    {booking.payment?.reference || "N/A"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Security Note */}
-              <div
-                className="flex items-start space-x-3 rounded-lg p-4"
-                style={{ backgroundColor: `${primaryColor}10` }}
-              >
-                <Shield
-                  className="h-5 w-5 mt-0.5"
-                  style={{ color: primaryColor }}
-                />
-                <div className="flex-1">
-                  <p
-                    className="text-sm font-medium mb-1"
-                    style={{ color: primaryColor }}
-                  >
-                    Secure Payment
-                  </p>
-                  <p className="text-sm" style={{ color: `${primaryColor}dd` }}>
-                    Your payment is processed securely through Paystack. We
-                    never store your card details.
-                  </p>
                 </div>
               </div>
             </Card>
-          </div>
 
-          {/* Payment Action */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 sticky top-6 !bg-white">
-              <div className="text-center mb-6">
-                <div
-                  className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-                  style={{ backgroundColor: `${primaryColor}20` }}
-                >
-                  <CreditCard
-                    className="h-8 w-8"
-                    style={{ color: primaryColor }}
+            <Card className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">
+                Payment Method
+              </h2>
+              <div className="space-y-3">
+                <div className="relative">
+                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Input
+                    type="text"
+                    className="pl-10"
+                    value="Paystack"
+                    readOnly
                   />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Ready to Complete?
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Click below to proceed with secure payment
-                </p>
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 text-sm text-gray-700">
+                  <Shield
+                    className="w-4 h-4"
+                    style={{ color: secondaryColor }}
+                  />
+                  Your payment information is secure and encrypted
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">
+                Cancellation Policy
+              </h2>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex gap-2">
+                  <Check
+                    className="w-4 h-4 mt-0.5"
+                    style={{ color: secondaryColor }}
+                  />{" "}
+                  Free cancellation eligibility is determined by booking policy.
+                </li>
+                <li className="flex gap-2">
+                  <Check
+                    className="w-4 h-4 mt-0.5"
+                    style={{ color: secondaryColor }}
+                  />{" "}
+                  You can preview refund terms before cancelling from booking
+                  details.
+                </li>
+                <li className="flex gap-2">
+                  <Check
+                    className="w-4 h-4 mt-0.5"
+                    style={{ color: secondaryColor }}
+                  />{" "}
+                  Payment is only confirmed after successful verification.
+                </li>
+              </ul>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-1">
+            <Card className="sticky top-20 bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <h2 className="font-semibold text-lg text-gray-900">
+                Booking Summary
+              </h2>
+
+              <div className="flex gap-3 pb-4 border-b border-gray-200">
+                {getPropertyImage() ? (
+                  <img
+                    src={getPropertyImage() || ""}
+                    alt={
+                      booking.property.title ||
+                      booking.property.name ||
+                      "Property"
+                    }
+                    className="w-20 h-20 rounded-lg object-cover"
+                  />
+                ) : null}
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 line-clamp-1">
+                    {booking.property.title ||
+                      booking.property.name ||
+                      "Property"}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {booking.property.city || ""}
+                    {booking.property.state
+                      ? `, ${booking.property.state}`
+                      : ""}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span>Room fee</span>
+                  <span>{formatCurrency(booking.roomFee || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Cleaning fee</span>
+                  <span>{formatCurrency(booking.cleaningFee || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Service fee</span>
+                  <span>{formatCurrency(booking.serviceFee || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Security deposit</span>
+                  <span>{formatCurrency(booking.securityDeposit || 0)}</span>
+                </div>
+                <div className="border-t border-gray-200 pt-3 flex justify-between font-semibold text-gray-900">
+                  <span>Total ({nights} nights)</span>
+                  <span>{formatCurrency(amount)}</span>
+                </div>
               </div>
 
               <Button
-                onClick={handlePayment}
-                disabled={isProcessing}
-                className="w-full text-white font-semibold py-3"
+                className="w-full text-white"
                 style={{ backgroundColor: primaryColor }}
+                size="lg"
+                onClick={handlePayment}
+                loading={isProcessing}
               >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="h-5 w-5 mr-2" />
-                    Pay{" "}
-                    {formatCurrency(
-                      totalPayableAmount,
-                      booking.payment?.currency,
-                    )}
-                  </>
-                )}
+                Confirm Booking
               </Button>
 
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center text-xs text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Instant booking confirmation
-                </div>
-                <div className="flex items-center text-xs text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Free cancellation within 24 hours
-                </div>
-                <div className="flex items-center text-xs text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  24/7 customer support
-                </div>
-              </div>
+              <p className="text-xs text-center text-gray-500">
+                By confirming, you agree to the terms and conditions.
+              </p>
             </Card>
           </div>
         </div>
@@ -480,10 +491,12 @@ export default function CheckoutPage() {
 
       <Footer
         realtorName={realtorName}
+        tagline={tagline}
         logo={logoUrl}
-        tagline={tagline || "Premium short-let properties"}
-        description={description || "Experience luxury accommodations"}
+        description={description}
         primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
       />
     </div>
   );

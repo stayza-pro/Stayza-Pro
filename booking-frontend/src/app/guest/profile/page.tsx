@@ -60,7 +60,13 @@ export default function ProfilePage() {
     },
     {
       section: "Bookings",
-      items: [{ icon: CreditCard, label: "Payment & Booking History", href: "/guest/bookings" }],
+      items: [
+        {
+          icon: CreditCard,
+          label: "Payment & Booking History",
+          href: "/guest/bookings",
+        },
+      ],
     },
     {
       section: "Support",
@@ -68,7 +74,8 @@ export default function ProfilePage() {
     },
   ];
 
-  const fullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Guest User";
+  const fullName =
+    `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Guest User";
 
   const handleLogout = async () => {
     await authService.logout();
@@ -90,7 +97,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col" style={{ colorScheme: "light" }}>
+    <div
+      className="min-h-screen bg-slate-50 flex flex-col"
+      style={{ colorScheme: "light" }}
+    >
       <GuestHeader currentPage="profile" searchPlaceholder="Search..." />
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8">
@@ -100,8 +110,12 @@ export default function ProfilePage() {
               {(fullName[0] || "G").toUpperCase()}
             </div>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold mb-1 text-gray-900">{fullName}</h1>
-              <p className="text-gray-600 mb-3">Manage your account and preferences</p>
+              <h1 className="text-2xl font-bold mb-1 text-gray-900">
+                {fullName}
+              </h1>
+              <p className="text-gray-600 mb-3">
+                Manage your account and preferences
+              </p>
               <Button variant="outline" size="sm">
                 <Settings className="w-4 h-4 mr-2" />
                 Edit Profile
@@ -111,16 +125,24 @@ export default function ProfilePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-200 pt-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white"
+                style={{ backgroundColor: primaryColor }}
+              >
                 <Mail className="w-5 h-5" />
               </div>
               <div>
                 <div className="text-sm text-gray-500">Email</div>
-                <div className="font-medium text-gray-900">{user?.email || "-"}</div>
+                <div className="font-medium text-gray-900">
+                  {user?.email || "-"}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: primaryColor }}>
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white"
+                style={{ backgroundColor: primaryColor }}
+              >
                 <Phone className="w-5 h-5" />
               </div>
               {/* <div>
@@ -133,9 +155,14 @@ export default function ProfilePage() {
 
         <div className="space-y-6">
           {menuItems.map((section) => (
-            <Card key={section.section} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <Card
+              key={section.section}
+              className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+            >
               <div className="px-6 py-3 border-b border-gray-200">
-                <h3 className="font-semibold text-sm text-gray-500 uppercase tracking-wide">{section.section}</h3>
+                <h3 className="font-semibold text-sm text-gray-500 uppercase tracking-wide">
+                  {section.section}
+                </h3>
               </div>
               <div>
                 {section.items.map((item) => (
@@ -157,7 +184,12 @@ export default function ProfilePage() {
         </div>
 
         <div className="mt-6">
-          <Button variant="outline" className="w-full" size="lg" onClick={handleLogout}>
+          <Button
+            variant="outline"
+            className="w-full"
+            size="lg"
+            onClick={handleLogout}
+          >
             <LogOut className="w-5 h-5 mr-2" />
             Log Out
           </Button>

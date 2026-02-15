@@ -11,6 +11,7 @@ import { PropertyCard } from "@/components/property/PropertyCard";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { favoritesService, type FavoriteProperty } from "@/services";
+import type { Property, PropertyStatus, PropertyType } from "@/types";
 import toast from "react-hot-toast";
 
 export default function FavoritesPage() {
@@ -62,13 +63,13 @@ export default function FavoritesPage() {
     fetchFavorites();
   }, [isAuthenticated, user]);
 
-  const favoriteProperties = useMemo(
+  const favoriteProperties = useMemo<Property[]>(
     () =>
       favorites.map((item) => ({
         ...item.property,
         realtorId: item.property.realtor?.id || "",
-        type: item.property.type as any,
-        status: item.property.status as any,
+        type: item.property.type as PropertyType,
+        status: item.property.status as PropertyStatus,
         state: "",
         amenities: [],
         houseRules: [],
@@ -76,16 +77,23 @@ export default function FavoritesPage() {
         checkOutTime: "11:00",
         isApproved: true,
         realtor: undefined,
+        images: (item.property.images || []).map((image) => ({
+          ...image,
+          propertyId: item.property.id,
+          createdAt: new Date(item.createdAt),
+        })),
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.createdAt),
       })),
-    [favorites]
+    [favorites],
   );
 
   const handleFavoriteToggle = async (propertyId: string) => {
     try {
       await favoritesService.removeFavorite(propertyId);
-      setFavorites((prev) => prev.filter((item) => item.propertyId !== propertyId));
+      setFavorites((prev) =>
+        prev.filter((item) => item.propertyId !== propertyId),
+      );
       toast.success("Removed from favorites");
     } catch {
       toast.error("Failed to update favorites");
@@ -95,7 +103,10 @@ export default function FavoritesPage() {
   if (!authChecked || isLoading || loadingFavorites) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <GuestHeader currentPage="favorites" searchPlaceholder="Search properties..." />
+        <GuestHeader
+          currentPage="favorites"
+          searchPlaceholder="Search properties..."
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-6">
             <div className="h-10 bg-gray-200 rounded w-1/3" />
@@ -107,12 +118,20 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ colorScheme: "light" }}>
-      <GuestHeader currentPage="favorites" searchPlaceholder="Search properties..." />
+    <div
+      className="min-h-screen bg-gray-50 flex flex-col"
+      style={{ colorScheme: "light" }}
+    >
+      <GuestHeader
+        currentPage="favorites"
+        searchPlaceholder="Search properties..."
+      />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         <div className="mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">My Favorites</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">
+            My Favorites
+          </h1>
           <p className="text-gray-600">
             {favoriteProperties.length > 0
               ? `${favoriteProperties.length} saved propert${favoriteProperties.length !== 1 ? "ies" : "y"}`
@@ -125,7 +144,7 @@ export default function FavoritesPage() {
             {favoriteProperties.map((property) => (
               <PropertyCard
                 key={property.id}
-                property={property as any}
+                property={property}
                 onFavorite={handleFavoriteToggle}
                 isFavorited={true}
                 primaryColor={primaryColor}
@@ -139,12 +158,18 @@ export default function FavoritesPage() {
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Heart className="w-8 h-8 text-gray-500" />
             </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">No favorites yet</h3>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">
+              No favorites yet
+            </h3>
             <p className="text-gray-600 mb-4">
-              Start browsing and save properties you love by clicking the heart icon
+              Start browsing and save properties you love by clicking the heart
+              icon
             </p>
             <Link href="/guest/browse">
-              <Button className="text-white" style={{ backgroundColor: primaryColor }}>
+              <Button
+                className="text-white"
+                style={{ backgroundColor: primaryColor }}
+              >
                 Browse Properties
               </Button>
             </Link>

@@ -12,13 +12,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import { Footer } from "@/components/guest/sections/Footer";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { notificationApiService } from "@/services/notifications";
 import type { Notification } from "@/types/notifications";
 import toast from "react-hot-toast";
 
-const TYPE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+const TYPE_ICON_MAP: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
   BOOKING_CONFIRMED: Calendar,
   BOOKING_CANCELLED: Calendar,
   BOOKING_COMPLETED: Calendar,
@@ -44,14 +48,25 @@ function formatTime(timestamp: string) {
 }
 
 function getActionUrl(notification: Notification) {
-  if (notification.bookingId) return `/guest/bookings/${notification.bookingId}`;
-  if (notification.propertyId) return `/guest/browse?propertyId=${notification.propertyId}`;
+  if (notification.bookingId)
+    return `/guest/bookings/${notification.bookingId}`;
+  if (notification.propertyId)
+    return `/guest/browse?propertyId=${notification.propertyId}`;
   return null;
 }
 
 export default function GuestNotificationsPage() {
   const { isAuthenticated, isLoading: isAuthLoading } = useCurrentUser();
-  const { brandColor: primaryColor } = useRealtorBranding();
+  const {
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
+    realtorName,
+    logoUrl,
+    tagline,
+    description,
+  } = useRealtorBranding();
+  const [authChecked, setAuthChecked] = useState(false);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,7 +78,19 @@ export default function GuestNotificationsPage() {
   );
 
   useEffect(() => {
-    if (isAuthLoading) return;
+    if (!isAuthLoading && (isAuthenticated || !authChecked)) {
+      setAuthChecked(true);
+    }
+  }, [isAuthLoading, isAuthenticated, authChecked]);
+
+  useEffect(() => {
+    if (authChecked && !isAuthLoading && !isAuthenticated) {
+      window.location.href = "/guest/login?returnTo=/guest/notifications";
+    }
+  }, [authChecked, isAuthLoading, isAuthenticated]);
+
+  useEffect(() => {
+    if (!authChecked || isAuthLoading) return;
 
     if (!isAuthenticated) {
       setIsLoading(false);
@@ -78,7 +105,9 @@ export default function GuestNotificationsPage() {
           limit: 50,
         });
 
-        setNotifications(Array.isArray(response.notifications) ? response.notifications : []);
+        setNotifications(
+          Array.isArray(response.notifications) ? response.notifications : [],
+        );
       } catch {
         toast.error("Failed to load notifications");
       } finally {
@@ -87,12 +116,14 @@ export default function GuestNotificationsPage() {
     };
 
     loadNotifications();
-  }, [isAuthenticated, isAuthLoading]);
+  }, [isAuthenticated, isAuthLoading, authChecked]);
 
   const markAsRead = async (notificationId: string) => {
     setNotifications((prev) =>
       prev.map((notification) =>
-        notification.id === notificationId ? { ...notification, isRead: true } : notification,
+        notification.id === notificationId
+          ? { ...notification, isRead: true }
+          : notification,
       ),
     );
 
@@ -107,7 +138,9 @@ export default function GuestNotificationsPage() {
     try {
       setIsMarkingAll(true);
       await notificationApiService.markAllAsRead();
-      setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })));
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, isRead: true })),
+      );
       toast.success("All notifications marked as read");
     } catch {
       toast.error("Failed to mark all as read");
@@ -116,14 +149,46 @@ export default function GuestNotificationsPage() {
     }
   };
 
+  if (!authChecked || isAuthLoading) {
+    return (
+      <div
+        className="min-h-screen bg-gray-50 flex flex-col"
+        style={{ colorScheme: "light" }}
+      >
+        <GuestHeader currentPage="notifications" />
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1">
+          <div className="animate-pulse space-y-4">
+            <div className="h-10 w-1/3 rounded bg-gray-200" />
+            <div className="h-20 rounded bg-gray-200" />
+            <div className="h-20 rounded bg-gray-200" />
+          </div>
+        </div>
+        <Footer
+          realtorName={realtorName}
+          tagline={tagline}
+          logo={logoUrl}
+          description={description}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+          accentColor={accentColor}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen pb-20 md:pb-8 bg-gray-50" style={{ colorScheme: "light" }}>
+    <div
+      className="min-h-screen pb-20 md:pb-8 bg-gray-50 flex flex-col"
+      style={{ colorScheme: "light" }}
+    >
       <GuestHeader currentPage="notifications" />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 flex-1 w-full">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">Notifications</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">
+              Notifications
+            </h1>
             <p className="text-gray-600">
               {unreadCount > 0
                 ? `You have ${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
@@ -178,7 +243,9 @@ export default function GuestNotificationsPage() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-900">{notification.title}</h3>
+                      <h3 className="font-semibold text-gray-900">
+                        {notification.title}
+                      </h3>
                       {!notification.isRead && (
                         <span
                           className="shrink-0 text-xs text-white rounded-full px-2 py-1 font-semibold"
@@ -189,8 +256,12 @@ export default function GuestNotificationsPage() {
                       )}
                     </div>
 
-                    <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
-                    <span className="text-xs text-gray-500">{formatTime(notification.createdAt)}</span>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {notification.message}
+                    </p>
+                    <span className="text-xs text-gray-500">
+                      {formatTime(notification.createdAt)}
+                    </span>
                   </div>
                 </div>
               );
@@ -209,11 +280,25 @@ export default function GuestNotificationsPage() {
             <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
               <Bell className="w-8 h-8 text-gray-500" />
             </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">No notifications</h3>
-            <p className="text-gray-600">You're all caught up! We'll notify you of any updates.</p>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">
+              No notifications
+            </h3>
+            <p className="text-gray-600">
+              You&apos;re all caught up! We&apos;ll notify you of any updates.
+            </p>
           </div>
         )}
       </div>
+
+      <Footer
+        realtorName={realtorName}
+        tagline={tagline}
+        logo={logoUrl}
+        description={description}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
+      />
     </div>
   );
 }

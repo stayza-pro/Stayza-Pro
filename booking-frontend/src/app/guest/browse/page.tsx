@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, SlidersHorizontal, MapPin, Home, Building2, Castle } from "lucide-react";
+import {
+  Search,
+  SlidersHorizontal,
+  Home,
+  Building2,
+  Castle,
+} from "lucide-react";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections/Footer";
 import { PropertyCard } from "@/components/property/PropertyCard";
@@ -30,7 +36,9 @@ export default function BrowsePropertiesPage() {
   } = useRealtorBranding();
 
   useEffect(() => {
-    const location = new URLSearchParams(window.location.search).get("location");
+    const location = new URLSearchParams(window.location.search).get(
+      "location",
+    );
     if (location) {
       setSearchQuery(location);
     }
@@ -48,7 +56,7 @@ export default function BrowsePropertiesPage() {
       isActive: true,
       isApproved: true,
     }),
-    [searchQuery, minPrice, maxPrice, propertyType]
+    [searchQuery, minPrice, maxPrice, propertyType],
   );
 
   const { data: propertiesResponse, isLoading } = useProperties(filters, {
@@ -69,12 +77,12 @@ export default function BrowsePropertiesPage() {
       bedroomFiltered.sort((a, b) => b.pricePerNight - a.pricePerNight);
     } else if (sortBy === "rating") {
       bedroomFiltered.sort(
-        (a, b) => (b.averageRating || 0) - (a.averageRating || 0)
+        (a, b) => (b.averageRating || 0) - (a.averageRating || 0),
       );
     } else if (sortBy === "newest") {
       bedroomFiltered.sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
     }
 
@@ -84,7 +92,9 @@ export default function BrowsePropertiesPage() {
   const FilterPanel = () => (
     <div className="space-y-6">
       <div>
-        <label className="text-sm font-medium mb-3 block text-gray-800">Property Type</label>
+        <label className="text-sm font-medium mb-3 block text-gray-800">
+          Property Type
+        </label>
         <div className="grid grid-cols-2 gap-2">
           {[
             { value: "all", label: "All", icon: Home },
@@ -110,7 +120,8 @@ export default function BrowsePropertiesPage() {
 
       <div>
         <label className="text-sm font-medium mb-3 block text-gray-800">
-          Price Range: ₦{minPrice.toLocaleString()} - ₦{maxPrice.toLocaleString()}
+          Price Range: ₦{minPrice.toLocaleString()} - ₦
+          {maxPrice.toLocaleString()}
         </label>
         <div className="space-y-3">
           <input
@@ -158,39 +169,66 @@ export default function BrowsePropertiesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ colorScheme: "light" }}>
-      <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+    <div
+      className="min-h-screen bg-gray-50 flex flex-col"
+      style={{ colorScheme: "light" }}
+    >
+      <GuestHeader
+        currentPage="browse"
+        searchPlaceholder="Search location..."
+      />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2 text-gray-900">Browse Properties</h1>
-          <p className="text-gray-600">Find your perfect home from our collection</p>
-        </div>
+      <div className="border-b sticky top-0 z-10 backdrop-blur-sm bg-gray-50/90 border-gray-200">
+        <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <Input
+                type="search"
+                placeholder="Search by location, property type, or keywords..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-14 rounded-xl border text-base shadow-sm bg-white border-gray-200 text-gray-900"
+              />
+            </div>
 
-        <div className="flex gap-2 mb-6">
-          <div className="relative flex-1">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-            <Input
-              type="text"
-              placeholder="Search by location, city, or property name..."
-              className="pl-10 h-12"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="h-14 px-6 rounded-xl font-medium"
+                onClick={() => setShowMobileFilters((prev) => !prev)}
+              >
+                <SlidersHorizontal className="w-5 h-5 mr-2" />
+                Filters
+              </Button>
+
+              <div className="w-[180px]">
+                <Select
+                  value={sortBy}
+                  onChange={setSortBy}
+                  options={[
+                    { value: "relevant", label: "Featured" },
+                    { value: "price-high", label: "Price: High to Low" },
+                    { value: "price-low", label: "Price: Low to High" },
+                    { value: "newest", label: "Newest First" },
+                  ]}
+                />
+              </div>
+            </div>
           </div>
-          <Button size="lg" variant="outline" className="hidden md:flex">
-            <Search className="w-5 h-5" />
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            className="md:hidden"
-            onClick={() => setShowMobileFilters((prev) => !prev)}
-          >
-            <SlidersHorizontal className="w-5 h-5" />
-          </Button>
-        </div>
 
+          <div className="mt-4">
+            <p className="text-gray-600">
+              <span className="font-semibold text-gray-900">
+                {properties.length} properties
+              </span>{" "}
+              available in your search
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 max-w-[1440px] mx-auto w-full px-6 lg:px-8 py-12">
         {showMobileFilters && (
           <div className="md:hidden mb-6 bg-white rounded-xl border border-gray-200 p-4">
             <FilterPanel />
@@ -198,7 +236,7 @@ export default function BrowsePropertiesPage() {
         )}
 
         <div className="flex gap-6">
-          <aside className="hidden md:block w-64 shrink-0">
+          <aside className="hidden md:block w-72 shrink-0">
             <div className="sticky top-20 bg-white rounded-xl border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-900">Filters</h3>
@@ -221,23 +259,6 @@ export default function BrowsePropertiesPage() {
           </aside>
 
           <div className="flex-1">
-            <div className="flex items-center justify-between mb-6 gap-4">
-              <p className="text-sm text-gray-600">{properties.length} properties found</p>
-              <div className="w-44">
-                <Select
-                  value={sortBy}
-                  onChange={setSortBy}
-                  options={[
-                    { value: "relevant", label: "Most Relevant" },
-                    { value: "price-low", label: "Price: Low to High" },
-                    { value: "price-high", label: "Price: High to Low" },
-                    { value: "rating", label: "Highest Rated" },
-                    { value: "newest", label: "Newest" },
-                  ]}
-                />
-              </div>
-            </div>
-
             {isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3, 4, 5, 6].map((item) => (
@@ -249,7 +270,7 @@ export default function BrowsePropertiesPage() {
                 ))}
               </div>
             ) : properties.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                 {properties.map((property) => (
                   <PropertyCard
                     key={property.id}
@@ -265,8 +286,12 @@ export default function BrowsePropertiesPage() {
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Search className="w-8 h-8 text-gray-500" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2 text-gray-900">No properties found</h3>
-                <p className="text-gray-600 mb-4">Try adjusting your filters or search criteria</p>
+                <h3 className="text-xl font-semibold mb-2 text-gray-900">
+                  No properties found
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Try adjusting your filters or search criteria
+                </p>
                 <Button
                   variant="outline"
                   onClick={() => {
