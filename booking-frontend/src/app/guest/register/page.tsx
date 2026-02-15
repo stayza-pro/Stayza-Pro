@@ -46,10 +46,9 @@ export default function GuestRegisterPage() {
     secondaryColor,
     accentColor,
     realtorName,
-    tagline,
     logoUrl,
-    description,
   } = useRealtorBranding();
+  const primaryDark = "#10283f";
 
   useEffect(() => {
     setSubdomain(getRealtorSubdomain());
@@ -175,7 +174,7 @@ export default function GuestRegisterPage() {
       <div
         className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor || primaryColor} 100%)`,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
         }}
       >
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
@@ -201,8 +200,8 @@ export default function GuestRegisterPage() {
               Join Our Exclusive Community
             </h1>
             <p className="text-lg leading-relaxed text-white/90">
-              {description ||
-                "Create your account to unlock premium features and personalized property experiences."}
+              Create your account to unlock premium features and personalized
+              property experiences
             </p>
 
             <div className="space-y-4 pt-8">
@@ -254,7 +253,7 @@ export default function GuestRegisterPage() {
               Create Account
             </h1>
             <p className="text-gray-600">
-              {tagline || "Start your journey to finding the perfect property"}
+              Start your journey to finding the perfect property
             </p>
           </div>
 
@@ -346,7 +345,7 @@ export default function GuestRegisterPage() {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+234 800 000 0000"
+                    placeholder="+1 (555) 000-0000"
                     value={data.phone}
                     onChange={(e) =>
                       setData((prev) => ({ ...prev, phone: e.target.value }))

@@ -2,20 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Camera,
-  CreditCard,
-  LogOut,
-  MessageSquare,
-  Save,
-  Shield,
-  User,
-} from "lucide-react";
+import { Camera, Save, Shield, User } from "lucide-react";
 import { Button, Card, Input } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { authService } from "@/services";
 
 type ProfileTab = "personal" | "preferences" | "security";
 
@@ -66,6 +57,8 @@ export default function ProfilePage() {
     secondaryColor,
     accentColor,
   } = useRealtorBranding();
+  const primaryPale = "#e8f1f8";
+  const secondarySurface = "#f9f4ef";
 
   useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
@@ -92,14 +85,9 @@ export default function ProfilePage() {
   const fullName =
     `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Guest User";
 
-  const handleLogout = async () => {
-    await authService.logout();
-    router.push("/guest/login");
-  };
-
   if (!authChecked || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen" style={{ backgroundColor: "#f8fafc" }}>
         <GuestHeader currentPage="profile" searchPlaceholder="Search..." />
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-4">
@@ -112,7 +100,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
       <GuestHeader currentPage="profile" searchPlaceholder="Search..." />
 
       <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 py-12">
@@ -126,7 +117,7 @@ export default function ProfilePage() {
               <div className="relative inline-block mb-6">
                 <div
                   className="w-32 h-32 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: `${primaryColor}20` }}
+                  style={{ backgroundColor: primaryPale }}
                 >
                   <User className="w-16 h-16" style={{ color: primaryColor }} />
                 </div>
@@ -143,12 +134,12 @@ export default function ProfilePage() {
               <h2 className="font-semibold text-xl mb-1 text-gray-900">
                 {fullName}
               </h2>
-              <p className="text-sm text-gray-600">Member since 2026</p>
+              <p className="text-sm text-gray-600">Member since Feb 2026</p>
             </Card>
 
             <Card
               className="p-6 rounded-2xl border-0"
-              style={{ backgroundColor: `${secondaryColor || primaryColor}14` }}
+              style={{ backgroundColor: secondarySurface }}
             >
               <h3 className="font-semibold mb-4 text-gray-900">
                 Account Stats
@@ -188,7 +179,7 @@ export default function ProfilePage() {
           <div className="space-y-8">
             <div
               className="inline-flex h-12 p-1 rounded-xl"
-              style={{ backgroundColor: `${primaryColor}20` }}
+              style={{ backgroundColor: primaryPale }}
             >
               {[
                 { key: "personal", label: "Personal Info" },
@@ -422,49 +413,18 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    className="h-12 px-8 rounded-xl font-medium text-white"
-                    style={{ backgroundColor: accentColor || primaryColor }}
-                  >
-                    <Shield className="w-5 h-5 mr-2" />
-                    Update Password
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-12 px-6 rounded-xl"
-                    onClick={() => router.push("/guest/bookings")}
-                  >
-                    <CreditCard className="w-5 h-5 mr-2" />
-                    Booking History
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-12 px-6 rounded-xl"
-                    onClick={() => router.push("/guest/messages")}
-                  >
-                    <MessageSquare className="w-5 h-5 mr-2" />
-                    Messages
-                  </Button>
-                </div>
+                <Button
+                  className="h-12 px-8 rounded-xl font-medium text-white"
+                  style={{ backgroundColor: accentColor || primaryColor }}
+                >
+                  <Shield className="w-5 h-5 mr-2" />
+                  Update Password
+                </Button>
               </Card>
             )}
           </div>
         </div>
-
-        <div className="mt-8">
-          <Button
-            variant="outline"
-            className="w-full lg:w-auto"
-            size="lg"
-            onClick={handleLogout}
-          >
-            <LogOut className="w-5 h-5 mr-2" />
-            Log Out
-          </Button>
-        </div>
       </main>
-
     </div>
   );
 }

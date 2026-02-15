@@ -3,7 +3,15 @@
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, File, Mic, Paperclip, Search, Send, X } from "lucide-react";
+import {
+  ArrowLeft,
+  File,
+  MoreVertical,
+  Paperclip,
+  Search,
+  Send,
+  X,
+} from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
@@ -33,16 +41,10 @@ function MessagesContent() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [hasMappedHostId, setHasMappedHostId] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
@@ -233,7 +235,7 @@ function MessagesContent() {
 
   const handleSendMessage = async () => {
     if (
-      (!messageText.trim() && selectedFiles.length === 0 && !audioBlob) ||
+      (!messageText.trim() && selectedFiles.length === 0) ||
       !selectedConversation
     ) {
       return;
@@ -257,10 +259,6 @@ function MessagesContent() {
         formData.append("files", file);
       });
 
-      if (audioBlob) {
-        formData.append("voiceNote", audioBlob, `voice_${Date.now()}.webm`);
-      }
-
       let response;
       if (context.type === "property") {
         response = await messageService.sendPropertyInquiryWithAttachments(
@@ -283,7 +281,6 @@ function MessagesContent() {
       if (response?.success) {
         setMessageText("");
         setSelectedFiles([]);
-        setAudioBlob(null);
         await fetchMessages();
         await fetchConversations();
       }
@@ -307,54 +304,6 @@ function MessagesContent() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const voiceBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
-        });
-        setAudioBlob(voiceBlob);
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
-      }, 1000);
-    } catch {
-      toast.error("Microphone access denied");
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-      }
-    }
-  };
-
-  const cancelRecording = () => {
-    stopRecording();
-    setAudioBlob(null);
-    setRecordingTime(0);
-  };
-
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -368,12 +317,6 @@ function MessagesContent() {
     }
 
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
-
-  const formatRecordingTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const filteredConversations = conversations.filter((conversation) => {
@@ -394,7 +337,10 @@ function MessagesContent() {
 
   if (!authChecked || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div
+        className="min-h-screen flex flex-col"
+        style={{ backgroundColor: "#f8fafc" }}
+      >
         <GuestHeader currentPage="messages" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="animate-pulse space-y-4">
@@ -407,7 +353,10 @@ function MessagesContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
       <GuestHeader currentPage="messages" />
 
       <div className="h-[calc(100vh-80px)] md:h-[calc(100vh-80px)] max-w-[1440px] mx-auto w-full">
@@ -454,10 +403,13 @@ function MessagesContent() {
                       key={conversationId}
                       onClick={() => setSelectedConversation(conversationId)}
                       className={`w-full p-4 rounded-xl transition-all mb-2 text-left ${
-                        selectedConversation === conversationId
-                          ? "bg-[#EEF5FF]"
-                          : ""
+                        selectedConversation === conversationId ? "" : ""
                       }`}
+                      style={
+                        selectedConversation === conversationId
+                          ? { backgroundColor: `${primaryColor}14` }
+                          : undefined
+                      }
                     >
                       <div className="flex gap-3">
                         <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center text-sm font-semibold text-gray-700">
@@ -560,6 +512,10 @@ function MessagesContent() {
                       "Direct conversation"}
                   </div>
                 </div>
+
+                <Button variant="ghost" size="sm" className="!p-2">
+                  <MoreVertical className="w-5 h-5 text-gray-500" />
+                </Button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/30">
@@ -574,46 +530,26 @@ function MessagesContent() {
                 ) : messages.length > 0 ? (
                   messages.map((msg) => {
                     const isOwn = msg.senderId === user?.id;
-                    const senderName = msg.sender
-                      ? `${msg.sender.firstName} ${msg.sender.lastName}`
-                      : isOwn
-                        ? "You"
-                        : "Host";
 
                     return (
                       <div
                         key={msg.id}
-                        className={`flex gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+                        className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                       >
-                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center text-xs font-semibold text-gray-700">
-                          {isOwn
-                            ? "Y"
-                            : senderName
-                                .split(" ")
-                                .slice(0, 2)
-                                .map((p) => p.charAt(0))
-                                .join("")}
-                        </div>
-
-                        <div
-                          className={`flex flex-col gap-1 max-w-[70%] ${
-                            isOwn ? "items-end" : "items-start"
-                          }`}
-                        >
+                        <div className="max-w-[70%]">
                           <div
-                            className={`px-4 py-2 rounded-2xl ${
-                              isOwn
-                                ? "rounded-tr-sm text-white"
-                                : "bg-gray-200 rounded-tl-sm"
-                            }`}
+                            className="p-4 rounded-2xl"
                             style={
                               isOwn
                                 ? { backgroundColor: primaryColor }
-                                : undefined
+                                : { backgroundColor: "#F3F4F6" }
                             }
                           >
                             {msg.content ? (
-                              <p className="text-sm whitespace-pre-wrap break-words">
+                              <p
+                                className="text-sm whitespace-pre-wrap break-words"
+                                style={{ color: isOwn ? "#ffffff" : "#111827" }}
+                              >
                                 {msg.content}
                               </p>
                             ) : null}
@@ -642,9 +578,12 @@ function MessagesContent() {
                             )}
                           </div>
 
-                          <span className="text-xs text-gray-500 px-2">
+                          <div
+                            className={`text-xs mt-1 ${isOwn ? "text-right" : "text-left"}`}
+                            style={{ color: "#6B7280" }}
+                          >
                             {formatTime(msg.createdAt)}
-                          </span>
+                          </div>
                         </div>
                       </div>
                     );
@@ -685,23 +624,7 @@ function MessagesContent() {
                   </div>
                 )}
 
-                {audioBlob && (
-                  <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                    <Mic className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-700">
-                      Voice note ({formatRecordingTime(recordingTime)})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={cancelRecording}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex gap-2">
+                <div className="flex items-end gap-3">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -715,21 +638,20 @@ function MessagesContent() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="!p-2"
+                    className="!p-2 mb-1"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isSending || isRecording}
+                    disabled={isSending}
                   >
                     <Paperclip className="w-5 h-5" />
                   </Button>
 
-                  <textarea
-                    placeholder={
-                      isRecording ? "Recording..." : "Type your message..."
-                    }
-                    className="flex-1 h-10 min-h-0 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  <Input
+                    type="text"
+                    placeholder="Type your message..."
+                    className="flex-1 h-12 rounded-xl bg-gray-50 border-gray-200"
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
-                    disabled={isSending || isRecording}
+                    disabled={isSending}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -740,27 +662,12 @@ function MessagesContent() {
 
                   <Button
                     type="button"
-                    variant="ghost"
                     size="sm"
-                    className="!p-2"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    disabled={isSending}
-                  >
-                    <Mic
-                      className={`w-5 h-5 ${isRecording ? "animate-pulse" : ""}`}
-                    />
-                  </Button>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="!p-2 text-white"
+                    className="w-12 h-12 rounded-xl text-white"
                     style={{ backgroundColor: primaryColor }}
                     onClick={handleSendMessage}
                     disabled={
-                      (!messageText.trim() &&
-                        selectedFiles.length === 0 &&
-                        !audioBlob) ||
+                      (!messageText.trim() && selectedFiles.length === 0) ||
                       isSending
                     }
                   >

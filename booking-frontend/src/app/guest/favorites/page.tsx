@@ -19,10 +19,8 @@ export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<FavoriteProperty[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
 
-  const {
-    brandColor: primaryColor,
-    accentColor,
-  } = useRealtorBranding();
+  const { brandColor: primaryColor, accentColor } = useRealtorBranding();
+  const secondarySurface = "#f9f4ef";
 
   useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
@@ -111,7 +109,7 @@ export default function FavoritesPage() {
 
   if (!authChecked || isLoading || loadingFavorites) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen" style={{ backgroundColor: "#f8fafc" }}>
         <GuestHeader
           currentPage="favorites"
           searchPlaceholder="Search properties..."
@@ -127,7 +125,10 @@ export default function FavoritesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
       <GuestHeader
         currentPage="favorites"
         searchPlaceholder="Search properties..."
@@ -135,7 +136,7 @@ export default function FavoritesPage() {
 
       <main className="flex-1 max-w-[1440px] mx-auto w-full px-6 lg:px-8 py-12">
         <div className="mb-12">
-          <h1 className="font-semibold mb-3 text-[clamp(32px,4vw,48px)] text-gray-900">
+          <h1 className="font-semibold mb-3 text-[40px] text-gray-900">
             My Favorites
           </h1>
           <p className="text-lg text-gray-600">
@@ -184,7 +185,7 @@ export default function FavoritesPage() {
 
                 <div className="p-6 space-y-4">
                   <div>
-                    <h3 className="font-semibold mb-2 text-[18px] text-gray-900 line-clamp-1">
+                    <h3 className="font-semibold mb-2 text-[18px] text-gray-900">
                       {property.title}
                     </h3>
                     <div className="flex items-center gap-2">
@@ -212,7 +213,7 @@ export default function FavoritesPage() {
                     <div className="flex items-center gap-1.5">
                       <Square className="w-4 h-4 text-gray-500" />
                       <span className="text-sm font-medium text-gray-700">
-                        {property.maxGuests} guests
+                        {property.maxGuests}
                       </span>
                     </div>
                   </div>
@@ -232,7 +233,13 @@ export default function FavoritesPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+          <div
+            className="text-center py-12 rounded-2xl border"
+            style={{
+              backgroundColor: secondarySurface,
+              borderColor: "#e5e7eb",
+            }}
+          >
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Heart className="w-8 h-8 text-gray-500" />
             </div>
@@ -254,7 +261,6 @@ export default function FavoritesPage() {
           </div>
         )}
       </main>
-
     </div>
   );
 }

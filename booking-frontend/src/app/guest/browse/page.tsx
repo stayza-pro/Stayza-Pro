@@ -1,15 +1,20 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Bath,
+  Bed,
   Search,
   SlidersHorizontal,
+  MapPin,
+  Square,
+  Heart,
   ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { PropertyCard } from "@/components/property";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProperties } from "@/hooks/useProperties";
@@ -26,8 +31,10 @@ export default function BrowsePropertiesPage() {
   );
   const {
     brandColor: primaryColor,
+    secondaryColor,
     accentColor,
   } = useRealtorBranding();
+  const primaryPale = "#e8f1f8";
   const { isAuthenticated } = useCurrentUser();
 
   useEffect(() => {
@@ -52,6 +59,14 @@ export default function BrowsePropertiesPage() {
     page: 1,
     limit: 30,
   });
+
+  const formatPrice = (price: number, currency: string = "USD") =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
 
   const properties = useMemo(() => {
     const items = [...(propertiesResponse?.data || [])];
@@ -104,7 +119,9 @@ export default function BrowsePropertiesPage() {
   const toggleLike = async (propertyId: string) => {
     if (!isAuthenticated) {
       toast.error("Please sign in to save favorites");
-      router.push(`/guest/login?returnTo=${encodeURIComponent("/guest/browse")}`);
+      router.push(
+        `/guest/login?returnTo=${encodeURIComponent("/guest/browse")}`,
+      );
       return;
     }
 
@@ -130,13 +147,22 @@ export default function BrowsePropertiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
       <GuestHeader
         currentPage="browse"
         searchPlaceholder="Search location..."
       />
 
-      <div className="border-b sticky top-0 z-10 backdrop-blur-sm bg-gray-50/90 border-gray-200">
+      <div
+        className="border-b sticky top-0 z-10 backdrop-blur-sm"
+        style={{
+          backgroundColor: "#f8fafcf0",
+          borderColor: "#e5e7eb",
+        }}
+      >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -147,7 +173,7 @@ export default function BrowsePropertiesPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 h-14 rounded-xl border text-base shadow-sm border-gray-200 text-gray-900"
-                style={{ backgroundColor: `${primaryColor}14` }}
+                style={{ backgroundColor: primaryPale }}
               />
             </div>
 
@@ -201,20 +227,122 @@ export default function BrowsePropertiesPage() {
         ) : properties.length > 0 ? (
           <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {properties.map((property) => (
-                <PropertyCard
-                  key={property.id}
-                  property={property}
-                  onFavorite={toggleLike}
-                  isFavorited={likedProperties.has(property.id)}
-                  primaryColor={primaryColor}
-                  accentColor={accentColor}
-                />
-              ))}
+              {properties.map((property, index) => {
+                const featured = sortBy === "featured" && index < 3;
+                const imageUrl =
+                  property.images?.[0]?.url ||
+                  "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80";
+
+                return (
+                  <div
+                    key={property.id}
+                    className="group rounded-2xl border overflow-hidden transition-all hover:shadow-xl bg-white border-gray-200"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt={property.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+
+                      {featured ? (
+                        <div
+                          className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm text-white"
+                          style={{
+                            backgroundColor: secondaryColor || primaryColor,
+                          }}
+                        >
+                          Featured
+                        </div>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleLike(property.id)}
+                        className="absolute top-4 right-4 w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110"
+                        style={{ backgroundColor: "rgba(255, 255, 255, 0.9)" }}
+                        aria-label="Toggle favorite"
+                      >
+                        <Heart
+                          className="w-5 h-5 transition-all"
+                          style={{
+                            color: likedProperties.has(property.id)
+                              ? accentColor || primaryColor
+                              : "#6B7280",
+                            fill: likedProperties.has(property.id)
+                              ? accentColor || primaryColor
+                              : "none",
+                          }}
+                        />
+                      </button>
+
+                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
+                        <div className="text-2xl font-bold text-white">
+                          {formatPrice(
+                            property.pricePerNight,
+                            property.currency,
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                      <div>
+                        <h3 className="font-semibold mb-2 line-clamp-1 text-[18px] text-gray-900">
+                          {property.title}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm line-clamp-1 text-gray-600">
+                            {property.city}
+                            {property.state ? `, ${property.state}` : ""}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+                        <div className="flex items-center gap-1.5">
+                          <Bed className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-700">
+                            {property.bedrooms}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Bath className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-700">
+                            {property.bathrooms}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Square className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-700">
+                            {property.maxGuests}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Link href={`/browse/${property.id}`}>
+                        <Button
+                          className="w-full h-11 rounded-xl font-medium text-white"
+                          style={{
+                            backgroundColor: accentColor || primaryColor,
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="text-center mt-12">
-              <Button variant="outline" size="lg" className="px-8 h-12 rounded-xl font-medium">
+              <Button
+                variant="outline"
+                size="lg"
+                className="px-8 h-12 rounded-xl font-medium"
+              >
                 Load More Properties
                 <ChevronDown className="w-5 h-5 ml-2" />
               </Button>
@@ -231,7 +359,9 @@ export default function BrowsePropertiesPage() {
             <p className="text-gray-600 mb-4">
               Try adjusting your filters or search criteria
             </p>
-            <Button variant="outline" onClick={() => setSearchQuery("")}>Clear Filters</Button>
+            <Button variant="outline" onClick={() => setSearchQuery("")}>
+              Clear Filters
+            </Button>
           </div>
         )}
       </main>

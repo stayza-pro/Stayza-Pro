@@ -25,6 +25,8 @@ export default function GuestBookingsPage() {
     secondaryColor,
     accentColor,
   } = useRealtorBranding();
+  const primaryPale = "#e8f1f8";
+  const secondarySurface = "#f9f4ef";
 
   const {
     data: bookingsData,
@@ -92,6 +94,12 @@ export default function GuestBookingsPage() {
       year: "numeric",
     });
 
+  const formatTime = (value: Date | string) =>
+    new Date(value).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
   const getStatusColor = (status: Booking["status"]) => {
     if (status === "ACTIVE") return accentColor || "#D97706";
     if (status === "PENDING") return secondaryColor || "#059669";
@@ -109,8 +117,17 @@ export default function GuestBookingsPage() {
   };
 
   const EmptyState = ({ message }: { message: string }) => (
-    <Card className="text-center py-20 rounded-2xl border border-gray-200 bg-gray-50">
-      <div className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center bg-white">
+    <Card
+      className="text-center py-20 rounded-2xl border"
+      style={{
+        borderColor: "#e5e7eb",
+        backgroundColor: secondarySurface,
+      }}
+    >
+      <div
+        className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center"
+        style={{ backgroundColor: primaryPale }}
+      >
         <Calendar className="w-10 h-10" style={{ color: primaryColor }} />
       </div>
       <h3 className="font-semibold mb-2 text-[24px] text-gray-900">
@@ -130,7 +147,7 @@ export default function GuestBookingsPage() {
 
   if (!authChecked || authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen" style={{ backgroundColor: "#f8fafc" }}>
         <GuestHeader
           currentPage="bookings"
           searchPlaceholder="Search your bookings..."
@@ -147,13 +164,13 @@ export default function GuestBookingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen" style={{ backgroundColor: "#f8fafc" }}>
       <GuestHeader
         currentPage="bookings"
         searchPlaceholder="Search your bookings..."
       />
 
-      <main className="flex-1 max-w-[1440px] mx-auto w-full px-6 lg:px-8 py-12">
+      <main className="max-w-[1440px] mx-auto w-full px-6 lg:px-8 py-12">
         <div className="mb-12">
           <h1 className="font-semibold mb-3 text-gray-900 text-[clamp(32px,4vw,48px)]">
             My Bookings
@@ -165,7 +182,7 @@ export default function GuestBookingsPage() {
 
         <div
           className="inline-flex h-14 p-1.5 rounded-xl mb-8"
-          style={{ backgroundColor: `${primaryColor}20` }}
+          style={{ backgroundColor: primaryPale }}
         >
           {[
             { key: "upcoming", label: "Upcoming" },
@@ -246,7 +263,10 @@ export default function GuestBookingsPage() {
 
                           <div className="grid sm:grid-cols-2 gap-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100">
+                              <div
+                                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                                style={{ backgroundColor: primaryPale }}
+                              >
                                 <Calendar
                                   className="w-5 h-5"
                                   style={{ color: primaryColor }}
@@ -263,7 +283,10 @@ export default function GuestBookingsPage() {
                             </div>
 
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100">
+                              <div
+                                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                                style={{ backgroundColor: primaryPale }}
+                              >
                                 <Clock
                                   className="w-5 h-5"
                                   style={{ color: primaryColor }}
@@ -271,10 +294,12 @@ export default function GuestBookingsPage() {
                               </div>
                               <div>
                                 <div className="text-xs text-gray-500">
-                                  Check-out
+                                  Time
                                 </div>
                                 <div className="font-medium text-gray-900">
-                                  {formatDate(booking.checkOutDate)}
+                                  {booking.checkInTime
+                                    ? formatTime(booking.checkInTime)
+                                    : "TBD"}
                                 </div>
                               </div>
                             </div>
@@ -289,7 +314,7 @@ export default function GuestBookingsPage() {
 
                         <div className="flex flex-wrap gap-3 mt-6">
                           <Link
-                            href={`/guest/booking/${booking.id}`}
+                            href={`/guest/bookings/${booking.id}`}
                             className="flex-1 min-w-[200px]"
                           >
                             <Button
@@ -321,7 +346,6 @@ export default function GuestBookingsPage() {
           )}
         </div>
       </main>
-
     </div>
   );
 }

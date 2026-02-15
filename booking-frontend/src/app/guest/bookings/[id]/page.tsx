@@ -8,10 +8,9 @@ import {
   Calendar,
   Clock,
   MapPin,
-  Users,
   MessageSquare,
   Download,
-  X,
+  XCircle,
   Mail,
   User,
 } from "lucide-react";
@@ -41,6 +40,8 @@ export default function GuestBookingDetailsPage() {
     secondaryColor,
     accentColor,
   } = useRealtorBranding();
+  const primaryPale = "#e8f1f8";
+  const secondarySurface = "#f9f4ef";
 
   React.useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
@@ -50,7 +51,7 @@ export default function GuestBookingDetailsPage() {
 
   React.useEffect(() => {
     if (authChecked && !isLoading && !isAuthenticated) {
-      router.push(`/guest/login?returnTo=/guest/booking/${bookingId}`);
+      router.push(`/guest/login?returnTo=/guest/bookings/${bookingId}`);
     }
   }, [authChecked, isLoading, isAuthenticated, router, bookingId]);
 
@@ -82,13 +83,6 @@ export default function GuestBookingDetailsPage() {
       day: "numeric",
       year: "numeric",
     });
-
-  const formatCurrency = (value: number, currency: string = "NGN") =>
-    new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-    }).format(value);
 
   const formatTime = (value?: Date | string) => {
     if (!value) {
@@ -162,7 +156,7 @@ export default function GuestBookingDetailsPage() {
 
   if (!authChecked || isLoading || bookingLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen" style={{ backgroundColor: "#f8fafc" }}>
         <GuestHeader currentPage="bookings" />
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="animate-pulse space-y-4">
@@ -177,7 +171,7 @@ export default function GuestBookingDetailsPage() {
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen" style={{ backgroundColor: "#f8fafc" }}>
         <GuestHeader currentPage="bookings" />
         <div className="max-w-3xl mx-auto px-4 py-12">
           <Card className="p-8 text-center bg-white border border-gray-200">
@@ -197,10 +191,13 @@ export default function GuestBookingDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
       <GuestHeader currentPage="bookings" />
 
-      <div className="relative h-[320px] lg:h-[420px]">
+      <div className="relative h-[400px] lg:h-[500px]">
         {booking.property?.images?.[0]?.url ? (
           <img
             src={booking.property.images[0].url}
@@ -219,7 +216,7 @@ export default function GuestBookingDetailsPage() {
         />
 
         <div className="absolute inset-0 flex items-end">
-          <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-8 pb-10">
+          <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-8 pb-12">
             <Link
               href="/guest/bookings"
               className="inline-flex items-center gap-2 text-white mb-5 hover:underline"
@@ -236,10 +233,10 @@ export default function GuestBookingDetailsPage() {
                 >
                   {getStatusLabel()}
                 </div>
-                <h1 className="text-3xl lg:text-5xl font-semibold text-white mb-2">
+                <h1 className="text-4xl lg:text-5xl font-semibold text-white mb-3">
                   {booking.property?.title || "Booking Details"}
                 </h1>
-                <div className="flex items-center gap-2 text-white text-base lg:text-lg">
+                <div className="flex items-center gap-2 text-white text-lg">
                   <MapPin className="w-5 h-5" />
                   {booking.property?.city || ""}
                   {booking.property?.state ? `, ${booking.property.state}` : ""}
@@ -271,7 +268,7 @@ export default function GuestBookingDetailsPage() {
                 <div className="flex items-start gap-4">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${primaryColor}14` }}
+                    style={{ backgroundColor: primaryPale }}
                   >
                     <Calendar
                       className="w-6 h-6"
@@ -289,7 +286,7 @@ export default function GuestBookingDetailsPage() {
                 <div className="flex items-start gap-4">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${primaryColor}14` }}
+                    style={{ backgroundColor: primaryPale }}
                   >
                     <Clock
                       className="w-6 h-6"
@@ -307,29 +304,10 @@ export default function GuestBookingDetailsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4">
+                <div className="sm:col-span-2 flex items-start gap-4">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${primaryColor}14` }}
-                  >
-                    <Users
-                      className="w-6 h-6"
-                      style={{ color: primaryColor }}
-                    />
-                  </div>
-                  <div>
-                    <div className="text-sm mb-1 text-gray-500">Guests</div>
-                    <div className="font-semibold text-[18px] text-gray-900">
-                      {booking.totalGuests} guest
-                      {booking.totalGuests > 1 ? "s" : ""}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${primaryColor}14` }}
+                    style={{ backgroundColor: primaryPale }}
                   >
                     <MapPin
                       className="w-6 h-6"
@@ -363,31 +341,16 @@ export default function GuestBookingDetailsPage() {
               </div>
 
               {booking.specialRequests ? (
-                <div className="mt-6 p-4 rounded-xl bg-gray-50">
+                <div
+                  className="mt-6 p-4 rounded-xl"
+                  style={{ backgroundColor: secondarySurface }}
+                >
                   <div className="text-sm font-semibold mb-2 text-gray-900">
                     Important Notes
                   </div>
                   <p className="text-gray-600">{booking.specialRequests}</p>
                 </div>
               ) : null}
-            </Card>
-
-            <Card className="p-6 rounded-2xl border bg-white border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Payment Summary
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between text-gray-700">
-                  <span>Total Amount</span>
-                  <span className="font-semibold text-gray-900">
-                    {formatCurrency(booking.totalPrice, booking.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-gray-600 text-sm">
-                  <span>Payment Status</span>
-                  <span>{formatPaymentStatus(booking.paymentStatus)}</span>
-                </div>
-              </div>
             </Card>
 
             <div className="grid sm:grid-cols-2 gap-4">
@@ -404,17 +367,8 @@ export default function GuestBookingDetailsPage() {
                 variant="outline"
                 className="h-12 rounded-xl font-medium"
                 onClick={() =>
-                  router.push(`/guest/messages?bookingId=${bookingId}`)
+                  router.push(`/guest/bookings/${bookingId}/checkout`)
                 }
-              >
-                <MessageSquare className="w-5 h-5 mr-2" />
-                Message Host
-              </Button>
-
-              <Button
-                variant="outline"
-                className="h-12 rounded-xl font-medium"
-                onClick={() => router.push(`/guest/bookings/${bookingId}/checkout`)}
               >
                 Reschedule Viewing
               </Button>
@@ -422,10 +376,10 @@ export default function GuestBookingDetailsPage() {
               {canCancel ? (
                 <Button
                   variant="outline"
-                  className="h-12 rounded-xl font-medium border-red-500 text-red-600 hover:text-red-700"
+                  className="sm:col-span-2 h-12 rounded-xl font-medium border-red-500 text-red-600 hover:text-red-700"
                   onClick={() => setShowCancelDialog(true)}
                 >
-                  <X className="w-5 h-5 mr-2" />
+                  <XCircle className="w-5 h-5 mr-2" />
                   Cancel Booking
                 </Button>
               ) : null}
@@ -449,19 +403,23 @@ export default function GuestBookingDetailsPage() {
                   <div className="font-semibold text-[18px] text-gray-900">
                     {booking.property?.realtor?.businessName || "Property Host"}
                   </div>
-                  <div className="text-sm text-gray-600">Property Specialist</div>
+                  <div className="text-sm text-gray-600">
+                    Property Specialist
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-3">
-                {(booking.property?.realtor?.businessEmail || booking.property?.realtor?.user?.email) && (
+                {(booking.property?.realtor?.businessEmail ||
+                  booking.property?.realtor?.user?.email) && (
                   <a
                     href={`mailto:${booking.property?.realtor?.businessEmail || booking.property?.realtor?.user?.email}`}
                     className="flex items-center gap-3 p-3 rounded-lg transition-all hover:shadow-sm bg-gray-50"
                   >
                     <Mail className="w-5 h-5" style={{ color: primaryColor }} />
                     <span className="text-sm text-gray-900">
-                      {booking.property?.realtor?.businessEmail || booking.property?.realtor?.user?.email}
+                      {booking.property?.realtor?.businessEmail ||
+                        booking.property?.realtor?.user?.email}
                     </span>
                   </a>
                 )}
@@ -479,7 +437,10 @@ export default function GuestBookingDetailsPage() {
               </div>
             </Card>
 
-            <Card className="p-6 rounded-2xl bg-gray-50 border border-gray-200">
+            <Card
+              className="p-6 rounded-2xl border border-gray-200"
+              style={{ backgroundColor: secondarySurface }}
+            >
               <h3 className="font-semibold mb-4 text-[18px] text-gray-900">
                 Viewing Tips
               </h3>

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowRight, Search, Shield, Star, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { Footer } from "@/components/guest/sections";
 
 export default function GuestLandingPage() {
   const {
@@ -13,10 +12,8 @@ export default function GuestLandingPage() {
     secondaryColor,
     accentColor,
     realtorName,
-    logoUrl,
     tagline,
     description,
-    realtorId,
   } = useRealtorBranding();
 
   const features = [
@@ -24,7 +21,7 @@ export default function GuestLandingPage() {
       icon: Search,
       title: "Curated Properties",
       description:
-        "Hand-selected premium properties that match your lifestyle and expectations.",
+        "Hand-selected luxury properties that match your lifestyle and aspirations.",
     },
     {
       icon: Shield,
@@ -42,7 +39,7 @@ export default function GuestLandingPage() {
       icon: Sparkles,
       title: "Exclusive Access",
       description:
-        "Priority access for new listings and high-demand properties.",
+        "Priority viewing for new listings and off-market opportunities.",
     },
   ];
 
@@ -51,13 +48,16 @@ export default function GuestLandingPage() {
     { value: "98%", label: "Satisfaction" },
     { value: "24/7", label: "Support" },
   ];
+  const primaryDark = "#10283f";
+  const secondarySurface = "#faf8f4";
+  const secondaryDark = "#b8875f";
 
   return (
     <div className="min-h-screen">
       <section
         className="relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor || primaryColor} 100%)`,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
         }}
       >
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
@@ -149,7 +149,7 @@ export default function GuestLandingPage() {
 
       <section
         className="py-20 lg:py-32"
-        style={{ backgroundColor: `${secondaryColor || "#f3f4f6"}20` }}
+        style={{ backgroundColor: secondarySurface }}
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-12">
           <div className="text-center max-w-3xl mx-auto mb-16">
@@ -195,7 +195,7 @@ export default function GuestLandingPage() {
       <section
         className="py-20 lg:py-32"
         style={{
-          background: `linear-gradient(135deg, ${secondaryColor || primaryColor} 0%, ${primaryColor} 100%)`,
+          background: `linear-gradient(135deg, ${secondaryColor || "#d4a574"} 0%, ${secondaryDark} 100%)`,
         }}
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-12">
@@ -234,17 +234,6 @@ export default function GuestLandingPage() {
           </div>
         </div>
       </section>
-
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-        realtorId={realtorId || undefined}
-      />
     </div>
   );
 }

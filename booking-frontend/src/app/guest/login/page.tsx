@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, ArrowRight, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { getRealtorSubdomain } from "@/utils/subdomain";
 
 export default function GuestLoginPage() {
   const router = useRouter();
@@ -16,7 +15,6 @@ export default function GuestLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [subdomain, setSubdomain] = useState<string | null>(null);
 
   const {
     brandColor: primaryColor,
@@ -24,13 +22,8 @@ export default function GuestLoginPage() {
     accentColor,
     realtorName,
     logoUrl,
-    tagline,
-    description,
   } = useRealtorBranding();
-
-  useEffect(() => {
-    setSubdomain(getRealtorSubdomain());
-  }, []);
+  const primaryDark = "#10283f";
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -96,7 +89,7 @@ export default function GuestLoginPage() {
       <div
         className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor || primaryColor} 100%)`,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
         }}
       >
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
@@ -122,8 +115,7 @@ export default function GuestLoginPage() {
               Welcome Back
             </h1>
             <p className="text-lg leading-relaxed max-w-md text-white/90">
-              {description ||
-                "Sign in to continue your property search and manage your bookings."}
+              Sign in to continue your property search and manage your bookings
             </p>
 
             <div className="flex gap-2 pt-8">
@@ -169,9 +161,7 @@ export default function GuestLoginPage() {
               </span>
             </Link>
             <h1 className="font-semibold text-[32px] text-gray-900">Sign In</h1>
-            <p className="text-gray-600">
-              {tagline || "Welcome back! Please enter your details"}
-            </p>
+            <p className="text-gray-600">Welcome back! Please enter your details</p>
           </div>
 
           <div className="hidden lg:block space-y-2">
@@ -240,7 +230,7 @@ export default function GuestLoginPage() {
               </div>
 
               <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <div className="flex items-center gap-2">
                   <input
                     id="remember"
                     type="checkbox"
@@ -248,8 +238,13 @@ export default function GuestLoginPage() {
                     onChange={(event) => setRememberMe(event.target.checked)}
                     className="h-4 w-4 rounded border-gray-300"
                   />
-                  Remember me
-                </label>
+                  <label
+                    htmlFor="remember"
+                    className="text-sm cursor-pointer text-gray-600"
+                  >
+                    Remember me
+                  </label>
+                </div>
                 <Link
                   href="/forgot-password"
                   className="text-sm font-medium hover:underline"
@@ -278,7 +273,7 @@ export default function GuestLoginPage() {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-4 rounded-full bg-slate-50 text-gray-500">
-                New to {subdomain ? realtorName || "this site" : "Stayza"}?
+                New to {realtorName || "Stayza Pro"}?
               </span>
             </div>
           </div>
