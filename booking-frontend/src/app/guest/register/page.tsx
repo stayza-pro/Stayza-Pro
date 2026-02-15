@@ -3,7 +3,15 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  Mail,
+  ArrowRight,
+  CheckCircle2,
+  Lock,
+  Phone,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
@@ -13,6 +21,8 @@ interface GuestRegistrationData {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
+  password: string;
   agreedToTerms: boolean;
 }
 
@@ -24,8 +34,11 @@ export default function GuestRegisterPage() {
     firstName: "",
     lastName: "",
     email: "",
+    phone: "",
+    password: "",
     agreedToTerms: false,
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     realtorId,
@@ -55,6 +68,16 @@ export default function GuestRegisterPage() {
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
       toast.error("Please enter a valid email");
+      return false;
+    }
+
+    if (!data.phone.trim()) {
+      toast.error("Please enter your phone number");
+      return false;
+    }
+
+    if (!data.password.trim()) {
+      toast.error("Please enter a password");
       return false;
     }
 
@@ -138,8 +161,17 @@ export default function GuestRegisterPage() {
     "Direct messaging with property agents",
   ];
 
+  const passwordStrength =
+    data.password.length > 0
+      ? data.password.length < 6
+        ? "weak"
+        : data.password.length < 10
+          ? "medium"
+          : "strong"
+      : null;
+
   return (
-    <div className="min-h-screen flex" style={{ colorScheme: "light" }}>
+    <div className="min-h-screen flex">
       <div
         className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
         style={{
@@ -300,9 +332,85 @@ export default function GuestRegisterPage() {
                     required
                   />
                 </div>
-                <p className="text-xs text-gray-500">
-                  We&apos;ll send a one-time verification code to your email.
-                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="phone"
+                  className="text-sm font-medium text-gray-900"
+                >
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+234 800 000 0000"
+                    value={data.phone}
+                    onChange={(e) =>
+                      setData((prev) => ({ ...prev, phone: e.target.value }))
+                    }
+                    className="pl-12 h-12 rounded-xl border text-base bg-gray-50 border-gray-200 text-gray-900"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="password"
+                  className="text-sm font-medium text-gray-900"
+                >
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={data.password}
+                    onChange={(e) =>
+                      setData((prev) => ({ ...prev, password: e.target.value }))
+                    }
+                    className="pl-12 pr-12 h-12 rounded-xl border text-base bg-gray-50 border-gray-200 text-gray-900"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+
+                {passwordStrength ? (
+                  <div className="flex gap-2 mt-2">
+                    {["weak", "medium", "strong"].map((level, index) => (
+                      <div
+                        key={level}
+                        className="h-1 flex-1 rounded-full transition-all"
+                        style={{
+                          backgroundColor:
+                            passwordStrength === "weak" && index === 0
+                              ? "#ef4444"
+                              : passwordStrength === "medium" && index <= 1
+                                ? "#f59e0b"
+                                : passwordStrength === "strong" && index <= 2
+                                  ? "#22c55e"
+                                  : "#e5e7eb",
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex items-start gap-3 pt-2">
@@ -350,7 +458,7 @@ export default function GuestRegisterPage() {
               style={{ backgroundColor: accentColor || primaryColor }}
               loading={isSubmitting}
             >
-              Continue with OTP
+              Create Account
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </form>

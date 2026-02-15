@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Calendar, MapPin, Clock, ChevronRight } from "lucide-react";
 import { Button, Card } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections/Footer";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService } from "@/services";
@@ -25,10 +24,6 @@ export default function GuestBookingsPage() {
     brandColor: primaryColor,
     secondaryColor,
     accentColor,
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
   } = useRealtorBranding();
 
   const {
@@ -152,10 +147,7 @@ export default function GuestBookingsPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <GuestHeader
         currentPage="bookings"
         searchPlaceholder="Search your bookings..."
@@ -330,15 +322,6 @@ export default function GuestBookingsPage() {
         </div>
       </main>
 
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-      />
     </div>
   );
 }

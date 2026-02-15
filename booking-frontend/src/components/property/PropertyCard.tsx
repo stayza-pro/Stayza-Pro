@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { Bath, Bed, Heart, MapPin, Square } from "lucide-react";
 import { Property } from "../../types";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 
@@ -17,30 +18,22 @@ interface PropertyCardProps {
   accentColor?: string;
 }
 
-// Helper function to get image URL
-const getImageUrl = (image: any): string => {
+const getImageUrl = (image: unknown): string => {
   if (!image) return "";
+  if (typeof image === "string") return image;
 
-  // If it's a string, return it directly
-  if (typeof image === "string") {
-    return image;
+  if (typeof image === "object") {
+    const candidate = image as {
+      url?: string;
+      imageUrl?: string;
+      src?: string;
+    };
+
+    if (candidate.url) return candidate.url;
+    if (candidate.imageUrl) return candidate.imageUrl;
+    if (candidate.src) return candidate.src;
   }
 
-  // If it's an object with url property
-  if (image.url) {
-    return image.url;
-  }
-
-  // If it's an object with other possible properties
-  if (image.imageUrl) {
-    return image.imageUrl;
-  }
-
-  if (image.src) {
-    return image.src;
-  }
-
-  
   return "";
 };
 
@@ -52,386 +45,134 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   layout = "vertical",
   onHover,
   primaryColor,
-  secondaryColor,
   accentColor,
 }) => {
   const { brandColor } = useRealtorBranding();
 
-  // Use provided colors or fall back to brandColor/defaults
   const effectivePrimaryColor: string = primaryColor || brandColor || "#3B82F6";
-  const effectiveSecondaryColor: string = secondaryColor || "#1F2937";
   const effectiveAccentColor: string = accentColor || "#F59E0B";
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onFavorite?.(property.id);
-  };
-
-  const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
-  // Get image URL safely
-  const hasImages = property.images && property.images.length > 0;
+  const hasImages = Boolean(property.images && property.images.length > 0);
   const imageUrl =
     hasImages && property.images ? getImageUrl(property.images[0]) : "";
   const hasValidImageUrl = imageUrl && imageUrl.trim() !== "";
 
+  const handleFavoriteClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onFavorite?.(property.id);
+  };
+
+  const formatPrice = (price: number, currency: string) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+
   return (
     <Link href={`/browse/${property.id}`}>
       <div
-        className={`group ${className}`}
-        style={{
-          backgroundColor: "white",
-          borderRadius: 20,
-          overflow: "hidden",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
-          border: "1px solid #f3f4f6",
-          transition: "all 0.3s ease",
-          cursor: "pointer",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-8px)";
-          e.currentTarget.style.boxShadow = "0 30px 60px rgba(0, 0, 0, 0.15)";
-          onHover?.(true);
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.boxShadow = "0 20px 40px rgba(0, 0, 0, 0.1)";
-          onHover?.(false);
-        }}
+        className={`group rounded-2xl border overflow-hidden transition-all hover:shadow-xl bg-white border-gray-200 ${
+          layout === "horizontal" ? "md:flex" : ""
+        } ${className}`}
+        onMouseEnter={() => onHover?.(true)}
+        onMouseLeave={() => onHover?.(false)}
       >
-        {/* Property Image */}
         <div
-          style={{
-            height: 240,
-            position: "relative",
-            overflow: "hidden",
-            backgroundColor: "#f3f4f6",
-          }}
+          className={`relative overflow-hidden ${
+            layout === "horizontal"
+              ? "md:w-[42%] aspect-[4/3] md:aspect-auto"
+              : "aspect-[4/3]"
+          }`}
         >
           {hasValidImageUrl ? (
             <img
               src={imageUrl}
               alt={property.title}
               crossOrigin="anonymous"
-              className="group-hover:scale-110"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-                transition: "transform 0.5s ease",
-              }}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div
-              style={{
-                width: "100%",
-                height: "100%",
-                background: `${effectivePrimaryColor}30`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "3rem",
-                color: effectivePrimaryColor,
-                opacity: 0.3,
-              }}
+              className="w-full h-full flex items-center justify-center text-4xl"
+              style={{ backgroundColor: `${effectivePrimaryColor}22` }}
             >
               🏠
             </div>
           )}
 
-          {/* Favorite Button */}
-          <div
-            style={{
-              position: "absolute",
-              top: 20,
-              right: 20,
-              width: 44,
-              height: 44,
-              backgroundColor: "rgba(255, 255, 255, 0.9)",
-              backdropFilter: "blur(10px)",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 8px 20px rgba(0, 0, 0, 0.1)",
-              cursor: "pointer",
-              zIndex: 10,
-            }}
+          {property.type ? (
+            <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm bg-black/65 text-white capitalize">
+              {property.type.toLowerCase().replace("_", " ")}
+            </div>
+          ) : null}
+
+          <button
+            type="button"
             onClick={handleFavoriteClick}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center transition-all hover:scale-110"
+            style={{ backgroundColor: "rgba(255, 255, 255, 0.9)" }}
+            aria-label="Toggle favorite"
           >
-            <span
+            <Heart
+              className="w-5 h-5"
               style={{
-                fontSize: "1.25rem",
                 color: isFavorited ? effectiveAccentColor : "#6b7280",
+                fill: isFavorited ? effectiveAccentColor : "none",
               }}
-            >
-              {isFavorited ? "♥" : "♡"}
-            </span>
-          </div>
+            />
+          </button>
 
-          {/* Property Type Badge */}
-          <div
-            style={{
-              position: "absolute",
-              top: 20,
-              left: 20,
-              padding: "0.5rem 1rem",
-              backgroundColor: effectiveSecondaryColor,
-              color: "white",
-              borderRadius: 9999,
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              textTransform: "capitalize",
-              zIndex: 10,
-            }}
-          >
-            {property.type.toLowerCase().replace("_", " ")}
-          </div>
-
-          {/* Rating Badge */}
-          {property.averageRating && property.averageRating > 0 && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 20,
-                left: 20,
-                display: "flex",
-                alignItems: "center",
-                gap: "0.25rem",
-                backgroundColor: "rgba(255, 255, 255, 0.9)",
-                backdropFilter: "blur(10px)",
-                borderRadius: 9999,
-                padding: "0.5rem 1rem",
-                zIndex: 10,
-              }}
-            >
-              <span style={{ color: effectiveAccentColor, fontSize: "1rem" }}>
-                ★
-              </span>
-              <span
-                style={{
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  color: effectiveSecondaryColor,
-                }}
-              >
-                {property.averageRating.toFixed(1)}
-              </span>
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
+            <div className="text-2xl font-bold text-white">
+              {formatPrice(property.pricePerNight, property.currency)}
             </div>
-          )}
-
-          {/* Image Counter Badge */}
-          {property.images && property.images.length > 1 && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 20,
-                right: 20,
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                backgroundColor: "rgba(0, 0, 0, 0.7)",
-                backdropFilter: "blur(10px)",
-                borderRadius: 8,
-                padding: "0.5rem 0.75rem",
-                zIndex: 10,
-              }}
-            >
-              <span style={{ color: "white", fontSize: "0.875rem" }}>📸</span>
-              <span
-                style={{
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  color: "white",
-                }}
-              >
-                {property.images.length}
-              </span>
-            </div>
-          )}
+          </div>
         </div>
 
-        {/* Property Details */}
-        <div style={{ padding: "2rem" }}>
-          <h3
-            style={{
-              fontSize: "1.375rem",
-              fontWeight: 700,
-              color: effectiveSecondaryColor,
-              marginBottom: "0.75rem",
-              margin: "0 0 0.75rem 0",
-            }}
-          >
-            {property.title}
-          </h3>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              color: `${effectiveSecondaryColor}99`,
-              marginBottom: "1.5rem",
-              fontSize: "0.875rem",
-              lineHeight: 1.5,
-            }}
-          >
-            <span
-              style={{
-                marginRight: "0.5rem",
-                fontSize: "1rem",
-                flexShrink: 0,
-                marginTop: "0.125rem",
-              }}
-            >
-              📍
-            </span>
-            <span>
-              {[
-                property.address,
-                property.city,
-                property.state,
-                property.country,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-            </span>
-          </div>
-
-          {/* Amenities */}
-          <div
-            style={{
-              display: "flex",
-              gap: "1.5rem",
-              marginBottom: "1.5rem",
-              paddingBottom: "1.5rem",
-              borderBottom: `1px solid ${effectivePrimaryColor}20`,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                fontSize: "0.875rem",
-                color: `${effectiveSecondaryColor}99`,
-                fontWeight: 500,
-              }}
-            >
-              🛏️ {property.bedrooms} Beds
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                fontSize: "0.875rem",
-                color: `${effectiveSecondaryColor}99`,
-                fontWeight: 500,
-              }}
-            >
-              🚿 {property.bathrooms} Baths
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                fontSize: "0.875rem",
-                color: `${effectiveSecondaryColor}99`,
-                fontWeight: 500,
-              }}
-            >
-              👥 {property.maxGuests} Guests
+        <div className="p-6 space-y-4 flex-1">
+          <div>
+            <h3 className="font-semibold mb-2 line-clamp-1 text-[18px] text-gray-900">
+              {property.title}
+            </h3>
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-gray-500" />
+              <span className="text-sm line-clamp-1 text-gray-600">
+                {property.city}
+                {property.state ? `, ${property.state}` : ""}
+              </span>
             </div>
           </div>
 
-          {/* Price */}
-          <div
-            style={{
-              marginBottom: "1.5rem",
-            }}
-          >
-            <span
-              style={{
-                fontSize: "2rem",
-                fontWeight: 700,
-                color: effectiveSecondaryColor,
-              }}
-            >
-              {formatPrice(property.pricePerNight, property.currency)}
-            </span>
-            <span
-              style={{
-                color: `${effectiveSecondaryColor}99`,
-                fontSize: "1rem",
-                marginLeft: "0.25rem",
-              }}
-            >
-              /night
-            </span>
-
-            {/* Optional Fees Display */}
-            {(property.cleaningFee || property.securityDeposit) && (
-              <div
-                style={{
-                  marginTop: "0.5rem",
-                  fontSize: "0.75rem",
-                  color: `${effectiveSecondaryColor}99`,
-                }}
-              >
-                {property.cleaningFee && (
-                  <div>
-                    + {formatPrice(property.cleaningFee, property.currency)}{" "}
-                    cleaning fee
-                  </div>
-                )}
-                {property.securityDeposit && (
-                  <div>
-                    + {formatPrice(property.securityDeposit, property.currency)}{" "}
-                    security deposit
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-1.5">
+              <Bed className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">
+                {property.bedrooms}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Bath className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">
+                {property.bathrooms}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Square className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">
+                {property.maxGuests} guests
+              </span>
+            </div>
           </div>
 
-          {/* Book Now Button */}
-          <button
-            style={{
-              width: "100%",
-              padding: "1rem 1.5rem",
-              borderRadius: 12,
-              fontWeight: 600,
-              color: "white",
-              border: "none",
-              backgroundColor: effectiveAccentColor,
-              cursor: "pointer",
-              boxShadow: "0 8px 20px rgba(0, 0, 0, 0.1)",
-              fontSize: "1rem",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow =
-                "0 12px 30px rgba(0, 0, 0, 0.15)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.1)";
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              window.location.href = `/browse/${property.id}`;
-            }}
+          <div
+            className="w-full h-11 rounded-xl font-medium text-white flex items-center justify-center"
+            style={{ backgroundColor: effectiveAccentColor }}
           >
-            Book Now
-          </button>
+            View Details
+          </div>
         </div>
       </div>
     </Link>

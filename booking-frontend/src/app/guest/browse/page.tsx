@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   SlidersHorizontal,
@@ -8,15 +9,18 @@ import {
   Building2,
   Castle,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections/Footer";
-import { PropertyCard } from "@/components/property/PropertyCard";
+import { PropertyCard } from "@/components/property";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useProperties } from "@/hooks/useProperties";
+import { favoritesService } from "@/services";
 import { Button, Input, Select, Skeleton } from "@/components/ui";
 import type { PropertyFilters, PropertyType } from "@/types";
 
 export default function BrowsePropertiesPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [propertyType, setPropertyType] = useState<string>("all");
   const [minPrice, setMinPrice] = useState(0);
@@ -24,16 +28,13 @@ export default function BrowsePropertiesPage() {
   const [bedrooms, setBedrooms] = useState<string>("any");
   const [sortBy, setSortBy] = useState<string>("relevant");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [likedProperties, setLikedProperties] = useState<Set<string>>(new Set());
   const {
     brandColor: primaryColor,
     secondaryColor,
     accentColor,
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
-    realtorId,
   } = useRealtorBranding();
+  const { isAuthenticated } = useCurrentUser();
 
   useEffect(() => {
     const location = new URLSearchParams(window.location.search).get(
@@ -88,6 +89,66 @@ export default function BrowsePropertiesPage() {
 
     return bedroomFiltered;
   }, [propertiesResponse?.data, bedrooms, sortBy]);
+
+  useEffect(() => {
+    const loadFavoriteStates = async () => {
+      if (!isAuthenticated || properties.length === 0) {
+        setLikedProperties(new Set());
+        return;
+      }
+
+      try {
+        const checks = await Promise.all(
+          properties.map((property) =>
+            favoritesService
+              .checkFavorite(property.id)
+              .then((response) => ({
+                id: property.id,
+                isFavorited: !!response?.data?.isFavorited,
+              }))
+              .catch(() => ({ id: property.id, isFavorited: false })),
+          ),
+        );
+
+        const favoriteSet = new Set(
+          checks.filter((item) => item.isFavorited).map((item) => item.id),
+        );
+        setLikedProperties(favoriteSet);
+      } catch {
+        setLikedProperties(new Set());
+      }
+    };
+
+    loadFavoriteStates();
+  }, [properties, isAuthenticated]);
+
+  const toggleLike = async (propertyId: string) => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to save favorites");
+      router.push(`/guest/login?returnTo=${encodeURIComponent("/guest/browse")}`);
+      return;
+    }
+
+    const isLiked = likedProperties.has(propertyId);
+
+    try {
+      if (isLiked) {
+        await favoritesService.removeFavorite(propertyId);
+        setLikedProperties((prev) => {
+          const updated = new Set(prev);
+          updated.delete(propertyId);
+          return updated;
+        });
+        toast.success("Removed from favorites");
+      } else {
+        await favoritesService.addFavorite({ propertyId });
+        setLikedProperties((prev) => new Set(prev).add(propertyId));
+        toast.success("Added to favorites");
+      }
+    } catch {
+      toast.error("Failed to update favorites");
+    }
+  };
 
   const FilterPanel = () => (
     <div className="space-y-6">
@@ -169,10 +230,7 @@ export default function BrowsePropertiesPage() {
   );
 
   return (
-    <div
-      className="min-h-screen bg-gray-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <GuestHeader
         currentPage="browse"
         searchPlaceholder="Search location..."
@@ -188,7 +246,8 @@ export default function BrowsePropertiesPage() {
                 placeholder="Search by location, property type, or keywords..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-14 rounded-xl border text-base shadow-sm bg-white border-gray-200 text-gray-900"
+                className="pl-12 h-14 rounded-xl border text-base shadow-sm border-gray-200 text-gray-900"
+                style={{ backgroundColor: `${primaryColor}14` }}
               />
             </div>
 
@@ -275,6 +334,8 @@ export default function BrowsePropertiesPage() {
                   <PropertyCard
                     key={property.id}
                     property={property}
+                    onFavorite={toggleLike}
+                    isFavorited={likedProperties.has(property.id)}
                     primaryColor={primaryColor}
                     secondaryColor={secondaryColor}
                     accentColor={accentColor}
@@ -317,17 +378,6 @@ export default function BrowsePropertiesPage() {
           </div>
         </div>
       </main>
-
-      <Footer
-        realtorName={realtorName || "Stayza Pro"}
-        tagline={tagline || "Your Trusted Property Partner"}
-        logo={logoUrl}
-        description={description || "Find your perfect stay with us"}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-        realtorId={realtorId || undefined}
-      />
     </div>
   );
 }

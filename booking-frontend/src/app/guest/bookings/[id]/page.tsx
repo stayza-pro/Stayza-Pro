@@ -12,6 +12,8 @@ import {
   MessageSquare,
   Download,
   X,
+  Mail,
+  User,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -21,8 +23,8 @@ import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections/Footer";
 import { Button, Card } from "@/components/ui";
+import AlertModal from "@/components/ui/AlertModal";
 
 export default function GuestBookingDetailsPage() {
   const params = useParams();
@@ -32,17 +34,12 @@ export default function GuestBookingDetailsPage() {
 
   const [authChecked, setAuthChecked] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
 
   const { user, isAuthenticated, isLoading } = useCurrentUser();
   const {
     brandColor: primaryColor,
     secondaryColor,
     accentColor,
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
   } = useRealtorBranding();
 
   React.useEffect(() => {
@@ -64,12 +61,10 @@ export default function GuestBookingDetailsPage() {
   });
 
   const cancelBookingMutation = useMutation({
-    mutationFn: (reason: string) =>
-      bookingService.cancelBooking(bookingId, reason),
+    mutationFn: () => bookingService.cancelBooking(bookingId, ""),
     onSuccess: () => {
       toast.success("Booking cancelled successfully");
       setShowCancelDialog(false);
-      setCancelReason("");
       queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["guest-bookings"] });
     },
@@ -94,6 +89,22 @@ export default function GuestBookingDetailsPage() {
       currency,
       minimumFractionDigits: 0,
     }).format(value);
+
+  const formatTime = (value?: Date | string) => {
+    if (!value) {
+      return "Time not specified";
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return "Time not specified";
+    }
+
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
 
   const getStatusColor = () => {
     if (!booking) return "#6b7280";
@@ -151,7 +162,7 @@ export default function GuestBookingDetailsPage() {
 
   if (!authChecked || isLoading || bookingLoading) {
     return (
-      <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
+      <div className="min-h-screen bg-gray-50">
         <GuestHeader currentPage="bookings" />
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="animate-pulse space-y-4">
@@ -166,7 +177,7 @@ export default function GuestBookingDetailsPage() {
 
   if (!booking) {
     return (
-      <div className="min-h-screen bg-gray-50" style={{ colorScheme: "light" }}>
+      <div className="min-h-screen bg-gray-50">
         <GuestHeader currentPage="bookings" />
         <div className="max-w-3xl mx-auto px-4 py-12">
           <Card className="p-8 text-center bg-white border border-gray-200">
@@ -186,10 +197,7 @@ export default function GuestBookingDetailsPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-slate-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <GuestHeader currentPage="bookings" />
 
       <div className="relative h-[320px] lg:h-[420px]">
@@ -261,14 +269,17 @@ export default function GuestBookingDetailsPage() {
 
               <div className="grid sm:grid-cols-2 gap-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: `${primaryColor}14` }}
+                  >
                     <Calendar
                       className="w-6 h-6"
                       style={{ color: primaryColor }}
                     />
                   </div>
                   <div>
-                    <div className="text-sm mb-1 text-gray-500">Check-in</div>
+                    <div className="text-sm mb-1 text-gray-500">Date</div>
                     <div className="font-semibold text-[18px] text-gray-900">
                       {formatDate(booking.checkInDate)}
                     </div>
@@ -276,22 +287,31 @@ export default function GuestBookingDetailsPage() {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: `${primaryColor}14` }}
+                  >
                     <Clock
                       className="w-6 h-6"
                       style={{ color: primaryColor }}
                     />
                   </div>
                   <div>
-                    <div className="text-sm mb-1 text-gray-500">Check-out</div>
+                    <div className="text-sm mb-1 text-gray-500">Time</div>
                     <div className="font-semibold text-[18px] text-gray-900">
-                      {formatDate(booking.checkOutDate)}
+                      {formatTime(booking.checkInTime || booking.checkInDate)}
+                    </div>
+                    <div className="text-sm mt-1 text-gray-500">
+                      Duration based on stay period
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: `${primaryColor}14` }}
+                  >
                     <Users
                       className="w-6 h-6"
                       style={{ color: primaryColor }}
@@ -307,7 +327,10 @@ export default function GuestBookingDetailsPage() {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: `${primaryColor}14` }}
+                  >
                     <MapPin
                       className="w-6 h-6"
                       style={{ color: primaryColor }}
@@ -320,6 +343,21 @@ export default function GuestBookingDetailsPage() {
                     <div className="font-semibold text-[18px] text-gray-900">
                       {booking.property?.address || "Address unavailable"}
                     </div>
+                    <button
+                      type="button"
+                      className="text-sm mt-2 hover:underline"
+                      style={{ color: primaryColor }}
+                      onClick={() =>
+                        window.open(
+                          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            booking.property?.address || "",
+                          )}`,
+                          "_blank",
+                        )
+                      }
+                    >
+                      Get Directions →
+                    </button>
                   </div>
                 </div>
               </div>
@@ -376,11 +414,9 @@ export default function GuestBookingDetailsPage() {
               <Button
                 variant="outline"
                 className="h-12 rounded-xl font-medium"
-                onClick={() =>
-                  router.push(`/guest/bookings/${bookingId}/review`)
-                }
+                onClick={() => router.push(`/guest/bookings/${bookingId}/checkout`)}
               >
-                Write Review
+                Reschedule Viewing
               </Button>
 
               {canCancel ? (
@@ -399,18 +435,36 @@ export default function GuestBookingDetailsPage() {
           <div className="space-y-6">
             <Card className="p-6 rounded-2xl border bg-white border-gray-200">
               <h3 className="font-semibold mb-6 text-[18px] text-gray-900">
-                Booking Contact
+                Your Agent
               </h3>
 
-              <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-gray-50">
-                  <div className="text-xs text-gray-500 mb-1">Host</div>
-                  <div className="font-medium text-gray-900">
-                    {booking.property?.realtor?.businessName ||
-                      realtorName ||
-                      "Property Host"}
-                  </div>
+              <div className="flex items-center gap-4 mb-6">
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${primaryColor}20` }}
+                >
+                  <User className="w-7 h-7" style={{ color: primaryColor }} />
                 </div>
+                <div>
+                  <div className="font-semibold text-[18px] text-gray-900">
+                    {booking.property?.realtor?.businessName || "Property Host"}
+                  </div>
+                  <div className="text-sm text-gray-600">Property Specialist</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {(booking.property?.realtor?.businessEmail || booking.property?.realtor?.user?.email) && (
+                  <a
+                    href={`mailto:${booking.property?.realtor?.businessEmail || booking.property?.realtor?.user?.email}`}
+                    className="flex items-center gap-3 p-3 rounded-lg transition-all hover:shadow-sm bg-gray-50"
+                  >
+                    <Mail className="w-5 h-5" style={{ color: primaryColor }} />
+                    <span className="text-sm text-gray-900">
+                      {booking.property?.realtor?.businessEmail || booking.property?.realtor?.user?.email}
+                    </span>
+                  </a>
+                )}
 
                 <Button
                   className="w-full mt-2 h-11 rounded-xl font-medium text-white"
@@ -451,46 +505,18 @@ export default function GuestBookingDetailsPage() {
           </div>
         </div>
 
-        {showCancelDialog ? (
-          <Card className="mt-6 p-6 border border-red-200 bg-red-50">
-            <h4 className="font-semibold text-red-700 mb-2">Cancel Booking?</h4>
-            <p className="text-sm text-red-600 mb-3">
-              This action cannot be undone.
-            </p>
-            <textarea
-              value={cancelReason}
-              onChange={(event) => setCancelReason(event.target.value)}
-              placeholder="Reason for cancellation"
-              className="w-full min-h-[90px] rounded-lg border border-red-200 p-3 text-sm mb-3"
-            />
-            <div className="flex gap-2">
-              <Button
-                variant="destructive"
-                onClick={() => cancelBookingMutation.mutate(cancelReason)}
-                loading={cancelBookingMutation.isLoading}
-              >
-                Confirm Cancel
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowCancelDialog(false)}
-              >
-                Keep Booking
-              </Button>
-            </div>
-          </Card>
-        ) : null}
+        <AlertModal
+          isOpen={showCancelDialog}
+          onClose={() => setShowCancelDialog(false)}
+          onConfirm={() => cancelBookingMutation.mutate()}
+          type="confirm"
+          title="Cancel This Booking?"
+          message={`Are you sure you want to cancel your viewing appointment for ${booking.property?.title || "this property"}? This action cannot be undone.`}
+          confirmText="Yes, Cancel Booking"
+          cancelText="Keep Booking"
+          showCancel
+        />
       </main>
-
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-      />
     </div>
   );
 }

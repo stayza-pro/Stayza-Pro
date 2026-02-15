@@ -136,7 +136,7 @@ export const Header: React.FC = () => {
                   iconColor={brandColor}
                   viewAllHref={
                     user?.role === "GUEST"
-                      ? "/guest/notifications"
+                      ? "/guest/messages"
                       : "/notifications"
                   }
                 />
@@ -244,7 +244,7 @@ export const Header: React.FC = () => {
                           Messages
                         </Link>
                         <Link
-                          href="/guest/notifications"
+                          href="/guest/messages"
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           Notifications

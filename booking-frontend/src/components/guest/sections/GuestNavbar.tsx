@@ -10,9 +10,9 @@ import {
   Calendar,
   Heart,
   MessageSquare,
-  Bell,
   User,
 } from "lucide-react";
+import { GuestNotificationDropdown } from "./GuestNotificationDropdown";
 
 interface GuestNavbarProps {
   agencyName: string;
@@ -38,7 +38,6 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
       { name: "Bookings", href: "/guest/bookings", icon: Calendar },
       { name: "Favorites", href: "/guest/favorites", icon: Heart },
       { name: "Messages", href: "/guest/messages", icon: MessageSquare },
-      { name: "Notifications", href: "/guest/notifications", icon: Bell },
       { name: "Profile", href: "/guest/profile", icon: User },
     ],
     [],
@@ -114,6 +113,7 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <GuestNotificationDropdown primaryColor={primaryColor} />
               {navigation.slice(4).map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
@@ -130,12 +130,6 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                     }}
                   >
                     <Icon className="w-5 h-5" />
-                    {item.name === "Notifications" && (
-                      <span
-                        className="absolute top-1 right-1 w-2 h-2 rounded-full"
-                        style={{ backgroundColor: primaryColor }}
-                      />
-                    )}
                   </Link>
                 );
               })}
@@ -171,17 +165,20 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
               </span>
             </Link>
 
-            <button
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="p-2 rounded-lg text-gray-700"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
+            <div className="flex items-center gap-1">
+              <GuestNotificationDropdown primaryColor={primaryColor} />
+              <button
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                className="p-2 rounded-lg text-gray-700"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-6 h-6" />
+                ) : (
+                  <Menu className="w-6 h-6" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

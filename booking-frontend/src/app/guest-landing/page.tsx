@@ -53,7 +53,7 @@ export default function GuestLandingPage() {
   ];
 
   return (
-    <div className="min-h-screen" style={{ colorScheme: "light" }}>
+    <div className="min-h-screen">
       <section
         className="relative overflow-hidden"
         style={{

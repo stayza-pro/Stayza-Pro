@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Bath, Bed, Heart, MapPin, Square } from "lucide-react";
 import { Button } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections/Footer";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { favoritesService, type FavoriteProperty } from "@/services";
@@ -22,12 +21,7 @@ export default function FavoritesPage() {
 
   const {
     brandColor: primaryColor,
-    secondaryColor,
     accentColor,
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
   } = useRealtorBranding();
 
   useEffect(() => {
@@ -264,15 +258,6 @@ export default function FavoritesPage() {
         )}
       </main>
 
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, ArrowRight } from "lucide-react";
+import { Mail, ArrowRight, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
@@ -12,6 +12,9 @@ import { getRealtorSubdomain } from "@/utils/subdomain";
 export default function GuestLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [subdomain, setSubdomain] = useState<string | null>(null);
 
@@ -37,6 +40,11 @@ export default function GuestLoginPage() {
 
     if (!validateEmail(email)) {
       toast.error("Please enter a valid email address");
+      return;
+    }
+
+    if (!password.trim()) {
+      toast.error("Please enter your password");
       return;
     }
 
@@ -84,7 +92,7 @@ export default function GuestLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ colorScheme: "light" }}>
+    <div className="min-h-screen flex">
       <div
         className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
         style={{
@@ -194,9 +202,59 @@ export default function GuestLoginPage() {
                     required
                   />
                 </div>
-                <p className="text-xs text-gray-500">
-                  We&apos;ll send a one-time login code to your email.
-                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="password"
+                  className="text-sm font-medium text-gray-900"
+                >
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="pl-12 pr-12 h-12 rounded-xl border text-base bg-gray-50 border-gray-200 text-gray-900"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input
+                    id="remember"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(event) => setRememberMe(event.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  Remember me
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm font-medium hover:underline"
+                  style={{ color: primaryColor }}
+                >
+                  Forgot password?
+                </Link>
               </div>
             </div>
 
@@ -207,7 +265,7 @@ export default function GuestLoginPage() {
               style={{ backgroundColor: accentColor || primaryColor }}
               loading={isSubmitting}
             >
-              Continue with OTP
+              Sign In
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </form>

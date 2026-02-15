@@ -3,17 +3,16 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bell,
   Camera,
   CreditCard,
   LogOut,
+  MessageSquare,
   Save,
   Shield,
   User,
 } from "lucide-react";
 import { Button, Card, Input } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections/Footer";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { authService } from "@/services";
@@ -66,10 +65,6 @@ export default function ProfilePage() {
     brandColor: primaryColor,
     secondaryColor,
     accentColor,
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
   } = useRealtorBranding();
 
   useEffect(() => {
@@ -117,10 +112,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-slate-50 flex flex-col"
-      style={{ colorScheme: "light" }}
-    >
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <GuestHeader currentPage="profile" searchPlaceholder="Search..." />
 
       <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 py-12">
@@ -449,10 +441,10 @@ export default function ProfilePage() {
                   <Button
                     variant="outline"
                     className="h-12 px-6 rounded-xl"
-                    onClick={() => router.push("/guest/notifications")}
+                    onClick={() => router.push("/guest/messages")}
                   >
-                    <Bell className="w-5 h-5 mr-2" />
-                    Notifications
+                    <MessageSquare className="w-5 h-5 mr-2" />
+                    Messages
                   </Button>
                 </div>
               </Card>
@@ -473,15 +465,6 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-      />
     </div>
   );
 }
