@@ -1,310 +1,99 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
+import React, { useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   MapPin,
-  Users,
   Bed,
   Bath,
-  Star,
+  Square,
   Heart,
   Share2,
-  Wifi,
-  Car,
-  Waves,
-  Dumbbell,
-  Wind,
-  Tv,
-  UtensilsCrossed,
   Calendar,
   ChevronLeft,
   ChevronRight,
-  Check,
 } from "lucide-react";
+import { Button } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections";
-import { Card } from "@/components/ui";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { favoritesService } from "@/services";
-import { bookingService } from "@/services/bookings";
-import toast from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { PropertyAmenity } from "@/types";
-
-type AmenityIcon = React.ComponentType<{ className?: string }> | null;
-
-interface AvailabilityDay {
-  date: string;
-  available: boolean;
-}
-
-interface BookingPriceQuote {
-  subtotal: number;
-  serviceFee: number;
-  cleaningFee: number;
-  securityDeposit: number;
-  total: number;
-  nights: number;
-}
-
-const amenityIcons: Record<PropertyAmenity, AmenityIcon> = {
-  WIFI: Wifi,
-  PARKING: Car,
-  POOL: Waves,
-  GYM: Dumbbell,
-  AC: Wind,
-  TV: Tv,
-  KITCHEN: UtensilsCrossed,
-  WASHING_MACHINE: null,
-  BALCONY: null,
-  PET_FRIENDLY: null,
-  SMOKING_ALLOWED: null,
-  WHEELCHAIR_ACCESSIBLE: null,
-  FIREPLACE: null,
-  HOT_TUB: null,
-  BBQ: null,
-  GARDEN: null,
-  SECURITY: null,
-  CONCIERGE: null,
-  ELEVATOR: null,
-  HEATING: null,
-  DISHWASHER: null,
-  MICROWAVE: null,
-  COFFEE_MAKER: null,
-  IRON: null,
-  HAIR_DRYER: null,
-  TOWELS: null,
-  LINENS: null,
-  SHAMPOO: null,
-  SOAP: null,
-};
+import { favoritesService } from "@/services";
+import toast from "react-hot-toast";
 
 export default function PropertyDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const propertyId = params.id as string;
-  const { user } = useCurrentUser();
 
-  // Get realtor branding
+  const { user } = useCurrentUser();
+  const { data: property, isLoading, error } = useProperty(propertyId);
   const {
-    brandColor: primaryColor, // 60% - Primary color for backgrounds and dominant elements
-    secondaryColor, // 30% - Secondary color for text and borders
-    accentColor, // 10% - Accent color for CTAs and highlights
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
   } = useRealtorBranding();
 
-  const { data: property, isLoading, error } = useProperty(propertyId);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
 
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [guests, setGuests] = useState(1);
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [showCheckInCalendar, setShowCheckInCalendar] = useState(false);
-  const [showCheckOutCalendar, setShowCheckOutCalendar] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
-  const [pricingQuote, setPricingQuote] = useState<BookingPriceQuote | null>(
-    null
+  const images = useMemo(
+    () =>
+      property?.images?.map((image) => image.url).filter(Boolean) || [
+        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80",
+      ],
+    [property?.images],
   );
-  const [isPricingLoading, setIsPricingLoading] = useState(false);
 
-  const getErrorMessage = (error: unknown, fallback: string): string => {
-    if (
-      error &&
-      typeof error === "object" &&
-      "message" in error &&
-      typeof (error as { message?: string }).message === "string"
-    ) {
-      return (error as { message?: string }).message || fallback;
-    }
-    return fallback;
+  const title = property?.title || "Property";
+  const address =
+    property?.address ||
+    [property?.city, property?.state].filter(Boolean).join(", ") ||
+    "Address unavailable";
+
+  const featureList =
+    property?.amenities?.map((item) =>
+      item
+        .toLowerCase()
+        .split("_")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" "),
+    ) || [];
+
+  const formatPrice = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: property?.currency || "USD",
+      minimumFractionDigits: 0,
+    }).format(value);
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
-  // Debug: Log property data
-  React.useEffect(() => {
-    if (property) {
-      
-      
-    }
-  }, [property]);
-
-  // Fetch unavailable dates from backend
-  React.useEffect(() => {
-    const fetchUnavailableDates = async () => {
-      if (!propertyId) return;
-
-      try {
-        const API_URL =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
-        const response = await fetch(
-          `${API_URL}/bookings/properties/${propertyId}/calendar?months=6`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data?.calendar) {
-            // Extract dates that are not available
-            const bookedDates = result.data.calendar
-              .filter((day: AvailabilityDay) => !day.available)
-              .map((day: AvailabilityDay) => day.date);
-            setUnavailableDates(bookedDates);
-            
-          }
-        }
-      } catch (error) {
-        
-      }
-    };
-
-    fetchUnavailableDates();
-  }, [propertyId]);
-
-  // Check if property is favorited
-  React.useEffect(() => {
-    const checkFavorite = async () => {
-      if (user && propertyId) {
-        try {
-          const favorited = await favoritesService.checkFavorite(propertyId);
-          setIsFavorited(favorited.data.isFavorited);
-        } catch (error) {
-          
-        }
-      }
-    };
-    checkFavorite();
-  }, [user, propertyId]);
-
-  // Close calendars when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest(".calendar-wrapper")) {
-        setShowCheckInCalendar(false);
-        setShowCheckOutCalendar(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const fetchPricingQuote = async () => {
-      if (!property || !checkIn || !checkOut) {
-        setPricingQuote(null);
-        return;
-      }
-
-      const checkInDate = new Date(checkIn);
-      const checkOutDate = new Date(checkOut);
-      if (
-        Number.isNaN(checkInDate.getTime()) ||
-        Number.isNaN(checkOutDate.getTime()) ||
-        checkOutDate <= checkInDate
-      ) {
-        setPricingQuote(null);
-        return;
-      }
-
-      try {
-        setIsPricingLoading(true);
-        const quote = await bookingService.calculateBookingTotal(
-          propertyId,
-          checkInDate,
-          checkOutDate,
-          guests
-        );
-        if (!cancelled) {
-          setPricingQuote({
-            subtotal: Number(quote.subtotal || 0),
-            serviceFee: Number(quote.serviceFee || 0),
-            cleaningFee: Number(quote.cleaningFee || 0),
-            securityDeposit: Number(quote.securityDeposit || 0),
-            total: Number(quote.total || 0),
-            nights: Number(quote.nights || 0),
-          });
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setPricingQuote(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsPricingLoading(false);
-        }
-      }
-    };
-
-    void fetchPricingQuote();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [property, propertyId, checkIn, checkOut, guests]);
-
-  const nights =
-    pricingQuote?.nights && pricingQuote.nights > 0
-      ? pricingQuote.nights
-      : checkIn && checkOut
-      ? Math.ceil(
-          (new Date(checkOut).getTime() - new Date(checkIn).getTime()) /
-            (1000 * 60 * 60 * 24)
-        )
-      : 0;
-  const roomFee = pricingQuote?.subtotal || 0;
-  const cleaningFee = pricingQuote?.cleaningFee || 0;
-  const securityDeposit = pricingQuote?.securityDeposit || 0;
-  const serviceFee = pricingQuote?.serviceFee || 0;
-  const totalPayable = pricingQuote?.total || 0;
-
-  const handleBookNow = () => {
-    if (!user) {
-      router.push(`/guest/login?redirect=/browse/${propertyId}`);
-      return;
-    }
-
-    if (!checkIn || !checkOut) {
-      alert("Please select check-in and check-out dates");
-      return;
-    }
-
-    router.push(
-      `/booking/${propertyId}/checkout?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}`
-    );
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const handleFavorite = async () => {
     if (!user) {
-      router.push(`/guest/login?redirect=/browse/${propertyId}`);
+      router.push(`/guest/login?returnTo=${encodeURIComponent(`/browse/${propertyId}`)}`);
       return;
     }
 
     try {
-      if (isFavorited) {
+      if (isLiked) {
         await favoritesService.removeFavorite(propertyId);
         toast.success("Removed from favorites");
       } else {
         await favoritesService.addFavorite({ propertyId });
         toast.success("Added to favorites");
       }
-      setIsFavorited(!isFavorited);
-    } catch (error: unknown) {
-      
-      toast.error(getErrorMessage(error, "Failed to update favorites"));
+      setIsLiked((prev) => !prev);
+    } catch {
+      toast.error("Failed to update favorites");
     }
   };
 
@@ -312,891 +101,186 @@ export default function PropertyDetailsPage() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: property?.title,
-          text: property?.description,
+          title,
+          text: property?.description || "",
           url: window.location.href,
         });
-      } catch (error) {
-        // User cancelled or share failed
-        
+      } catch {
       }
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard!");
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard");
     }
-  };
-
-  const nextImage = () => {
-    if (property?.images && property.images.length > 0) {
-      setSelectedImageIndex((prev) =>
-        prev === (property.images?.length ?? 1) - 1 ? 0 : prev + 1
-      );
-    }
-  };
-
-  const prevImage = () => {
-    if (property?.images && property.images.length > 0) {
-      setSelectedImageIndex((prev) =>
-        prev === 0 ? (property.images?.length ?? 1) - 1 : prev - 1
-      );
-    }
-  };
-
-  // Calendar helper functions
-  const formatDateToString = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
-    return { daysInMonth, startingDayOfWeek, year, month };
-  };
-
-  const formatDateForDisplay = (dateString: string) => {
-    if (!dateString) return "Select date";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const isDateDisabled = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dateString = formatDateToString(date);
-    // Disable dates before tomorrow (including today) and dates that are already booked
-    return date < tomorrow || unavailableDates.includes(dateString);
-  };
-
-  const handleDateClick = (
-    e: React.MouseEvent,
-    date: Date,
-    isCheckIn: boolean
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const dateString = formatDateToString(date);
-    
-
-    if (isCheckIn) {
-      
-      setCheckIn(dateString);
-      setShowCheckInCalendar(false);
-      if (checkOut && new Date(dateString) >= new Date(checkOut)) {
-        setCheckOut("");
-      }
-      setTimeout(() => setShowCheckOutCalendar(true), 100);
-    } else {
-      
-      setCheckOut(dateString);
-      setShowCheckOutCalendar(false);
-    }
-  };
-
-  const nextMonth = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
-    );
-  };
-
-  const prevMonth = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
-    );
-  };
-
-  const renderCalendar = (isCheckIn: boolean) => {
-    const { daysInMonth, startingDayOfWeek, year, month } =
-      getDaysInMonth(currentMonth);
-    const days = [];
-    const monthName = currentMonth.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
-
-    // Empty cells for days before month starts
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(<div key={`empty-${i}`} className="h-10" />);
-    }
-
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      const dateString = formatDateToString(date);
-      const isDisabled = isDateDisabled(date);
-      const isSelected = isCheckIn
-        ? dateString === checkIn
-        : dateString === checkOut;
-      const isInRange =
-        !isCheckIn &&
-        checkIn &&
-        dateString > checkIn &&
-        checkOut &&
-        dateString < checkOut;
-      const isCheckInDate = !isCheckIn && dateString === checkIn;
-      const isCheckOutDate = !isCheckIn && dateString === checkOut;
-
-      days.push(
-        <button
-          key={day}
-          type="button"
-          onClick={(e) => {
-            if (
-              !isDisabled &&
-              !(!isCheckIn && checkIn && dateString <= checkIn)
-            ) {
-              handleDateClick(e, date, isCheckIn);
-            }
-          }}
-          disabled={
-            isDisabled ||
-            Boolean(!isCheckIn && checkIn && dateString <= checkIn)
-          }
-          className={`h-10 rounded-lg font-medium text-sm transition-all ${
-            isDisabled || (!isCheckIn && checkIn && dateString <= checkIn)
-              ? "text-gray-300 cursor-not-allowed"
-              : isSelected
-              ? "text-white shadow-md"
-              : isInRange || isCheckInDate || isCheckOutDate
-              ? "bg-opacity-10 text-gray-900"
-              : "text-gray-700 hover:bg-gray-100"
-          }`}
-          style={
-            isSelected
-              ? { backgroundColor: accentColor }
-              : isInRange || isCheckInDate || isCheckOutDate
-              ? { backgroundColor: `${accentColor}20` }
-              : undefined
-          }
-        >
-          {day}
-        </button>
-      );
-    }
-
-    return (
-      <div className="z-50 mt-2 w-full sm:w-80 max-w-sm bg-white rounded-xl shadow-2xl border border-gray-200 p-4">
-        {/* Calendar Header */}
-        <div className="flex items-center justify-between mb-4">
-          <button
-            type="button"
-            onClick={prevMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ChevronLeft
-              className="h-5 w-5"
-              style={{ color: secondaryColor }}
-            />
-          </button>
-          <span className="font-semibold text-gray-900">{monthName}</span>
-          <button
-            type="button"
-            onClick={nextMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ChevronRight
-              className="h-5 w-5"
-              style={{ color: secondaryColor }}
-            />
-          </button>
-        </div>
-
-        {/* Day Labels */}
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
-            <div
-              key={day}
-              className="h-10 flex items-center justify-center text-xs font-semibold text-gray-500"
-            >
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1">{days}</div>
-      </div>
-    );
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   if (error || !property) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Property not found
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center">Property not found</div>;
   }
-
-  if (!property) {
-    return null;
-  }
-
-  const formatPrice = (price: number) => {
-    // Round to 2 decimal places to avoid floating point issues
-    const roundedPrice = Math.round(Number(price) * 100) / 100;
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: property.currency || "NGN",
-      minimumFractionDigits: 0,
-    }).format(roundedPrice);
-  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <GuestHeader
-        currentPage="browse"
-        searchPlaceholder="Search location..."
-      />
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
+      <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
-        {/* Back Button */}
+      <div className="relative h-[500px] lg:h-[600px]">
+        <img
+          src={images[currentImageIndex]}
+          alt={title}
+          className="w-full h-full object-cover"
+        />
+
         <button
-          onClick={() => router.back()}
-          className="flex items-center hover:opacity-80 mb-6 transition-all"
-          style={{ color: secondaryColor }}
+          onClick={prevImage}
+          className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center"
+          style={{ backgroundColor: "rgba(255, 255, 255, 0.9)" }}
         >
-          <ChevronLeft className="h-5 w-5 mr-1" />
-          Back to search
+          <ChevronLeft className="w-6 h-6 text-gray-900" />
+        </button>
+        <button
+          onClick={nextImage}
+          className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center"
+          style={{ backgroundColor: "rgba(255, 255, 255, 0.9)" }}
+        >
+          <ChevronRight className="w-6 h-6 text-gray-900" />
         </button>
 
-        {/* Image Gallery */}
-        <div className="mb-8">
-          <div className="relative h-96 md:h-[500px] rounded-lg overflow-hidden bg-gray-200">
-            {property.images && property.images.length > 0 ? (
-              <>
-                <Image
-                  src={property.images[selectedImageIndex]?.url || ""}
-                  alt={property.title}
-                  fill
-                  unoptimized
-                  className="w-full h-full object-cover"
-                  crossOrigin="anonymous"
-                  onError={(e) => {
-                    
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/800x600?text=Image+Not+Found";
-                  }}
-                />
-                {property.images.length > 1 && (
-                  <>
-                    <button
-                      onClick={prevImage}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all"
-                    >
-                      <ChevronLeft className="h-6 w-6 text-gray-800" />
-                    </button>
-                    <button
-                      onClick={nextImage}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all"
-                    >
-                      <ChevronRight className="h-6 w-6 text-gray-800" />
-                    </button>
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
-                      {selectedImageIndex + 1} / {property.images.length}
-                    </div>
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-gray-400">No images available</p>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="absolute top-4 right-4 flex space-x-2">
-              <button
-                onClick={handleShare}
-                className="bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all"
-              >
-                <Share2 className="h-5 w-5 text-gray-800" />
-              </button>
-              <button
-                onClick={handleFavorite}
-                className="bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all"
-              >
-                <Heart
-                  className={`h-5 w-5 ${
-                    isFavorited ? "fill-red-500 text-red-500" : "text-gray-800"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          {/* Thumbnail Gallery */}
-          {property.images && property.images.length > 1 && (
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-              {property.images.map((image, index) => (
-                <button
-                  key={image.id}
-                  onClick={() => setSelectedImageIndex(index)}
-                  className={`relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border-2 transition-all ${
-                    selectedImageIndex === index
-                      ? "ring-2"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                  style={
-                    selectedImageIndex === index
-                      ? {
-                          borderColor: primaryColor,
-                          boxShadow: `0 0 0 2px ${primaryColor}33`,
-                        }
-                      : undefined
-                  }
-                >
-                  <Image
-                    src={image.url}
-                    alt={`${property.title} - ${index + 1}`}
-                    width={96}
-                    height={96}
-                    unoptimized
-                    className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
+        <div
+          className="absolute bottom-4 right-4 px-4 py-2 rounded-full backdrop-blur-sm text-sm font-medium"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.6)", color: "#fff" }}
+        >
+          {currentImageIndex + 1} / {images.length}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Property Header */}
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h1
-                className="text-2xl sm:text-3xl font-bold mb-2"
-                style={{ color: secondaryColor }}
-              >
-                {property.title}
-              </h1>
+        <Link
+          href="/browse"
+          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-sm text-white hover:underline"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.4)" }}
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back to Browse
+        </Link>
+      </div>
 
-              <div
-                className="flex flex-wrap items-center gap-4 mb-4"
-                style={{ color: `${secondaryColor}99` }}
-              >
-                <div className="flex items-center">
-                  <MapPin className="h-5 w-5 mr-2" />
-                  <span>
-                    {property.city}, {property.state}, {property.country}
-                  </span>
-                </div>
-
-                {property.averageRating && (
-                  <div className="flex items-center">
-                    <Star className="h-5 w-5 fill-yellow-400 text-yellow-400 mr-1" />
-                    <span
-                      className="font-semibold"
-                      style={{ color: secondaryColor }}
-                    >
-                      {property.averageRating.toFixed(1)}
-                    </span>
-                    <span className="ml-1">
-                      ({property.reviewCount || 0} reviews)
-                    </span>
+      <main className="max-w-[1440px] mx-auto w-full px-6 lg:px-8 py-12">
+        <div className="grid lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-8">
+            <div>
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h1 className="font-semibold mb-3 text-[36px] text-gray-900">{title}</h1>
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="w-5 h-5 text-gray-500" />
+                    <span className="text-lg text-gray-600">{address}</span>
                   </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-4 text-gray-700">
-                <div className="flex items-center">
-                  <Users
-                    className="h-5 w-5 mr-2"
-                    style={{ color: secondaryColor }}
-                  />
-                  <span>{property.maxGuests} guests</span>
                 </div>
-                <div className="flex items-center">
-                  <Bed
-                    className="h-5 w-5 mr-2"
-                    style={{ color: secondaryColor }}
-                  />
-                  <span>{property.bedrooms} bedrooms</span>
-                </div>
-                <div className="flex items-center">
-                  <Bath
-                    className="h-5 w-5 mr-2"
-                    style={{ color: secondaryColor }}
-                  />
-                  <span>{property.bathrooms} bathrooms</span>
-                </div>
-              </div>
-            </Card>
 
-            {/* Description */}
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h2
-                className="text-xl font-semibold mb-4"
-                style={{ color: secondaryColor }}
-              >
-                About this property
-              </h2>
-              <p className="text-gray-700 whitespace-pre-line">
-                {property.description}
-              </p>
-            </Card>
-
-            {/* Amenities */}
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h2
-                className="text-xl font-semibold mb-4"
-                style={{ color: secondaryColor }}
-              >
-                Amenities
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {property.amenities?.map((amenity) => {
-                  const Icon = amenityIcons[amenity] || Check;
-                  return (
-                    <div
-                      key={amenity}
-                      className="flex items-center text-gray-700"
-                    >
-                      <Icon
-                        className="h-5 w-5 mr-2"
-                        style={{ color: accentColor }}
-                      />
-                      <span>{amenity.replace(/_/g, " ").toLowerCase()}</span>
-                    </div>
-                  );
-                })}
-                {property.customAmenities?.map((amenity, index) => (
-                  <div
-                    key={`custom-${index}`}
-                    className="flex items-center text-gray-700"
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleFavorite}
+                    className="w-12 h-12 rounded-xl border flex items-center justify-center border-gray-200"
                   >
-                    <Check
-                      className="h-5 w-5 mr-2"
-                      style={{ color: accentColor }}
+                    <Heart
+                      className="w-6 h-6"
+                      style={{
+                        color: isLiked ? accentColor || primaryColor : "#6b7280",
+                        fill: isLiked ? accentColor || primaryColor : "none",
+                      }}
                     />
-                    <span>{amenity}</span>
-                  </div>
-                ))}
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="w-12 h-12 rounded-xl border flex items-center justify-center border-gray-200"
+                  >
+                    <Share2 className="w-6 h-6 text-gray-500" />
+                  </button>
+                </div>
               </div>
-            </Card>
 
-            {/* House Rules */}
-            {property.houseRules && property.houseRules.length > 0 && (
-              <Card
-                className="p-6 border border-gray-200 !bg-white shadow-sm"
-                style={{ backgroundColor: "#ffffff", color: "#111827" }}
-              >
-                <h2
-                  className="text-xl font-semibold mb-4"
-                  style={{ color: secondaryColor }}
-                >
-                  House Rules
-                </h2>
-                <div className="space-y-2">
-                  <div className="flex items-center text-gray-700">
-                    <Calendar
-                      className="h-5 w-5 mr-2"
-                      style={{ color: secondaryColor }}
-                    />
-                    <span>Check-in: {property.checkInTime}</span>
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="text-4xl font-bold" style={{ color: primaryColor }}>
+                  {formatPrice(property.pricePerNight)}
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <Bed className="w-5 h-5 text-gray-500" />
+                    <span className="font-medium text-gray-600">{property.bedrooms} Beds</span>
                   </div>
-                  <div className="flex items-center text-gray-700">
-                    <Calendar
-                      className="h-5 w-5 mr-2"
-                      style={{ color: secondaryColor }}
-                    />
-                    <span>Check-out: {property.checkOutTime}</span>
+                  <div className="flex items-center gap-2">
+                    <Bath className="w-5 h-5 text-gray-500" />
+                    <span className="font-medium text-gray-600">{property.bathrooms} Baths</span>
                   </div>
-                  {property.houseRules.map((rule, index) => (
-                    <div key={index} className="flex items-start text-gray-700">
-                      <Check className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-gray-400" />
-                      <span>{rule}</span>
+                  <div className="flex items-center gap-2">
+                    <Square className="w-5 h-5 text-gray-500" />
+                    <span className="font-medium text-gray-600">{property.maxGuests} sqft</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 rounded-2xl border bg-white border-gray-200">
+              <h2 className="font-semibold mb-4 text-[24px] text-gray-900">About This Property</h2>
+              <p className="leading-relaxed text-lg text-gray-600">{property.description}</p>
+            </div>
+
+            <div className="p-8 rounded-2xl border bg-white border-gray-200">
+              <h2 className="font-semibold mb-6 text-[24px] text-gray-900">Property Features</h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {(featureList.length > 0 ? featureList : ["Premium location", "Secure access", "Managed property", "Professional support"]).map(
+                  (feature) => (
+                    <div key={feature} className="flex items-center gap-3">
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: accentColor || primaryColor }}
+                      />
+                      <span className="text-gray-600">{feature}</span>
                     </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {/* Location */}
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h2
-                className="text-xl font-semibold mb-4"
-                style={{ color: secondaryColor }}
-              >
-                Location
-              </h2>
-              <div className="aspect-w-16 aspect-h-9 bg-gray-200 rounded-lg overflow-hidden">
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-center">
-                    <MapPin
-                      className="h-12 w-12 mx-auto mb-2"
-                      style={{ color: `${secondaryColor}60` }}
-                    />
-                    <p className="text-gray-600">
-                      {property.address ||
-                        "Exact address is shared after payment confirmation"}
-                    </p>
-                    <p className="text-gray-500 text-sm">
-                      {property.city}, {property.state}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Reviews Section */}
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h2
-                className="text-xl font-semibold mb-4"
-                style={{ color: secondaryColor }}
-              >
-                Reviews
-                {property.reviewCount && property.reviewCount > 0 && (
-                  <span className="text-gray-500 ml-2 font-normal">
-                    ({property.reviewCount})
-                  </span>
+                  ),
                 )}
-              </h2>
-
-              {property.reviews && property.reviews.length > 0 ? (
-                <div className="space-y-6">
-                  {property.reviews.slice(0, 5).map((review) => (
-                    <div
-                      key={review.id}
-                      className="border-b border-gray-200 pb-6 last:border-0"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          {review.author?.avatar ? (
-                            <Image
-                              src={review.author.avatar}
-                              alt={`${review.author.firstName} ${review.author.lastName}`}
-                              width={40}
-                              height={40}
-                              unoptimized
-                              className="w-10 h-10 rounded-full object-cover"
-                              crossOrigin="anonymous"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-semibold">
-                              {review.author?.firstName?.[0]}
-                              {review.author?.lastName?.[0]}
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {review.author?.firstName}{" "}
-                              {review.author?.lastName}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {new Date(review.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                          <span className="font-semibold">{review.rating}</span>
-                        </div>
-                      </div>
-                      <p className="text-gray-700">{review.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <p className="text-gray-500 text-center py-8">
-                    No reviews yet.
-                  </p>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                    <p className="text-sm text-blue-800">
-                      Reviews can only be submitted after completing a stay at
-                      this property.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </Card>
+              </div>
+            </div>
           </div>
 
-          {/* Booking Widget Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24">
-              <Card
-                className="p-6 border border-gray-200 !bg-white shadow-sm"
-                style={{ backgroundColor: "#ffffff", color: "#111827" }}
-              >
-                <div className="mb-6">
-                  <div className="flex items-baseline">
-                    <span
-                      className="text-2xl sm:text-3xl font-bold"
-                      style={{ color: accentColor }}
-                    >
-                      {formatPrice(property.pricePerNight)}
-                    </span>
-                    <span className="text-gray-600 ml-2">/ night</span>
-                  </div>
+          <div className="space-y-6">
+            <div className="p-8 rounded-2xl border bg-white border-gray-200 sticky top-6">
+              <h3 className="font-semibold mb-6 text-[20px] text-gray-900">Schedule a Viewing</h3>
 
-                  {/* Optional Fees Display */}
-                  {(property.cleaningFee || property.securityDeposit) && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p className="text-xs font-semibold text-gray-700 mb-2">
-                        Additional Charges:
-                      </p>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        {property.cleaningFee && (
-                          <div className="flex justify-between">
-                            <span>Cleaning fee:</span>
-                            <span className="font-medium">
-                              {formatPrice(property.cleaningFee)}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span>Service fee:</span>
-                          <span className="font-medium">
-                            Calculated at checkout
-                          </span>
-                        </div>
-                        {property.securityDeposit && (
-                          <div className="flex justify-between">
-                            <span>Security deposit:</span>
-                            <span className="font-medium">
-                              {formatPrice(Math.round(property.securityDeposit * 100) / 100)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2 italic">
-                        {property.securityDeposit
-                          ? "Service fee and cleaning fee are nonrefundable. Security deposit is refundable after checkout."
-                          : "Service fee and cleaning fee are nonrefundable."}
-                      </p>
-                    </div>
-                  )}
-                </div>
+              <Link href={`/booking/${property.id}/checkout`}>
+                <Button
+                  className="w-full h-14 rounded-xl font-semibold text-base mb-4 text-white"
+                  style={{ backgroundColor: accentColor || primaryColor }}
+                >
+                  <Calendar className="w-5 h-5 mr-2" />
+                  Book Viewing
+                </Button>
+              </Link>
 
-                <div className="space-y-4">
-                  {/* Check-in Date */}
-                  <div className="relative calendar-wrapper">
-                    <label
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: secondaryColor }}
-                    >
-                      <Calendar className="h-4 w-4 inline mr-1" />
-                      Check-in
-                    </label>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        
-                        setShowCheckInCalendar(!showCheckInCalendar);
-                        setShowCheckOutCalendar(false);
-                      }}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-left hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                      style={{
-                        borderColor: showCheckInCalendar
-                          ? accentColor
-                          : undefined,
-                        boxShadow: showCheckInCalendar
-                          ? `0 0 0 3px ${accentColor}20`
-                          : undefined,
-                      }}
-                    >
-                      <span
-                        className={
-                          checkIn
-                            ? "text-gray-900 font-medium"
-                            : "text-gray-400"
-                        }
-                      >
-                        {formatDateForDisplay(checkIn)}
-                      </span>
-                    </button>
-                    {showCheckInCalendar && renderCalendar(true)}
-                  </div>
+              <div className="p-4 rounded-xl mb-6 bg-[#f9f4ef]">
+                <div className="text-sm text-gray-600">Available viewing times:</div>
+                <div className="font-semibold mt-1 text-gray-900">Monday - Saturday, 9 AM - 6 PM</div>
+              </div>
 
-                  {/* Check-out Date */}
-                  <div className="relative calendar-wrapper">
-                    <label
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: secondaryColor }}
-                    >
-                      <Calendar className="h-4 w-4 inline mr-1" />
-                      Check-out
-                    </label>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        
-                        if (!checkIn) {
-                          setShowCheckInCalendar(true);
-                          return;
-                        }
-                        setShowCheckOutCalendar(!showCheckOutCalendar);
-                        setShowCheckInCalendar(false);
-                      }}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-left hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                      style={{
-                        borderColor: showCheckOutCalendar
-                          ? accentColor
-                          : undefined,
-                        boxShadow: showCheckOutCalendar
-                          ? `0 0 0 3px ${accentColor}20`
-                          : undefined,
-                      }}
-                    >
-                      <span
-                        className={
-                          checkOut
-                            ? "text-gray-900 font-medium"
-                            : "text-gray-400"
-                        }
-                      >
-                        {formatDateForDisplay(checkOut)}
-                      </span>
-                    </button>
-                    {showCheckOutCalendar && renderCalendar(false)}
-                  </div>
-
-                  {/* Guests */}
+              <div className="border-t pt-6 border-gray-200">
+                <div className="text-sm mb-4 text-gray-500">Your Agent</div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100" />
                   <div>
-                    <label
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: secondaryColor }}
-                    >
-                      <Users className="h-4 w-4 inline mr-1" />
-                      Guests
-                    </label>
-                    <select
-                      value={guests}
-                      onChange={(e) => setGuests(Number(e.target.value))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 hover:border-gray-300 transition-colors font-medium text-gray-900"
-                    >
-                      {Array.from(
-                        { length: property.maxGuests },
-                        (_, i) => i + 1
-                      ).map((num) => (
-                        <option key={num} value={num}>
-                          {num} {num === 1 ? "guest" : "guests"}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Price Breakdown */}
-                  {nights > 0 && (
-                    <div className="border-t border-gray-200 pt-4 space-y-2">
-                      {isPricingLoading ? (
-                        <p className="text-sm text-gray-500">
-                          Calculating current fees...
-                        </p>
-                      ) : pricingQuote ? (
-                        <>
-                          <div className="flex justify-between text-gray-700">
-                            <span>
-                              {formatPrice(property.pricePerNight)} x {nights}{" "}
-                              {nights === 1 ? "night" : "nights"}
-                            </span>
-                            <span>{formatPrice(roomFee)}</span>
-                          </div>
-                          {cleaningFee > 0 && (
-                            <div className="flex justify-between text-gray-700 text-sm">
-                              <span>Cleaning fee</span>
-                              <span>{formatPrice(cleaningFee)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-gray-700 text-sm">
-                            <span>Service fee</span>
-                            <span>{formatPrice(serviceFee)}</span>
-                          </div>
-                          {securityDeposit > 0 && (
-                            <div className="flex justify-between text-gray-700 text-sm">
-                              <span>Security deposit</span>
-                              <span>{formatPrice(securityDeposit)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between font-semibold text-gray-900 text-lg border-t border-gray-200 pt-2">
-                            <span>Total</span>
-                            <span>{formatPrice(totalPayable)}</span>
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-sm text-amber-700">
-                          Unable to load quote. Adjust dates and try again.
-                        </p>
-                      )}
+                    <div className="font-semibold text-gray-900">
+                      {property.realtor?.businessName || "Property Specialist"}
                     </div>
-                  )}
-
-                  {/* Book Button */}
-                  <button
-                    onClick={handleBookNow}
-                    disabled={!checkIn || !checkOut}
-                    className="w-full px-6 py-3 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: accentColor }}
-                  >
-                    {user ? "Book Now" : "Login to Book"}
-                  </button>
-
-                  <p className="text-xs text-gray-500 text-center">
-                    You won&apos;t be charged yet
-                  </p>
+                    <div className="text-sm text-gray-600">Property Specialist</div>
+                  </div>
                 </div>
-              </Card>
+                <Button variant="outline" className="w-full h-11 rounded-xl border-gray-200 text-gray-600">
+                  Contact Agent
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </main>
-
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-      />
     </div>
   );
 }
-
