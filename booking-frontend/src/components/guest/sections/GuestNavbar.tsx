@@ -1,9 +1,20 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import { User, LogOut, ChevronDown } from "lucide-react";
-import { guestUserMenuItems } from "./guestUserMenuItems";
+import { usePathname } from "next/navigation";
+import {
+  Menu,
+  X,
+  Home,
+  Calendar,
+  Heart,
+  MessageSquare,
+  Bell,
+  History,
+  HelpCircle,
+  User,
+} from "lucide-react";
 
 interface GuestNavbarProps {
   agencyName: string;
@@ -20,215 +31,163 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
   logo,
   isSticky = true,
 }) => {
-  // User authentication state
-  const [user, setUser] = useState<any>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Check authentication status
-  useEffect(() => {
-    const userData = localStorage.getItem("user");
-    const accessToken = localStorage.getItem("accessToken");
+  const navigation = useMemo(
+    () => [
+      { name: "Browse", href: "/guest/browse", icon: Home },
+      { name: "Bookings", href: "/guest/bookings", icon: Calendar },
+      { name: "Favorites", href: "/guest/favorites", icon: Heart },
+      { name: "Messages", href: "/guest/messages", icon: MessageSquare },
+      { name: "Notifications", href: "/guest/notifications", icon: Bell },
+      { name: "History", href: "/guest/history", icon: History },
+      { name: "Help", href: "/guest/help", icon: HelpCircle },
+      { name: "Profile", href: "/guest/profile", icon: User },
+    ],
+    [],
+  );
 
-    if (userData && accessToken) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } catch (error) {}
-    }
-  }, []);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      // Call backend logout endpoint
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (refreshToken) {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ refreshToken }),
-        });
-      }
-    } catch (error) {
-    } finally {
-      // Clear local storage regardless of API call result
-      localStorage.removeItem("user");
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      setUser(null);
-      setIsAuthenticated(false);
-      setShowUserMenu(false);
-      window.location.href = "/";
-    }
-  };
+  const isActive = (href: string) => pathname === href;
 
   return (
-    <nav
-      className={`${
-        isSticky ? "sticky" : ""
-      } top-0 left-0 right-0 z-[60] transition-all duration-500 ease-out backdrop-blur-md bg-white/95 shadow-lg`}
-    >
-      <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-6 sm:py-4 max-w-[1400px] mx-auto transition-all duration-500 ease-out">
-        <div className="flex items-center gap-2 sm:gap-5 min-w-0">
-          <div
-            className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl overflow-hidden transition-all duration-500 ease-out border-2 shadow-md hover:shadow-lg shrink-0"
-            style={{ borderColor: `${primaryColor}40` }}
-          >
-            <Link href="/">
+    <>
+      <nav
+        className={`${isSticky ? "sticky" : ""} top-0 z-[60] hidden md:block border-b bg-white`}
+        style={{ borderColor: "#e5e7eb" }}
+      >
+        <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <Link href="/guest-landing" className="flex items-center gap-3 min-w-0">
               {logo && logo.trim() !== "" ? (
-                <img
-                  src={logo}
-                  alt={`${agencyName} Logo`}
-                  className="w-full h-full object-cover"
-                />
+                <img src={logo} alt={agencyName} className="h-10 w-auto" />
               ) : (
                 <div
-                  className="w-full h-full flex items-center justify-center font-bold text-base sm:text-xl text-white transition-all duration-500"
+                  className="h-10 w-10 rounded-lg flex items-center justify-center"
                   style={{ backgroundColor: primaryColor }}
                 >
-                  {agencyName.charAt(0).toUpperCase()}
+                  <span className="text-white text-[18px] font-semibold">
+                    {agencyName.charAt(0)}
+                  </span>
                 </div>
               )}
-            </Link>
-          </div>
-          <div className="transition-all duration-500 min-w-0">
-            <h2
-              className="text-base sm:text-xl font-bold m-0 transition-all duration-500 truncate"
-              style={{ color: primaryColor }}
-            >
-              {agencyName}
-            </h2>
-            <p className="hidden sm:block text-sm m-0 text-gray-600 transition-all duration-500 truncate">
-              {tagline && tagline.trim() !== ""
-                ? tagline
-                : "Premium short-let properties"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {isAuthenticated && user ? (
-            // User Menu
-            <div ref={menuRef} className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 sm:gap-3 px-3 py-2 sm:px-5 sm:py-3 rounded-full font-semibold border cursor-pointer text-sm transition-all duration-300 ease-out bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md shadow-sm"
-              >
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white transition-all duration-300"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <User size={16} />
+              <div className="min-w-0">
+                <div className="font-semibold tracking-tight text-[20px] text-gray-900 truncate">
+                  {agencyName}
                 </div>
-                <ChevronDown
-                  size={16}
-                  className="transition-transform duration-300"
-                />
-              </button>
+                <div className="text-xs tracking-wide text-gray-500 truncate">
+                  {tagline && tagline.trim() !== ""
+                    ? tagline
+                    : "Premium short-let properties"}
+                </div>
+              </div>
+            </Link>
 
-              {showUserMenu && (
-                <div className="absolute top-[calc(100%+0.75rem)] right-0 w-[calc(100vw-1rem)] sm:w-auto sm:min-w-[260px] max-w-sm bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
-                  {/* User Info Header */}
-                  <div
-                    className="p-5 border-b transition-colors duration-300"
+            <div className="flex items-center gap-2">
+              {navigation.slice(0, 4).map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
                     style={{
-                      borderColor: `${primaryColor}15`,
-                      background: `linear-gradient(135deg, ${primaryColor}05, ${primaryColor}10)`,
+                      backgroundColor: active ? `${primaryColor}12` : "transparent",
+                      color: active ? primaryColor : "#374151",
                     }}
                   >
-                    <div className="font-bold text-gray-800 mb-1">
-                      {user.firstName} {user.lastName}
-                    </div>
-                    <div className="text-sm text-gray-500 truncate">
-                      {user.email}
-                    </div>
-                    <div
-                      className="inline-block mt-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-300"
-                      style={{
-                        backgroundColor: `${primaryColor}20`,
-                        color: primaryColor,
-                      }}
-                    >
-                      GUEST
-                    </div>
-                  </div>
+                    <Icon className="w-4 h-4" />
+                    <span className="text-sm font-medium">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
 
-                  {/* Menu Items */}
-                  <div className="p-2">
-                    {guestUserMenuItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <button
-                          key={item.href}
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            window.location.href = item.href;
-                          }}
-                          className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-medium text-gray-700 text-left transition-all duration-200 hover:bg-gray-50"
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "transparent";
-                          }}
-                        >
-                          <Icon size={18} style={{ color: primaryColor }} />
-                          <span>{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+            <div className="flex items-center gap-2">
+              {navigation.slice(4).map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="p-2 rounded-lg transition-all relative"
+                    style={{
+                      backgroundColor: active ? `${primaryColor}12` : "transparent",
+                      color: active ? primaryColor : "#374151",
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.name === "Notifications" && (
+                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ backgroundColor: primaryColor }} />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </nav>
 
-                  {/* Sign Out */}
-                  <div className="p-2 border-t border-gray-100">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-3 p-3.5 bg-transparent border-none rounded-xl cursor-pointer text-sm font-semibold text-red-600 text-left transition-all duration-200 hover:bg-red-50"
-                    >
-                      <LogOut size={18} />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
+      <nav
+        className={`${isSticky ? "sticky" : ""} top-0 z-[60] md:hidden border-b bg-white`}
+        style={{ borderColor: "#e5e7eb" }}
+      >
+        <div className="px-4">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/guest-landing" className="flex items-center gap-2 min-w-0">
+              {logo && logo.trim() !== "" ? (
+                <img src={logo} alt={agencyName} className="h-8 w-auto" />
+              ) : (
+                <div
+                  className="h-8 w-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <span className="text-white text-sm font-semibold">
+                    {agencyName.charAt(0)}
+                  </span>
                 </div>
               )}
-            </div>
-          ) : (
-            // Login/Signup Buttons (when not authenticated)
-            <>
-              <button
-                className="px-3 py-2 sm:px-6 sm:py-3 rounded-xl font-semibold border cursor-pointer text-xs sm:text-sm transition-all duration-300 ease-out transform bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md shadow-sm hover:scale-105"
-                onClick={() => (window.location.href = "/guest/login")}
-              >
-                Login
-              </button>
-              <button
-                className="px-3 py-2 sm:px-6 sm:py-3 rounded-xl font-semibold border-none cursor-pointer text-xs sm:text-sm transition-all duration-300 ease-out transform hover:scale-105 text-white shadow-md hover:shadow-xl"
-                style={{ backgroundColor: primaryColor }}
-                onClick={() => (window.location.href = "/guest/register")}
-              >
-                Sign up
-              </button>
-            </>
-          )}
+              <span className="font-semibold text-[16px] text-gray-900 truncate">
+                {agencyName}
+              </span>
+            </Link>
+
+            <button
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              className="p-2 rounded-lg text-gray-700"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
-      </div>
-    </nav>
+
+        {mobileMenuOpen && (
+          <div className="border-t px-4 py-4 space-y-1" style={{ borderColor: "#e5e7eb" }}>
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
+                  style={{
+                    backgroundColor: active ? `${primaryColor}12` : "transparent",
+                    color: active ? primaryColor : "#374151",
+                  }}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-sm font-medium">{item.name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </nav>
+    </>
   );
 };
