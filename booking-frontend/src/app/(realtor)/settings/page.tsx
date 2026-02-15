@@ -61,7 +61,7 @@ export default function SettingsPage() {
   const previewSiteUrl = user?.realtor?.slug
     ? realtorSubdomain
       ? buildSubdomainUrl(user.realtor.slug)
-      : buildMainDomainUrl(`/guest/preview/${user.realtor.slug}`)
+      : buildMainDomainUrl(`/guest-landing`)
     : null;
 
   const [activeTab, setActiveTab] = useState<TabId>("profile");

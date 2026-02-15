@@ -311,7 +311,7 @@ export default function BookingHistoryPage() {
                       <RotateCw className="w-4 h-4 mr-2" />
                       Book Again
                     </Button>
-                    <Link href={`/guest/bookings/${booking.id}`}>
+                    <Link href={`/guest/booking/${booking.id}`}>
                       <Button
                         className="text-white"
                         style={{ backgroundColor: primaryColor }}

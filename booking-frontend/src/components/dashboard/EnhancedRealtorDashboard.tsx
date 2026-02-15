@@ -155,7 +155,7 @@ export default function EnhancedRealtorDashboard() {
   const previewUrl = realtorSubdomain
     ? `https://${realtorSubdomain}.stayza.pro`
     : user?.realtor?.slug
-    ? buildMainDomainUrl(`/guest/preview/${user.realtor.slug}`)
+    ? buildMainDomainUrl(`/guest-landing`)
     : null;
 
   const copyWebsiteLink = () => {

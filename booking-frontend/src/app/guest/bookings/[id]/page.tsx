@@ -53,7 +53,7 @@ export default function GuestBookingDetailsPage() {
 
   React.useEffect(() => {
     if (authChecked && !isLoading && !isAuthenticated) {
-      router.push(`/guest/login?returnTo=/guest/bookings/${bookingId}`);
+      router.push(`/guest/login?returnTo=/guest/booking/${bookingId}`);
     }
   }, [authChecked, isLoading, isAuthenticated, router, bookingId]);
 

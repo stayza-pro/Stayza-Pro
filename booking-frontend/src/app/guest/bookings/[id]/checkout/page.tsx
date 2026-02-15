@@ -90,7 +90,7 @@ export default function GuestBookingCheckoutPage() {
       )) as unknown as CheckoutBooking;
       setBooking(data || null);
       if (data?.status !== "PENDING") {
-        router.push(`/guest/bookings/${bookingId}`);
+        router.push(`/guest/booking/${bookingId}`);
       }
       if (typeof data?.totalGuests === "number") {
         setGuests(data.totalGuests);
@@ -214,7 +214,7 @@ export default function GuestBookingCheckoutPage() {
             .then((verifyResponse) => {
               if (verifyResponse.success) {
                 toast.success("Booking payment successful!");
-                router.push(`/guest/bookings/${bookingId}`);
+                router.push(`/guest/booking/${bookingId}`);
               } else {
                 toast.error("Payment verification failed.");
                 setIsProcessing(false);
@@ -285,7 +285,7 @@ export default function GuestBookingCheckoutPage() {
 
       <div className="border-b border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <Link href={`/guest/bookings/${booking.id}`}>
+          <Link href={`/guest/booking/${booking.id}`}>
             <Button variant="ghost" size="sm">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Booking

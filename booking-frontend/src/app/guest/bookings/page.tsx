@@ -322,7 +322,7 @@ export default function GuestBookingsPage() {
 
                         <div className="flex flex-wrap gap-3 mt-6">
                           <Link
-                            href={`/guest/bookings/${booking.id}`}
+                            href={`/guest/booking/${booking.id}`}
                             className="flex-1 min-w-[200px]"
                           >
                             <Button
