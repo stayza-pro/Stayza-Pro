@@ -10,6 +10,8 @@ import {
   Calendar,
   Heart,
   MessageSquare,
+  History,
+  HelpCircle,
   User,
 } from "lucide-react";
 import { GuestNotificationDropdown } from "./GuestNotificationDropdown";
@@ -38,6 +40,14 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
       { name: "Bookings", href: "/guest/bookings", icon: Calendar },
       { name: "Favorites", href: "/guest/favorites", icon: Heart },
       { name: "Messages", href: "/guest/messages", icon: MessageSquare },
+    ],
+    [],
+  );
+
+  const actionLinks = useMemo(
+    () => [
+      { name: "History", href: "/guest/history", icon: History },
+      { name: "Help", href: "/guest/help", icon: HelpCircle },
       { name: "Profile", href: "/guest/profile", icon: User },
     ],
     [],
@@ -114,7 +124,7 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
 
             <div className="flex items-center gap-2">
               <GuestNotificationDropdown primaryColor={primaryColor} />
-              {navigation.slice(4).map((item) => {
+              {actionLinks.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
                 return (
@@ -217,7 +227,7 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
         style={{ borderColor: "#e5e7eb" }}
       >
         <div className="flex items-center justify-around px-2 py-2">
-          {navigation.slice(0, 5).map((item) => {
+          {[...navigation, { name: "Profile", href: "/guest/profile", icon: User }].map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             return (

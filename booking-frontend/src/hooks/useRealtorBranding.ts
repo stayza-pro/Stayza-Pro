@@ -30,6 +30,18 @@ interface APIRealtorBranding {
   };
 }
 
+const src2GuestBranding: RealtorBranding = {
+  id: "src2-elite-estates",
+  businessName: "Elite Estates",
+  tagline: "Where luxury meets lifestyle",
+  primaryColor: "#1a3a52",
+  secondaryColor: "#d4a574",
+  accentColor: "#c7956d",
+  logoUrl: "",
+  description:
+    "Premium real estate experiences, tailored for discerning clients.",
+};
+
 /**
  * Custom hook to fetch fresh realtor branding data
  * Falls back to localStorage data if API call fails
@@ -55,6 +67,16 @@ export function useRealtorBranding() {
     const fetchRealtorBranding = async () => {
       // Only run on client side to avoid hydration issues
       if (typeof window === "undefined") {
+        setIsLoading(false);
+        return;
+      }
+
+      const pathname = window.location.pathname;
+      const isGuestRoute =
+        pathname === "/guest-landing" || pathname.startsWith("/guest");
+
+      if (isGuestRoute) {
+        setRealtorBranding(src2GuestBranding);
         setIsLoading(false);
         return;
       }
