@@ -34,8 +34,8 @@ export default function PropertiesPage() {
   const previewUrl = realtorSubdomain
     ? `https://${realtorSubdomain}.stayza.pro`
     : user?.realtor?.slug
-    ? buildMainDomainUrl(`/guest-landing`)
-    : null;
+      ? buildMainDomainUrl(`/guest-landing`)
+      : null;
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,27 +63,24 @@ export default function PropertiesPage() {
 
   const fetchProperties = async () => {
     if (!user?.realtor?.id) {
-      
       return;
     }
 
     try {
       setLoading(true);
-      
+
       const response = await propertyService.getHostProperties(
         user.realtor.id,
         {
           page: currentPage,
           limit: 12,
           query: searchQuery || undefined,
-        }
+        },
       );
 
-      
       setProperties(response.data || []);
       setTotalPages(response.pagination?.totalPages || 1);
     } catch (error) {
-      
       showError("Failed to load properties");
     } finally {
       setLoading(false);
@@ -97,7 +94,6 @@ export default function PropertiesPage() {
         showSuccess("Property deleted successfully!");
         fetchProperties(); // Refresh list
       } catch (error) {
-        
         showError("Failed to delete property");
       }
     });
@@ -318,7 +314,7 @@ export default function PropertiesPage() {
                           <button
                             onClick={() =>
                               router.push(
-                                `/dashboard/properties/${property.id}`
+                                `/dashboard/properties/${property.id}`,
                               )
                             }
                             className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
@@ -330,7 +326,7 @@ export default function PropertiesPage() {
                             onClick={() =>
                               window.open(
                                 `/properties/${property.id}`,
-                                "_blank"
+                                "_blank",
                               )
                             }
                             className="flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
@@ -375,7 +371,7 @@ export default function PropertiesPage() {
                           >
                             {page}
                           </button>
-                        )
+                        ),
                       )}
                     </div>
 

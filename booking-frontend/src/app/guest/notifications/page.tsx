@@ -48,8 +48,7 @@ function formatTime(timestamp: string) {
 }
 
 function getActionUrl(notification: Notification) {
-  if (notification.bookingId)
-    return `/guest/booking/${notification.bookingId}`;
+  if (notification.bookingId) return `/guest/booking/${notification.bookingId}`;
   if (notification.propertyId)
     return `/guest/browse?propertyId=${notification.propertyId}`;
   return null;

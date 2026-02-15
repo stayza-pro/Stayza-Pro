@@ -114,7 +114,8 @@ export default function SettingsPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isVerifyingAccount, setIsVerifyingAccount] = useState(false);
   const [hasPayoutAccount, setHasPayoutAccount] = useState(false);
-  const [otpRequiredForPayoutEdit, setOtpRequiredForPayoutEdit] = useState(false);
+  const [otpRequiredForPayoutEdit, setOtpRequiredForPayoutEdit] =
+    useState(false);
   const [isEditingPayoutAccount, setIsEditingPayoutAccount] = useState(false);
   const [isRequestingPayoutOtp, setIsRequestingPayoutOtp] = useState(false);
   const [payoutOtpSent, setPayoutOtpSent] = useState(false);
@@ -157,7 +158,7 @@ export default function SettingsPage() {
 
     if (appeal === "success") {
       showSuccess(
-        "Appeal processed! You can now resubmit your CAC documentation."
+        "Appeal processed! You can now resubmit your CAC documentation.",
       );
       // Clean URL
       window.history.replaceState({}, "", window.location.pathname);
@@ -204,7 +205,9 @@ export default function SettingsPage() {
           bankCode: payoutSettings.bankCode,
           bankName: payoutSettings.bankName || "",
           accountNumber:
-            payoutSettings.accountNumber || payoutSettings.maskedAccountNumber || "",
+            payoutSettings.accountNumber ||
+            payoutSettings.maskedAccountNumber ||
+            "",
           accountName: payoutSettings.accountName || "",
         });
       } else {
@@ -216,7 +219,6 @@ export default function SettingsPage() {
         });
       }
     } catch (error) {
-      
       showError("Failed to load payout settings");
     } finally {
       setIsLoading(false);
@@ -250,7 +252,6 @@ export default function SettingsPage() {
         }
       }
     } catch (error) {
-      
     } finally {
       setIsLoading(false);
     }
@@ -339,7 +340,7 @@ export default function SettingsPage() {
       setIsVerifyingAccount(true);
       const result = await payoutService.verifyBankAccount(
         payoutData.accountNumber,
-        payoutData.bankCode
+        payoutData.bankCode,
       );
 
       setPayoutData((prev) => ({
@@ -421,7 +422,7 @@ export default function SettingsPage() {
 
     if (cacStatus?.cacStatus !== "APPROVED") {
       showError(
-        "CAC verification must be approved before setting up payout account"
+        "CAC verification must be approved before setting up payout account",
       );
       return;
     }
@@ -454,7 +455,7 @@ export default function SettingsPage() {
       showSuccess(
         hasPayoutAccount
           ? "Payout account updated successfully!"
-          : "Bank account set up successfully!"
+          : "Bank account set up successfully!",
       );
       setHasPayoutAccount(true);
       setIsEditingPayoutAccount(false);
@@ -470,7 +471,7 @@ export default function SettingsPage() {
   };
 
   const handleCacDocumentUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -517,7 +518,7 @@ export default function SettingsPage() {
         showSuccess(
           isResubmission
             ? "CAC verification resubmitted successfully"
-            : "CAC verification submitted successfully"
+            : "CAC verification submitted successfully",
         );
         await fetchCacStatus();
       } else {
@@ -680,7 +681,7 @@ export default function SettingsPage() {
                 method: "DELETE",
                 headers: {
                   Authorization: `Bearer ${localStorage.getItem(
-                    "accessToken"
+                    "accessToken",
                   )}`,
                 },
               });
@@ -702,10 +703,10 @@ export default function SettingsPage() {
               setIsSaving(false);
             }
           },
-          "Final Confirmation Required"
+          "Final Confirmation Required",
         );
       },
-      "Delete Account Confirmation"
+      "Delete Account Confirmation",
     );
   };
 
@@ -1500,8 +1501,8 @@ export default function SettingsPage() {
                         {isRequestingPayoutOtp
                           ? "Sending OTP..."
                           : payoutOtpSent
-                          ? "Resend OTP"
-                          : "Send OTP"}
+                            ? "Resend OTP"
+                            : "Send OTP"}
                       </button>
                     </div>
 
@@ -1515,7 +1516,7 @@ export default function SettingsPage() {
                           value={payoutOtp}
                           onChange={(e) =>
                             setPayoutOtp(
-                              e.target.value.replace(/\D/g, "").slice(0, 4)
+                              e.target.value.replace(/\D/g, "").slice(0, 4),
                             )
                           }
                           inputMode="numeric"
@@ -1552,12 +1553,12 @@ export default function SettingsPage() {
                 {isSaving
                   ? "Saving..."
                   : hasPayoutAccount && !isEditingPayoutAccount
-                  ? "Account Already Set Up"
-                  : hasPayoutAccount && isEditingPayoutAccount
-                  ? otpRequiredForPayoutEdit
-                    ? "Verify OTP & Update Account"
-                    : "Update Bank Account"
-                  : "Save Bank Account"}
+                    ? "Account Already Set Up"
+                    : hasPayoutAccount && isEditingPayoutAccount
+                      ? otpRequiredForPayoutEdit
+                        ? "Verify OTP & Update Account"
+                        : "Update Bank Account"
+                      : "Save Bank Account"}
               </motion.button>
             </div>
           </div>

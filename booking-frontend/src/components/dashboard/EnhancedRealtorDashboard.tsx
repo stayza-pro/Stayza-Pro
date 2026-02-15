@@ -118,7 +118,6 @@ export default function EnhancedRealtorDashboard() {
       const refreshToken = urlParams.get("refreshToken");
 
       if (accessToken && refreshToken) {
-        
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("refreshToken", refreshToken);
 
@@ -130,10 +129,7 @@ export default function EnhancedRealtorDashboard() {
               : ".stayza.pro";
           document.cookie = `accessToken=${accessToken}; domain=${domain}; path=/; Secure; SameSite=None`;
           document.cookie = `refreshToken=${refreshToken}; domain=${domain}; path=/; Secure; SameSite=None`;
-          
-        } catch (error) {
-          
-        }
+        } catch (error) {}
 
         // Clean up URL
         const cleanUrl = window.location.origin + window.location.pathname;
@@ -155,8 +151,8 @@ export default function EnhancedRealtorDashboard() {
   const previewUrl = realtorSubdomain
     ? `https://${realtorSubdomain}.stayza.pro`
     : user?.realtor?.slug
-    ? buildMainDomainUrl(`/guest-landing`)
-    : null;
+      ? buildMainDomainUrl(`/guest-landing`)
+      : null;
 
   const copyWebsiteLink = () => {
     if (!mounted || !previewUrl) return;
@@ -269,7 +265,7 @@ export default function EnhancedRealtorDashboard() {
                     <div
                       className={`p-3 rounded-lg ${feature.color.replace(
                         "50",
-                        "100"
+                        "100",
                       )}`}
                     >
                       <Icon className="h-6 w-6" />

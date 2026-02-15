@@ -90,16 +90,6 @@ export default function GuestBookingsPage() {
     (booking) => getBucket(booking) === activeTab,
   );
 
-  const upcomingCount = bookings.filter(
-    (booking) => getBucket(booking) === "upcoming",
-  ).length;
-  const completedCount = bookings.filter(
-    (booking) => getBucket(booking) === "completed",
-  ).length;
-  const cancelledCount = bookings.filter(
-    (booking) => getBucket(booking) === "cancelled",
-  ).length;
-
   const formatDate = (value: Date | string) =>
     new Date(value).toLocaleDateString("en-US", {
       month: "long",
@@ -186,18 +176,9 @@ export default function GuestBookingsPage() {
           style={{ backgroundColor: `${primaryColor}20` }}
         >
           {[
-            {
-              key: "upcoming",
-              label: `Upcoming${upcomingCount > 0 ? ` (${upcomingCount})` : ""}`,
-            },
-            {
-              key: "completed",
-              label: `Completed${completedCount > 0 ? ` (${completedCount})` : ""}`,
-            },
-            {
-              key: "cancelled",
-              label: `Cancelled${cancelledCount > 0 ? ` (${cancelledCount})` : ""}`,
-            },
+            { key: "upcoming", label: "Upcoming" },
+            { key: "completed", label: "Completed" },
+            { key: "cancelled", label: "Cancelled" },
           ].map((tab) => {
             const isActive = activeTab === tab.key;
             return (
@@ -222,11 +203,7 @@ export default function GuestBookingsPage() {
           {visibleBookings.length === 0 ? (
             <EmptyState
               message={
-                activeTab === "upcoming"
-                  ? "You don't have any upcoming property viewings at the moment"
-                  : activeTab === "completed"
-                    ? "You don't have any completed property viewings yet"
-                    : "You don't have any cancelled bookings"
+                `You don't have any ${activeTab} property viewings at the moment`
               }
             />
           ) : (
