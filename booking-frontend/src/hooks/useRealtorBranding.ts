@@ -64,7 +64,7 @@ export function useRealtorBranding() {
 
   const [realtorBranding, setRealtorBranding] =
     useState<RealtorBranding | null>(getInitialBranding());
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const mapApiBranding = (data: APIRealtorBranding): RealtorBranding => ({
     id: data.id,
@@ -84,6 +84,8 @@ export function useRealtorBranding() {
         setIsLoading(false);
         return;
       }
+
+      setIsLoading(true);
 
       // Try to get subdomain first (same as guest-landing page)
       const subdomain = getRealtorSubdomain();
@@ -126,7 +128,6 @@ export function useRealtorBranding() {
             await apiClient.get<APIRealtorBranding>("/branding/me");
           if (response.data) {
             setRealtorBranding(mapApiBranding(response.data));
-            setIsLoading(false);
             return;
           }
         } catch (error) {}

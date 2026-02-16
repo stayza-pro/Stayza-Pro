@@ -26,8 +26,26 @@ export default function GuestLoginPage() {
     accentColor,
     realtorName,
     logoUrl,
+    isLoading: brandingLoading,
   } = useRealtorBranding();
   const primaryDark = secondaryColor || "#10283f";
+
+  const sanitizeReturnTo = (value: string | null) => {
+    if (!value || !value.startsWith("/")) {
+      return "/guest-landing";
+    }
+
+    const blockedPaths = [
+      "/guest/login",
+      "/auth/verify-otp",
+      "/guest/register",
+    ];
+    if (blockedPaths.some((path) => value.startsWith(path))) {
+      return "/guest-landing";
+    }
+
+    return value;
+  };
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -63,11 +81,13 @@ export default function GuestLoginPage() {
       }
 
       const search = new URLSearchParams(window.location.search);
-      const returnTo = search.get("returnTo") || "/guest-landing";
+      const returnTo =
+        search.get("returnTo") || search.get("redirect") || "/guest-landing";
+      const safeReturnTo = sanitizeReturnTo(returnTo);
       const otpParams = new URLSearchParams({
         email,
         type: "login",
-        returnTo,
+        returnTo: safeReturnTo,
       });
 
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
@@ -81,6 +101,14 @@ export default function GuestLoginPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (brandingLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">

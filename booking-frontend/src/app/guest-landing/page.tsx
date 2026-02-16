@@ -135,7 +135,7 @@ export default function GuestLandingPage() {
                 <Link href="/guest/browse">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white animate-pulse"
+                    className="w-full sm:w-auto px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white animate-[pulse_2.8s_ease-in-out_infinite] motion-reduce:animate-none"
                     style={{ backgroundColor: accentColor || primaryColor }}
                   >
                     Browse Properties
@@ -256,7 +256,7 @@ export default function GuestLandingPage() {
               <Link href="/guest/browse">
                 <Button
                   size="lg"
-                  className="px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white animate-pulse"
+                  className="px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white animate-[pulse_2.8s_ease-in-out_infinite] motion-reduce:animate-none"
                   style={{ backgroundColor: accentColor || primaryColor }}
                 >
                   Start Exploring

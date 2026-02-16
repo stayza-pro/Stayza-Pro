@@ -38,6 +38,9 @@ export default function GuestPropertyDetailsPage() {
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  const [checkInDate, setCheckInDate] = useState("");
+  const [checkOutDate, setCheckOutDate] = useState("");
+  const [guests, setGuests] = useState(1);
 
   const images = useMemo(
     () =>
@@ -68,6 +71,21 @@ export default function GuestPropertyDetailsPage() {
       currency: property?.currency || "USD",
       minimumFractionDigits: 0,
     }).format(value);
+
+  const minCheckInDate = new Date().toISOString().split("T")[0];
+  const totalNights = useMemo(() => {
+    if (!checkInDate || !checkOutDate) return 0;
+    const start = new Date(checkInDate);
+    const end = new Date(checkOutDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    const nights = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    return nights > 0 ? nights : 0;
+  }, [checkInDate, checkOutDate]);
+
+  const estimatedTotal =
+    totalNights > 0 ? totalNights * (property?.pricePerNight || 0) : 0;
 
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -112,6 +130,38 @@ export default function GuestPropertyDetailsPage() {
       await navigator.clipboard.writeText(window.location.href);
       toast.success("Link copied to clipboard");
     }
+  };
+
+  const handleBookNow = () => {
+    if (!property) {
+      toast.error(
+        "Property details are unavailable. Please refresh and try again.",
+      );
+      return;
+    }
+
+    if (!checkInDate || !checkOutDate) {
+      toast.error("Please select check-in and check-out dates");
+      return;
+    }
+
+    if (totalNights <= 0) {
+      toast.error("Check-out date must be after check-in date");
+      return;
+    }
+
+    if (guests < 1 || guests > (property?.maxGuests || 1)) {
+      toast.error(`Guests must be between 1 and ${property?.maxGuests || 1}`);
+      return;
+    }
+
+    const query = new URLSearchParams({
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      guests: String(guests),
+    }).toString();
+
+    router.push(`/booking/${property.id}/checkout?${query}`);
   };
 
   if (isLoading) {
@@ -289,22 +339,65 @@ export default function GuestPropertyDetailsPage() {
                 Book This Property
               </h3>
 
-              <Link href={`/booking/${property.id}/checkout`}>
-                <Button
-                  className="w-full h-14 rounded-xl font-semibold text-base mb-4 text-white"
-                  style={{ backgroundColor: accentColor || primaryColor }}
-                >
-                  <Calendar className="w-5 h-5 mr-2" />
-                  Book Viewing
-                </Button>
-              </Link>
+              <div className="space-y-4 mb-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-900">
+                    Check-in
+                  </label>
+                  <input
+                    type="date"
+                    value={checkInDate}
+                    min={minCheckInDate}
+                    onChange={(e) => setCheckInDate(e.target.value)}
+                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-900">
+                    Check-out
+                  </label>
+                  <input
+                    type="date"
+                    value={checkOutDate}
+                    min={checkInDate || minCheckInDate}
+                    onChange={(e) => setCheckOutDate(e.target.value)}
+                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-900">
+                    Guests
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={property.maxGuests}
+                    value={guests}
+                    onChange={(e) => setGuests(Number(e.target.value) || 1)}
+                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900"
+                  />
+                </div>
+              </div>
+
+              <Button
+                className="w-full h-14 rounded-xl font-semibold text-base mb-4 text-white"
+                style={{ backgroundColor: accentColor || primaryColor }}
+                onClick={handleBookNow}
+              >
+                <Calendar className="w-5 h-5 mr-2" />
+                Continue to Checkout
+              </Button>
 
               <div className="p-4 rounded-xl mb-6 bg-[#f9f4ef]">
                 <div className="text-sm text-gray-600">
-                  Available viewing times:
+                  Estimated stay cost:
                 </div>
                 <div className="font-semibold mt-1 text-gray-900">
-                  Monday - Saturday, 9 AM - 6 PM
+                  {totalNights > 0
+                    ? `${formatPrice(estimatedTotal)} for ${totalNights} ${totalNights === 1 ? "night" : "nights"}`
+                    : "Select dates to see estimate"}
                 </div>
               </div>
 

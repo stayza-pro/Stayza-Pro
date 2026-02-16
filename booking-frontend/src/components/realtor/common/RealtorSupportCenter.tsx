@@ -21,7 +21,7 @@ export default function RealtorSupportCenter() {
       title: "Help Center",
       description: "Browse guides and FAQs built for realtors.",
       icon: HelpCircle,
-      action: () => window.open(buildMainDomainUrl("/help"), "_blank"),
+      action: () => window.open(buildMainDomainUrl("/guest/help"), "_blank"),
       cta: "Open Help Center",
     },
     {

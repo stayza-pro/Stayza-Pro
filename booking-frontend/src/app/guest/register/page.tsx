@@ -43,8 +43,26 @@ export default function GuestRegisterPage() {
     accentColor,
     realtorName,
     logoUrl,
+    isLoading: brandingLoading,
   } = useRealtorBranding();
   const primaryDark = secondaryColor || "#10283f";
+
+  const sanitizeReturnTo = (value: string | null) => {
+    if (!value || !value.startsWith("/")) {
+      return "/guest-landing";
+    }
+
+    const blockedPaths = [
+      "/guest/login",
+      "/auth/verify-otp",
+      "/guest/register",
+    ];
+    if (blockedPaths.some((path) => value.startsWith(path))) {
+      return "/guest-landing";
+    }
+
+    return value;
+  };
 
   useEffect(() => {
     setSubdomain(getRealtorSubdomain());
@@ -129,6 +147,11 @@ export default function GuestRegisterPage() {
         otpParams.append("referralSource", `subdomain:${subdomain}`);
       }
 
+      const search = new URLSearchParams(window.location.search);
+      const returnTo =
+        search.get("returnTo") || search.get("redirect") || "/guest-landing";
+      otpParams.append("returnTo", sanitizeReturnTo(returnTo));
+
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
     } catch (error: unknown) {
       const message =
@@ -149,6 +172,14 @@ export default function GuestRegisterPage() {
     "Priority access to new listings",
     "Direct messaging with property agents",
   ];
+
+  if (brandingLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -363,7 +394,7 @@ export default function GuestRegisterPage() {
                 >
                   I agree to the{" "}
                   <Link
-                    href="/terms"
+                    href="/legal/terms"
                     className="font-medium hover:underline"
                     style={{ color: primaryColor }}
                   >
@@ -371,7 +402,7 @@ export default function GuestRegisterPage() {
                   </Link>{" "}
                   and{" "}
                   <Link
-                    href="/privacy"
+                    href="/legal/privacy"
                     className="font-medium hover:underline"
                     style={{ color: primaryColor }}
                   >

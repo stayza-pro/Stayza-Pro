@@ -4,7 +4,7 @@ import { navLinks, brand } from "@/app/(marketing)/content";
 import { LogoLockup } from "@/app/(marketing)/components/LogoLockup";
 
 const footerLinks = [
-  { label: "Help", href: "/help" },
+  { label: "Help", href: "/guest/help" },
   { label: "Privacy", href: "/legal/privacy" },
   { label: "Terms", href: "/legal/terms" },
 ];

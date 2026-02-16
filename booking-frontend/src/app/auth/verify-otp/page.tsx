@@ -25,14 +25,37 @@ function OTPVerificationContent() {
 
   const email = searchParams.get("email") || "";
   const type = searchParams.get("type") || "login"; // "login" or "register"
-  const returnTo = searchParams.get("returnTo") || "/guest-landing";
+  const sanitizeReturnTo = (value: string | null) => {
+    if (!value || !value.startsWith("/")) {
+      return "/guest-landing";
+    }
+
+    const blockedPaths = [
+      "/guest/login",
+      "/auth/verify-otp",
+      "/guest/register",
+    ];
+    if (blockedPaths.some((path) => value.startsWith(path))) {
+      return "/guest-landing";
+    }
+
+    return value;
+  };
+
+  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
   const realtorId = searchParams.get("realtorId");
   const referralSource = searchParams.get("referralSource");
   const firstName = searchParams.get("firstName");
   const lastName = searchParams.get("lastName");
 
   // Get realtor branding
-  const { brandColor, realtorName, logoUrl } = useRealtorBranding();
+  const {
+    brandColor,
+    secondaryColor,
+    realtorName,
+    logoUrl,
+    isLoading: brandingLoading,
+  } = useRealtorBranding();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
@@ -311,13 +334,22 @@ function OTPVerificationContent() {
   };
 
   const primaryColor = brandColor;
+  const primaryDark = secondaryColor || "#10283f";
+
+  if (brandingLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
       <div
         className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, #10283f 100%)`,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
         }}
       >
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
@@ -345,6 +377,22 @@ function OTPVerificationContent() {
               Enter the 6-digit code we sent to complete your secure
               {type === "register" ? " registration" : " sign in"}
             </p>
+
+            <div className="flex gap-2 pt-8">
+              {[0, 1, 2].map((index) => (
+                <div
+                  key={index}
+                  className="h-1 rounded-full"
+                  style={{
+                    width: index <= 1 ? "48px" : "24px",
+                    backgroundColor:
+                      index <= 1
+                        ? secondaryColor || "rgba(255, 255, 255, 0.7)"
+                        : "rgba(255, 255, 255, 0.3)",
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

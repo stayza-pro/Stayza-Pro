@@ -20,7 +20,7 @@ export default function FavoritesPage() {
   const [loadingFavorites, setLoadingFavorites] = useState(true);
 
   const { brandColor: primaryColor, accentColor } = useRealtorBranding();
-  const secondarySurface = "#f9f4ef";
+  const secondarySurface = `${primaryColor}0f`;
 
   useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
@@ -218,16 +218,15 @@ export default function FavoritesPage() {
                     </div>
                   </div>
 
-                  <Link href={`/guest/browse/${property.id}`}>
-                    <Button
-                      className="w-full h-11 rounded-xl font-medium text-white"
-                      style={{
-                        backgroundColor: accentColor || primaryColor,
-                      }}
-                    >
-                      View Details
-                    </Button>
-                  </Link>
+                  <Button
+                    className="w-full h-11 rounded-xl font-medium text-white"
+                    style={{
+                      backgroundColor: accentColor || primaryColor,
+                    }}
+                    onClick={() => router.push(`/guest/browse/${property.id}`)}
+                  >
+                    View Details
+                  </Button>
                 </div>
               </div>
             ))}
@@ -253,14 +252,13 @@ export default function FavoritesPage() {
               Properties you save with the heart icon appear here so you can
               compare and book faster.
             </p>
-            <Link href="/guest/browse">
-              <Button
-                className="text-white h-11 px-6 rounded-xl"
-                style={{ backgroundColor: accentColor || primaryColor }}
-              >
-                Browse Properties
-              </Button>
-            </Link>
+            <Button
+              className="text-white h-11 px-6 rounded-xl"
+              style={{ backgroundColor: accentColor || primaryColor }}
+              onClick={() => router.push("/guest/browse")}
+            >
+              Browse Properties
+            </Button>
           </div>
         )}
       </main>

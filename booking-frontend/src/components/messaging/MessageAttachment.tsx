@@ -16,11 +16,32 @@ interface MessageAttachmentProps {
   isOwn: boolean;
 }
 
+const inferAttachmentType = (attachment: MessageAttachmentData) => {
+  if (attachment.type) {
+    return attachment.type.toLowerCase();
+  }
+
+  const source =
+    `${attachment.filename || ""} ${attachment.url || ""}`.toLowerCase();
+
+  if (/\.(png|jpg|jpeg|gif|webp|avif|svg)(\?|$)/.test(source)) {
+    return "image";
+  }
+
+  if (/\.(mp3|wav|ogg|m4a|aac|webm)(\?|$)/.test(source)) {
+    return "audio";
+  }
+
+  return "file";
+};
+
 export function MessageAttachment({
   attachment,
   isOwn,
 }: MessageAttachmentProps) {
-  if (attachment.type?.includes("image")) {
+  const resolvedType = inferAttachmentType(attachment);
+
+  if (resolvedType.includes("image")) {
     return (
       <Image
         src={attachment.url}
@@ -32,7 +53,7 @@ export function MessageAttachment({
     );
   }
 
-  if (attachment.type?.includes("audio") || attachment.type === "VOICE") {
+  if (resolvedType.includes("audio") || resolvedType === "voice") {
     return (
       <audio
         controls

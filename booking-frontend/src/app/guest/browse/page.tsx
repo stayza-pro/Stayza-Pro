@@ -318,7 +318,7 @@ export default function BrowsePropertiesPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between gap-3 pt-4 pb-2 border-t border-gray-200">
+                      <div className="grid grid-cols-3 gap-4 pt-4 pb-3 border-t border-gray-200">
                         <div className="flex items-center gap-1.5">
                           <Bed className="w-4 h-4 text-gray-500" />
                           <span className="text-sm font-medium text-gray-700">
@@ -340,11 +340,13 @@ export default function BrowsePropertiesPage() {
                       </div>
 
                       <Button
-                        className="w-full h-11 rounded-xl font-medium text-white"
+                        className="w-full h-11 rounded-xl font-medium text-white mt-1"
                         style={{
                           backgroundColor: accentColor || primaryColor,
                         }}
-                        onClick={() => router.push(`/guest/browse/${property.id}`)}
+                        onClick={() =>
+                          router.push(`/guest/browse/${property.id}`)
+                        }
                       >
                         View Details
                       </Button>

@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { Input, Card, Button } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections/Footer";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 
 export default function HelpPage() {
@@ -21,10 +20,6 @@ export default function HelpPage() {
     brandColor: primaryColor,
     secondaryColor,
     accentColor,
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
   } = useRealtorBranding();
 
   const categories = useMemo(
@@ -251,16 +246,6 @@ export default function HelpPage() {
           </Link>
         </div>
       </main>
-
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-      />
     </div>
   );
 }

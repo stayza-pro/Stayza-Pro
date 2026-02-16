@@ -45,7 +45,11 @@ export default function ProfilePage() {
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  const { brandColor: primaryColor, accentColor } = useRealtorBranding();
+  const {
+    brandColor: primaryColor,
+    accentColor,
+    realtorName,
+  } = useRealtorBranding();
   const primaryPale = "#e8f1f8";
   const secondarySurface = "#f9f4ef";
 
@@ -270,8 +274,8 @@ export default function ProfilePage() {
                 Account Actions
               </h3>
               <p className="text-sm text-gray-600">
-                You can request account deletion using a one-time email
-                verification code.
+                Manage your {realtorName || "Stayza Pro"} account securely with
+                one-time email verification.
               </p>
             </Card>
           </div>
@@ -395,7 +399,7 @@ export default function ProfilePage() {
                   value={deleteReason}
                   onChange={(e) => setDeleteReason(e.target.value)}
                   className="h-12 rounded-xl bg-gray-50 border-gray-200"
-                  placeholder="Tell us why you’re leaving"
+                  placeholder={`Tell ${realtorName || "Stayza Pro"} why you’re leaving`}
                 />
               </div>
 

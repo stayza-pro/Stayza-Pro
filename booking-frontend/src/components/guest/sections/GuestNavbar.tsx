@@ -10,7 +10,6 @@ import {
   Calendar,
   Heart,
   MessageSquare,
-  History,
   HelpCircle,
   User,
 } from "lucide-react";
@@ -46,7 +45,6 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
 
   const actionLinks = useMemo(
     () => [
-      { name: "History", href: "/guest/history", icon: History },
       { name: "Help", href: "/guest/help", icon: HelpCircle },
       { name: "Profile", href: "/guest/profile", icon: User },
     ],
@@ -55,10 +53,7 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
 
   const isActive = (href: string) => {
     if (href === "/guest/bookings") {
-      return (
-        pathname.startsWith("/guest/bookings") ||
-        pathname.startsWith("/guest/booking")
-      );
+      return pathname.startsWith("/guest/bookings");
     }
     return pathname === href;
   };
@@ -73,29 +68,29 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
           <div className="flex items-center justify-between h-20">
             <Link
               href="/guest-landing"
-              className="flex items-center gap-3 min-w-0"
+              className="flex items-center gap-4 min-w-0"
             >
               {logo && logo.trim() !== "" ? (
                 <img
                   src={logo}
                   alt={agencyName}
-                  className="h-14 w-auto rounded-xl object-contain"
+                  className="h-16 w-auto rounded-2xl object-contain p-1.5 bg-white border border-gray-200 shadow-sm"
                 />
               ) : (
                 <div
-                  className="h-14 w-14 rounded-xl flex items-center justify-center shadow-sm"
+                  className="h-16 w-16 rounded-2xl flex items-center justify-center shadow-sm"
                   style={{ backgroundColor: primaryColor }}
                 >
-                  <span className="text-white text-[24px] font-semibold">
+                  <span className="text-white text-[26px] font-semibold">
                     {agencyName.charAt(0)}
                   </span>
                 </div>
               )}
               <div className="min-w-0">
-                <div className="font-semibold tracking-tight text-[22px] text-gray-900 truncate leading-tight">
+                <div className="font-semibold tracking-tight text-[24px] text-gray-900 truncate leading-tight">
                   {agencyName}
                 </div>
-                <div className="text-sm tracking-wide text-gray-500 truncate">
+                <div className="text-[13px] tracking-wide text-gray-500 truncate">
                   {tagline && tagline.trim() !== ""
                     ? tagline
                     : "Premium short-let properties"}

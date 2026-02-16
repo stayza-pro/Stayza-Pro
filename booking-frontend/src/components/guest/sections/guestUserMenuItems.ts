@@ -18,5 +18,5 @@ export const guestUserMenuItems: GuestUserMenuItem[] = [
   { label: "Bookings", href: "/guest/bookings", icon: Calendar },
   { label: "Messages", href: "/guest/messages", icon: MessageCircle },
   { label: "Favourites", href: "/guest/favorites", icon: Heart },
-  { label: "Help & Support", href: "/help", icon: HelpCircle },
+  { label: "Help & Support", href: "/guest/help", icon: HelpCircle },
 ];

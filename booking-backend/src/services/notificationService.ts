@@ -485,9 +485,9 @@ export class NotificationService {
       const hasResendConfig = Boolean(config.RESEND_API_KEY);
       const hasSmtpConfig = Boolean(
         config.SMTP_HOST &&
-          config.SMTP_PORT &&
-          config.SMTP_USER &&
-          config.SMTP_PASS,
+        config.SMTP_PORT &&
+        config.SMTP_USER &&
+        config.SMTP_PASS,
       );
 
       // Skip email notifications only when neither provider is configured.

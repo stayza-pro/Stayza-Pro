@@ -110,7 +110,7 @@ export const Header: React.FC = () => {
               How it Works
             </Link>
             <Link
-              href="/help"
+              href="/guest/help"
               className="text-gray-600 hover:text-gray-900 transition-colors"
             >
               Help
@@ -232,7 +232,7 @@ export const Header: React.FC = () => {
                           Favourites
                         </Link>
                         <Link
-                          href="/guest/history"
+                          href="/guest/bookings"
                           className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           History
@@ -338,7 +338,7 @@ export const Header: React.FC = () => {
               </Link>
 
               <Link
-                href="/help"
+                href="/guest/help"
                 className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
               >
                 Help

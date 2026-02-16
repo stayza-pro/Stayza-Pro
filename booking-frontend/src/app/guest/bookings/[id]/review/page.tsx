@@ -11,7 +11,6 @@ import { bookingService, reviewService } from "@/services";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { Footer } from "@/components/guest/sections/Footer";
 import { Button, Card } from "@/components/ui";
 
 interface DetailedRatings {
@@ -74,12 +73,7 @@ export default function WriteReviewPage() {
   const { user, isAuthenticated, isLoading } = useCurrentUser();
   const {
     brandColor: primaryColor,
-    secondaryColor,
     accentColor,
-    realtorName,
-    logoUrl,
-    tagline,
-    description,
   } = useRealtorBranding();
 
   const [authChecked, setAuthChecked] = useState(false);
@@ -204,15 +198,6 @@ export default function WriteReviewPage() {
             </Link>
           </Card>
         </div>
-        <Footer
-          realtorName={realtorName}
-          tagline={tagline}
-          logo={logoUrl}
-          description={description}
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          accentColor={accentColor}
-        />
       </div>
     );
   }
@@ -376,16 +361,6 @@ export default function WriteReviewPage() {
           </div>
         </form>
       </main>
-
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={primaryColor}
-        secondaryColor={secondaryColor}
-        accentColor={accentColor}
-      />
     </div>
   );
 }
