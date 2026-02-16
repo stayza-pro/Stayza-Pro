@@ -41,6 +41,11 @@ export default function BrowsePropertiesPage() {
     description,
   } = useRealtorBranding();
   const primaryPale = "#e8f1f8";
+  const neutralLight = "#e5e7eb";
+  const neutral = "#6b7280";
+  const neutralDark = "#4b5563";
+  const neutralDarkest = "#111827";
+  const surfaceElevated = "#ffffff";
   const { isAuthenticated } = useCurrentUser();
 
   useEffect(() => {
@@ -187,6 +192,10 @@ export default function BrowsePropertiesPage() {
               <Button
                 variant="outline"
                 className="h-14 px-6 rounded-xl font-medium"
+                style={{
+                  borderColor: neutralLight,
+                  color: neutralDark,
+                }}
                 onClick={() => setShowFilters((prev) => !prev)}
               >
                 <SlidersHorizontal className="w-5 h-5 mr-2" />
@@ -197,6 +206,7 @@ export default function BrowsePropertiesPage() {
                 <Select
                   value={sortBy}
                   onChange={setSortBy}
+                  className="h-14 border border-gray-200 rounded-xl bg-white text-gray-900"
                   options={[
                     { value: "featured", label: "Featured" },
                     { value: "price-high", label: "Price: High to Low" },
@@ -246,6 +256,10 @@ export default function BrowsePropertiesPage() {
                   <div
                     key={property.id}
                     className="group rounded-2xl border overflow-hidden transition-all hover:shadow-xl bg-white border-gray-200"
+                    style={{
+                      backgroundColor: surfaceElevated,
+                      borderColor: neutralLight,
+                    }}
                   >
                     <div className="relative aspect-[4/3] overflow-hidden">
                       <img
@@ -284,39 +298,51 @@ export default function BrowsePropertiesPage() {
                       </button>
 
                       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
-                        <div className="text-2xl font-bold text-white">
-                          {formatPrice(
-                            property.pricePerNight,
-                            property.currency,
-                          )}
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-bold text-white">
+                            {formatPrice(
+                              property.pricePerNight,
+                              property.currency,
+                            )}
+                          </span>
+                          <span className="text-lg text-white/90">/ night</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="p-6 space-y-4">
                       <div>
-                        <h3 className="font-semibold mb-2 line-clamp-1 text-[18px] text-gray-900">
+                        <h3
+                          className="font-semibold mb-2 line-clamp-1"
+                          style={{
+                            fontSize: "18px",
+                            color: neutralDarkest,
+                          }}
+                        >
                           {property.title}
                         </h3>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm line-clamp-1 text-gray-600">
+                          <span className="text-sm line-clamp-1" style={{ color: neutralDark }}>
                             {property.city}
                             {property.state ? `, ${property.state}` : ""}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+                      <div
+                        className="flex items-center gap-4 pt-4 border-t"
+                        style={{ borderColor: neutralLight }}
+                      >
                         <div className="flex items-center gap-1.5">
                           <Bed className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium" style={{ color: neutralDark }}>
                             {property.bedrooms}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Bath className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium" style={{ color: neutralDark }}>
                             {property.bathrooms}
                           </span>
                         </div>
@@ -350,17 +376,15 @@ export default function BrowsePropertiesPage() {
                 variant="outline"
                 size="lg"
                 className="px-8 h-12 rounded-xl font-medium"
+                style={{
+                  borderColor: neutralLight,
+                  color: neutralDark,
+                }}
               >
                 Load More Properties
                 <ChevronDown className="w-5 h-5 ml-2" />
               </Button>
             </div>
-
-            {showFilters && (
-              <div className="text-center mt-6 text-sm text-gray-500">
-                Advanced filters coming soon.
-              </div>
-            )}
           </>
         ) : (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
