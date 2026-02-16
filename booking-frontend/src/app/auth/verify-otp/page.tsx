@@ -8,6 +8,13 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 
+const getBackendApiUrl = () => {
+  const configured =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+  const trimmed = configured.replace(/\/+$/, "");
+  return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+};
+
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
 
@@ -115,8 +122,7 @@ function OTPVerificationContent() {
     setIsLoading(true);
 
     try {
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const backendUrl = getBackendApiUrl();
 
       const endpoint =
         type === "register"
@@ -218,8 +224,7 @@ function OTPVerificationContent() {
     setIsResending(true);
 
     try {
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const backendUrl = getBackendApiUrl();
 
       const endpoint =
         type === "register"

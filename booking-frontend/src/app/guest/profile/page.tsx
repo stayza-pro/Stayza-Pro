@@ -7,6 +7,8 @@ import { Button, Card, Input } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { authService } from "@/services";
+import toast from "react-hot-toast";
 
 type ProfileTab = "personal" | "preferences" | "security";
 
@@ -51,6 +53,8 @@ export default function ProfilePage() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const {
     brandColor: primaryColor,
@@ -78,12 +82,90 @@ export default function ProfilePage() {
       lastName: user?.lastName || "",
       email: user?.email || "",
       phone: "",
-      location: "",
+      location: [user?.city, user?.country].filter(Boolean).join(", "),
     });
   }, [user]);
 
+  const handleSaveProfile = async () => {
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      toast.error("First name and last name are required");
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      toast.error("Email is required");
+      return;
+    }
+
+    const [cityPart, countryPart] = formData.location
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    try {
+      setIsSavingProfile(true);
+      await authService.updateProfile({
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        city: cityPart,
+        country: countryPart,
+      });
+      toast.success("Profile updated successfully");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update profile";
+      toast.error(message);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!passwordData.currentPassword.trim() || !passwordData.newPassword.trim()) {
+      toast.error("Current and new password are required");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters");
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New password and confirmation do not match");
+      return;
+    }
+
+    try {
+      setIsUpdatingPassword(true);
+      await authService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+      toast.success("Password updated successfully");
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update password";
+      toast.error(message);
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   const fullName =
     `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Guest User";
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleString("en-US", {
+        month: "short",
+        year: "numeric",
+      })
+    : "N/A";
 
   if (!authChecked || isLoading) {
     return (
@@ -134,7 +216,7 @@ export default function ProfilePage() {
               <h2 className="font-semibold text-xl mb-1 text-gray-900">
                 {fullName}
               </h2>
-              <p className="text-sm text-gray-600">Member since Feb 2026</p>
+              <p className="text-sm text-gray-600">Member since {memberSince}</p>
             </Card>
 
             <Card
@@ -299,6 +381,8 @@ export default function ProfilePage() {
                 <Button
                   className="h-12 px-8 rounded-xl font-medium text-white"
                   style={{ backgroundColor: accentColor || primaryColor }}
+                  onClick={handleSaveProfile}
+                  loading={isSavingProfile}
                 >
                   <Save className="w-5 h-5 mr-2" />
                   Save Changes
@@ -416,6 +500,8 @@ export default function ProfilePage() {
                 <Button
                   className="h-12 px-8 rounded-xl font-medium text-white"
                   style={{ backgroundColor: accentColor || primaryColor }}
+                  onClick={handleUpdatePassword}
+                  loading={isUpdatingPassword}
                 >
                   <Shield className="w-5 h-5 mr-2" />
                   Update Password

@@ -6,6 +6,13 @@ import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
+const getBackendApiUrl = () => {
+  const configured =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+  const trimmed = configured.replace(/\/+$/, "");
+  return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+};
+
 interface VerificationResult {
   success: boolean;
   message: string;
@@ -34,8 +41,7 @@ function VerifyEmailContent() {
       }
 
       try {
-        const API_URL =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+        const API_URL = getBackendApiUrl();
         const response = await fetch(
           `${API_URL}/auth/verify-email?token=${token}&email=${encodeURIComponent(
             email
@@ -92,8 +98,7 @@ function VerifyEmailContent() {
     if (!email) return;
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const API_URL = getBackendApiUrl();
       const response = await fetch(`${API_URL}/auth/resend-verification`, {
         method: "POST",
         headers: {

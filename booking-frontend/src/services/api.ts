@@ -7,7 +7,17 @@ import axios, {
 import { toast } from "react-hot-toast";
 import { getCookie, setCookie, deleteCookie } from "@/utils/cookies";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+const normalizeApiUrl = (value: string): string => {
+  const trimmed = value.replace(/\/+$/, "");
+  if (/\/api$/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `${trimmed}/api`;
+};
+
+const API_URL = normalizeApiUrl(
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api"
+);
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -54,7 +64,11 @@ api.interceptors.response.use(
     // Don't try to refresh tokens for login/register requests
     const isAuthRequest =
       originalRequest.url?.includes("/auth/login") ||
-      originalRequest.url?.includes("/auth/register");
+      originalRequest.url?.includes("/auth/register") ||
+      originalRequest.url?.includes("/auth/register-passwordless") ||
+      originalRequest.url?.includes("/auth/request-otp") ||
+      originalRequest.url?.includes("/auth/verify-registration") ||
+      originalRequest.url?.includes("/auth/verify-login");
 
     if (
       error.response?.status === 401 &&

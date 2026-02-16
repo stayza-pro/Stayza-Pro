@@ -17,6 +17,13 @@ import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
 
+const getBackendApiUrl = () => {
+  const configured =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+  const trimmed = configured.replace(/\/+$/, "");
+  return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+};
+
 interface GuestRegistrationData {
   firstName: string;
   lastName: string;
@@ -98,8 +105,7 @@ export default function GuestRegisterPage() {
     setIsSubmitting(true);
 
     try {
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const backendUrl = getBackendApiUrl();
       const response = await fetch(`${backendUrl}/auth/register-passwordless`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

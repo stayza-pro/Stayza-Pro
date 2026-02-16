@@ -259,7 +259,11 @@ class MessageService {
    * Mark a message as read
    */
   async markAsRead(messageId: string): Promise<ApiResponse<Message>> {
-    return apiClient.patch<Message>(`/messages/${messageId}/read`);
+    return Promise.reject(
+      new Error(
+        "Per-message read endpoint is not available. Use markConversationAsRead instead."
+      )
+    );
   }
 
   /**
@@ -284,21 +288,27 @@ class MessageService {
    * Delete a message
    */
   async deleteMessage(messageId: string): Promise<ApiResponse<void>> {
-    return apiClient.delete<void>(`/messages/${messageId}`);
+    return Promise.reject(
+      new Error("Delete message endpoint is not available in backend routes.")
+    );
   }
 
   /**
    * Get all message threads
    */
   async getThreads(): Promise<ApiResponse<Conversation[]>> {
-    return apiClient.get<Conversation[]>("/messages/threads");
+    return this.getConversations();
   }
 
   /**
    * Close a message thread
    */
   async closeThread(threadId: string): Promise<ApiResponse<void>> {
-    return apiClient.post<void>(`/messages/threads/${threadId}/close`);
+    return Promise.reject(
+      new Error(
+        "Thread close endpoint is not available. Use markConversationAsRead for now."
+      )
+    );
   }
 
   /**

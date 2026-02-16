@@ -12,8 +12,14 @@ import {
   NotificationResponse,
 } from "@/types/notifications";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+const normalizeApiUrl = (value: string) => {
+  const trimmed = value.replace(/\/+$/, "");
+  return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+};
+
+const API_BASE_URL = normalizeApiUrl(
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api"
+);
 
 class NotificationApiService {
   private getAuthHeaders() {

@@ -8,6 +8,13 @@ import { toast } from "react-hot-toast";
 import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 
+const getBackendApiUrl = () => {
+  const configured =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+  const trimmed = configured.replace(/\/+$/, "");
+  return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
+};
+
 export default function GuestLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -44,8 +51,7 @@ export default function GuestLoginPage() {
     setIsSubmitting(true);
 
     try {
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+      const backendUrl = getBackendApiUrl();
       const response = await fetch(`${backendUrl}/auth/request-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

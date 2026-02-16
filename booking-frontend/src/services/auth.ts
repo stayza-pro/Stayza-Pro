@@ -8,6 +8,20 @@ import {
   ApiResponse,
 } from "../types";
 
+export interface PasswordlessRegisterPayload {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role?: "GUEST";
+  realtorId?: string;
+  referralSource?: string;
+}
+
+export interface PasswordlessOtpPayload {
+  email: string;
+  otp: string;
+}
+
 export const authService = {
   // Register new user
   register: async (data: RegisterData): Promise<AuthResponse> => {
@@ -143,13 +157,71 @@ export const authService = {
   },
 
   // Verify email
-  verifyEmail: async (token: string): Promise<void> => {
-    await apiClient.post("/auth/verify-email", { token });
+  verifyEmail: async (payload: string | { token: string; email: string }): Promise<void> => {
+    const token = typeof payload === "string" ? payload : payload.token;
+    const email = typeof payload === "string" ? "" : payload.email;
+
+    if (!email) {
+      throw new Error("Email is required for verification");
+    }
+
+    const query = new URLSearchParams({ token, email }).toString();
+    await apiClient.get(`/auth/verify-email?${query}`);
   },
 
   // Resend verification email
-  resendVerificationEmail: async (): Promise<void> => {
-    await apiClient.post("/auth/resend-verification");
+  resendVerificationEmail: async (email: string): Promise<void> => {
+    await apiClient.post("/auth/resend-verification", { email });
+  },
+
+  // Request OTP for passwordless login
+  requestOtp: async (email: string): Promise<{ email: string; expiresIn: string }> => {
+    const response = await apiClient.post<{ email: string; expiresIn: string }>(
+      "/auth/request-otp",
+      { email, type: "login" }
+    );
+    return response.data;
+  },
+
+  // Register new guest with passwordless flow
+  registerPasswordless: async (
+    data: PasswordlessRegisterPayload
+  ): Promise<{ email: string; expiresIn: string }> => {
+    const response = await apiClient.post<{ email: string; expiresIn: string }>(
+      "/auth/register-passwordless",
+      {
+        ...data,
+        role: "GUEST",
+      }
+    );
+    return response.data;
+  },
+
+  // Verify registration OTP
+  verifyRegistrationOtp: async (data: PasswordlessOtpPayload): Promise<AuthResponse> => {
+    const response = await apiClient.post<AuthResponse>(
+      "/auth/verify-registration",
+      data
+    );
+
+    if (response.data.accessToken) {
+      localStorage.setItem("accessToken", response.data.accessToken);
+      localStorage.setItem("refreshToken", response.data.refreshToken);
+    }
+
+    return response.data;
+  },
+
+  // Verify login OTP
+  verifyLoginOtp: async (data: PasswordlessOtpPayload): Promise<AuthResponse> => {
+    const response = await apiClient.post<AuthResponse>("/auth/verify-login", data);
+
+    if (response.data.accessToken) {
+      localStorage.setItem("accessToken", response.data.accessToken);
+      localStorage.setItem("refreshToken", response.data.refreshToken);
+    }
+
+    return response.data;
   },
 
   // Check if user is authenticated
@@ -172,7 +244,7 @@ export const authService = {
     password: string;
     reason?: string;
   }): Promise<void> => {
-    await apiClient.delete("/auth/account", { data });
+    await apiClient.delete("/auth/delete-account", { data });
 
     // Clear tokens after successful deletion
     localStorage.removeItem("accessToken");

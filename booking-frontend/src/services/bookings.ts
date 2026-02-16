@@ -279,14 +279,15 @@ export const bookingService = {
     checkInDate: Date,
     checkOutDate: Date
   ): Promise<{ available: boolean; conflicts?: string[] }> => {
-    const response = await apiClient.post<{
+    const query = new URLSearchParams({
+      checkIn: checkInDate.toISOString().split("T")[0],
+      checkOut: checkOutDate.toISOString().split("T")[0],
+    }).toString();
+
+    const response = await apiClient.get<{
       available: boolean;
       conflicts?: string[];
-    }>("/bookings/check-availability", {
-      propertyId,
-      checkInDate: checkInDate.toISOString().split("T")[0],
-      checkOutDate: checkOutDate.toISOString().split("T")[0],
-    });
+    }>(`/bookings/availability/${propertyId}?${query}`);
     return response.data;
   },
 
@@ -314,7 +315,11 @@ export const bookingService = {
         status: string;
       }>;
       unavailableDates: string[];
-    }>(`/bookings/calendar/${propertyId}?month=${month}&year=${year}`);
+    }>(
+      `/bookings/properties/${propertyId}/calendar?month=${encodeURIComponent(
+        month
+      )}&year=${encodeURIComponent(year)}`
+    );
     return response.data;
   },
 
@@ -328,14 +333,24 @@ export const bookingService = {
     totalRevenue: number;
     averageBookingValue: number;
   }> => {
-    const response = await apiClient.get<{
-      totalBookings: number;
-      completedBookings: number;
-      cancelledBookings: number;
-      totalRevenue: number;
-      averageBookingValue: number;
-    }>(`/bookings/stats?period=${period}`);
-    return response.data;
+    try {
+      const response = await apiClient.get<{
+        totalBookings: number;
+        completedBookings: number;
+        cancelledBookings: number;
+        totalRevenue: number;
+        averageBookingValue: number;
+      }>(`/bookings/stats?period=${period}`);
+      return response.data;
+    } catch {
+      return {
+        totalBookings: 0,
+        completedBookings: 0,
+        cancelledBookings: 0,
+        totalRevenue: 0,
+        averageBookingValue: 0,
+      };
+    }
   },
 
   // Get all bookings (admin only)
