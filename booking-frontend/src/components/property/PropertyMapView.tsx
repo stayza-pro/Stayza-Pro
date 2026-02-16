@@ -45,7 +45,7 @@ const clamp = (value: number, min: number, max: number) =>
 const clampLatitude = (lat: number) => clamp(lat, -MAX_LATITUDE, MAX_LATITUDE);
 
 const normalizeLongitude = (lng: number) => {
-  const normalized = ((lng + 180) % 360 + 360) % 360;
+  const normalized = (((lng + 180) % 360) + 360) % 360;
   return normalized - 180;
 };
 
@@ -125,8 +125,8 @@ const MapMarker: React.FC<MapMarkerProps> = ({
             isSelected
               ? "bg-blue-600 text-white ring-2 ring-blue-200"
               : isHovered
-              ? "bg-blue-500 text-white"
-              : "bg-white text-gray-900 border border-gray-200"
+                ? "bg-blue-500 text-white"
+                : "bg-white text-gray-900 border border-gray-200"
           }
         `}
       >
@@ -142,8 +142,8 @@ const MapMarker: React.FC<MapMarkerProps> = ({
               isSelected
                 ? "border-l-transparent border-r-transparent border-t-blue-600"
                 : isHovered
-                ? "border-l-transparent border-r-transparent border-t-blue-500"
-                : "border-l-transparent border-r-transparent border-t-white"
+                  ? "border-l-transparent border-r-transparent border-t-blue-500"
+                  : "border-l-transparent border-r-transparent border-t-white"
             }
           `}
         />
@@ -331,7 +331,8 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
       }
 
       for (let x = startX; x <= endX; x += 1) {
-        const wrappedX = ((x % worldTileCount) + worldTileCount) % worldTileCount;
+        const wrappedX =
+          ((x % worldTileCount) + worldTileCount) % worldTileCount;
         tiles.push({
           id: `${tileZoom}-${x}-${y}`,
           left: x * TILE_SIZE - viewport.topLeftX,
@@ -342,7 +343,13 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
     }
 
     return tiles;
-  }, [mapZoom, viewport.height, viewport.topLeftX, viewport.topLeftY, viewport.width]);
+  }, [
+    mapZoom,
+    viewport.height,
+    viewport.topLeftX,
+    viewport.topLeftY,
+    viewport.width,
+  ]);
 
   const visibleProperties = useMemo(() => {
     return properties
@@ -368,14 +375,21 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
       })
       .filter(
         (
-          marker
+          marker,
         ): marker is {
           property: Property;
           x: number;
           y: number;
-        } => Boolean(marker)
+        } => Boolean(marker),
       );
-  }, [mapZoom, properties, viewport.height, viewport.topLeftX, viewport.topLeftY, viewport.width]);
+  }, [
+    mapZoom,
+    properties,
+    viewport.height,
+    viewport.topLeftX,
+    viewport.topLeftY,
+    viewport.width,
+  ]);
 
   const handlePropertyHover = (property: Property | null) => {
     setHoveredProperty(property);
@@ -405,7 +419,7 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
       },
       () => {
         // Keep existing center if geolocation fails.
-      }
+      },
     );
   };
 
@@ -418,11 +432,15 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
   };
 
   const currentBounds = useMemo(() => {
-    const northWest = worldToLatLng(viewport.topLeftX, viewport.topLeftY, mapZoom);
+    const northWest = worldToLatLng(
+      viewport.topLeftX,
+      viewport.topLeftY,
+      mapZoom,
+    );
     const southEast = worldToLatLng(
       viewport.topLeftX + viewport.width,
       viewport.topLeftY + viewport.height,
-      mapZoom
+      mapZoom,
     );
 
     return {
@@ -431,7 +449,13 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
       south: southEast.lat,
       east: southEast.lng,
     };
-  }, [mapZoom, viewport.height, viewport.topLeftX, viewport.topLeftY, viewport.width]);
+  }, [
+    mapZoom,
+    viewport.height,
+    viewport.topLeftX,
+    viewport.topLeftY,
+    viewport.width,
+  ]);
 
   return (
     <div
@@ -465,7 +489,9 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
           <button
             onClick={toggleFullscreen}
             className="p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
-            aria-label={isFullscreen ? "Exit fullscreen map" : "Open fullscreen map"}
+            aria-label={
+              isFullscreen ? "Exit fullscreen map" : "Open fullscreen map"
+            }
           >
             {isFullscreen ? (
               <Minimize2 className="h-4 w-4" />
@@ -590,8 +616,8 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
             <h2 className="text-lg font-semibold mb-1">Property Map</h2>
             <p className="text-sm text-gray-600">
               Zoom: {mapZoom} | Bounds: {currentBounds.north.toFixed(2)},
-              {currentBounds.west.toFixed(2)} to {currentBounds.south.toFixed(2)},
-              {currentBounds.east.toFixed(2)}
+              {currentBounds.west.toFixed(2)} to{" "}
+              {currentBounds.south.toFixed(2)},{currentBounds.east.toFixed(2)}
             </p>
           </Card>
         </div>

@@ -98,7 +98,10 @@ export default function HelpPage() {
   }, [categories, searchQuery]);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
       <GuestHeader currentPage="help" searchPlaceholder="Search help..." />
 
       <div className="border-b bg-white border-gray-200">
@@ -109,7 +112,9 @@ export default function HelpPage() {
           >
             <HelpCircle className="w-10 h-10" style={{ color: primaryColor }} />
           </div>
-          <h1 className="font-semibold mb-4 text-[40px] text-gray-900">How Can We Help?</h1>
+          <h1 className="font-semibold mb-4 text-[40px] text-gray-900">
+            How Can We Help?
+          </h1>
           <p className="text-lg mb-8 max-w-2xl mx-auto text-gray-600">
             Search our help center or contact support for direct assistance.
           </p>
@@ -140,8 +145,12 @@ export default function HelpPage() {
                   style={{ color: accentColor || primaryColor }}
                 />
               </div>
-              <h3 className="font-semibold mb-2 text-[20px] text-gray-900">Live Chat</h3>
-              <p className="text-sm text-gray-600">Chat with our support team</p>
+              <h3 className="font-semibold mb-2 text-[20px] text-gray-900">
+                Live Chat
+              </h3>
+              <p className="text-sm text-gray-600">
+                Chat with our support team
+              </p>
             </Card>
           </Link>
 
@@ -153,7 +162,9 @@ export default function HelpPage() {
               >
                 <Phone className="w-8 h-8" style={{ color: primaryColor }} />
               </div>
-              <h3 className="font-semibold mb-2 text-[20px] text-gray-900">Phone Support</h3>
+              <h3 className="font-semibold mb-2 text-[20px] text-gray-900">
+                Phone Support
+              </h3>
               <p className="text-sm text-gray-600">+234 000 000 0000</p>
             </Card>
           </a>
@@ -162,36 +173,52 @@ export default function HelpPage() {
             <Card className="p-8 rounded-2xl border text-center hover:shadow-lg transition-all bg-white border-gray-200">
               <div
                 className="w-16 h-16 rounded-xl mx-auto mb-6 flex items-center justify-center"
-                style={{ backgroundColor: `${secondaryColor || primaryColor}20` }}
+                style={{
+                  backgroundColor: `${secondaryColor || primaryColor}20`,
+                }}
               >
                 <Mail
                   className="w-8 h-8"
                   style={{ color: secondaryColor || primaryColor }}
                 />
               </div>
-              <h3 className="font-semibold mb-2 text-[20px] text-gray-900">Email Support</h3>
+              <h3 className="font-semibold mb-2 text-[20px] text-gray-900">
+                Email Support
+              </h3>
               <p className="text-sm text-gray-600">support@stayza.pro</p>
             </Card>
           </a>
         </div>
 
-        <h2 className="font-semibold mb-8 text-[32px] text-gray-900">Frequently Asked Questions</h2>
+        <h2 className="font-semibold mb-8 text-[32px] text-gray-900">
+          Frequently Asked Questions
+        </h2>
 
         <div className="space-y-8">
           {filteredCategories.map((category) => (
-            <Card key={category.title} className="rounded-2xl border overflow-hidden bg-white border-gray-200">
+            <Card
+              key={category.title}
+              className="rounded-2xl border overflow-hidden bg-white border-gray-200"
+            >
               <div className="p-6 border-b flex items-center gap-3 bg-gray-50 border-gray-200">
                 <span className="text-3xl">{category.icon}</span>
-                <h3 className="font-semibold text-xl text-gray-900">{category.title}</h3>
+                <h3 className="font-semibold text-xl text-gray-900">
+                  {category.title}
+                </h3>
               </div>
 
               <div className="px-6 py-2">
                 {category.faqs.map((faq) => (
-                  <details key={faq.question} className="group border-b last:border-b-0 border-gray-100">
+                  <details
+                    key={faq.question}
+                    className="group border-b last:border-b-0 border-gray-100"
+                  >
                     <summary className="cursor-pointer list-none py-5 font-medium text-gray-900">
                       {faq.question}
                     </summary>
-                    <p className="pb-5 text-gray-600 leading-relaxed">{faq.answer}</p>
+                    <p className="pb-5 text-gray-600 leading-relaxed">
+                      {faq.answer}
+                    </p>
                   </details>
                 ))}
               </div>
@@ -205,9 +232,12 @@ export default function HelpPage() {
             background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor || primaryColor} 100%)`,
           }}
         >
-          <h3 className="text-3xl font-semibold text-white mb-4">Still Need Help?</h3>
+          <h3 className="text-3xl font-semibold text-white mb-4">
+            Still Need Help?
+          </h3>
           <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
-            Our support team is available to guide you through booking, payment, and account issues.
+            Our support team is available to guide you through booking, payment,
+            and account issues.
           </p>
           <Link href="/guest/messages">
             <Button

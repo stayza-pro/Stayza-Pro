@@ -403,7 +403,9 @@ export default function GuestBookingDetailsPage() {
                 {agentAvatar ? (
                   <img
                     src={agentAvatar}
-                    alt={booking.property?.realtor?.businessName || "Property Host"}
+                    alt={
+                      booking.property?.realtor?.businessName || "Property Host"
+                    }
                     className="w-16 h-16 rounded-full object-cover"
                   />
                 ) : (

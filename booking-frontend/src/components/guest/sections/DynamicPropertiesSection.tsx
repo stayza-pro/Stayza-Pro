@@ -13,7 +13,7 @@ interface DynamicPropertiesSectionProps {
 
 // Helper function to get image URL
 const getImageUrl = (
-  image: string | { url?: string | null } | null | undefined
+  image: string | { url?: string | null } | null | undefined,
 ): string => {
   if (typeof image === "string") {
     return image;
@@ -62,12 +62,12 @@ export const DynamicPropertiesSection: React.FC<
     const fetchProperties = async () => {
       try {
         const response = await apiClient.get<Property[]>(
-          `/properties/host/${realtorId}`
+          `/properties/host/${realtorId}`,
         );
 
         // Filter only ACTIVE properties
         const activeProperties = toPropertyArray(response.data).filter(
-          (p: Property) => p.status === "ACTIVE"
+          (p: Property) => p.status === "ACTIVE",
         );
 
         setProperties(activeProperties);
@@ -106,7 +106,7 @@ export const DynamicPropertiesSection: React.FC<
   }, []);
 
   const hasActiveFilters = Boolean(
-    searchFilters.location || searchFilters.checkIn || searchFilters.checkOut
+    searchFilters.location || searchFilters.checkIn || searchFilters.checkOut,
   );
 
   // Fetch filtered properties from backend whenever search filters change.
@@ -141,7 +141,7 @@ export const DynamicPropertiesSection: React.FC<
         }
 
         const response = await apiClient.get<Property[]>(
-          `/properties/host/${realtorId}?${params.toString()}`
+          `/properties/host/${realtorId}?${params.toString()}`,
         );
 
         if (isStale) {
@@ -149,7 +149,7 @@ export const DynamicPropertiesSection: React.FC<
         }
 
         const activeProperties = toPropertyArray(response.data).filter(
-          (property) => property.status === "ACTIVE"
+          (property) => property.status === "ACTIVE",
         );
         setFilteredProperties(activeProperties);
       } catch (error) {
@@ -158,7 +158,7 @@ export const DynamicPropertiesSection: React.FC<
         }
 
         setFilterError(
-          "We could not apply all filters right now. Showing locally filtered results."
+          "We could not apply all filters right now. Showing locally filtered results.",
         );
 
         const searchTerm = searchFilters.location.toLowerCase();
@@ -343,14 +343,14 @@ export const DynamicPropertiesSection: React.FC<
             {hasActiveFilters && filteredProperties.length === 0
               ? "No properties match your search. Try different criteria."
               : hasActiveFilters
-              ? `Found ${displayProperties.length} ${
-                  displayProperties.length === 1 ? "property" : "properties"
-                } matching your search`
-              : `Explore our curated collection of ${
-                  properties.length
-                } premium ${
-                  properties.length === 1 ? "property" : "properties"
-                }`}
+                ? `Found ${displayProperties.length} ${
+                    displayProperties.length === 1 ? "property" : "properties"
+                  } matching your search`
+                : `Explore our curated collection of ${
+                    properties.length
+                  } premium ${
+                    properties.length === 1 ? "property" : "properties"
+                  }`}
           </p>
 
           {isFiltering && (
@@ -469,12 +469,10 @@ export const DynamicPropertiesSection: React.FC<
                             backgroundColor: "#e5e7eb",
                           }}
                           onLoad={(e) => {
-                            
                             const target = e.target as HTMLImageElement;
                             target.style.backgroundColor = "transparent";
                           }}
                           onError={(e) => {
-                            
                             // Fallback if image fails to load
                             const target = e.target as HTMLImageElement;
                             target.style.display = "none";

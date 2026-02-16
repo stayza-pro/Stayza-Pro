@@ -656,7 +656,9 @@ function MessagesContent() {
                                 {msg.attachments.map((attachment) => (
                                   <div
                                     key={attachment.id}
-                                    className={isOwn ? "text-white" : "text-gray-700"}
+                                    className={
+                                      isOwn ? "text-white" : "text-gray-700"
+                                    }
                                   >
                                     <MessageAttachment
                                       attachment={attachment}

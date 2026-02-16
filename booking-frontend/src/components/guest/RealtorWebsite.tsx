@@ -136,18 +136,17 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
       try {
         setLoading(true);
         const response = await apiClient.get<Property[]>(
-          `/properties/host/${realtorId}`
+          `/properties/host/${realtorId}`,
         );
 
         // Only show ACTIVE properties to guests
         const activeProperties = toPropertyArray(response.data).filter(
-          (p: Property) => p.status === "ACTIVE"
+          (p: Property) => p.status === "ACTIVE",
         );
 
         setProperties(activeProperties);
         setFilteredProperties(activeProperties);
       } catch (error) {
-        
         setProperties([]);
         setFilteredProperties([]);
       } finally {
@@ -173,7 +172,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
         p.title?.toLowerCase().includes(query) ||
         p.city?.toLowerCase().includes(query) ||
         p.address?.toLowerCase().includes(query) ||
-        p.country?.toLowerCase().includes(query)
+        p.country?.toLowerCase().includes(query),
     );
     setFilteredProperties(filtered);
   }, [searchQuery, properties]);
@@ -439,7 +438,10 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
       </section>
 
       {/* Properties Section */}
-      <section id="properties" className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8">
+      <section
+        id="properties"
+        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8"
+      >
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8 sm:mb-12">
@@ -633,11 +635,15 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center">
                   <Phone className="w-5 h-5 mr-3 text-gray-400" />
-                  <span className="text-gray-300">{getMaskedPhoneDisplay()}</span>
+                  <span className="text-gray-300">
+                    {getMaskedPhoneDisplay()}
+                  </span>
                 </div>
                 <div className="flex items-center">
                   <Mail className="w-5 h-5 mr-3 text-gray-400" />
-                  <span className="text-gray-300">{getMaskedEmailDisplay()}</span>
+                  <span className="text-gray-300">
+                    {getMaskedEmailDisplay()}
+                  </span>
                 </div>
                 <p className="text-xs text-amber-300 pt-1">
                   Direct contact unlocks after a paid booking confirmation.

@@ -78,7 +78,7 @@ const PaymentSuccessContent = () => {
         ? formatPaymentStatus(payment.status)
         : "Unknown";
       toast.error(
-        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`,
       );
       return;
     }
@@ -110,7 +110,7 @@ const PaymentSuccessContent = () => {
 
       const storedMeta = localStorage.getItem("paystackPaymentMeta");
       const storedFlutterwaveMeta = localStorage.getItem(
-        "flutterwavePaymentMeta"
+        "flutterwavePaymentMeta",
       );
       let storedPaymentId: string | null = null;
       let storedBookingId: string | null = null;
@@ -121,23 +121,18 @@ const PaymentSuccessContent = () => {
           const parsed = JSON.parse(storedMeta);
           storedPaymentId = parsed.paymentId || null;
           storedBookingId = parsed.bookingId || null;
-        } catch (err) {
-          
-        }
+        } catch (err) {}
       } else if (storedFlutterwaveMeta) {
         try {
           const parsed = JSON.parse(storedFlutterwaveMeta);
           storedPaymentId = parsed.paymentId || null;
           storedBookingId = parsed.bookingId || null;
-        } catch (err) {
-          
-        }
+        } catch (err) {}
       }
 
       try {
         // If no reference but we have bookingId, use verify-by-booking endpoint
         if (!reference && storedBookingId) {
-          
           const result = await paymentService.verifyPaymentByBooking({
             bookingId: storedBookingId,
           });
@@ -186,9 +181,8 @@ const PaymentSuccessContent = () => {
 
           if (resolvedPaymentId && !payment) {
             try {
-              const paymentRecord = await paymentService.getPayment(
-                resolvedPaymentId
-              );
+              const paymentRecord =
+                await paymentService.getPayment(resolvedPaymentId);
               setPayment(paymentRecord);
             } catch {}
           }
@@ -201,16 +195,14 @@ const PaymentSuccessContent = () => {
         } else {
           // No reference and no bookingId - can't verify
           throw new Error(
-            "Unable to verify payment: Missing payment reference and booking ID"
+            "Unable to verify payment: Missing payment reference and booking ID",
           );
         }
       } catch (err) {
         const message = serviceUtils.extractErrorMessage(err);
-        
 
         // If verification by reference failed but we have bookingId, try verify-by-booking as fallback
         if (reference && storedBookingId) {
-          
           try {
             const result = await paymentService.verifyPaymentByBooking({
               bookingId: storedBookingId,
@@ -229,7 +221,6 @@ const PaymentSuccessContent = () => {
             }
             return;
           } catch (fallbackErr) {
-            
             // Fall through to error handling below
           }
         }
@@ -556,4 +547,3 @@ export default function PaymentSuccessPage() {
     </Suspense>
   );
 }
-

@@ -102,14 +102,18 @@ export default function GuestBookingCheckoutPage() {
   const fetchBooking = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = (await bookingService.getBooking(bookingId)) as unknown as CheckoutBooking;
+      const data = (await bookingService.getBooking(
+        bookingId,
+      )) as unknown as CheckoutBooking;
       setBooking(data || null);
 
       if (data?.status !== "PENDING") {
         router.push(`/guest/bookings/${bookingId}`);
       }
 
-      const checkInDate = data?.checkInDate ? new Date(data.checkInDate) : undefined;
+      const checkInDate = data?.checkInDate
+        ? new Date(data.checkInDate)
+        : undefined;
       if (checkInDate && !Number.isNaN(checkInDate.getTime())) {
         setDate(checkInDate);
       }
@@ -136,7 +140,9 @@ export default function GuestBookingCheckoutPage() {
 
   useEffect(() => {
     if (authChecked && !authLoading && !isAuthenticated) {
-      router.push(`/guest/login?returnTo=/guest/bookings/${bookingId}/checkout`);
+      router.push(
+        `/guest/login?returnTo=/guest/bookings/${bookingId}/checkout`,
+      );
     }
   }, [authChecked, authLoading, isAuthenticated, router, bookingId]);
 
@@ -170,7 +176,10 @@ export default function GuestBookingCheckoutPage() {
     if (!booking) return 0;
     const start = new Date(booking.checkInDate);
     const end = new Date(booking.checkOutDate);
-    return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    return Math.max(
+      1,
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+    );
   }, [booking]);
 
   const formatCurrency = (value: number) =>
@@ -186,7 +195,8 @@ export default function GuestBookingCheckoutPage() {
       return;
     }
 
-    const paystack = (window as unknown as { PaystackPop?: PaystackPopup }).PaystackPop;
+    const paystack = (window as unknown as { PaystackPop?: PaystackPopup })
+      .PaystackPop;
     if (!paystack) {
       toast.error("Payment system not loaded. Please refresh and try again.");
       return;
@@ -197,7 +207,9 @@ export default function GuestBookingCheckoutPage() {
 
       let reference = booking.payment.reference;
       if (!reference) {
-        const initResponse = await paymentService.initializePaystackPayment({ bookingId });
+        const initResponse = await paymentService.initializePaystackPayment({
+          bookingId,
+        });
         reference = initResponse.reference;
       }
 
@@ -241,7 +253,8 @@ export default function GuestBookingCheckoutPage() {
 
       handler.openIframe();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to process payment";
+      const message =
+        error instanceof Error ? error.message : "Failed to process payment";
       toast.error(message);
       setIsProcessing(false);
     }
@@ -258,19 +271,29 @@ export default function GuestBookingCheckoutPage() {
 
   if (!authChecked || authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
     );
   }
 
   if (!booking) {
     return (
-      <div className="min-h-screen flex items-center justify-center">Booking not found</div>
+      <div className="min-h-screen flex items-center justify-center">
+        Booking not found
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
-      <GuestHeader currentPage="bookings" searchPlaceholder="Search your bookings..." />
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
+      <GuestHeader
+        currentPage="bookings"
+        searchPlaceholder="Search your bookings..."
+      />
 
       <main className="max-w-[1200px] mx-auto w-full px-6 py-12">
         <Link
@@ -282,7 +305,9 @@ export default function GuestBookingCheckoutPage() {
         </Link>
 
         <div className="mb-12">
-          <h1 className="font-semibold mb-4 text-[40px] text-gray-900">Book Your Viewing</h1>
+          <h1 className="font-semibold mb-4 text-[40px] text-gray-900">
+            Book Your Viewing
+          </h1>
 
           <div className="flex items-center gap-4 mb-4">
             {[1, 2, 3].map((s) => (
@@ -299,7 +324,9 @@ export default function GuestBookingCheckoutPage() {
                 {s < 3 && (
                   <div
                     className="flex-1 h-1 rounded-full"
-                    style={{ backgroundColor: step > s ? primaryColor : "#e5e7eb" }}
+                    style={{
+                      backgroundColor: step > s ? primaryColor : "#e5e7eb",
+                    }}
                   />
                 )}
               </div>
@@ -307,9 +334,15 @@ export default function GuestBookingCheckoutPage() {
           </div>
 
           <div className="flex gap-4 text-sm">
-            <span style={{ color: step === 1 ? primaryColor : "#6b7280" }}>Select Date & Time</span>
-            <span style={{ color: step === 2 ? primaryColor : "#6b7280" }}>Your Information</span>
-            <span style={{ color: step === 3 ? primaryColor : "#6b7280" }}>Review & Confirm</span>
+            <span style={{ color: step === 1 ? primaryColor : "#6b7280" }}>
+              Select Date & Time
+            </span>
+            <span style={{ color: step === 2 ? primaryColor : "#6b7280" }}>
+              Your Information
+            </span>
+            <span style={{ color: step === 3 ? primaryColor : "#6b7280" }}>
+              Review & Confirm
+            </span>
           </div>
         </div>
 
@@ -319,8 +352,12 @@ export default function GuestBookingCheckoutPage() {
               {step === 1 && (
                 <div className="p-8 rounded-2xl border space-y-8 bg-white border-gray-200">
                   <div>
-                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">Select Date & Time</h2>
-                    <p className="text-gray-600">Choose your preferred viewing date and time</p>
+                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
+                      Select Date & Time
+                    </h2>
+                    <p className="text-gray-600">
+                      Choose your preferred viewing date and time
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -331,7 +368,13 @@ export default function GuestBookingCheckoutPage() {
                         type="date"
                         className="pl-12 h-14 rounded-xl border text-base bg-gray-50 border-gray-200"
                         value={date ? format(date, "yyyy-MM-dd") : ""}
-                        onChange={(e) => setDate(e.target.value ? new Date(e.target.value) : undefined)}
+                        onChange={(e) =>
+                          setDate(
+                            e.target.value
+                              ? new Date(e.target.value)
+                              : undefined,
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -346,10 +389,13 @@ export default function GuestBookingCheckoutPage() {
                           onClick={() => setSelectedTime(time)}
                           className="h-12 rounded-xl font-medium transition-all"
                           style={{
-                            backgroundColor: selectedTime === time ? "#e8f1f8" : "#f9fafb",
+                            backgroundColor:
+                              selectedTime === time ? "#e8f1f8" : "#f9fafb",
                             borderWidth: "2px",
-                            borderColor: selectedTime === time ? primaryColor : "#e5e7eb",
-                            color: selectedTime === time ? primaryColor : "#4b5563",
+                            borderColor:
+                              selectedTime === time ? primaryColor : "#e5e7eb",
+                            color:
+                              selectedTime === time ? primaryColor : "#4b5563",
                           }}
                         >
                           {time}
@@ -372,8 +418,12 @@ export default function GuestBookingCheckoutPage() {
               {step === 2 && (
                 <div className="p-8 rounded-2xl border space-y-6 bg-white border-gray-200">
                   <div>
-                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">Your Information</h2>
-                    <p className="text-gray-600">We&apos;ll use this to confirm your booking</p>
+                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
+                      Your Information
+                    </h2>
+                    <p className="text-gray-600">
+                      We&apos;ll use this to confirm your booking
+                    </p>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-6">
@@ -382,7 +432,12 @@ export default function GuestBookingCheckoutPage() {
                       <Input
                         required
                         value={formData.firstName}
-                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            firstName: e.target.value,
+                          })
+                        }
                         className="h-12 rounded-xl bg-gray-50 border-gray-200"
                       />
                     </div>
@@ -391,7 +446,9 @@ export default function GuestBookingCheckoutPage() {
                       <Input
                         required
                         value={formData.lastName}
-                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, lastName: e.target.value })
+                        }
                         className="h-12 rounded-xl bg-gray-50 border-gray-200"
                       />
                     </div>
@@ -403,7 +460,9 @@ export default function GuestBookingCheckoutPage() {
                       type="email"
                       required
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
                       className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     />
                   </div>
@@ -414,7 +473,9 @@ export default function GuestBookingCheckoutPage() {
                       type="tel"
                       required
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
                       className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     />
                   </div>
@@ -423,7 +484,9 @@ export default function GuestBookingCheckoutPage() {
                     <label className="text-gray-900">Notes (Optional)</label>
                     <textarea
                       value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, notes: e.target.value })
+                      }
                       rows={4}
                       className="w-full px-4 py-3 rounded-xl border resize-none bg-gray-50 border-gray-200 text-gray-900"
                       placeholder="Any specific questions or requirements?"
@@ -453,13 +516,20 @@ export default function GuestBookingCheckoutPage() {
               {step === 3 && (
                 <div className="p-8 rounded-2xl border space-y-6 bg-white border-gray-200">
                   <div>
-                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">Review & Confirm</h2>
-                    <p className="text-gray-600">Please review your booking details</p>
+                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
+                      Review & Confirm
+                    </h2>
+                    <p className="text-gray-600">
+                      Please review your booking details
+                    </p>
                   </div>
 
                   <div className="p-6 rounded-xl space-y-4 bg-[#f9f4ef]">
                     <div className="flex items-center gap-3">
-                      <CalendarIcon className="w-5 h-5" style={{ color: primaryColor }} />
+                      <CalendarIcon
+                        className="w-5 h-5"
+                        style={{ color: primaryColor }}
+                      />
                       <div>
                         <div className="text-sm text-gray-500">Date</div>
                         <div className="font-semibold text-gray-900">
@@ -468,24 +538,38 @@ export default function GuestBookingCheckoutPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Clock className="w-5 h-5" style={{ color: primaryColor }} />
+                      <Clock
+                        className="w-5 h-5"
+                        style={{ color: primaryColor }}
+                      />
                       <div>
                         <div className="text-sm text-gray-500">Time</div>
-                        <div className="font-semibold text-gray-900">{selectedTime}</div>
+                        <div className="font-semibold text-gray-900">
+                          {selectedTime}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Users className="w-5 h-5" style={{ color: primaryColor }} />
+                      <Users
+                        className="w-5 h-5"
+                        style={{ color: primaryColor }}
+                      />
                       <div>
                         <div className="text-sm text-gray-500">Guests</div>
-                        <div className="font-semibold text-gray-900">{booking.totalGuests || 1}</div>
+                        <div className="font-semibold text-gray-900">
+                          {booking.totalGuests || 1}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="p-6 rounded-xl space-y-3 bg-gray-50">
-                    <div className="font-semibold text-gray-900">Contact Information</div>
-                    <div className="text-gray-600">{formData.firstName} {formData.lastName}</div>
+                    <div className="font-semibold text-gray-900">
+                      Contact Information
+                    </div>
+                    <div className="text-gray-600">
+                      {formData.firstName} {formData.lastName}
+                    </div>
                     <div className="text-gray-600">{formData.email}</div>
                     <div className="text-gray-600">{formData.phone}</div>
                   </div>
@@ -493,7 +577,8 @@ export default function GuestBookingCheckoutPage() {
                   <div className="flex items-center gap-3 p-4 rounded-xl bg-[#e8f1f8]">
                     <Lock className="w-5 h-5" style={{ color: primaryColor }} />
                     <div className="text-sm text-gray-600">
-                      Your information is secure and will only be used to confirm your viewing
+                      Your information is secure and will only be used to
+                      confirm your viewing
                     </div>
                   </div>
 
@@ -522,13 +607,19 @@ export default function GuestBookingCheckoutPage() {
 
           <div>
             <div className="p-6 rounded-2xl border sticky top-6 bg-white border-gray-200">
-              <h3 className="font-semibold mb-4 text-[18px] text-gray-900">Booking Summary</h3>
+              <h3 className="font-semibold mb-4 text-[18px] text-gray-900">
+                Booking Summary
+              </h3>
 
               {getPropertyImage() ? (
                 <div className="aspect-video rounded-xl overflow-hidden mb-4">
                   <img
                     src={getPropertyImage() || ""}
-                    alt={booking.property.title || booking.property.name || "Property"}
+                    alt={
+                      booking.property.title ||
+                      booking.property.name ||
+                      "Property"
+                    }
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -546,13 +637,17 @@ export default function GuestBookingCheckoutPage() {
                 {date && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Date:</span>
-                    <span className="font-medium text-gray-900">{format(date, "MMM dd, yyyy")}</span>
+                    <span className="font-medium text-gray-900">
+                      {format(date, "MMM dd, yyyy")}
+                    </span>
                   </div>
                 )}
                 {selectedTime && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Time:</span>
-                    <span className="font-medium text-gray-900">{selectedTime}</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedTime}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between">

@@ -1402,10 +1402,7 @@ const ensureAccountDeletionAllowed = async (userId: string, role: string) => {
   }
 };
 
-const completeAccountDeletion = async (
-  userId: string,
-  reason?: string,
-) => {
+const completeAccountDeletion = async (userId: string, reason?: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {

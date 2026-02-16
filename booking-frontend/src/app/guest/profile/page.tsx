@@ -147,7 +147,9 @@ export default function ProfilePage() {
       toast.success("Verification code sent to your email");
     } catch (error: unknown) {
       const message =
-        error instanceof Error ? error.message : "Failed to request verification code";
+        error instanceof Error
+          ? error.message
+          : "Failed to request verification code";
       toast.error(message);
     } finally {
       setIsRequestingDeleteOtp(false);
@@ -202,11 +204,16 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
       <GuestHeader currentPage="profile" searchPlaceholder="Search..." />
 
       <main className="flex-1 max-w-[1200px] mx-auto w-full px-6 py-12">
-        <h1 className="font-semibold mb-12 text-[40px] text-gray-900">My Profile</h1>
+        <h1 className="font-semibold mb-12 text-[40px] text-gray-900">
+          My Profile
+        </h1>
 
         <div className="grid lg:grid-cols-[300px_1fr] gap-8">
           <div className="space-y-6">
@@ -223,7 +230,10 @@ export default function ProfilePage() {
                     className="w-32 h-32 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: primaryPale }}
                   >
-                    <User className="w-16 h-16" style={{ color: primaryColor }} />
+                    <User
+                      className="w-16 h-16"
+                      style={{ color: primaryColor }}
+                    />
                   </div>
                 )}
                 <button
@@ -244,25 +254,39 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <h2 className="font-semibold text-xl mb-1 text-gray-900">{fullName}</h2>
-              <p className="text-sm text-gray-600">Member since {memberSince}</p>
+              <h2 className="font-semibold text-xl mb-1 text-gray-900">
+                {fullName}
+              </h2>
+              <p className="text-sm text-gray-600">
+                Member since {memberSince}
+              </p>
             </Card>
 
-            <Card className="p-6 rounded-2xl border-0" style={{ backgroundColor: secondarySurface }}>
-              <h3 className="font-semibold mb-4 text-gray-900">Account Actions</h3>
+            <Card
+              className="p-6 rounded-2xl border-0"
+              style={{ backgroundColor: secondarySurface }}
+            >
+              <h3 className="font-semibold mb-4 text-gray-900">
+                Account Actions
+              </h3>
               <p className="text-sm text-gray-600">
-                You can request account deletion using a one-time email verification code.
+                You can request account deletion using a one-time email
+                verification code.
               </p>
             </Card>
           </div>
 
           <div className="space-y-8">
             <Card className="p-8 rounded-2xl border border-gray-200 bg-white space-y-6">
-              <h3 className="font-semibold text-xl text-gray-900">Personal Information</h3>
+              <h3 className="font-semibold text-xl text-gray-900">
+                Personal Information
+              </h3>
 
               <div className="grid sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">First Name</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    First Name
+                  </label>
                   <Input
                     value={formData.firstName}
                     onChange={(e) =>
@@ -275,7 +299,9 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">Last Name</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    Last Name
+                  </label>
                   <Input
                     value={formData.lastName}
                     onChange={(e) =>
@@ -290,7 +316,9 @@ export default function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-900">Email</label>
+                <label className="text-sm font-medium text-gray-900">
+                  Email
+                </label>
                 <Input
                   type="email"
                   value={formData.email}
@@ -305,7 +333,9 @@ export default function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-900">Phone</label>
+                <label className="text-sm font-medium text-gray-900">
+                  Phone
+                </label>
                 <Input
                   type="tel"
                   value={formData.phone}
@@ -321,7 +351,9 @@ export default function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-900">Location</label>
+                <label className="text-sm font-medium text-gray-900">
+                  Location
+                </label>
                 <Input
                   value={formData.location}
                   onChange={(e) =>
@@ -347,13 +379,18 @@ export default function ProfilePage() {
             </Card>
 
             <Card className="p-8 rounded-2xl border border-red-200 bg-white space-y-4">
-              <h3 className="font-semibold text-xl text-red-600">Delete Account</h3>
+              <h3 className="font-semibold text-xl text-red-600">
+                Delete Account
+              </h3>
               <p className="text-sm text-gray-600">
-                This action is irreversible. We will send a one-time code to your email before deletion.
+                This action is irreversible. We will send a one-time code to
+                your email before deletion.
               </p>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-900">Reason (optional)</label>
+                <label className="text-sm font-medium text-gray-900">
+                  Reason (optional)
+                </label>
                 <Input
                   value={deleteReason}
                   onChange={(e) => setDeleteReason(e.target.value)}
@@ -364,7 +401,9 @@ export default function ProfilePage() {
 
               {deleteStep === "otp-sent" && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">Enter OTP</label>
+                  <label className="text-sm font-medium text-gray-900">
+                    Enter OTP
+                  </label>
                   <Input
                     value={deleteOtp}
                     onChange={(e) => setDeleteOtp(e.target.value)}

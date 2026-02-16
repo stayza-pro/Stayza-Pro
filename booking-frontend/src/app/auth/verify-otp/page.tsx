@@ -364,7 +364,9 @@ function OTPVerificationContent() {
             <p className="text-gray-600">
               We sent a 6-digit verification code to
               <br />
-              <span className="font-semibold text-gray-900 break-all">{email}</span>
+              <span className="font-semibold text-gray-900 break-all">
+                {email}
+              </span>
             </p>
           </div>
 
@@ -423,7 +425,10 @@ function OTPVerificationContent() {
               ) : (
                 <p className="text-sm text-gray-600">
                   Resend code in{" "}
-                  <span className="font-semibold" style={{ color: primaryColor }}>
+                  <span
+                    className="font-semibold"
+                    style={{ color: primaryColor }}
+                  >
                     {countdown}s
                   </span>
                 </p>

@@ -116,7 +116,9 @@ export default function GuestPropertyDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
     );
   }
 
@@ -129,8 +131,14 @@ export default function GuestPropertyDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
-      <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: "#f8fafc" }}
+    >
+      <GuestHeader
+        currentPage="browse"
+        searchPlaceholder="Search location..."
+      />
 
       <div className="relative h-[500px] lg:h-[600px]">
         <img
@@ -177,7 +185,9 @@ export default function GuestPropertyDetailsPage() {
             <div>
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h1 className="font-semibold mb-3 text-[36px] text-gray-900">{title}</h1>
+                  <h1 className="font-semibold mb-3 text-[36px] text-gray-900">
+                    {title}
+                  </h1>
                   <div className="flex items-center gap-2 mb-2">
                     <MapPin className="w-5 h-5 text-gray-500" />
                     <span className="text-lg text-gray-600">{address}</span>
@@ -192,7 +202,9 @@ export default function GuestPropertyDetailsPage() {
                     <Heart
                       className="w-6 h-6"
                       style={{
-                        color: isLiked ? accentColor || primaryColor : "#6b7280",
+                        color: isLiked
+                          ? accentColor || primaryColor
+                          : "#6b7280",
                         fill: isLiked ? accentColor || primaryColor : "none",
                       }}
                     />
@@ -207,37 +219,57 @@ export default function GuestPropertyDetailsPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-6">
-                <div className="text-4xl font-bold" style={{ color: primaryColor }}>
+                <div
+                  className="text-4xl font-bold"
+                  style={{ color: primaryColor }}
+                >
                   {formatPrice(property.pricePerNight)}
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                     <Bed className="w-5 h-5 text-gray-500" />
-                    <span className="font-medium text-gray-600">{property.bedrooms} Beds</span>
+                    <span className="font-medium text-gray-600">
+                      {property.bedrooms} Beds
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Bath className="w-5 h-5 text-gray-500" />
-                    <span className="font-medium text-gray-600">{property.bathrooms} Baths</span>
+                    <span className="font-medium text-gray-600">
+                      {property.bathrooms} Baths
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Square className="w-5 h-5 text-gray-500" />
-                    <span className="font-medium text-gray-600">{property.maxGuests} guests</span>
+                    <span className="font-medium text-gray-600">
+                      {property.maxGuests} guests
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="p-8 rounded-2xl border bg-white border-gray-200">
-              <h2 className="font-semibold mb-4 text-[24px] text-gray-900">About This Property</h2>
-              <p className="leading-relaxed text-lg text-gray-600">{property.description}</p>
+              <h2 className="font-semibold mb-4 text-[24px] text-gray-900">
+                About This Property
+              </h2>
+              <p className="leading-relaxed text-lg text-gray-600">
+                {property.description}
+              </p>
             </div>
 
             <div className="p-8 rounded-2xl border bg-white border-gray-200">
-              <h2 className="font-semibold mb-6 text-[24px] text-gray-900">Property Features</h2>
+              <h2 className="font-semibold mb-6 text-[24px] text-gray-900">
+                Property Features
+              </h2>
               <div className="grid sm:grid-cols-2 gap-4">
                 {(featureList.length > 0
                   ? featureList
-                  : ["Premium location", "Secure access", "Managed property", "Professional support"]
+                  : [
+                      "Premium location",
+                      "Secure access",
+                      "Managed property",
+                      "Professional support",
+                    ]
                 ).map((feature) => (
                   <div key={feature} className="flex items-center gap-3">
                     <div
@@ -253,7 +285,9 @@ export default function GuestPropertyDetailsPage() {
 
           <div className="space-y-6">
             <div className="p-8 rounded-2xl border bg-white border-gray-200 sticky top-6">
-              <h3 className="font-semibold mb-6 text-[20px] text-gray-900">Book This Property</h3>
+              <h3 className="font-semibold mb-6 text-[20px] text-gray-900">
+                Book This Property
+              </h3>
 
               <Link href={`/booking/${property.id}/checkout`}>
                 <Button
@@ -266,8 +300,12 @@ export default function GuestPropertyDetailsPage() {
               </Link>
 
               <div className="p-4 rounded-xl mb-6 bg-[#f9f4ef]">
-                <div className="text-sm text-gray-600">Available viewing times:</div>
-                <div className="font-semibold mt-1 text-gray-900">Monday - Saturday, 9 AM - 6 PM</div>
+                <div className="text-sm text-gray-600">
+                  Available viewing times:
+                </div>
+                <div className="font-semibold mt-1 text-gray-900">
+                  Monday - Saturday, 9 AM - 6 PM
+                </div>
               </div>
 
               <div className="border-t pt-6 border-gray-200">
@@ -275,16 +313,23 @@ export default function GuestPropertyDetailsPage() {
                 <div className="flex items-center gap-3 mb-4">
                   <div
                     className="w-14 h-14 rounded-full overflow-hidden"
-                    style={{ backgroundColor: `${secondaryColor || primaryColor}22` }}
+                    style={{
+                      backgroundColor: `${secondaryColor || primaryColor}22`,
+                    }}
                   />
                   <div>
                     <div className="font-semibold text-gray-900">
                       {property.realtor?.businessName || "Property Specialist"}
                     </div>
-                    <div className="text-sm text-gray-600">Property Specialist</div>
+                    <div className="text-sm text-gray-600">
+                      Property Specialist
+                    </div>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full h-11 rounded-xl border-gray-200 text-gray-600">
+                <Button
+                  variant="outline"
+                  className="w-full h-11 rounded-xl border-gray-200 text-gray-600"
+                >
                   Contact Agent
                 </Button>
               </div>
