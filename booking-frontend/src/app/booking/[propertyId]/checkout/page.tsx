@@ -43,9 +43,13 @@ export default function BookingCheckoutPage() {
   const propertyId = params.propertyId as string;
 
   const { user, isLoading: userLoading } = useCurrentUser();
-  const { data: property, isLoading: propertyLoading } = useProperty(propertyId);
-  const { brandColor: primaryColor, secondaryColor, accentColor } =
-    useRealtorBranding();
+  const { data: property, isLoading: propertyLoading } =
+    useProperty(propertyId);
+  const {
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
+  } = useRealtorBranding();
 
   const colors = {
     surfaceBase: "#f8fafc",
@@ -199,18 +203,18 @@ export default function BookingCheckoutPage() {
     if (step === 2) {
       return Boolean(
         guestInfo.firstName.trim() &&
-          guestInfo.lastName.trim() &&
-          guestInfo.email.trim() &&
-          guestInfo.phone.trim(),
+        guestInfo.lastName.trim() &&
+        guestInfo.email.trim() &&
+        guestInfo.phone.trim(),
       );
     }
 
     if (step === 3) {
       return Boolean(
         paymentInfo.cardNumber.trim() &&
-          paymentInfo.cardName.trim() &&
-          paymentInfo.expiryDate.trim() &&
-          paymentInfo.cvv.trim(),
+        paymentInfo.cardName.trim() &&
+        paymentInfo.expiryDate.trim() &&
+        paymentInfo.cvv.trim(),
       );
     }
 
@@ -258,8 +262,14 @@ export default function BookingCheckoutPage() {
 
   if (userLoading || propertyLoading || !property) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: colors.surfaceBase }}>
-        <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+      <div
+        className="min-h-screen"
+        style={{ backgroundColor: colors.surfaceBase }}
+      >
+        <GuestHeader
+          currentPage="browse"
+          searchPlaceholder="Search location..."
+        />
         <div className="max-w-[1200px] mx-auto px-6 py-12 animate-pulse space-y-6">
           <div className="h-10 w-56 bg-gray-200 rounded" />
           <div className="h-80 bg-gray-200 rounded-2xl" />
@@ -277,8 +287,14 @@ export default function BookingCheckoutPage() {
     "https://images.unsplash.com/photo-1568115286680-d203e08a8be6?w=400";
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.surfaceBase }}>
-      <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: colors.surfaceBase }}
+    >
+      <GuestHeader
+        currentPage="browse"
+        searchPlaceholder="Search location..."
+      />
 
       <div className="max-w-[1200px] mx-auto px-6 py-12">
         <Link
@@ -401,7 +417,9 @@ export default function BookingCheckoutPage() {
                         <Input
                           type="date"
                           value={checkOut}
-                          min={checkIn || new Date().toISOString().split("T")[0]}
+                          min={
+                            checkIn || new Date().toISOString().split("T")[0]
+                          }
                           onChange={(e) => setCheckOut(e.target.value)}
                           className="pl-12 h-14 rounded-xl"
                           style={{
@@ -462,12 +480,13 @@ export default function BookingCheckoutPage() {
                     <Select
                       value={guests.toString()}
                       onChange={(value) => setGuests(parseInt(value, 10))}
-                      options={Array.from({ length: maxGuests }, (_, i) => i + 1).map(
-                        (num) => ({
-                          value: num.toString(),
-                          label: `${num} ${num === 1 ? "Guest" : "Guests"}`,
-                        }),
-                      )}
+                      options={Array.from(
+                        { length: maxGuests },
+                        (_, i) => i + 1,
+                      ).map((num) => ({
+                        value: num.toString(),
+                        label: `${num} ${num === 1 ? "Guest" : "Guests"}`,
+                      }))}
                       className="h-14 rounded-xl border border-gray-200 bg-gray-50 text-gray-900"
                     />
                   </div>
@@ -501,12 +520,16 @@ export default function BookingCheckoutPage() {
                     >
                       Guest Information
                     </h2>
-                    <p style={{ color: colors.neutralDark }}>Who&apos;s checking in?</p>
+                    <p style={{ color: colors.neutralDark }}>
+                      Who&apos;s checking in?
+                    </p>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label style={{ color: colors.neutralDarkest }}>First Name</label>
+                      <label style={{ color: colors.neutralDarkest }}>
+                        First Name
+                      </label>
                       <Input
                         required
                         value={guestInfo.firstName}
@@ -524,7 +547,9 @@ export default function BookingCheckoutPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label style={{ color: colors.neutralDarkest }}>Last Name</label>
+                      <label style={{ color: colors.neutralDarkest }}>
+                        Last Name
+                      </label>
                       <Input
                         required
                         value={guestInfo.lastName}
@@ -544,7 +569,9 @@ export default function BookingCheckoutPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label style={{ color: colors.neutralDarkest }}>Email</label>
+                    <label style={{ color: colors.neutralDarkest }}>
+                      Email
+                    </label>
                     <Input
                       type="email"
                       required
@@ -564,7 +591,9 @@ export default function BookingCheckoutPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label style={{ color: colors.neutralDarkest }}>Phone</label>
+                    <label style={{ color: colors.neutralDarkest }}>
+                      Phone
+                    </label>
                     <Input
                       type="tel"
                       required
@@ -655,7 +684,9 @@ export default function BookingCheckoutPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label style={{ color: colors.neutralDarkest }}>Card Number</label>
+                    <label style={{ color: colors.neutralDarkest }}>
+                      Card Number
+                    </label>
                     <div className="relative">
                       <CreditCard
                         className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5"
@@ -704,7 +735,9 @@ export default function BookingCheckoutPage() {
 
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label style={{ color: colors.neutralDarkest }}>Expiry Date</label>
+                      <label style={{ color: colors.neutralDarkest }}>
+                        Expiry Date
+                      </label>
                       <Input
                         required
                         placeholder="MM/YY"
@@ -723,7 +756,9 @@ export default function BookingCheckoutPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label style={{ color: colors.neutralDarkest }}>CVV</label>
+                      <label style={{ color: colors.neutralDarkest }}>
+                        CVV
+                      </label>
                       <Input
                         required
                         placeholder="123"
@@ -748,7 +783,10 @@ export default function BookingCheckoutPage() {
                     style={{ backgroundColor: colors.primaryPale }}
                   >
                     <Lock className="w-5 h-5" style={{ color: primaryColor }} />
-                    <div className="text-sm" style={{ color: colors.neutralDark }}>
+                    <div
+                      className="text-sm"
+                      style={{ color: colors.neutralDark }}
+                    >
                       Your payment information is secure and encrypted with
                       industry-standard SSL
                     </div>
@@ -815,7 +853,10 @@ export default function BookingCheckoutPage() {
                 />
               </div>
 
-              <h4 className="font-semibold mb-1" style={{ color: colors.neutralDarkest }}>
+              <h4
+                className="font-semibold mb-1"
+                style={{ color: colors.neutralDarkest }}
+              >
                 {property.title}
               </h4>
               <p className="text-sm mb-6" style={{ color: colors.neutralDark }}>
@@ -881,7 +922,8 @@ export default function BookingCheckoutPage() {
                   >
                     <div className="flex justify-between text-sm">
                       <span style={{ color: colors.neutralDark }}>
-                        {formatPrice((property.pricePerNight || 0) as number)} x {nights} nights
+                        {formatPrice((property.pricePerNight || 0) as number)} x{" "}
+                        {nights} nights
                       </span>
                       <span style={{ color: colors.neutralDarkest }}>
                         {formatPrice(subtotal)}
@@ -900,14 +942,18 @@ export default function BookingCheckoutPage() {
                     )}
 
                     <div className="flex justify-between text-sm">
-                      <span style={{ color: colors.neutralDark }}>Cleaning fee</span>
+                      <span style={{ color: colors.neutralDark }}>
+                        Cleaning fee
+                      </span>
                       <span style={{ color: colors.neutralDarkest }}>
                         {formatPrice(cleaningFee)}
                       </span>
                     </div>
 
                     <div className="flex justify-between text-sm">
-                      <span style={{ color: colors.neutralDark }}>Service fee</span>
+                      <span style={{ color: colors.neutralDark }}>
+                        Service fee
+                      </span>
                       <span style={{ color: colors.neutralDarkest }}>
                         {formatPrice(serviceFee)}
                       </span>

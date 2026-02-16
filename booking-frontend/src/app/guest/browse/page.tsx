@@ -323,7 +323,10 @@ export default function BrowsePropertiesPage() {
                         </h3>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm line-clamp-1" style={{ color: neutralDark }}>
+                          <span
+                            className="text-sm line-clamp-1"
+                            style={{ color: neutralDark }}
+                          >
                             {property.city}
                             {property.state ? `, ${property.state}` : ""}
                           </span>
@@ -336,13 +339,19 @@ export default function BrowsePropertiesPage() {
                       >
                         <div className="flex items-center gap-1.5">
                           <Bed className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-medium" style={{ color: neutralDark }}>
+                          <span
+                            className="text-sm font-medium"
+                            style={{ color: neutralDark }}
+                          >
                             {property.bedrooms}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Bath className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-medium" style={{ color: neutralDark }}>
+                          <span
+                            className="text-sm font-medium"
+                            style={{ color: neutralDark }}
+                          >
                             {property.bathrooms}
                           </span>
                         </div>
