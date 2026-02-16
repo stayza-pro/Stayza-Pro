@@ -76,22 +76,26 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
               className="flex items-center gap-3 min-w-0"
             >
               {logo && logo.trim() !== "" ? (
-                <img src={logo} alt={agencyName} className="h-10 w-auto" />
+                <img
+                  src={logo}
+                  alt={agencyName}
+                  className="h-14 w-auto rounded-xl object-contain"
+                />
               ) : (
                 <div
-                  className="h-10 w-10 rounded-lg flex items-center justify-center"
+                  className="h-14 w-14 rounded-xl flex items-center justify-center shadow-sm"
                   style={{ backgroundColor: primaryColor }}
                 >
-                  <span className="text-white text-[18px] font-semibold">
+                  <span className="text-white text-[24px] font-semibold">
                     {agencyName.charAt(0)}
                   </span>
                 </div>
               )}
               <div className="min-w-0">
-                <div className="font-semibold tracking-tight text-[20px] text-gray-900 truncate">
+                <div className="font-semibold tracking-tight text-[22px] text-gray-900 truncate leading-tight">
                   {agencyName}
                 </div>
-                <div className="text-xs tracking-wide text-gray-500 truncate">
+                <div className="text-sm tracking-wide text-gray-500 truncate">
                   {tagline && tagline.trim() !== ""
                     ? tagline
                     : "Premium short-let properties"}
@@ -159,18 +163,22 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
               className="flex items-center gap-2 min-w-0"
             >
               {logo && logo.trim() !== "" ? (
-                <img src={logo} alt={agencyName} className="h-8 w-auto" />
+                <img
+                  src={logo}
+                  alt={agencyName}
+                  className="h-10 w-auto rounded-lg object-contain"
+                />
               ) : (
                 <div
-                  className="h-8 w-8 rounded-lg flex items-center justify-center"
+                  className="h-10 w-10 rounded-lg flex items-center justify-center"
                   style={{ backgroundColor: primaryColor }}
                 >
-                  <span className="text-white text-sm font-semibold">
+                  <span className="text-white text-base font-semibold">
                     {agencyName.charAt(0)}
                   </span>
                 </div>
               )}
-              <span className="font-semibold text-[16px] text-gray-900 truncate">
+              <span className="font-semibold text-[17px] text-gray-900 truncate">
                 {agencyName}
               </span>
             </Link>

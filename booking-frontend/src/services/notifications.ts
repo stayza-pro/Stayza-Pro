@@ -18,7 +18,7 @@ const normalizeApiUrl = (value: string) => {
 };
 
 const API_BASE_URL = normalizeApiUrl(
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api"
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api",
 );
 
 class NotificationApiService {
@@ -55,7 +55,7 @@ class NotificationApiService {
 
       const response = await axios.get<NotificationsListResponse>(
         `${API_BASE_URL}/notifications?${queryParams}`,
-        { headers: this.getAuthHeaders() }
+        { headers: this.getAuthHeaders() },
       );
 
       const payload = response.data as unknown;
@@ -101,7 +101,6 @@ class NotificationApiService {
         },
       };
     } catch (error) {
-      
       throw error;
     }
   }
@@ -111,12 +110,11 @@ class NotificationApiService {
     try {
       const response = await axios.get<UnreadCountResponse>(
         `${API_BASE_URL}/notifications/unread-count`,
-        { headers: this.getAuthHeaders() }
+        { headers: this.getAuthHeaders() },
       );
 
       return response.data.data.unreadCount;
     } catch (error) {
-      
       throw error;
     }
   }
@@ -127,12 +125,11 @@ class NotificationApiService {
       const response = await axios.patch<NotificationResponse>(
         `${API_BASE_URL}/notifications/${notificationId}/read`,
         {},
-        { headers: this.getAuthHeaders() }
+        { headers: this.getAuthHeaders() },
       );
 
       return response.data.data;
     } catch (error) {
-      
       throw error;
     }
   }
@@ -143,10 +140,9 @@ class NotificationApiService {
       await axios.patch(
         `${API_BASE_URL}/notifications/read-all`,
         {},
-        { headers: this.getAuthHeaders() }
+        { headers: this.getAuthHeaders() },
       );
     } catch (error) {
-      
       throw error;
     }
   }
@@ -158,7 +154,6 @@ class NotificationApiService {
         headers: this.getAuthHeaders(),
       });
     } catch (error) {
-      
       throw error;
     }
   }
@@ -168,12 +163,11 @@ class NotificationApiService {
     try {
       const response = await axios.get<NotificationStatsResponse>(
         `${API_BASE_URL}/notifications/stats`,
-        { headers: this.getAuthHeaders() }
+        { headers: this.getAuthHeaders() },
       );
 
       return response.data.data;
     } catch (error) {
-      
       throw error;
     }
   }

@@ -16,7 +16,7 @@ const normalizeApiUrl = (value: string): string => {
 };
 
 const API_URL = normalizeApiUrl(
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api"
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api",
 );
 
 // Create axios instance
@@ -48,7 +48,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor for handling errors and token refresh
@@ -78,8 +78,6 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        
-
         // Try to get refresh token from authStore first, then localStorage/cookies
         let refreshToken: string | null = null;
 
@@ -95,7 +93,6 @@ api.interceptors.response.use(
               localStorage.setItem("refreshToken", refreshToken);
             }
           }
-          
         } else {
           refreshToken = localStorage.getItem("refreshToken");
         }
@@ -120,8 +117,6 @@ api.interceptors.response.use(
           useAuthStore.setState({ accessToken });
         }
 
-        
-
         // Retry original request with new token
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -129,7 +124,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // Refresh failed, clear tokens and update auth store
-        
+
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
 
@@ -176,7 +171,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 // API response types
@@ -206,27 +201,27 @@ export const apiClient = {
   post: <T, TData = unknown>(
     url: string,
     data?: TData,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> =>
     api.post(url, data, config).then((res) => res.data),
 
   put: <T, TData = unknown>(
     url: string,
     data?: TData,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> =>
     api.put(url, data, config).then((res) => res.data),
 
   patch: <T, TData = unknown>(
     url: string,
     data?: TData,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> =>
     api.patch(url, data, config).then((res) => res.data),
 
   delete: <T>(
     url: string,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => api.delete(url, config).then((res) => res.data),
 };
 

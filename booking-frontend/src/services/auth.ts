@@ -38,18 +38,14 @@ export const authService = {
 
   // Login user
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    
-
     // Clear any existing tokens to avoid interference
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
 
     const response = await apiClient.post<AuthResponse>(
       "/auth/login",
-      credentials
+      credentials,
     );
-
-    
 
     // Store tokens with cross-domain support
     if (response.data.accessToken) {
@@ -64,10 +60,7 @@ export const authService = {
             : ".stayza.pro";
         document.cookie = `accessToken=${response.data.accessToken}; domain=${domain}; path=/; Secure; SameSite=None`;
         document.cookie = `refreshToken=${response.data.refreshToken}; domain=${domain}; path=/; Secure; SameSite=None`;
-        
-      } catch (cookieError) {
-        
-      }
+      } catch (cookieError) {}
     }
 
     return response.data;
@@ -100,7 +93,7 @@ export const authService = {
       "/auth/refresh",
       {
         refreshToken,
-      }
+      },
     );
 
     // Update stored token
@@ -118,7 +111,6 @@ export const authService = {
     // apiClient.get already returns the backend response: { success, message, data: { user } }
     // So response.data contains { user: {...} }
     if (!response.data?.user) {
-      
       throw new Error("Invalid profile response format");
     }
     return response.data.user;
@@ -157,7 +149,9 @@ export const authService = {
   },
 
   // Verify email
-  verifyEmail: async (payload: string | { token: string; email: string }): Promise<void> => {
+  verifyEmail: async (
+    payload: string | { token: string; email: string },
+  ): Promise<void> => {
     const token = typeof payload === "string" ? payload : payload.token;
     const email = typeof payload === "string" ? "" : payload.email;
 
@@ -175,33 +169,37 @@ export const authService = {
   },
 
   // Request OTP for passwordless login
-  requestOtp: async (email: string): Promise<{ email: string; expiresIn: string }> => {
+  requestOtp: async (
+    email: string,
+  ): Promise<{ email: string; expiresIn: string }> => {
     const response = await apiClient.post<{ email: string; expiresIn: string }>(
       "/auth/request-otp",
-      { email, type: "login" }
+      { email, type: "login" },
     );
     return response.data;
   },
 
   // Register new guest with passwordless flow
   registerPasswordless: async (
-    data: PasswordlessRegisterPayload
+    data: PasswordlessRegisterPayload,
   ): Promise<{ email: string; expiresIn: string }> => {
     const response = await apiClient.post<{ email: string; expiresIn: string }>(
       "/auth/register-passwordless",
       {
         ...data,
         role: "GUEST",
-      }
+      },
     );
     return response.data;
   },
 
   // Verify registration OTP
-  verifyRegistrationOtp: async (data: PasswordlessOtpPayload): Promise<AuthResponse> => {
+  verifyRegistrationOtp: async (
+    data: PasswordlessOtpPayload,
+  ): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>(
       "/auth/verify-registration",
-      data
+      data,
     );
 
     if (response.data.accessToken) {
@@ -213,8 +211,13 @@ export const authService = {
   },
 
   // Verify login OTP
-  verifyLoginOtp: async (data: PasswordlessOtpPayload): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>("/auth/verify-login", data);
+  verifyLoginOtp: async (
+    data: PasswordlessOtpPayload,
+  ): Promise<AuthResponse> => {
+    const response = await apiClient.post<AuthResponse>(
+      "/auth/verify-login",
+      data,
+    );
 
     if (response.data.accessToken) {
       localStorage.setItem("accessToken", response.data.accessToken);

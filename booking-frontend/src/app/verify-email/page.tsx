@@ -44,14 +44,14 @@ function VerifyEmailContent() {
         const API_URL = getBackendApiUrl();
         const response = await fetch(
           `${API_URL}/auth/verify-email?token=${token}&email=${encodeURIComponent(
-            email
+            email,
           )}&type=${type}`,
           {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
             },
-          }
+          },
         );
 
         const data = await response.json();
@@ -69,7 +69,6 @@ function VerifyEmailContent() {
 
           // Auto-redirect to login page after successful verification
           setTimeout(() => {
-            
             router.push(redirectUrl);
           }, 3000); // Wait 3 seconds to show success message
         } else {
@@ -80,7 +79,6 @@ function VerifyEmailContent() {
           toast.error(data.message || "Email verification failed.");
         }
       } catch (error) {
-        
         setResult({
           success: false,
           message: "Something went wrong during email verification.",
@@ -119,7 +117,6 @@ function VerifyEmailContent() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      
       toast.error("Failed to resend verification email. Please try again.");
     }
   };

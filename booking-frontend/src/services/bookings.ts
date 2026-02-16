@@ -41,7 +41,7 @@ export const bookingService = {
 
   // Get user's bookings
   getUserBookings: async (
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<PaginatedResponse<Booking>> => {
     const params = new URLSearchParams();
 
@@ -65,7 +65,7 @@ export const bookingService = {
 
   // Get host's bookings
   getHostBookings: async (
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<PaginatedResponse<Booking>> => {
     const params = new URLSearchParams();
 
@@ -89,7 +89,7 @@ export const bookingService = {
 
   // Get realtor's bookings (alias for getHostBookings)
   getRealtorBookings: async (
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<Booking[]> => {
     const params = new URLSearchParams();
 
@@ -118,10 +118,10 @@ export const bookingService = {
   },
 
   verifyBookingArtifact: async (
-    code: string
+    code: string,
   ): Promise<VerifiedBookingArtifact> => {
     const response = await apiClient.get<VerifiedBookingArtifact>(
-      `/bookings/verify-artifact/${encodeURIComponent(code)}`
+      `/bookings/verify-artifact/${encodeURIComponent(code)}`,
     );
 
     return {
@@ -139,7 +139,7 @@ export const bookingService = {
   // Update booking status (hosts only)
   updateBookingStatus: async (
     id: string,
-    status: BookingStatus
+    status: BookingStatus,
   ): Promise<Booking> => {
     const response = await apiClient.put<Booking>(`/bookings/${id}/status`, {
       status,
@@ -150,7 +150,7 @@ export const bookingService = {
   // Cancel booking (guests can cancel within refund period)
   cancelBooking: async (
     id: string,
-    reason?: string
+    reason?: string,
   ): Promise<{
     success: boolean;
     message: string;
@@ -179,7 +179,7 @@ export const bookingService = {
 
   // Preview cancellation refund before confirming
   previewCancellation: async (
-    id: string
+    id: string,
   ): Promise<{
     canCancel: boolean;
     reason?: string;
@@ -264,7 +264,7 @@ export const bookingService = {
   requestRefund: async (
     id: string,
     amount: number,
-    reason: string
+    reason: string,
   ): Promise<Booking> => {
     const response = await apiClient.post<Booking>(`/bookings/${id}/refund`, {
       amount,
@@ -277,7 +277,7 @@ export const bookingService = {
   checkAvailability: async (
     propertyId: string,
     checkInDate: Date,
-    checkOutDate: Date
+    checkOutDate: Date,
   ): Promise<{ available: boolean; conflicts?: string[] }> => {
     const query = new URLSearchParams({
       checkIn: checkInDate.toISOString().split("T")[0],
@@ -295,7 +295,7 @@ export const bookingService = {
   getPropertyCalendar: async (
     propertyId: string,
     month: string,
-    year: string
+    year: string,
   ): Promise<{
     bookings: Array<{
       id: string;
@@ -317,15 +317,15 @@ export const bookingService = {
       unavailableDates: string[];
     }>(
       `/bookings/properties/${propertyId}/calendar?month=${encodeURIComponent(
-        month
-      )}&year=${encodeURIComponent(year)}`
+        month,
+      )}&year=${encodeURIComponent(year)}`,
     );
     return response.data;
   },
 
   // Get booking statistics (for dashboards)
   getBookingStats: async (
-    period = "30d"
+    period = "30d",
   ): Promise<{
     totalBookings: number;
     completedBookings: number;
@@ -355,7 +355,7 @@ export const bookingService = {
 
   // Get all bookings (admin only)
   getAllBookings: async (
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<PaginatedResponse<Booking>> => {
     const params = new URLSearchParams();
 
@@ -380,7 +380,7 @@ export const bookingService = {
     propertyId: string,
     checkInDate: Date,
     checkOutDate: Date,
-    guests: number
+    guests: number,
   ): Promise<{
     subtotal: number;
     serviceFee: number;
@@ -461,21 +461,17 @@ export const bookingService = {
       guests,
     });
 
-    
-    
-
     // API returns data directly in response.data (already unwrapped by axios)
     // Backend structure: { success, message, data: {...} }
     // But axios already extracts response.data, so we access .data directly
     const result = (response.data as any).data || response.data;
-    
 
     return result;
   },
 
   // Check-in to booking
   checkIn: async (
-    id: string
+    id: string,
   ): Promise<{
     success: boolean;
     message: string;
@@ -505,7 +501,7 @@ export const bookingService = {
 
   // Check-out from booking
   checkOut: async (
-    id: string
+    id: string,
   ): Promise<{
     success: boolean;
     message: string;

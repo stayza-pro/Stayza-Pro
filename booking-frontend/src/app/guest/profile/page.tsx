@@ -122,7 +122,10 @@ export default function ProfilePage() {
   };
 
   const handleUpdatePassword = async () => {
-    if (!passwordData.currentPassword.trim() || !passwordData.newPassword.trim()) {
+    if (
+      !passwordData.currentPassword.trim() ||
+      !passwordData.newPassword.trim()
+    ) {
       toast.error("Current and new password are required");
       return;
     }
@@ -216,7 +219,9 @@ export default function ProfilePage() {
               <h2 className="font-semibold text-xl mb-1 text-gray-900">
                 {fullName}
               </h2>
-              <p className="text-sm text-gray-600">Member since {memberSince}</p>
+              <p className="text-sm text-gray-600">
+                Member since {memberSince}
+              </p>
             </Card>
 
             <Card

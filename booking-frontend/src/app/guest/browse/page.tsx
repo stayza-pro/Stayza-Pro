@@ -14,6 +14,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { Footer } from "@/components/guest/sections/Footer";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -30,9 +31,14 @@ export default function BrowsePropertiesPage() {
     new Set(),
   );
   const {
+    realtorId,
     brandColor: primaryColor,
     secondaryColor,
     accentColor,
+    realtorName,
+    logoUrl,
+    tagline,
+    description,
   } = useRealtorBranding();
   const primaryPale = "#e8f1f8";
   const { isAuthenticated } = useCurrentUser();
@@ -227,11 +233,14 @@ export default function BrowsePropertiesPage() {
         ) : properties.length > 0 ? (
           <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {properties.map((property, index) => {
-                const featured = sortBy === "featured" && index < 3;
+              {properties.map((property) => {
                 const imageUrl =
                   property.images?.[0]?.url ||
                   "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80";
+
+                const propertyType = property.type
+                  ? property.type.toLowerCase().replace(/_/g, " ")
+                  : "property";
 
                 return (
                   <div
@@ -245,16 +254,14 @@ export default function BrowsePropertiesPage() {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
 
-                      {featured ? (
-                        <div
-                          className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm text-white"
-                          style={{
-                            backgroundColor: secondaryColor || primaryColor,
-                          }}
-                        >
-                          Featured
-                        </div>
-                      ) : null}
+                      <div
+                        className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm text-white capitalize"
+                        style={{
+                          backgroundColor: secondaryColor || primaryColor,
+                        }}
+                      >
+                        {propertyType}
+                      </div>
 
                       <button
                         type="button"
@@ -288,6 +295,15 @@ export default function BrowsePropertiesPage() {
 
                     <div className="p-6 space-y-4">
                       <div>
+                        <div
+                          className="text-xl font-bold mb-1"
+                          style={{ color: primaryColor }}
+                        >
+                          {formatPrice(property.pricePerNight, property.currency)}
+                          <span className="text-sm font-medium text-gray-600 ml-1">
+                            / night
+                          </span>
+                        </div>
                         <h3 className="font-semibold mb-2 line-clamp-1 text-[18px] text-gray-900">
                           {property.title}
                         </h3>
@@ -300,7 +316,7 @@ export default function BrowsePropertiesPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+                      <div className="flex items-center justify-between gap-3 pt-4 pb-2 border-t border-gray-200">
                         <div className="flex items-center gap-1.5">
                           <Bed className="w-4 h-4 text-gray-500" />
                           <span className="text-sm font-medium text-gray-700">
@@ -316,7 +332,7 @@ export default function BrowsePropertiesPage() {
                         <div className="flex items-center gap-1.5">
                           <Square className="w-4 h-4 text-gray-500" />
                           <span className="text-sm font-medium text-gray-700">
-                            {property.maxGuests}
+                            {property.maxGuests} guests
                           </span>
                         </div>
                       </div>
@@ -365,6 +381,17 @@ export default function BrowsePropertiesPage() {
           </div>
         )}
       </main>
+
+      <Footer
+        realtorName={realtorName || "Stayza Pro"}
+        tagline={tagline || "Premium short-let properties"}
+        logo={logoUrl}
+        description={description || "Find premium properties with confidence."}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
+        realtorId={realtorId || undefined}
+      />
     </div>
   );
 }

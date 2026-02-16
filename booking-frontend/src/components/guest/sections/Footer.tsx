@@ -85,11 +85,11 @@ export const Footer: React.FC<FooterProps> = ({
   };
 
   const navLinks = [
-    { label: "Home", href: "#hero" },
-    { label: "Properties", href: "#properties" },
-    { label: "Reviews", href: "#reviews" },
-    { label: "About", href: "#about" },
-    { label: "Support", href: "#support" },
+    { label: "Home", href: "/guest-landing" },
+    { label: "Browse Properties", href: "/guest/browse" },
+    { label: "Bookings", href: "/guest/bookings" },
+    { label: "Favorites", href: "/guest/favorites" },
+    { label: "Help", href: "/guest/help" },
   ];
 
   useEffect(() => {
@@ -191,13 +191,8 @@ export const Footer: React.FC<FooterProps> = ({
     }
   };
 
-  const handleScroll = (href: string) => {
-    if (href.startsWith("#")) {
-      const element = document.querySelector(href);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
-    }
+  const handleNavigate = (href: string) => {
+    router.push(href);
   };
 
   return (
@@ -258,7 +253,7 @@ export const Footer: React.FC<FooterProps> = ({
                 {navLinks.map((link) => (
                   <button
                     key={link.label}
-                    onClick={() => handleScroll(link.href)}
+                    onClick={() => handleNavigate(link.href)}
                     className="text-gray-400 text-sm text-left transition-colors duration-200"
                     style={{
                       color: "rgba(156, 163, 175, 1)", // gray-400

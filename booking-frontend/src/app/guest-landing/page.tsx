@@ -1,20 +1,60 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight, Search, Shield, Star, Sparkles } from "lucide-react";
+import { useQuery } from "react-query";
 import { Button } from "@/components/ui";
+import { Footer } from "@/components/guest/sections/Footer";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { propertyService } from "@/services";
 
 export default function GuestLandingPage() {
   const {
+    realtorId,
     brandColor: primaryColor,
     secondaryColor,
     accentColor,
     realtorName,
+    logoUrl,
     tagline,
     description,
   } = useRealtorBranding();
+
+  const { data: realtorPropertiesResponse } = useQuery(
+    ["guest-landing-realtor-properties", realtorId],
+    () =>
+      propertyService.getHostProperties(realtorId || "", {
+        page: 1,
+        limit: 100,
+      }),
+    {
+      enabled: Boolean(realtorId),
+      staleTime: 2 * 60 * 1000,
+    },
+  );
+
+  const realtorProperties = useMemo(
+    () => realtorPropertiesResponse?.data || [],
+    [realtorPropertiesResponse?.data],
+  );
+
+  const propertyCount = realtorProperties.length;
+
+  const heroImage = useMemo(() => {
+    const images = realtorProperties.flatMap((property) =>
+      (property.images || [])
+        .map((image) => image?.url)
+        .filter((url): url is string => Boolean(url && url.trim())),
+    );
+
+    if (images.length === 0) {
+      return "https://images.unsplash.com/photo-1706808849827-7366c098b317?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBtb2Rlcm4lMjBob3VzZSUyMGV4dGVyaW9yfGVufDF8fHx8MTc3MTAwOTg1M3ww&ixlib=rb-4.1.0&q=80&w=1080";
+    }
+
+    const index = Math.floor(Math.random() * images.length);
+    return images[index];
+  }, [realtorProperties]);
 
   const features = [
     {
@@ -44,20 +84,22 @@ export default function GuestLandingPage() {
   ];
 
   const stats = [
-    { value: "500+", label: "Properties" },
+    {
+      value: propertyCount > 0 ? String(propertyCount) : "0",
+      label: "Properties",
+    },
     { value: "98%", label: "Satisfaction" },
     { value: "24/7", label: "Support" },
   ];
-  const primaryDark = "#10283f";
   const secondarySurface = "#faf8f4";
-  const secondaryDark = "#b8875f";
+  const secondaryDark = secondaryColor || "#b8875f";
 
   return (
     <div className="min-h-screen">
       <section
         className="relative overflow-hidden"
         style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor || primaryColor} 100%)`,
         }}
       >
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
@@ -93,7 +135,7 @@ export default function GuestLandingPage() {
                 <Link href="/guest/browse">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white"
+                    className="w-full sm:w-auto px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white animate-pulse"
                     style={{ backgroundColor: accentColor || primaryColor }}
                   >
                     Browse Properties
@@ -103,8 +145,8 @@ export default function GuestLandingPage() {
                 <Link href="/guest/register">
                   <Button
                     size="lg"
-                    variant="outline"
-                    className="w-full sm:w-auto px-8 py-6 rounded-xl font-semibold text-base backdrop-blur-sm transition-all border-white/30 text-white bg-white/10 hover:bg-white/20"
+                    className="w-full sm:w-auto px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white"
+                    style={{ backgroundColor: accentColor || primaryColor }}
                   >
                     Create Account
                   </Button>
@@ -132,7 +174,7 @@ export default function GuestLandingPage() {
               <div className="absolute inset-0 flex items-center justify-center p-8">
                 <div className="relative w-full h-[600px] rounded-2xl overflow-hidden shadow-2xl">
                   <img
-                    src="https://images.unsplash.com/photo-1706808849827-7366c098b317?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBtb2Rlcm4lMjBob3VzZSUyMGV4dGVyaW9yfGVufDF8fHx8MTc3MTAwOTg1M3ww&ixlib=rb-4.1.0&q=80&w=1080"
+                    src={heroImage}
                     alt="Luxury Property"
                     className="w-full h-full object-cover"
                   />
@@ -214,7 +256,7 @@ export default function GuestLandingPage() {
               <Link href="/guest/browse">
                 <Button
                   size="lg"
-                  className="px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white"
+                  className="px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white animate-pulse"
                   style={{ backgroundColor: accentColor || primaryColor }}
                 >
                   Start Exploring
@@ -224,8 +266,8 @@ export default function GuestLandingPage() {
               <Link href="/guest/login">
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="px-8 py-6 rounded-xl font-semibold text-base backdrop-blur-sm transition-all border-white/30 bg-white/15 text-white hover:bg-white/20"
+                  className="px-8 py-6 rounded-xl font-semibold text-base shadow-lg hover:shadow-xl transition-all text-white"
+                  style={{ backgroundColor: accentColor || primaryColor }}
                 >
                   Sign In
                 </Button>
@@ -234,6 +276,17 @@ export default function GuestLandingPage() {
           </div>
         </div>
       </section>
+
+      <Footer
+        realtorName={realtorName || "Stayza Pro"}
+        tagline={tagline || "Premium short-let properties"}
+        logo={logoUrl}
+        description={description || "Find premium properties with confidence."}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
+        realtorId={realtorId || undefined}
+      />
     </div>
   );
 }

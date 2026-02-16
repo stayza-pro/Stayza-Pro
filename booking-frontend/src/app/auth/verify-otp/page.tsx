@@ -31,11 +31,7 @@ function OTPVerificationContent() {
   const lastName = searchParams.get("lastName");
 
   // Get realtor branding
-  const {
-    brandColor,
-    realtorName,
-    logoUrl,
-  } = useRealtorBranding();
+  const { brandColor, realtorName, logoUrl } = useRealtorBranding();
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
@@ -147,8 +143,6 @@ function OTPVerificationContent() {
         payload.referralSource = referralSource;
       }
 
-      
-
       const response = await fetch(`${backendUrl}${endpoint}`, {
         method: "POST",
         headers: {
@@ -158,8 +152,6 @@ function OTPVerificationContent() {
       });
 
       const result = await response.json();
-
-      
 
       if (!response.ok) {
         // Handle specific error status codes with user-friendly messages
@@ -207,8 +199,9 @@ function OTPVerificationContent() {
         router.push(returnTo);
       }
     } catch (error: unknown) {
-      
-      toast.error(getErrorMessage(error, "Invalid verification code. Please try again."));
+      toast.error(
+        getErrorMessage(error, "Invalid verification code. Please try again."),
+      );
 
       // Clear OTP inputs on error
       setOtp(["", "", "", "", "", ""]);
@@ -246,7 +239,7 @@ function OTPVerificationContent() {
         // For registration resend, include all required fields
         if (!firstName || !lastName) {
           toast.error(
-            "Missing registration information. Please register again."
+            "Missing registration information. Please register again.",
           );
           router.push("/guest/register");
           return;
@@ -305,8 +298,9 @@ function OTPVerificationContent() {
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } catch (error: unknown) {
-      
-      toast.error(getErrorMessage(error, "Failed to resend code. Please try again."));
+      toast.error(
+        getErrorMessage(error, "Failed to resend code. Please try again."),
+      );
     } finally {
       setIsResending(false);
     }

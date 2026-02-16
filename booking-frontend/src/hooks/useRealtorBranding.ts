@@ -30,16 +30,14 @@ interface APIRealtorBranding {
   };
 }
 
-const src2GuestBranding: RealtorBranding = {
-  id: "src2-elite-estates",
-  businessName: "Elite Estates",
-  tagline: "Where luxury meets lifestyle",
-  primaryColor: "#1a3a52",
-  secondaryColor: "#d4a574",
-  accentColor: "#c7956d",
+const fallbackBranding: RealtorBranding = {
+  businessName: "Stayza Pro",
+  tagline: "Premium short-let properties",
+  primaryColor: "#1f2937",
+  secondaryColor: "#059669",
+  accentColor: "#D97706",
   logoUrl: "",
-  description:
-    "Premium real estate experiences, tailored for discerning clients.",
+  description: "",
 };
 
 /**
@@ -71,16 +69,6 @@ export function useRealtorBranding() {
         return;
       }
 
-      const pathname = window.location.pathname;
-      const isGuestRoute =
-        pathname === "/guest-landing" || pathname.startsWith("/guest");
-
-      if (isGuestRoute) {
-        setRealtorBranding(src2GuestBranding);
-        setIsLoading(false);
-        return;
-      }
-
       // Try to get subdomain first (same as guest-landing page)
       const subdomain = getRealtorSubdomain();
       
@@ -96,6 +84,8 @@ export function useRealtorBranding() {
           
           if (response.data) {
             setRealtorBranding(mapApiBranding(response.data));
+          } else {
+            setRealtorBranding(fallbackBranding);
           }
         } catch (error) {
           
@@ -139,6 +129,11 @@ export function useRealtorBranding() {
           description: user.referredByRealtor.description,
         });
       }
+
+      if (!user?.referredByRealtor) {
+        setRealtorBranding(fallbackBranding);
+      }
+
       setIsLoading(false);
     };
 

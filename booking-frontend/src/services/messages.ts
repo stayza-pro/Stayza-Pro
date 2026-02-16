@@ -244,7 +244,9 @@ class MessageService {
     };
   }
 
-  async getDirectMessages(otherUserId: string): Promise<ApiResponse<Message[]>> {
+  async getDirectMessages(
+    otherUserId: string,
+  ): Promise<ApiResponse<Message[]>> {
     const response = await apiClient.get<Message[] | { messages?: Message[] }>(
       `/messages/direct/${otherUserId}`,
     );
@@ -261,8 +263,8 @@ class MessageService {
   async markAsRead(messageId: string): Promise<ApiResponse<Message>> {
     return Promise.reject(
       new Error(
-        "Per-message read endpoint is not available. Use markConversationAsRead instead."
-      )
+        "Per-message read endpoint is not available. Use markConversationAsRead instead.",
+      ),
     );
   }
 
@@ -289,7 +291,7 @@ class MessageService {
    */
   async deleteMessage(messageId: string): Promise<ApiResponse<void>> {
     return Promise.reject(
-      new Error("Delete message endpoint is not available in backend routes.")
+      new Error("Delete message endpoint is not available in backend routes."),
     );
   }
 
@@ -306,8 +308,8 @@ class MessageService {
   async closeThread(threadId: string): Promise<ApiResponse<void>> {
     return Promise.reject(
       new Error(
-        "Thread close endpoint is not available. Use markConversationAsRead for now."
-      )
+        "Thread close endpoint is not available. Use markConversationAsRead for now.",
+      ),
     );
   }
 
@@ -364,11 +366,15 @@ class MessageService {
       formData.append("taggedPropertyId", taggedPropertyId);
     }
 
-    return apiClient.post<Message>(`/messages/direct/${otherUserId}`, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
+    return apiClient.post<Message>(
+      `/messages/direct/${otherUserId}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       },
-    });
+    );
   }
 
   /**

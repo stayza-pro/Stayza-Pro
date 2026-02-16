@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, ArrowRight, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, ArrowRight } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
@@ -18,9 +18,6 @@ const getBackendApiUrl = () => {
 export default function GuestLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -30,7 +27,7 @@ export default function GuestLoginPage() {
     realtorName,
     logoUrl,
   } = useRealtorBranding();
-  const primaryDark = "#10283f";
+  const primaryDark = secondaryColor || "#10283f";
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -40,11 +37,6 @@ export default function GuestLoginPage() {
 
     if (!validateEmail(email)) {
       toast.error("Please enter a valid email address");
-      return;
-    }
-
-    if (!password.trim()) {
-      toast.error("Please enter your password");
       return;
     }
 
@@ -121,7 +113,8 @@ export default function GuestLoginPage() {
               Welcome Back
             </h1>
             <p className="text-lg leading-relaxed max-w-md text-white/90">
-              Sign in to continue your property search and manage your bookings
+              Continue with a one-time verification code to manage your
+              bookings and favorites
             </p>
 
             <div className="flex gap-2 pt-8">
@@ -167,13 +160,15 @@ export default function GuestLoginPage() {
               </span>
             </Link>
             <h1 className="font-semibold text-[32px] text-gray-900">Sign In</h1>
-            <p className="text-gray-600">Welcome back! Please enter your details</p>
+            <p className="text-gray-600">
+              Enter your email and we&apos;ll send a verification code
+            </p>
           </div>
 
           <div className="hidden lg:block space-y-2">
             <h2 className="font-semibold text-[32px] text-gray-900">Sign In</h2>
             <p className="text-gray-600">
-              Enter your credentials to access your account
+              Enter your email to continue with secure OTP login
             </p>
           </div>
 
@@ -200,65 +195,9 @@ export default function GuestLoginPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label
-                  htmlFor="password"
-                  className="text-sm font-medium text-gray-900"
-                >
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    className="pl-12 pr-12 h-12 rounded-xl border text-base bg-gray-50 border-gray-200 text-gray-900"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <input
-                    id="remember"
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(event) => setRememberMe(event.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  <label
-                    htmlFor="remember"
-                    className="text-sm cursor-pointer text-gray-600"
-                  >
-                    Remember me
-                  </label>
-                </div>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm font-medium hover:underline"
-                  style={{ color: primaryColor }}
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <p className="text-sm text-gray-600">
+                We&apos;ll send a 6-digit verification code to this email.
+              </p>
             </div>
 
             <Button
@@ -268,7 +207,7 @@ export default function GuestLoginPage() {
               style={{ backgroundColor: accentColor || primaryColor }}
               loading={isSubmitting}
             >
-              Sign In
+              Continue with OTP
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </form>
