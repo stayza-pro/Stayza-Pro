@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bath,
@@ -340,16 +339,15 @@ export default function BrowsePropertiesPage() {
                         </div>
                       </div>
 
-                      <Link href={`/guest/browse/${property.id}`}>
-                        <Button
-                          className="w-full h-11 rounded-xl font-medium text-white"
-                          style={{
-                            backgroundColor: accentColor || primaryColor,
-                          }}
-                        >
-                          View Details
-                        </Button>
-                      </Link>
+                      <Button
+                        className="w-full h-11 rounded-xl font-medium text-white"
+                        style={{
+                          backgroundColor: accentColor || primaryColor,
+                        }}
+                        onClick={() => router.push(`/guest/browse/${property.id}`)}
+                      >
+                        View Details
+                      </Button>
                     </div>
                   </div>
                 );

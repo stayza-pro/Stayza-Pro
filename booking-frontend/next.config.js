@@ -54,9 +54,14 @@ const nextConfig = {
       },
       // Legacy route cleanup redirects
       {
-        source: '/guest/browse/:id',
-        destination: '/browse/:id',
-        permanent: true,
+        source: '/browse',
+        destination: '/guest/browse',
+        permanent: false,
+      },
+      {
+        source: '/browse/:id',
+        destination: '/guest/browse/:id',
+        permanent: false,
       },
       {
         source: '/realtor/verify-email',

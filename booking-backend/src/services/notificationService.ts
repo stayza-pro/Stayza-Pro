@@ -549,7 +549,7 @@ export class NotificationService {
                 }
                 ${
                   notification.propertyId
-                    ? `<a href="${config.FRONTEND_URL}/browse/${notification.propertyId}" class="button">View Property</a>`
+                    ? `<a href="${config.FRONTEND_URL}/guest/browse/${notification.propertyId}" class="button">View Property</a>`
                     : ""
                 }
               </div>
