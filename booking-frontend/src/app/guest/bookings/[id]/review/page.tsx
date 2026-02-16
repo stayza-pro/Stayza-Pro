@@ -71,10 +71,7 @@ export default function WriteReviewPage() {
   const bookingId = params.id as string;
 
   const { user, isAuthenticated, isLoading } = useCurrentUser();
-  const {
-    brandColor: primaryColor,
-    accentColor,
-  } = useRealtorBranding();
+  const { brandColor: primaryColor, accentColor } = useRealtorBranding();
 
   const [authChecked, setAuthChecked] = useState(false);
   const [rating, setRating] = useState(0);

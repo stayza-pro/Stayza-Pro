@@ -32,9 +32,7 @@ export const Header: React.FC = () => {
     try {
       await logout();
       router.push("/");
-    } catch (error) {
-      
-    }
+    } catch (error) {}
   };
 
   const getDashboardLink = () => {
