@@ -299,7 +299,10 @@ export default function BrowsePropertiesPage() {
                           className="text-xl font-bold mb-1"
                           style={{ color: primaryColor }}
                         >
-                          {formatPrice(property.pricePerNight, property.currency)}
+                          {formatPrice(
+                            property.pricePerNight,
+                            property.currency,
+                          )}
                           <span className="text-sm font-medium text-gray-600 ml-1">
                             / night
                           </span>

@@ -235,7 +235,10 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
         style={{ borderColor: "#e5e7eb" }}
       >
         <div className="flex items-center justify-around px-2 py-2">
-          {[...navigation, { name: "Profile", href: "/guest/profile", icon: User }].map((item) => {
+          {[
+            ...navigation,
+            { name: "Profile", href: "/guest/profile", icon: User },
+          ].map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             return (

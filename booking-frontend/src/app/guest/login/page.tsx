@@ -113,8 +113,8 @@ export default function GuestLoginPage() {
               Welcome Back
             </h1>
             <p className="text-lg leading-relaxed max-w-md text-white/90">
-              Continue with a one-time verification code to manage your
-              bookings and favorites
+              Continue with a one-time verification code to manage your bookings
+              and favorites
             </p>
 
             <div className="flex gap-2 pt-8">

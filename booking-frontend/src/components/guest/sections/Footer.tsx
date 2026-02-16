@@ -32,7 +32,7 @@ export const Footer: React.FC<FooterProps> = ({
   const { isAuthenticated } = useCurrentUser();
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactType, setContactType] = useState<"realtor" | "support" | null>(
-    null
+    null,
   );
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,7 +106,7 @@ export const Footer: React.FC<FooterProps> = ({
     const resolveRealtorId = async () => {
       try {
         const response = await apiClient.get<{ id?: string }>(
-          `/branding/subdomain/${subdomain}`
+          `/branding/subdomain/${subdomain}`,
         );
         if (response.data?.id) {
           setResolvedRealtorId(response.data.id);
@@ -137,7 +137,7 @@ export const Footer: React.FC<FooterProps> = ({
       if (!isAuthenticated) {
         setShowContactModal(false);
         router.push(
-          `/guest/login?returnTo=${encodeURIComponent("/guest/messages")}`
+          `/guest/login?returnTo=${encodeURIComponent("/guest/messages")}`,
         );
         return;
       }
@@ -153,7 +153,7 @@ export const Footer: React.FC<FooterProps> = ({
     try {
       if (!isAuthenticated) {
         router.push(
-          `/guest/login?returnTo=${encodeURIComponent("/guest/messages")}`
+          `/guest/login?returnTo=${encodeURIComponent("/guest/messages")}`,
         );
         return;
       }
@@ -181,7 +181,7 @@ export const Footer: React.FC<FooterProps> = ({
         router.push(
           propertyId
             ? `/guest/messages?propertyId=${propertyId}`
-            : "/guest/messages"
+            : "/guest/messages",
         );
       }, 800);
     } catch (error: unknown) {
@@ -297,7 +297,8 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="pt-8 border-t border-gray-800">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-gray-500 text-sm">
-                Copyright {new Date().getFullYear()} {realtorName}. All rights reserved.
+                Copyright {new Date().getFullYear()} {realtorName}. All rights
+                reserved.
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 text-xs">Powered by</span>
@@ -462,7 +463,8 @@ export const Footer: React.FC<FooterProps> = ({
                     Message Sent!
                   </h4>
                   <p className="text-gray-600">
-                    Your message is now in your in-app conversation with {realtorName}.
+                    Your message is now in your in-app conversation with{" "}
+                    {realtorName}.
                   </p>
                 </div>
               )}
@@ -473,4 +475,3 @@ export const Footer: React.FC<FooterProps> = ({
     </>
   );
 };
-

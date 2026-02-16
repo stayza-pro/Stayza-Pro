@@ -71,24 +71,20 @@ export function useRealtorBranding() {
 
       // Try to get subdomain first (same as guest-landing page)
       const subdomain = getRealtorSubdomain();
-      
 
       if (subdomain) {
         try {
-          
           // Use the same endpoint as guest-landing page
           const response = await apiClient.get<APIRealtorBranding>(
-            `/branding/subdomain/${subdomain}`
+            `/branding/subdomain/${subdomain}`,
           );
 
-          
           if (response.data) {
             setRealtorBranding(mapApiBranding(response.data));
           } else {
             setRealtorBranding(fallbackBranding);
           }
         } catch (error) {
-          
           // Subdomain lookup failed; try authenticated or referral fallback
           await tryFetchByRealtorContext();
         } finally {
@@ -103,21 +99,17 @@ export function useRealtorBranding() {
     const tryFetchByRealtorContext = async () => {
       if (user?.role === "REALTOR") {
         try {
-          const response = await apiClient.get<APIRealtorBranding>(
-            "/branding/me"
-          );
+          const response =
+            await apiClient.get<APIRealtorBranding>("/branding/me");
           if (response.data) {
             setRealtorBranding(mapApiBranding(response.data));
             setIsLoading(false);
             return;
           }
-        } catch (error) {
-          
-        }
+        } catch (error) {}
       }
 
       if (user?.referredByRealtor) {
-        
         setRealtorBranding({
           id: user.referredByRealtor.id,
           businessName: user.referredByRealtor.businessName,
@@ -220,7 +212,6 @@ export function useRealtorBranding() {
 
   // Debug logging
   if (!isLoading) {
-    
   }
 
   return result;
