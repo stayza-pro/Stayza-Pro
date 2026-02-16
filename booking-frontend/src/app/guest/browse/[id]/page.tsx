@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -20,7 +20,7 @@ import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { favoritesService } from "@/services";
+import { bookingService, favoritesService } from "@/services";
 import toast from "react-hot-toast";
 
 export default function GuestPropertyDetailsPage() {
@@ -32,7 +32,6 @@ export default function GuestPropertyDetailsPage() {
   const { data: property, isLoading, error } = useProperty(propertyId);
   const {
     brandColor: primaryColor,
-    secondaryColor,
     accentColor,
   } = useRealtorBranding();
 
@@ -41,6 +40,26 @@ export default function GuestPropertyDetailsPage() {
   const [checkInDate, setCheckInDate] = useState("");
   const [checkOutDate, setCheckOutDate] = useState("");
   const [guests, setGuests] = useState(1);
+  const [bookingCalculation, setBookingCalculation] = useState<{
+    subtotal: number;
+    serviceFee: number;
+    cleaningFee: number;
+    securityDeposit: number;
+    taxes: number;
+    total: number;
+    currency: string;
+    nights: number;
+    serviceFeeBreakdown?: {
+      total: number;
+      stayza: number;
+      processing: number;
+      processingMode: string;
+    };
+  } | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  const checkInInputRef = useRef<HTMLInputElement | null>(null);
+  const checkOutInputRef = useRef<HTMLInputElement | null>(null);
 
   const images = useMemo(
     () =>
@@ -86,6 +105,61 @@ export default function GuestPropertyDetailsPage() {
 
   const estimatedTotal =
     totalNights > 0 ? totalNights * (property?.pricePerNight || 0) : 0;
+
+  useEffect(() => {
+    const calculateTotals = async () => {
+      if (!property?.id || !checkInDate || !checkOutDate || totalNights <= 0) {
+        setBookingCalculation(null);
+        return;
+      }
+
+      try {
+        setIsCalculating(true);
+        const calculation = await bookingService.calculateBookingTotal(
+          property.id,
+          new Date(checkInDate),
+          new Date(checkOutDate),
+          guests,
+        );
+        setBookingCalculation(calculation);
+      } catch {
+        setBookingCalculation(null);
+      } finally {
+        setIsCalculating(false);
+      }
+    };
+
+    void calculateTotals();
+  }, [property?.id, checkInDate, checkOutDate, guests, totalNights]);
+
+  const triggerDatePicker = (input: HTMLInputElement | null) => {
+    if (!input) return;
+    input.focus();
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+    }
+  };
+
+  const handleCheckInChange = (value: string) => {
+    setCheckInDate(value);
+
+    if (!value) {
+      setCheckOutDate("");
+      return;
+    }
+
+    const nextDay = new Date(value);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const suggestedCheckOut = nextDay.toISOString().split("T")[0];
+
+    if (!checkOutDate || checkOutDate <= value) {
+      setCheckOutDate(suggestedCheckOut);
+    }
+
+    window.setTimeout(() => {
+      triggerDatePicker(checkOutInputRef.current);
+    }, 50);
+  };
 
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -344,12 +418,29 @@ export default function GuestPropertyDetailsPage() {
                   <label className="text-sm font-medium text-gray-900">
                     Check-in
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => triggerDatePicker(checkInInputRef.current)}
+                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-left flex items-center justify-between"
+                  >
+                    <span className={checkInDate ? "text-gray-900" : "text-gray-500"}>
+                      {checkInDate
+                        ? new Date(checkInDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "Select check-in date"}
+                    </span>
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                  </button>
                   <input
+                    ref={checkInInputRef}
                     type="date"
                     value={checkInDate}
                     min={minCheckInDate}
-                    onChange={(e) => setCheckInDate(e.target.value)}
-                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900"
+                    onChange={(e) => handleCheckInChange(e.target.value)}
+                    className="sr-only"
                   />
                 </div>
 
@@ -357,12 +448,29 @@ export default function GuestPropertyDetailsPage() {
                   <label className="text-sm font-medium text-gray-900">
                     Check-out
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => triggerDatePicker(checkOutInputRef.current)}
+                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-left flex items-center justify-between"
+                  >
+                    <span className={checkOutDate ? "text-gray-900" : "text-gray-500"}>
+                      {checkOutDate
+                        ? new Date(checkOutDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "Select check-out date"}
+                    </span>
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                  </button>
                   <input
+                    ref={checkOutInputRef}
                     type="date"
                     value={checkOutDate}
                     min={checkInDate || minCheckInDate}
                     onChange={(e) => setCheckOutDate(e.target.value)}
-                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900"
+                    className="sr-only"
                   />
                 </div>
 
@@ -396,35 +504,61 @@ export default function GuestPropertyDetailsPage() {
                 </div>
                 <div className="font-semibold mt-1 text-gray-900">
                   {totalNights > 0
-                    ? `${formatPrice(estimatedTotal)} for ${totalNights} ${totalNights === 1 ? "night" : "nights"}`
+                    ? `${formatPrice(bookingCalculation?.total || estimatedTotal)} for ${totalNights} ${totalNights === 1 ? "night" : "nights"}`
                     : "Select dates to see estimate"}
                 </div>
               </div>
 
-              <div className="border-t pt-6 border-gray-200">
-                <div className="text-sm mb-4 text-gray-500">Your Agent</div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div
-                    className="w-14 h-14 rounded-full overflow-hidden"
-                    style={{
-                      backgroundColor: `${secondaryColor || primaryColor}22`,
-                    }}
-                  />
-                  <div>
-                    <div className="font-semibold text-gray-900">
-                      {property.realtor?.businessName || "Property Specialist"}
+              <div className="border-t pt-6 border-gray-200 space-y-3">
+                <div className="text-sm font-medium text-gray-900">Price Breakdown</div>
+
+                {isCalculating ? (
+                  <div className="text-sm text-gray-500">Calculating totals...</div>
+                ) : totalNights > 0 ? (
+                  <>
+                    <div className="flex justify-between text-sm text-gray-700">
+                      <span>
+                        {formatPrice(property.pricePerNight)} × {totalNights} {totalNights === 1 ? "night" : "nights"}
+                      </span>
+                      <span>
+                        {formatPrice(
+                          bookingCalculation?.subtotal || property.pricePerNight * totalNights,
+                        )}
+                      </span>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      Property Specialist
+
+                    <div className="flex justify-between text-sm text-gray-700">
+                      <span>Cleaning fee</span>
+                      <span>{formatPrice(bookingCalculation?.cleaningFee || 0)}</span>
                     </div>
+
+                    <div className="flex justify-between text-sm text-gray-700">
+                      <span>Service fee</span>
+                      <span>{formatPrice(bookingCalculation?.serviceFee || 0)}</span>
+                    </div>
+
+                    <div className="flex justify-between text-sm text-gray-700">
+                      <span>Security deposit</span>
+                      <span>{formatPrice(bookingCalculation?.securityDeposit || 0)}</span>
+                    </div>
+
+                    <div className="flex justify-between text-sm text-gray-700">
+                      <span>Taxes</span>
+                      <span>{formatPrice(bookingCalculation?.taxes || 0)}</span>
+                    </div>
+
+                    <div className="border-t pt-3 mt-2 border-gray-200 flex justify-between items-center">
+                      <span className="font-semibold text-gray-900">Total</span>
+                      <span className="font-bold text-gray-900">
+                        {formatPrice(bookingCalculation?.total || estimatedTotal)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    Select your dates to see a full amount breakdown.
                   </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full h-11 rounded-xl border-gray-200 text-gray-600"
-                >
-                  Contact Agent
-                </Button>
+                )}
               </div>
             </div>
           </div>

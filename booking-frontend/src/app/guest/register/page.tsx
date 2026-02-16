@@ -115,6 +115,7 @@ export default function GuestRegisterPage() {
           firstName: data.firstName.trim(),
           lastName: data.lastName.trim(),
           email: data.email,
+          phone: data.phone.trim(),
           role: "GUEST",
           realtorId: realtorId || undefined,
           referralSource: subdomain ? `subdomain:${subdomain}` : undefined,
@@ -138,6 +139,7 @@ export default function GuestRegisterPage() {
         type: "register",
         firstName: data.firstName.trim(),
         lastName: data.lastName.trim(),
+        phone: data.phone.trim(),
       });
 
       if (realtorId) {
@@ -194,9 +196,15 @@ export default function GuestRegisterPage() {
         <div className="relative flex flex-col justify-center px-12 xl:px-16 py-16">
           <Link href="/guest-landing" className="flex items-center gap-3 mb-12">
             {logoUrl ? (
-              <img src={logoUrl} alt={realtorName} className="h-12 w-auto" />
+              <div className="h-14 w-14 rounded-2xl bg-white/15 border border-white/25 shadow-lg p-2.5 flex items-center justify-center">
+                <img
+                  src={logoUrl}
+                  alt={realtorName}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
             ) : (
-              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-white/20">
+              <div className="h-14 w-14 rounded-2xl flex items-center justify-center bg-white/20 border border-white/25 shadow-lg">
                 <span className="text-white text-xl font-bold">
                   {(realtorName || "S").charAt(0)}
                 </span>
@@ -246,10 +254,16 @@ export default function GuestRegisterPage() {
               className="inline-flex items-center gap-2 mb-4"
             >
               {logoUrl ? (
-                <img src={logoUrl} alt={realtorName} className="h-10 w-auto" />
+                <div className="h-12 w-12 rounded-xl bg-white border border-gray-200 shadow-sm p-2 flex items-center justify-center">
+                  <img
+                    src={logoUrl}
+                    alt={realtorName}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
               ) : (
                 <div
-                  className="h-10 w-10 rounded-lg flex items-center justify-center"
+                  className="h-12 w-12 rounded-xl flex items-center justify-center shadow-sm"
                   style={{ backgroundColor: primaryColor }}
                 >
                   <span className="text-white font-semibold">

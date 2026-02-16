@@ -47,6 +47,7 @@ function OTPVerificationContent() {
   const referralSource = searchParams.get("referralSource");
   const firstName = searchParams.get("firstName");
   const lastName = searchParams.get("lastName");
+  const phone = searchParams.get("phone");
 
   // Get realtor branding
   const {
@@ -217,7 +218,9 @@ function OTPVerificationContent() {
         const firstName = result.data.user.firstName || "there";
 
         if (type === "register") {
-          toast.success(`Welcome to Stayza Pro, ${firstName}! 🎉`);
+          toast.success(`Welcome to ${realtorName || "Stayza Pro"}, ${firstName}! 🎉`, {
+            duration: 2000,
+          });
         } else {
           toast.success(`Welcome back, ${firstName}!`);
         }
@@ -257,6 +260,7 @@ function OTPVerificationContent() {
         type?: string;
         firstName?: string;
         lastName?: string;
+        phone?: string;
         role?: "GUEST";
         realtorId?: string;
         referralSource?: string;
@@ -276,6 +280,7 @@ function OTPVerificationContent() {
           email,
           firstName,
           lastName,
+          ...(phone && { phone }),
           role: "GUEST",
           ...(realtorId && { realtorId }),
           ...(referralSource && { referralSource }),

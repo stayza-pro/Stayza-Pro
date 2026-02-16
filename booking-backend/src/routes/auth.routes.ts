@@ -937,6 +937,7 @@ router.post(
       email,
       firstName,
       lastName,
+      phone,
       role = "GUEST",
       realtorId,
       referralSource,
@@ -944,8 +945,11 @@ router.post(
 
     cleanupExpiredPendingRegistrations().catch(console.error);
 
-    if (!email || !firstName || !lastName) {
-      throw new AppError("Email, first name, and last name are required", 400);
+    if (!email || !firstName || !lastName || !phone) {
+      throw new AppError(
+        "Email, first name, last name, and phone are required",
+        400,
+      );
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -983,12 +987,13 @@ router.post(
         email,
         firstName,
         lastName,
+        phone,
         role,
         referredByRealtorId: realtorId || null,
         referralSource: referralSource || null,
         otp,
         otpExpires,
-      },
+      } as any,
     });
 
     await sendEmailVerification(email, otp, `${firstName} ${lastName}`);
@@ -1139,6 +1144,7 @@ router.post(
         password: "",
         firstName: pendingReg.firstName,
         lastName: pendingReg.lastName,
+        phone: (pendingReg as { phone?: string | null }).phone || null,
         fullName: `${pendingReg.firstName} ${pendingReg.lastName}`,
         role: pendingReg.role,
         isEmailVerified: true,
@@ -1183,6 +1189,7 @@ router.post(
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.fullName,
+          phone: user.phone,
           role: user.role,
           isEmailVerified: user.isEmailVerified,
           realtor: user.realtor,

@@ -543,6 +543,7 @@ export default function BookingCheckoutPage() {
                         style={{
                           backgroundColor: colors.neutralLightest,
                           borderColor: colors.neutralLight,
+                          color: colors.neutralDarkest,
                         }}
                       />
                     </div>
@@ -563,6 +564,7 @@ export default function BookingCheckoutPage() {
                         style={{
                           backgroundColor: colors.neutralLightest,
                           borderColor: colors.neutralLight,
+                          color: colors.neutralDarkest,
                         }}
                       />
                     </div>
@@ -586,6 +588,7 @@ export default function BookingCheckoutPage() {
                       style={{
                         backgroundColor: colors.neutralLightest,
                         borderColor: colors.neutralLight,
+                        color: colors.neutralDarkest,
                       }}
                     />
                   </div>
@@ -608,6 +611,7 @@ export default function BookingCheckoutPage() {
                       style={{
                         backgroundColor: colors.neutralLightest,
                         borderColor: colors.neutralLight,
+                        color: colors.neutralDarkest,
                       }}
                     />
                   </div>

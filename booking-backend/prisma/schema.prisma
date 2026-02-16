@@ -522,6 +522,7 @@ model PendingRegistration {
    email               String   @unique
    firstName           String
    lastName            String
+   phone               String?
    role                UserRole @default(GUEST)
    referredByRealtorId String?
    referralSource      String?

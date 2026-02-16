@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Search, Shield, Star, Sparkles } from "lucide-react";
 import { useQuery } from "react-query";
@@ -41,20 +41,53 @@ export default function GuestLandingPage() {
 
   const propertyCount = realtorProperties.length;
 
-  const heroImage = useMemo(() => {
+  const fallbackHeroImage =
+    "https://images.unsplash.com/photo-1706808849827-7366c098b317?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBtb2Rlcm4lMjBob3VzZSUyMGV4dGVyaW9yfGVufDF8fHx8MTc3MTAwOTg1M3ww&ixlib=rb-4.1.0&q=80&w=1080";
+
+  const heroImages = useMemo(() => {
     const images = realtorProperties.flatMap((property) =>
       (property.images || [])
         .map((image) => image?.url)
         .filter((url): url is string => Boolean(url && url.trim())),
     );
 
-    if (images.length === 0) {
-      return "https://images.unsplash.com/photo-1706808849827-7366c098b317?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBtb2Rlcm4lMjBob3VzZSUyMGV4dGVyaW9yfGVufDF8fHx8MTc3MTAwOTg1M3ww&ixlib=rb-4.1.0&q=80&w=1080";
+    return images.length > 0 ? images : [fallbackHeroImage];
+  }, [realtorProperties]);
+
+  const [heroImage, setHeroImage] = useState(fallbackHeroImage);
+  const [heroReady, setHeroReady] = useState(false);
+
+  useEffect(() => {
+    if (heroImages.length === 0) {
+      setHeroImage(fallbackHeroImage);
+      setHeroReady(true);
+      return;
     }
 
-    const index = Math.floor(Math.random() * images.length);
-    return images[index];
-  }, [realtorProperties]);
+    const initialIndex = Math.floor(Math.random() * heroImages.length);
+    setHeroImage(heroImages[initialIndex]);
+    setHeroReady(true);
+
+    const intervalId = window.setInterval(() => {
+      setHeroImage((previousImage) => {
+        if (heroImages.length === 1) {
+          return heroImages[0];
+        }
+
+        let nextImage = previousImage;
+        while (nextImage === previousImage) {
+          nextImage =
+            heroImages[Math.floor(Math.random() * heroImages.length)];
+        }
+
+        return nextImage;
+      });
+    }, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [heroImages]);
 
   const features = [
     {
@@ -173,11 +206,15 @@ export default function GuestLandingPage() {
             <div className="hidden lg:block relative h-full">
               <div className="absolute inset-0 flex items-center justify-center p-8">
                 <div className="relative w-full h-[600px] rounded-2xl overflow-hidden shadow-2xl">
-                  <img
-                    src={heroImage}
-                    alt="Luxury Property"
-                    className="w-full h-full object-cover"
-                  />
+                  {heroReady ? (
+                    <img
+                      src={heroImage}
+                      alt="Luxury Property"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-white/10 animate-pulse" />
+                  )}
                   <div
                     className="absolute top-0 right-0 w-32 h-32 rounded-bl-full opacity-30"
                     style={{ backgroundColor: accentColor || primaryColor }}
