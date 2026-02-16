@@ -340,7 +340,7 @@ export default function BrowsePropertiesPage() {
                         </div>
                       </div>
 
-                      <Link href={`/browse/${property.id}`}>
+                      <Link href={`/guest/browse/${property.id}`}>
                         <Button
                           className="w-full h-11 rounded-xl font-medium text-white"
                           style={{

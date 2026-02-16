@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
-  File,
+  File as FileIcon,
+  Mic,
+  Square,
   MoreVertical,
   Paperclip,
   Search,
@@ -17,6 +19,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { messageService, type Conversation, type Message } from "@/services";
+import { MessageAttachment } from "@/components/messaging/MessageAttachment";
 import toast from "react-hot-toast";
 
 function MessagesContent() {
@@ -41,10 +44,16 @@ function MessagesContent() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedVoiceBlob, setRecordedVoiceBlob] = useState<Blob | null>(null);
+  const [recordedVoiceUrl, setRecordedVoiceUrl] = useState<string | null>(null);
   const [hasMappedHostId, setHasMappedHostId] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (!isLoading && (isAuthenticated || !authChecked)) {
@@ -123,6 +132,17 @@ function MessagesContent() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (recordedVoiceUrl) {
+        URL.revokeObjectURL(recordedVoiceUrl);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [recordedVoiceUrl]);
 
   const fetchConversations = async () => {
     try {
@@ -235,7 +255,9 @@ function MessagesContent() {
 
   const handleSendMessage = async () => {
     if (
-      (!messageText.trim() && selectedFiles.length === 0) ||
+      (!messageText.trim() &&
+        selectedFiles.length === 0 &&
+        !recordedVoiceBlob) ||
       !selectedConversation
     ) {
       return;
@@ -259,6 +281,10 @@ function MessagesContent() {
         formData.append("files", file);
       });
 
+      if (recordedVoiceBlob) {
+        formData.append("voiceNote", recordedVoiceBlob, "voice-note.webm");
+      }
+
       let response;
       if (context.type === "property") {
         response = await messageService.sendPropertyInquiryWithAttachments(
@@ -281,6 +307,11 @@ function MessagesContent() {
       if (response?.success) {
         setMessageText("");
         setSelectedFiles([]);
+        setRecordedVoiceBlob(null);
+        if (recordedVoiceUrl) {
+          URL.revokeObjectURL(recordedVoiceUrl);
+          setRecordedVoiceUrl(null);
+        }
         await fetchMessages();
         await fetchConversations();
       }
@@ -302,6 +333,70 @@ function MessagesContent() {
 
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeRecordedVoice = () => {
+    setRecordedVoiceBlob(null);
+    if (recordedVoiceUrl) {
+      URL.revokeObjectURL(recordedVoiceUrl);
+      setRecordedVoiceUrl(null);
+    }
+  };
+
+  const startVoiceRecording = async () => {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast.error("Voice recording is not supported on this device.");
+        return;
+      }
+
+      if (recordedVoiceUrl) {
+        URL.revokeObjectURL(recordedVoiceUrl);
+        setRecordedVoiceUrl(null);
+      }
+      setRecordedVoiceBlob(null);
+      audioChunksRef.current = [];
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+
+        if (blob.size > 0) {
+          setRecordedVoiceBlob(blob);
+          setRecordedVoiceUrl(URL.createObjectURL(blob));
+        }
+
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      toast.error("Unable to access your microphone.");
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
   };
 
   const formatTime = (timestamp: string) => {
@@ -559,20 +654,15 @@ function MessagesContent() {
                                 className={`${msg.content ? "mt-2" : ""} space-y-1`}
                               >
                                 {msg.attachments.map((attachment) => (
-                                  <a
+                                  <div
                                     key={attachment.id}
-                                    href={attachment.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className={`flex items-center gap-2 text-xs underline ${
-                                      isOwn ? "text-white" : "text-gray-700"
-                                    }`}
+                                    className={isOwn ? "text-white" : "text-gray-700"}
                                   >
-                                    <File className="w-3 h-3" />
-                                    <span className="truncate max-w-[180px]">
-                                      {attachment.filename}
-                                    </span>
-                                  </a>
+                                    <MessageAttachment
+                                      attachment={attachment}
+                                      isOwn={isOwn}
+                                    />
+                                  </div>
                                 ))}
                               </div>
                             )}
@@ -608,7 +698,7 @@ function MessagesContent() {
                         key={`${file.name}-${index}`}
                         className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg"
                       >
-                        <File className="w-4 h-4 text-gray-500" />
+                        <FileIcon className="w-4 h-4 text-gray-500" />
                         <span className="text-sm text-gray-700 max-w-[160px] truncate">
                           {file.name}
                         </span>
@@ -621,6 +711,21 @@ function MessagesContent() {
                         </button>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {recordedVoiceUrl && (
+                  <div className="mb-3 flex items-center gap-3 p-3 rounded-xl bg-gray-100">
+                    <audio controls preload="metadata" className="flex-1">
+                      <source src={recordedVoiceUrl} type="audio/webm" />
+                    </audio>
+                    <button
+                      type="button"
+                      onClick={removeRecordedVoice}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
 
@@ -645,6 +750,27 @@ function MessagesContent() {
                     <Paperclip className="w-5 h-5" />
                   </Button>
 
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={`!p-2 mb-1 ${isRecording ? "text-red-500" : ""}`}
+                    onClick={() => {
+                      if (isRecording) {
+                        stopVoiceRecording();
+                      } else {
+                        void startVoiceRecording();
+                      }
+                    }}
+                    disabled={isSending}
+                  >
+                    {isRecording ? (
+                      <Square className="w-5 h-5" />
+                    ) : (
+                      <Mic className="w-5 h-5" />
+                    )}
+                  </Button>
+
                   <Input
                     type="text"
                     placeholder="Type your message..."
@@ -667,7 +793,9 @@ function MessagesContent() {
                     style={{ backgroundColor: primaryColor }}
                     onClick={handleSendMessage}
                     disabled={
-                      (!messageText.trim() && selectedFiles.length === 0) ||
+                      (!messageText.trim() &&
+                        selectedFiles.length === 0 &&
+                        !recordedVoiceBlob) ||
                       isSending
                     }
                   >

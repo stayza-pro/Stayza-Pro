@@ -218,7 +218,7 @@ export default function FavoritesPage() {
                     </div>
                   </div>
 
-                  <Link href={`/browse/${property.id}`}>
+                  <Link href={`/guest/browse/${property.id}`}>
                     <Button
                       className="w-full h-11 rounded-xl font-medium text-white"
                       style={{
@@ -234,26 +234,29 @@ export default function FavoritesPage() {
           </div>
         ) : (
           <div
-            className="text-center py-12 rounded-2xl border"
+            className="text-center py-16 rounded-2xl border"
             style={{
               backgroundColor: secondarySurface,
               borderColor: "#e5e7eb",
             }}
           >
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Heart className="w-8 h-8 text-gray-500" />
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+              style={{ backgroundColor: `${primaryColor}1a` }}
+            >
+              <Heart className="w-9 h-9" style={{ color: primaryColor }} />
             </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">
-              No favorites yet
+            <h3 className="text-2xl font-semibold mb-3 text-gray-900">
+              No saved properties yet
             </h3>
-            <p className="text-gray-600 mb-4">
-              Start browsing and save properties you love by clicking the heart
-              icon
+            <p className="text-gray-600 mb-6 max-w-lg mx-auto px-6">
+              Properties you save with the heart icon appear here so you can
+              compare and book faster.
             </p>
             <Link href="/guest/browse">
               <Button
-                className="text-white"
-                style={{ backgroundColor: primaryColor }}
+                className="text-white h-11 px-6 rounded-xl"
+                style={{ backgroundColor: accentColor || primaryColor }}
               >
                 Browse Properties
               </Button>

@@ -106,7 +106,7 @@ export default function GuestBookingCheckoutPage() {
       setBooking(data || null);
 
       if (data?.status !== "PENDING") {
-        router.push(`/guest/booking/${bookingId}`);
+        router.push(`/guest/bookings/${bookingId}`);
       }
 
       const checkInDate = data?.checkInDate ? new Date(data.checkInDate) : undefined;
@@ -222,7 +222,7 @@ export default function GuestBookingCheckoutPage() {
             .then((verifyResponse) => {
               if (verifyResponse.success) {
                 toast.success("Booking payment successful!");
-                router.push(`/guest/booking/${bookingId}`);
+                router.push(`/guest/bookings/${bookingId}`);
               } else {
                 toast.error("Payment verification failed.");
                 setIsProcessing(false);
@@ -274,7 +274,7 @@ export default function GuestBookingCheckoutPage() {
 
       <main className="max-w-[1200px] mx-auto w-full px-6 py-12">
         <Link
-          href={`/guest/booking/${booking.id}`}
+          href={`/guest/bookings/${booking.id}`}
           className="inline-flex items-center gap-2 mb-8 hover:underline text-gray-600"
         >
           <ArrowLeft className="w-5 h-5" />

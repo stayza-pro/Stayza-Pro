@@ -23,7 +23,7 @@ import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { favoritesService } from "@/services";
 import toast from "react-hot-toast";
 
-export default function PropertyDetailsPage() {
+export default function GuestPropertyDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const propertyId = params.id as string;
@@ -79,7 +79,9 @@ export default function PropertyDetailsPage() {
 
   const handleFavorite = async () => {
     if (!user) {
-      router.push(`/guest/login?returnTo=${encodeURIComponent(`/browse/${propertyId}`)}`);
+      router.push(
+        `/guest/login?returnTo=${encodeURIComponent(`/guest/browse/${propertyId}`)}`,
+      );
       return;
     }
 
@@ -105,8 +107,7 @@ export default function PropertyDetailsPage() {
           text: property?.description || "",
           url: window.location.href,
         });
-      } catch {
-      }
+      } catch {}
     } else {
       await navigator.clipboard.writeText(window.location.href);
       toast.success("Link copied to clipboard");
@@ -114,11 +115,17 @@ export default function PropertyDetailsPage() {
   };
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    );
   }
 
   if (error || !property) {
-    return <div className="min-h-screen flex items-center justify-center">Property not found</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Property not found
+      </div>
+    );
   }
 
   return (
@@ -155,7 +162,7 @@ export default function PropertyDetailsPage() {
         </div>
 
         <Link
-          href="/browse"
+          href="/guest/browse"
           className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-sm text-white hover:underline"
           style={{ backgroundColor: "rgba(0, 0, 0, 0.4)" }}
         >
@@ -214,7 +221,7 @@ export default function PropertyDetailsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Square className="w-5 h-5 text-gray-500" />
-                    <span className="font-medium text-gray-600">{property.maxGuests} sqft</span>
+                    <span className="font-medium text-gray-600">{property.maxGuests} guests</span>
                   </div>
                 </div>
               </div>
@@ -228,24 +235,25 @@ export default function PropertyDetailsPage() {
             <div className="p-8 rounded-2xl border bg-white border-gray-200">
               <h2 className="font-semibold mb-6 text-[24px] text-gray-900">Property Features</h2>
               <div className="grid sm:grid-cols-2 gap-4">
-                {(featureList.length > 0 ? featureList : ["Premium location", "Secure access", "Managed property", "Professional support"]).map(
-                  (feature) => (
-                    <div key={feature} className="flex items-center gap-3">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: accentColor || primaryColor }}
-                      />
-                      <span className="text-gray-600">{feature}</span>
-                    </div>
-                  ),
-                )}
+                {(featureList.length > 0
+                  ? featureList
+                  : ["Premium location", "Secure access", "Managed property", "Professional support"]
+                ).map((feature) => (
+                  <div key={feature} className="flex items-center gap-3">
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: accentColor || primaryColor }}
+                    />
+                    <span className="text-gray-600">{feature}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="p-8 rounded-2xl border bg-white border-gray-200 sticky top-6">
-              <h3 className="font-semibold mb-6 text-[20px] text-gray-900">Schedule a Viewing</h3>
+              <h3 className="font-semibold mb-6 text-[20px] text-gray-900">Book This Property</h3>
 
               <Link href={`/booking/${property.id}/checkout`}>
                 <Button
@@ -265,7 +273,10 @@ export default function PropertyDetailsPage() {
               <div className="border-t pt-6 border-gray-200">
                 <div className="text-sm mb-4 text-gray-500">Your Agent</div>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100" />
+                  <div
+                    className="w-14 h-14 rounded-full overflow-hidden"
+                    style={{ backgroundColor: `${secondaryColor || primaryColor}22` }}
+                  />
                   <div>
                     <div className="font-semibold text-gray-900">
                       {property.realtor?.businessName || "Property Specialist"}

@@ -125,6 +125,13 @@ export default function GuestBookingDetailsPage() {
     return booking.status === "PENDING" || booking.status === "ACTIVE";
   }, [booking]);
 
+  const agentEmail =
+    booking?.property?.realtor?.businessEmail ||
+    booking?.property?.realtor?.user?.email ||
+    null;
+
+  const agentAvatar = booking?.property?.realtor?.user?.avatar;
+
   const handleDownloadReceipt = () => {
     const paymentId = booking?.payment?.id;
     if (!paymentId) {
@@ -393,12 +400,20 @@ export default function GuestBookingDetailsPage() {
               </h3>
 
               <div className="flex items-center gap-4 mb-6">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: `${primaryColor}20` }}
-                >
-                  <User className="w-7 h-7" style={{ color: primaryColor }} />
-                </div>
+                {agentAvatar ? (
+                  <img
+                    src={agentAvatar}
+                    alt={booking.property?.realtor?.businessName || "Property Host"}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: `${primaryColor}20` }}
+                  >
+                    <User className="w-7 h-7" style={{ color: primaryColor }} />
+                  </div>
+                )}
                 <div>
                   <div className="font-semibold text-[18px] text-gray-900">
                     {booking.property?.realtor?.businessName || "Property Host"}
@@ -410,17 +425,13 @@ export default function GuestBookingDetailsPage() {
               </div>
 
               <div className="space-y-3">
-                {(booking.property?.realtor?.businessEmail ||
-                  booking.property?.realtor?.user?.email) && (
+                {agentEmail && (
                   <a
-                    href={`mailto:${booking.property?.realtor?.businessEmail || booking.property?.realtor?.user?.email}`}
+                    href={`mailto:${agentEmail}`}
                     className="flex items-center gap-3 p-3 rounded-lg transition-all hover:shadow-sm bg-gray-50"
                   >
                     <Mail className="w-5 h-5" style={{ color: primaryColor }} />
-                    <span className="text-sm text-gray-900">
-                      {booking.property?.realtor?.businessEmail ||
-                        booking.property?.realtor?.user?.email}
-                    </span>
+                    <span className="text-sm text-gray-900">{agentEmail}</span>
                   </a>
                 )}
 

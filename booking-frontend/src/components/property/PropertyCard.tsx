@@ -72,7 +72,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
     }).format(price);
 
   return (
-    <Link href={`/browse/${property.id}`}>
+    <Link href={`/guest/browse/${property.id}`}>
       <div
         className={`group rounded-2xl border overflow-hidden transition-all hover:shadow-xl bg-white border-gray-200 ${
           layout === "horizontal" ? "md:flex" : ""

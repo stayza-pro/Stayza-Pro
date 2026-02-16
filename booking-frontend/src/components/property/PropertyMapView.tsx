@@ -578,7 +578,7 @@ export const PropertyMapView: React.FC<MapViewProps> = ({
             property={selectedProperty}
             onClose={() => onPropertySelect?.(null)}
             onViewDetails={() => {
-              window.location.href = `/browse/${selectedProperty.id}`;
+              window.location.href = `/guest/browse/${selectedProperty.id}`;
             }}
           />
         )}

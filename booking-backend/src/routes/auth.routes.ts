@@ -1369,6 +1369,200 @@ router.patch(
   }),
 );
 
+const ensureAccountDeletionAllowed = async (userId: string, role: string) => {
+  const activeBookings = await prisma.booking.count({
+    where: {
+      guestId: userId,
+      checkOutDate: { gte: new Date() },
+      status: { in: ["ACTIVE", "PENDING"] },
+    },
+  });
+
+  if (activeBookings > 0) {
+    throw new AppError(
+      "Cannot delete account with active bookings. Please cancel or complete all bookings first.",
+      400,
+    );
+  }
+
+  if (role === "REALTOR") {
+    const activeProperties = await prisma.property.count({
+      where: {
+        realtorId: userId,
+        status: "ACTIVE",
+      },
+    });
+
+    if (activeProperties > 0) {
+      throw new AppError(
+        "Realtors cannot delete account while having active properties. Please remove all properties first.",
+        400,
+      );
+    }
+  }
+};
+
+const completeAccountDeletion = async (
+  userId: string,
+  reason?: string,
+) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      role: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  await ensureAccountDeletionAllowed(user.id, user.role);
+
+  await prisma.auditLog.create({
+    data: {
+      action: "ACCOUNT_DELETION_REQUESTED",
+      userId,
+      entityType: "User",
+      entityId: userId,
+      details: {
+        reason,
+      },
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      email: `deleted_${userId}@stayza.com`,
+      firstName: "Deleted",
+      lastName: "User",
+      avatar: null,
+      password: await hashPassword(generateRandomToken()),
+      emailVerificationToken: null,
+      emailVerificationExpires: null,
+    },
+  });
+
+  logger.info("Account deleted", {
+    userId,
+    details: { reason },
+  });
+};
+
+router.post(
+  "/request-delete-otp",
+  authenticate,
+  authLimiter,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    if (userRole !== "GUEST") {
+      throw new AppError(
+        "OTP account deletion is only available for guest accounts",
+        403,
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    await ensureAccountDeletionAllowed(user.id, user.role);
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken: otp,
+        emailVerificationExpires: otpExpires,
+      },
+    });
+
+    await sendEmailVerification(
+      user.email,
+      otp,
+      `${user.firstName} ${user.lastName}`,
+    );
+
+    return res.json({
+      success: true,
+      message: "Deletion verification code sent to your email",
+      data: {
+        expiresIn: "10 minutes",
+      },
+    });
+  }),
+);
+
+router.post(
+  "/verify-delete-otp",
+  authenticate,
+  authLimiter,
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { otp, reason } = req.body;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    if (userRole !== "GUEST") {
+      throw new AppError(
+        "OTP account deletion is only available for guest accounts",
+        403,
+      );
+    }
+
+    if (!otp) {
+      throw new AppError("OTP is required", 400);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        emailVerificationToken: true,
+        emailVerificationExpires: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    if (!user.emailVerificationToken || user.emailVerificationToken !== otp) {
+      throw new AppError("Invalid verification code", 400);
+    }
+
+    if (
+      !user.emailVerificationExpires ||
+      user.emailVerificationExpires < new Date()
+    ) {
+      throw new AppError("Verification code has expired", 400);
+    }
+
+    await completeAccountDeletion(userId, reason);
+
+    return res.json({
+      success: true,
+      message: "Account successfully deleted",
+    });
+  }),
+);
+
 /**
  * @swagger
  * /api/auth/delete-account:
@@ -1435,68 +1629,7 @@ router.delete(
       throw new AppError("Invalid password", 401);
     }
 
-    // Check for active bookings
-    const activeBookings = await prisma.booking.count({
-      where: {
-        guestId: userId,
-        checkOutDate: { gte: new Date() },
-        status: { in: ["ACTIVE", "PENDING"] },
-      },
-    });
-
-    if (activeBookings > 0) {
-      throw new AppError(
-        "Cannot delete account with active bookings. Please cancel or complete all bookings first.",
-        400,
-      );
-    }
-
-    // Check if realtor has active properties
-    if (user.role === "REALTOR") {
-      const activeProperties = await prisma.property.count({
-        where: {
-          realtorId: userId,
-          status: "ACTIVE",
-        },
-      });
-
-      if (activeProperties > 0) {
-        throw new AppError(
-          "Realtors cannot delete account while having active properties. Please remove all properties first.",
-          400,
-        );
-      }
-    }
-
-    // Log deletion request
-    await prisma.auditLog.create({
-      data: {
-        action: "ACCOUNT_DELETION_REQUESTED",
-        userId,
-        entityType: "User",
-        entityId: userId,
-        details: {
-          reason,
-        },
-      },
-    });
-
-    // Soft delete - anonymize data
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        email: `deleted_${userId}@stayza.com`,
-        firstName: "Deleted",
-        lastName: "User",
-        avatar: null,
-        password: await hashPassword(generateRandomToken()),
-      },
-    });
-
-    logger.info("Account deleted", {
-      userId,
-      details: { reason },
-    });
+    await completeAccountDeletion(userId, reason);
 
     return res.json({
       success: true,

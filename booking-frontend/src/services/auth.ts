@@ -22,6 +22,11 @@ export interface PasswordlessOtpPayload {
   otp: string;
 }
 
+export interface GuestDeleteVerifyPayload {
+  otp: string;
+  reason?: string;
+}
+
 export const authService = {
   // Register new user
   register: async (data: RegisterData): Promise<AuthResponse> => {
@@ -250,6 +255,18 @@ export const authService = {
     await apiClient.delete("/auth/delete-account", { data });
 
     // Clear tokens after successful deletion
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+  },
+
+  requestGuestDeleteOtp: async (reason?: string): Promise<void> => {
+    await apiClient.post("/auth/request-delete-otp", { reason });
+  },
+
+  verifyGuestDeleteOtp: async (
+    data: GuestDeleteVerifyPayload,
+  ): Promise<void> => {
+    await apiClient.post("/auth/verify-delete-otp", data);
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
   },

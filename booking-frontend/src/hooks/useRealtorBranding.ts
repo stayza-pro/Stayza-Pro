@@ -46,9 +46,25 @@ const fallbackBranding: RealtorBranding = {
  */
 export function useRealtorBranding() {
   const { user } = useCurrentUser();
+  const getInitialBranding = (): RealtorBranding => {
+    if (typeof window === "undefined") {
+      return fallbackBranding;
+    }
+
+    try {
+      const subdomain = getRealtorSubdomain() || "main";
+      const cached = localStorage.getItem(`realtor-branding:${subdomain}`);
+      if (cached) {
+        return JSON.parse(cached) as RealtorBranding;
+      }
+    } catch {}
+
+    return fallbackBranding;
+  };
+
   const [realtorBranding, setRealtorBranding] =
-    useState<RealtorBranding | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+    useState<RealtorBranding | null>(getInitialBranding());
+  const [isLoading, setIsLoading] = useState(false);
 
   const mapApiBranding = (data: APIRealtorBranding): RealtorBranding => ({
     id: data.id,
@@ -80,7 +96,14 @@ export function useRealtorBranding() {
           );
 
           if (response.data) {
-            setRealtorBranding(mapApiBranding(response.data));
+            const mappedBranding = mapApiBranding(response.data);
+            setRealtorBranding(mappedBranding);
+            try {
+              localStorage.setItem(
+                `realtor-branding:${subdomain}`,
+                JSON.stringify(mappedBranding),
+              );
+            } catch {}
           } else {
             setRealtorBranding(fallbackBranding);
           }
@@ -140,7 +163,7 @@ export function useRealtorBranding() {
     return (
       realtorBranding?.primaryColor ||
       user?.referredByRealtor?.primaryColor ||
-      "#000000"
+      fallbackBranding.primaryColor
     );
   };
 

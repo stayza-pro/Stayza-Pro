@@ -34,7 +34,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
       changeFrequency: "weekly" as const,
     },
-    { path: "/browse", priority: 0.7, changeFrequency: "daily" as const },
+    {
+      path: "/guest/browse",
+      priority: 0.7,
+      changeFrequency: "daily" as const,
+    },
 
     // Support pages
     { path: "/help", priority: 0.6, changeFrequency: "monthly" as const },

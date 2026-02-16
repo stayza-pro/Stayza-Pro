@@ -4,7 +4,7 @@ export const internalLinks = {
   joinWaitlist: { href: "/join-waitlist", label: "Join Waitlist" },
   howItWorks: { href: "/how-it-works", label: "How It Works" },
   getStarted: { href: "/get-started", label: "Get Started" },
-  browse: { href: "/browse", label: "Browse Properties" },
+  browse: { href: "/guest/browse", label: "Browse Properties" },
   guestLanding: { href: "/guest-landing", label: "For Guests" },
   help: { href: "/help", label: "Help" },
   privacy: { href: "/legal/privacy", label: "Privacy Policy" },

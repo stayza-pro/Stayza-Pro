@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect, Suspense } from "react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowLeft, RefreshCw, Check } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { useAuthStore } from "@/store";
 
 const getBackendApiUrl = () => {
   const configured =
@@ -21,6 +21,7 @@ export const dynamic = "force-dynamic";
 function OTPVerificationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const autoLogin = useAuthStore((state) => state.autoLogin);
 
   const email = searchParams.get("email") || "";
   const type = searchParams.get("type") || "login"; // "login" or "register"
@@ -182,10 +183,13 @@ function OTPVerificationContent() {
       }
 
       if (result.data) {
-        // Store tokens
-        localStorage.setItem("accessToken", result.data.accessToken);
-        localStorage.setItem("refreshToken", result.data.refreshToken);
-        localStorage.setItem("user", JSON.stringify(result.data.user));
+        autoLogin(
+          {
+            accessToken: result.data.accessToken,
+            refreshToken: result.data.refreshToken,
+          },
+          result.data.user,
+        );
 
         const firstName = result.data.user.firstName || "there";
 
@@ -309,198 +313,63 @@ function OTPVerificationContent() {
   const primaryColor = brandColor;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f9fafb",
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        overflowX: "hidden",
-      }}
-    >
-      {/* Header */}
+    <div className="min-h-screen flex">
       <div
+        className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
         style={{
-          background: "white",
-          borderBottom: "1px solid #e5e7eb",
-          padding: "1rem clamp(1rem, 4vw, 2rem)",
+          background: `linear-gradient(135deg, ${primaryColor} 0%, #10283f 100%)`,
         }}
       >
-        <div
-          style={{
-            maxWidth: "1200px",
-            width: "100%",
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-            minWidth: 0,
-          }}
-        >
-          <Link
-            href={type === "register" ? "/guest/register" : "/guest/login"}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              color: "#6b7280",
-              textDecoration: "none",
-              fontSize: "clamp(0.75rem, 3vw, 0.875rem)",
-              fontWeight: 600,
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <ArrowLeft size={18} />
-            Back
-          </Link>
-          <Link
-            href="/guest-landing"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-              textDecoration: "none",
-              flex: "1 1 auto",
-              justifyContent: "center",
-              minWidth: 0,
-            }}
-          >
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
+        <div className="relative flex flex-col justify-center px-12 xl:px-16 py-16">
+          <Link href="/guest-landing" className="flex items-center gap-3 mb-12">
             {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={realtorName}
-                width={40}
-                height={40}
-                className="rounded-lg object-cover"
-              />
+              <img src={logoUrl} alt={realtorName} className="h-12 w-auto" />
             ) : (
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 8,
-                  background: primaryColor,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.25rem",
-                  fontWeight: 700,
-                  color: "white",
-                }}
-              >
-                {realtorName.charAt(0).toUpperCase()}
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-white/20">
+                <span className="text-white text-xl font-bold">
+                  {(realtorName || "S").charAt(0)}
+                </span>
               </div>
             )}
-            <h1
-              style={{
-                fontSize: "clamp(0.875rem, 3.5vw, 1.25rem)",
-                fontWeight: 700,
-                color: "#1f2937",
-                margin: 0,
-                maxWidth: "min(42vw, 12rem)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {realtorName}
-            </h1>
+            <span className="text-2xl font-semibold text-white">
+              {realtorName || "Stayza Pro"}
+            </span>
           </Link>
-          <div />
+
+          <div className="space-y-6">
+            <h1 className="font-semibold leading-tight text-[40px] text-white">
+              Verify Your Email
+            </h1>
+            <p className="text-lg leading-relaxed max-w-md text-white/90">
+              Enter the 6-digit code we sent to complete your secure
+              {type === "register" ? " registration" : " sign in"}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "clamp(1rem, 3vw, 2rem) clamp(0.75rem, 4vw, 1.5rem)",
-        }}
-      >
-        <div style={{ width: "100%", maxWidth: "480px" }}>
-          {/* Icon */}
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              background: `${primaryColor}15`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 2rem",
-            }}
-          >
-            <Mail size={32} color={primaryColor} />
-          </div>
-
-          {/* Title */}
-          <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-            <h2
-              style={{
-                fontSize: "2rem",
-                fontWeight: 700,
-                color: "#1f2937",
-                marginBottom: "0.75rem",
-              }}
+      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-slate-50">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center space-y-3">
+            <div
+              className="w-16 h-16 rounded-full mx-auto flex items-center justify-center"
+              style={{ backgroundColor: `${primaryColor}15` }}
             >
+              <Mail className="w-8 h-8" style={{ color: primaryColor }} />
+            </div>
+            <h1 className="font-semibold text-[32px] text-gray-900">
               Check Your Email
-            </h2>
-            <p
-              style={{
-                color: "#6b7280",
-                fontSize: "0.9375rem",
-                lineHeight: 1.6,
-                overflowWrap: "anywhere",
-              }}
-            >
-              We&apos;ve sent a 6-digit verification code to
+            </h1>
+            <p className="text-gray-600">
+              We sent a 6-digit verification code to
               <br />
-              <strong style={{ color: "#1f2937", overflowWrap: "anywhere" }}>
-                {email}
-              </strong>
+              <span className="font-semibold text-gray-900 break-all">{email}</span>
             </p>
           </div>
 
-          {/* OTP Form Card */}
-          <div
-            style={{
-              background: "white",
-              borderRadius: 20,
-              padding: "clamp(1rem, 4vw, 2.5rem)",
-              boxShadow:
-                "0 10px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
-              border: "1px solid rgba(0, 0, 0, 0.05)",
-            }}
-          >
-            <label
-              style={{
-                display: "block",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                color: "#374151",
-                marginBottom: "1rem",
-                textAlign: "center",
-              }}
-            >
-              Enter Verification Code
-            </label>
-
-            {/* OTP Inputs */}
-            <div
-              style={{
-                display: "flex",
-                gap: "clamp(0.35rem, 1.6vw, 0.75rem)",
-                justifyContent: "center",
-                marginBottom: "2rem",
-              }}
-            >
+          <div className="p-8 rounded-2xl border bg-white border-gray-200 space-y-6">
+            <div className="flex gap-2 justify-center">
               {otp.map((digit, index) => (
                 <input
                   key={index}
@@ -515,164 +384,67 @@ function OTPVerificationContent() {
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
                   disabled={isLoading}
+                  className="w-12 h-14 text-center text-xl font-semibold rounded-xl border-2 outline-none transition-all"
                   style={{
-                    width: "clamp(2rem, 11vw, 3.5rem)",
-                    height: "clamp(2.75rem, 12vw, 4rem)",
-                    fontSize: "clamp(1.125rem, 4vw, 1.5rem)",
-                    fontWeight: 700,
-                    textAlign: "center",
-                    border: `2px solid ${digit ? primaryColor : "#e5e7eb"}`,
-                    borderRadius: 12,
-                    outline: "none",
-                    transition: "all 0.2s",
-                    color: "#1f2937",
-                    boxSizing: "border-box",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = primaryColor;
-                    e.target.style.boxShadow = `0 0 0 3px ${primaryColor}15`;
-                  }}
-                  onBlur={(e) => {
-                    if (!digit) {
-                      e.target.style.borderColor = "#e5e7eb";
-                    }
-                    e.target.style.boxShadow = "none";
+                    borderColor: digit ? primaryColor : "#e5e7eb",
+                    color: "#111827",
                   }}
                 />
               ))}
             </div>
 
-            {/* Verify Button */}
             <button
               onClick={() => handleVerify()}
               disabled={isLoading || otp.some((digit) => !digit)}
-              style={{
-                width: "100%",
-                padding: "1rem",
-                background: primaryColor,
-                color: "white",
-                border: "none",
-                borderRadius: 12,
-                fontSize: "1rem",
-                fontWeight: 600,
-                cursor:
-                  isLoading || otp.some((digit) => !digit)
-                    ? "not-allowed"
-                    : "pointer",
-                opacity: isLoading || otp.some((digit) => !digit) ? 0.5 : 1,
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                marginBottom: "1.5rem",
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading && !otp.some((digit) => !digit)) {
-                  e.currentTarget.style.transform = "translateY(-1px)";
-                  e.currentTarget.style.boxShadow = `0 8px 20px ${primaryColor}40`;
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
+              className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              style={{ backgroundColor: primaryColor }}
             >
               {isLoading ? (
-                <div
-                  style={{
-                    display: "inline-block",
-                    width: 20,
-                    height: 20,
-                    border: "2px solid rgba(255, 255, 255, 0.3)",
-                    borderTop: "2px solid white",
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
-                  }}
-                />
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
               ) : (
                 <>
-                  <Check size={18} />
+                  <Check className="w-4 h-4" />
                   Verify Code
                 </>
               )}
             </button>
 
-            {/* Resend Code */}
-            <div style={{ textAlign: "center" }}>
+            <div className="text-center">
               {canResend ? (
                 <button
                   onClick={handleResend}
                   disabled={isResending}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: primaryColor,
-                    fontSize: "0.875rem",
-                    fontWeight: 600,
-                    cursor: isResending ? "not-allowed" : "pointer",
-                    opacity: isResending ? 0.5 : 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    padding: "0.5rem 1rem",
-                    borderRadius: 8,
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isResending) {
-                      e.currentTarget.style.background = `${primaryColor}10`;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "none";
-                  }}
+                  className="inline-flex items-center gap-2 text-sm font-semibold disabled:opacity-60"
+                  style={{ color: primaryColor }}
                 >
-                  <RefreshCw size={16} />
+                  <RefreshCw className="w-4 h-4" />
                   Resend Code
                 </button>
               ) : (
-                <p
-                  style={{ fontSize: "0.875rem", color: "#6b7280", margin: 0 }}
-                >
+                <p className="text-sm text-gray-600">
                   Resend code in{" "}
-                  <strong style={{ color: primaryColor }}>{countdown}s</strong>
+                  <span className="font-semibold" style={{ color: primaryColor }}>
+                    {countdown}s
+                  </span>
                 </p>
               )}
             </div>
           </div>
 
-          {/* Footer Note */}
-          <p
-            style={{
-              textAlign: "center",
-              color: "#6b7280",
-              fontSize: "0.8125rem",
-              marginTop: "1.5rem",
-            }}
-          >
-            Didn&apos;t receive the email? Check your spam folder or try{" "}
+          <div className="flex items-center justify-between text-sm">
             <Link
               href={type === "register" ? "/guest/register" : "/guest/login"}
-              style={{ color: primaryColor, fontWeight: 600 }}
+              className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900"
             >
-              going back
+              <ArrowLeft className="w-4 h-4" />
+              Back
             </Link>
-          </p>
+            <Link href="/guest-landing" style={{ color: primaryColor }}>
+              Go to Home
+            </Link>
+          </div>
         </div>
       </div>
-
-      {/* CSS Animation for spinner */}
-      <style jsx>{`
-        @keyframes spin {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 }

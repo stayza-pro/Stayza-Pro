@@ -442,7 +442,7 @@ export const DynamicPropertiesSection: React.FC<
                       "0 20px 40px rgba(0, 0, 0, 0.1)";
                   }}
                   onClick={() =>
-                    (window.location.href = `/browse/${property.id}`)
+                    (window.location.href = `/guest/browse/${property.id}`)
                   }
                 >
                   {/* Property Image */}
@@ -778,7 +778,7 @@ export const DynamicPropertiesSection: React.FC<
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        window.location.href = `/browse/${property.id}`;
+                        window.location.href = `/guest/browse/${property.id}`;
                       }}
                     >
                       Book Now

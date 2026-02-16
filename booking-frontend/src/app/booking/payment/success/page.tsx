@@ -497,7 +497,7 @@ const PaymentSuccessContent = () => {
                     Return to My Bookings
                   </Button>
                   <Button
-                    onClick={() => router.push("/browse")}
+                    onClick={() => router.push("/guest/browse")}
                     variant="outline"
                     className="w-full border-2 border-gray-300"
                   >

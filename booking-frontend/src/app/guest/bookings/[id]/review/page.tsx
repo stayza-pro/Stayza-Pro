@@ -158,7 +158,7 @@ export default function WriteReviewPage() {
       });
 
       toast.success("Review submitted successfully!");
-      router.push(`/guest/booking/${bookingId}`);
+      router.push(`/guest/bookings/${bookingId}`);
     } catch (error: unknown) {
       const message =
         error instanceof Error
@@ -226,7 +226,7 @@ export default function WriteReviewPage() {
 
       <main className="max-w-4xl mx-auto w-full px-6 py-10 flex-1">
         <Link
-          href={`/guest/booking/${bookingId}`}
+          href={`/guest/bookings/${bookingId}`}
           className="inline-flex items-center gap-2 text-gray-600 mb-6 hover:text-gray-900"
         >
           <ArrowLeft className="w-5 h-5" />

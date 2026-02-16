@@ -183,7 +183,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
     const imageUrl = property.images?.[0]?.url || "/api/placeholder/400/300";
 
     const handleViewDetails = () => {
-      router.push(`/browse/${property.id}`);
+      router.push(`/guest/browse/${property.id}`);
     };
 
     return (
