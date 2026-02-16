@@ -26,6 +26,7 @@ export default function BrowsePropertiesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<string>("featured");
+  const [showFilters, setShowFilters] = useState(false);
   const [likedProperties, setLikedProperties] = useState<Set<string>>(
     new Set(),
   );
@@ -186,7 +187,7 @@ export default function BrowsePropertiesPage() {
               <Button
                 variant="outline"
                 className="h-14 px-6 rounded-xl font-medium"
-                onClick={() => toast("Advanced filters are not available yet")}
+                onClick={() => setShowFilters((prev) => !prev)}
               >
                 <SlidersHorizontal className="w-5 h-5 mr-2" />
                 Filters
@@ -294,18 +295,6 @@ export default function BrowsePropertiesPage() {
 
                     <div className="p-6 space-y-4">
                       <div>
-                        <div
-                          className="text-xl font-bold mb-1"
-                          style={{ color: primaryColor }}
-                        >
-                          {formatPrice(
-                            property.pricePerNight,
-                            property.currency,
-                          )}
-                          <span className="text-sm font-medium text-gray-600 ml-1">
-                            / night
-                          </span>
-                        </div>
                         <h3 className="font-semibold mb-2 line-clamp-1 text-[18px] text-gray-900">
                           {property.title}
                         </h3>
@@ -318,7 +307,7 @@ export default function BrowsePropertiesPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4 pt-4 pb-3 border-t border-gray-200">
+                      <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
                         <div className="flex items-center gap-1.5">
                           <Bed className="w-4 h-4 text-gray-500" />
                           <span className="text-sm font-medium text-gray-700">
@@ -340,7 +329,7 @@ export default function BrowsePropertiesPage() {
                       </div>
 
                       <Button
-                        className="w-full h-11 rounded-xl font-medium text-white mt-1"
+                        className="w-full h-11 rounded-xl font-medium text-white"
                         style={{
                           backgroundColor: accentColor || primaryColor,
                         }}
@@ -366,6 +355,12 @@ export default function BrowsePropertiesPage() {
                 <ChevronDown className="w-5 h-5 ml-2" />
               </Button>
             </div>
+
+            {showFilters && (
+              <div className="text-center mt-6 text-sm text-gray-500">
+                Advanced filters coming soon.
+              </div>
+            )}
           </>
         ) : (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">

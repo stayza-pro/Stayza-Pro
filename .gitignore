@@ -151,7 +151,7 @@ tmp/
 temp/
 
 # Imported reference source bundle
-/src (1)/
+/src/
 
 # Build outputs
 build/

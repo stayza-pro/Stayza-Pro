@@ -1,38 +1,54 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
-  MapPin,
-  Calendar,
+  ArrowLeft,
+  Calendar as CalendarIcon,
   Users,
   CreditCard,
-  AlertCircle,
-  ArrowLeft,
-  Check,
+  Lock,
+  CheckCircle2,
+  Info,
+  MapPin,
   Home,
 } from "lucide-react";
+import Link from "next/link";
+import { format, differenceInDays } from "date-fns";
+import { toast } from "react-hot-toast";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections";
-import { Card, Button, Input } from "@/components/ui";
+import { Button, Card, Input, Select } from "@/components/ui";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService } from "@/services";
-import { paymentService } from "@/services/payments";
-import { PaymentRetryAlert } from "@/components/payments/RetryIndicator";
-import { useAuthStore } from "@/store";
+
+interface GuestInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  specialRequests: string;
+}
+
+interface PaymentInfo {
+  cardNumber: string;
+  cardName: string;
+  expiryDate: string;
+  cvv: string;
+}
 
 export default function BookingCheckoutPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoading: userLoading } = useCurrentUser();
-  const logout = useAuthStore((state) => state.logout);
+  const propertyId = params.propertyId as string;
 
-  // Get realtor branding
+  const { user, isLoading: userLoading } = useCurrentUser();
+  const { data: property, isLoading: propertyLoading } = useProperty(propertyId);
   const {
-    brandColor,
+    brandColor: primaryColor,
     secondaryColor,
     accentColor,
     realtorName,
@@ -41,66 +57,46 @@ export default function BookingCheckoutPage() {
     description,
   } = useRealtorBranding();
 
-  const propertyId = params.propertyId as string;
-  const checkIn = searchParams.get("checkIn") || "";
-  const checkOut = searchParams.get("checkOut") || "";
-  const guestsParam = searchParams.get("guests") || "1";
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  
+  const [checkIn, setCheckIn] = useState(searchParams.get("checkIn") || "");
+  const [checkOut, setCheckOut] = useState(searchParams.get("checkOut") || "");
+  const [guests, setGuests] = useState<number>(
+    Number(searchParams.get("guests") || "1") || 1,
+  );
 
-  const { data: property, isLoading: propertyLoading } =
-    useProperty(propertyId);
-
-  const [formData, setFormData] = useState({
+  const [guestInfo, setGuestInfo] = useState<GuestInfo>({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     email: user?.email || "",
+    phone: "",
     specialRequests: "",
-    agreeToTerms: false,
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const hasTrackedCheckoutView = useRef(false);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
+    cardNumber: "",
+    cardName: "",
+    expiryDate: "",
+    cvv: "",
+  });
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+
   const [bookingCalculation, setBookingCalculation] = useState<{
     subtotal: number;
     serviceFee: number;
     cleaningFee: number;
     securityDeposit: number;
     taxes: number;
-    fees: number;
     total: number;
     currency: string;
     nights: number;
-    serviceFeeBreakdown?: {
-      total: number;
-      stayza: number;
-      processing: number;
-      processingMode: string;
-    };
   } | null>(null);
 
   useEffect(() => {
-    if (hasTrackedCheckoutView.current || !propertyId) {
-      return;
-    }
-
-    hasTrackedCheckoutView.current = true;
-    void paymentService.trackCheckoutEvent({
-      event: "CHECKOUT_PAGE_VIEWED",
-      propertyId,
-      context: {
-        checkIn,
-        checkOut,
-        guests: guestsParam,
-      },
-    });
-  }, [propertyId, checkIn, checkOut, guestsParam]);
-
-  // Update form data when user loads
-  useEffect(() => {
     if (user) {
-      setFormData((prev) => ({
+      setGuestInfo((prev) => ({
         ...prev,
         firstName: user.firstName || prev.firstName,
         lastName: user.lastName || prev.lastName,
@@ -109,713 +105,574 @@ export default function BookingCheckoutPage() {
     }
   }, [user]);
 
-  // Redirect if not authenticated (only after loading completes)
   useEffect(() => {
     if (!userLoading && !user) {
-      router.push(
-        `/guest/login?redirect=/booking/${propertyId}/checkout?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestsParam}`
-      );
+      const returnTo = `/booking/${propertyId}/checkout?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&guests=${guests}`;
+      router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
-  }, [user, userLoading, router, propertyId, checkIn, checkOut, guestsParam]);
+  }, [user, userLoading, router, propertyId, checkIn, checkOut, guests]);
 
-  useEffect(() => {
-    if (!userLoading && user && user.role && user.role !== "GUEST") {
-      const redirectUrl = `/guest/login?redirect=/booking/${propertyId}/checkout?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestsParam}`;
-      logout().finally(() => {
-        router.replace(redirectUrl);
-      });
-    }
-  }, [user, userLoading, logout, router, propertyId, checkIn, checkOut, guestsParam]);
-
-  // Calculate booking total
   useEffect(() => {
     const fetchBookingCalculation = async () => {
-      if (!checkIn || !checkOut || !propertyId) {
-        
+      if (!propertyId || !checkIn || !checkOut) {
+        setBookingCalculation(null);
         return;
       }
 
       try {
-        
-
         const calculation = await bookingService.calculateBookingTotal(
           propertyId,
           new Date(checkIn),
           new Date(checkOut),
-          parseInt(guestsParam)
+          guests,
         );
-
-        
-        
-        
-
-        // Backend returns all fields we need
         setBookingCalculation(calculation);
-      } catch (error: any) {
-        
-        
-        
+      } catch {
+        setBookingCalculation(null);
       }
     };
 
-    fetchBookingCalculation();
-  }, [propertyId, checkIn, checkOut, guestsParam]);
+    void fetchBookingCalculation();
+  }, [propertyId, checkIn, checkOut, guests]);
 
-  // Debug: Log when bookingCalculation state changes
-  useEffect(() => {
-    
-  }, [bookingCalculation]);
+  const nights = useMemo(() => {
+    if (!checkIn || !checkOut) return 0;
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    return Math.max(0, differenceInDays(end, start));
+  }, [checkIn, checkOut]);
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+  const minNights = Math.max(
+    1,
+    Number((property as unknown as { minNights?: number })?.minNights || 1),
+  );
+  const maxGuests = Math.max(1, Number(property?.maxGuests || 1));
+  const isValidStay = nights >= minNights;
+
+  const fallbackCurrency = property?.currency || "NGN";
+  const fallbackSubtotal = (property?.pricePerNight || 0) * nights;
+  const fallbackCleaningFee = Number(
+    (property as unknown as { cleaningFee?: number })?.cleaningFee || 0,
+  );
+  const fallbackServiceFee = Number(
+    (property as unknown as { serviceFee?: number })?.serviceFee || 0,
+  );
+  const fallbackTaxes = Math.round((fallbackSubtotal + fallbackCleaningFee + fallbackServiceFee) * 0.1);
+  const fallbackTotal = fallbackSubtotal + fallbackCleaningFee + fallbackServiceFee + fallbackTaxes;
+
+  const currency = bookingCalculation?.currency || fallbackCurrency;
+  const subtotal = bookingCalculation?.subtotal ?? fallbackSubtotal;
+  const cleaningFee = bookingCalculation?.cleaningFee ?? fallbackCleaningFee;
+  const serviceFee = bookingCalculation?.serviceFee ?? fallbackServiceFee;
+  const securityDeposit = bookingCalculation?.securityDeposit ?? 0;
+  const taxes = bookingCalculation?.taxes ?? fallbackTaxes;
+  const total = bookingCalculation?.total ?? fallbackTotal;
+
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+
+  const canProceed = () => {
+    if (step === 1) {
+      return Boolean(checkIn && checkOut) && isValidStay && guests > 0 && guests <= maxGuests;
     }
+    if (step === 2) {
+      return Boolean(
+        guestInfo.firstName.trim() &&
+          guestInfo.lastName.trim() &&
+          guestInfo.email.trim() &&
+          guestInfo.phone.trim(),
+      );
+    }
+    if (step === 3) {
+      return Boolean(
+        paymentInfo.cardNumber.trim() &&
+          paymentInfo.cardName.trim() &&
+          paymentInfo.expiryDate.trim() &&
+          paymentInfo.cvv.trim() &&
+          agreeToTerms,
+      );
+    }
+    return false;
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = "First name is required";
-    }
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = "Last name is required";
-    }
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Invalid email address";
-    }
-    if (!formData.agreeToTerms) {
-      newErrors.agreeToTerms = "You must agree to the terms and conditions";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      void paymentService.trackCheckoutEvent({
-        event: "CHECKOUT_SUBMIT_FAILED",
-        propertyId,
-        context: { reason: "validation_error" },
-      });
+    if (step < 3) {
+      setStep((prev) => prev + 1);
       return;
     }
 
+    if (!canProceed()) {
+      setErrors({ submit: "Please complete all required fields before continuing." });
+      return;
+    }
+
+    setErrors({});
     setIsSubmitting(true);
-    void paymentService.trackCheckoutEvent({
-      event: "CHECKOUT_SUBMITTED",
-      propertyId,
-      context: {
-        checkIn,
-        checkOut,
-        guests: guestsParam,
-      },
-    });
 
     try {
-      // Create booking
       const booking = await bookingService.createBooking({
         propertyId,
         checkIn: new Date(checkIn),
         checkOut: new Date(checkOut),
-        guests: parseInt(guestsParam),
-        specialRequests: formData.specialRequests,
+        guests,
+        specialRequests: guestInfo.specialRequests,
       });
 
-      void paymentService.trackCheckoutEvent({
-        event: "BOOKING_CREATED",
-        bookingId: booking.id,
-        propertyId,
-      });
-
-      // Redirect to payment page with Paystack as the only payment method
-      router.push(
-        `/booking/${propertyId}/payment?bookingId=${booking.id}&paymentMethod=paystack`
-      );
-    } catch (error: any) {
-      void paymentService.trackCheckoutEvent({
-        event: "CHECKOUT_SUBMIT_FAILED",
-        propertyId,
-        context: {
-          reason: "booking_creation_failed",
-          message: error?.message || "unknown",
-        },
-      });
-      setErrors({
-        submit: error.message || "Failed to create booking. Please try again.",
-      });
+      router.push(`/booking/${propertyId}/payment?bookingId=${booking.id}&paymentMethod=paystack`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to create booking. Please try again.";
+      setErrors({ submit: message });
+      toast.error(message);
+    } finally {
       setIsSubmitting(false);
     }
   };
 
-  const formatPrice = (price: number, currency: string = "NGN") => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      weekday: "short",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  // Show loading state while checking authentication or loading property
   if (userLoading || propertyLoading || !property) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <GuestHeader
-          currentPage="profile"
-          searchPlaceholder="Search location..."
-        />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <div className="animate-pulse space-y-8">
-            <div className="h-64 bg-gray-200 rounded-lg"></div>
-            <div className="h-96 bg-gray-200 rounded-lg"></div>
-          </div>
+        <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+        <div className="max-w-[1200px] mx-auto px-6 py-12 animate-pulse space-y-6">
+          <div className="h-10 w-56 bg-gray-200 rounded" />
+          <div className="h-80 bg-gray-200 rounded-2xl" />
         </div>
-        <Footer
-          realtorName={realtorName}
-          tagline={tagline}
-          logo={logoUrl}
-          description={description}
-          primaryColor={brandColor}
-        />
       </div>
     );
   }
 
-  // Don't render if not authenticated (will redirect)
   if (!user) {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <GuestHeader
-        currentPage="profile"
-        searchPlaceholder="Search location..."
-      />
+  const propertyImage =
+    property.images?.[0]?.url ||
+    "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80";
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-            <div className="flex items-center">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
-                style={{ backgroundColor: brandColor }}
-              >
-                1
+  return (
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
+      <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+
+      <main className="max-w-[1200px] mx-auto w-full px-6 py-12 flex-1">
+        <Link
+          href={`/guest/browse/${propertyId}`}
+          className="inline-flex items-center gap-2 mb-8 hover:underline text-gray-600"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back to Property
+        </Link>
+
+        <div className="mb-12">
+          <h1 className="font-semibold mb-4 text-[40px] text-gray-900">Complete Your Booking</h1>
+
+          <div className="flex items-center gap-4 mb-4">
+            {[1, 2, 3].map((currentStep) => (
+              <div key={currentStep} className="flex-1 flex items-center gap-2">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all"
+                  style={{
+                    backgroundColor: step >= currentStep ? primaryColor : "#e5e7eb",
+                    color: step >= currentStep ? "#ffffff" : "#6b7280",
+                  }}
+                >
+                  {step > currentStep ? <CheckCircle2 className="w-6 h-6" /> : currentStep}
+                </div>
+                {currentStep < 3 && (
+                  <div
+                    className="flex-1 h-1 rounded-full"
+                    style={{ backgroundColor: step > currentStep ? primaryColor : "#e5e7eb" }}
+                  />
+                )}
               </div>
-              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
-                Guest Details
-              </span>
-            </div>
-            <div className="hidden sm:block w-16 h-1 bg-gray-300"></div>
-            <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold bg-gray-200 text-gray-600">
-                2
-              </div>
-              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-500">
-                Payment
-              </span>
-            </div>
-            <div className="hidden sm:block w-16 h-1 bg-gray-300"></div>
-            <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold bg-gray-200 text-gray-600">
-                3
-              </div>
-              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-500">
-                Confirmation
-              </span>
-            </div>
+            ))}
+          </div>
+
+          <div className="flex gap-4 text-sm">
+            <span style={{ color: step === 1 ? primaryColor : "#6b7280" }}>Dates & Guests</span>
+            <span style={{ color: step === 2 ? primaryColor : "#6b7280" }}>Your Information</span>
+            <span style={{ color: step === 3 ? primaryColor : "#6b7280" }}>Payment</span>
           </div>
         </div>
 
-        {/* Back Button */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center hover:opacity-80 mb-6 transition-all"
-          style={{ color: secondaryColor }}
-        >
-          <ArrowLeft className="h-5 w-5 mr-1" />
-          Back to property
-        </button>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Form */}
-          <div className="lg:col-span-2 space-y-6">
-            <div>
-              <h1
-                className="text-2xl sm:text-3xl font-bold mb-2"
-                style={{ color: secondaryColor }}
-              >
-                Confirm and pay
-              </h1>
-              <p className="text-gray-600">
-                Please review your booking details and complete your information
-              </p>
-            </div>
-
-            {/* Guest Information */}
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h2
-                className="text-xl font-semibold mb-4"
-                style={{ color: secondaryColor }}
-              >
-                Guest Information
-              </h2>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <form onSubmit={handleSubmit}>
+              {step === 1 && (
+                <Card className="p-8 rounded-2xl border space-y-8 bg-white border-gray-200">
                   <div>
-                    <label
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: secondaryColor }}
-                    >
-                      First Name *
-                    </label>
-                    <Input
-                      type="text"
-                      value={formData.firstName}
-                      onChange={(e) =>
-                        handleInputChange("firstName", e.target.value)
-                      }
-                      className={`w-full px-4 py-3 bg-transparent border-2 ${
-                        errors.firstName ? "border-red-500" : "border-gray-200"
-                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                      placeholder="Enter first name"
-                    />
-                    {errors.firstName && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.firstName}
-                      </p>
-                    )}
+                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">Select Your Dates</h2>
+                    <p className="text-gray-600">Minimum stay: {minNights} nights</p>
                   </div>
 
-                  <div>
-                    <label
-                      className="block text-sm font-medium mb-2"
-                      style={{ color: secondaryColor }}
-                    >
-                      Last Name *
-                    </label>
-                    <Input
-                      type="text"
-                      value={formData.lastName}
-                      onChange={(e) =>
-                        handleInputChange("lastName", e.target.value)
-                      }
-                      className={`w-full px-4 py-3 bg-transparent border-2 ${
-                        errors.lastName ? "border-red-500" : "border-gray-200"
-                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                      placeholder="Enter last name"
-                    />
-                    {errors.lastName && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.lastName}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-2"
-                    style={{ color: secondaryColor }}
-                  >
-                    Email Address *
-                  </label>
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={`w-full px-4 py-3 bg-transparent border-2 ${
-                      errors.email ? "border-red-500" : "border-gray-200"
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                    placeholder="Enter email address"
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-2"
-                    style={{ color: secondaryColor }}
-                  >
-                    Special Requests (Optional)
-                  </label>
-                  <textarea
-                    value={formData.specialRequests}
-                    onChange={(e) =>
-                      handleInputChange("specialRequests", e.target.value)
-                    }
-                    rows={4}
-                    className="w-full px-4 py-3 bg-transparent border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 resize-none"
-                    placeholder="Any special requests or notes for the host..."
-                  />
-                </div>
-              </form>
-            </Card>
-
-            {/* Payment Method */}
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h2
-                className="text-xl font-semibold mb-4"
-                style={{ color: secondaryColor }}
-              >
-                Payment Method
-              </h2>
-
-              <div className="space-y-3">
-                {/* Paystack Option - Only payment method */}
-                <div
-                  className="w-full border-2 rounded-xl p-4"
-                  style={{
-                    borderColor: brandColor,
-                    backgroundColor: `${brandColor}08`,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div
-                        className="w-12 h-12 rounded-lg flex items-center justify-center mr-4"
-                        style={{ backgroundColor: `${brandColor}15` }}
-                      >
-                        <CreditCard
-                          className="h-6 w-6"
-                          style={{ color: brandColor }}
+                  <div className="grid sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-gray-900">Check-in Date</label>
+                      <div className="relative">
+                        <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                        <Input
+                          type="date"
+                          className="pl-12 h-14 rounded-xl border text-base bg-gray-50 border-gray-200"
+                          min={new Date().toISOString().split("T")[0]}
+                          value={checkIn}
+                          onChange={(e) => setCheckIn(e.target.value)}
                         />
                       </div>
-                      <div className="text-left">
-                        <p className="font-semibold text-gray-900">Paystack</p>
-                        <p className="text-sm text-gray-600">
-                          Pay with card, bank transfer, or USSD
-                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-gray-900">Check-out Date</label>
+                      <div className="relative">
+                        <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                        <Input
+                          type="date"
+                          className="pl-12 h-14 rounded-xl border text-base bg-gray-50 border-gray-200"
+                          min={checkIn || new Date().toISOString().split("T")[0]}
+                          value={checkOut}
+                          onChange={(e) => setCheckOut(e.target.value)}
+                        />
                       </div>
                     </div>
-                    <Check className="h-6 w-6" style={{ color: brandColor }} />
                   </div>
-                </div>
 
-                {/* Security Notice */}
-                <div
-                  className="border rounded-lg p-4 flex items-start"
-                  style={{
-                    backgroundColor: `${brandColor}08`,
-                    borderColor: `${brandColor}30`,
-                  }}
-                >
-                  <AlertCircle
-                    className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0"
-                    style={{ color: brandColor }}
-                  />
-                  <div className="text-sm" style={{ color: secondaryColor }}>
-                    <p className="font-semibold mb-1">🔒 Secure Payment</p>
-                    <p>
-                      Your payment information is encrypted and secure. You will
-                      be redirected to Paystack to complete your payment safely.
-                    </p>
+                  {checkIn && checkOut && (
+                    <div
+                      className="p-4 rounded-xl flex items-center gap-3"
+                      style={{ backgroundColor: isValidStay ? "#f5f9f5" : "#f3f4f6" }}
+                    >
+                      <Info
+                        className="w-5 h-5"
+                        style={{ color: isValidStay ? secondaryColor || primaryColor : "#6b7280" }}
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          {nights} {nights === 1 ? "night" : "nights"}
+                        </div>
+                        {!isValidStay && (
+                          <div className="text-sm text-red-500">Minimum stay is {minNights} nights</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-gray-900">Number of Guests</label>
+                    <Select
+                      value={String(guests)}
+                      onChange={(value) => setGuests(Number(value))}
+                      options={Array.from({ length: maxGuests }, (_, index) => {
+                        const value = index + 1;
+                        return {
+                          value: String(value),
+                          label: `${value} ${value === 1 ? "Guest" : "Guests"}`,
+                        };
+                      })}
+                    />
+                    <div className="text-xs text-gray-500">Maximum: {maxGuests} guests</div>
                   </div>
-                </div>
-              </div>
-            </Card>
 
-            {/* Terms and Conditions */}
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <div className="flex items-start">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  checked={formData.agreeToTerms}
-                  onChange={(e) =>
-                    handleInputChange("agreeToTerms", e.target.checked)
-                  }
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="terms" className="ml-3 text-sm text-gray-700">
-                  I agree to the{" "}
-                  <a
-                    href="/legal/terms"
-                    className="text-blue-600 hover:underline"
+                  <Button
+                    type="submit"
+                    disabled={!canProceed()}
+                    className="w-full h-14 rounded-xl font-semibold text-base text-white"
+                    style={{ backgroundColor: accentColor || primaryColor }}
                   >
-                    Terms and Conditions
-                  </a>{" "}
-                  and{" "}
-                  <a
-                    href="/legal/privacy"
-                    className="text-blue-600 hover:underline"
-                  >
-                    Privacy Policy
-                  </a>
-                  . I understand the cancellation policy and agree to the house
-                  rules.
-                </label>
-              </div>
-              {errors.agreeToTerms && (
-                <p className="text-red-500 text-sm mt-2 ml-7">
-                  {errors.agreeToTerms}
-                </p>
+                    Continue to Guest Information
+                  </Button>
+                </Card>
               )}
-            </Card>
 
-            {/* Submit Error */}
-            {errors.submit && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
-                <AlertCircle className="h-5 w-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-900">{errors.submit}</p>
-              </div>
-            )}
+              {step === 2 && (
+                <Card className="p-8 rounded-2xl border space-y-6 bg-white border-gray-200">
+                  <div>
+                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">Guest Information</h2>
+                    <p className="text-gray-600">Who&apos;s checking in?</p>
+                  </div>
 
-            {/* Submit Button */}
-            <Button
-              onClick={handleSubmit}
-              className="w-full text-white font-semibold hover:opacity-90"
-              size="lg"
-              disabled={isSubmitting}
-              style={{ backgroundColor: brandColor }}
-            >
-              {isSubmitting ? "Processing..." : "Continue to Payment"}
-            </Button>
+                  <div className="grid sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-gray-900">First Name</label>
+                      <Input
+                        value={guestInfo.firstName}
+                        onChange={(e) =>
+                          setGuestInfo((prev) => ({ ...prev, firstName: e.target.value }))
+                        }
+                        className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-gray-900">Last Name</label>
+                      <Input
+                        value={guestInfo.lastName}
+                        onChange={(e) =>
+                          setGuestInfo((prev) => ({ ...prev, lastName: e.target.value }))
+                        }
+                        className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-gray-900">Email</label>
+                    <Input
+                      type="email"
+                      value={guestInfo.email}
+                      onChange={(e) =>
+                        setGuestInfo((prev) => ({ ...prev, email: e.target.value }))
+                      }
+                      className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-gray-900">Phone</label>
+                    <Input
+                      type="tel"
+                      value={guestInfo.phone}
+                      onChange={(e) =>
+                        setGuestInfo((prev) => ({ ...prev, phone: e.target.value }))
+                      }
+                      className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-gray-900">Special Requests (Optional)</label>
+                    <textarea
+                      value={guestInfo.specialRequests}
+                      onChange={(e) =>
+                        setGuestInfo((prev) => ({ ...prev, specialRequests: e.target.value }))
+                      }
+                      rows={4}
+                      className="w-full px-4 py-3 rounded-xl border resize-none bg-gray-50 border-gray-200 text-gray-900"
+                      placeholder="Early check-in, late check-out, etc."
+                    />
+                  </div>
+
+                  <div className="flex gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep(1)}
+                      className="flex-1 h-14 rounded-xl font-semibold"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={!canProceed()}
+                      className="flex-1 h-14 rounded-xl font-semibold text-white"
+                      style={{ backgroundColor: accentColor || primaryColor }}
+                    >
+                      Continue to Payment
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
+              {step === 3 && (
+                <Card className="p-8 rounded-2xl border space-y-6 bg-white border-gray-200">
+                  <div>
+                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">Payment Information</h2>
+                    <p className="text-gray-600">Your payment is secure and encrypted</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-gray-900">Card Number</label>
+                    <div className="relative">
+                      <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <Input
+                        placeholder="1234 5678 9012 3456"
+                        value={paymentInfo.cardNumber}
+                        onChange={(e) =>
+                          setPaymentInfo((prev) => ({ ...prev, cardNumber: e.target.value }))
+                        }
+                        className="pl-12 h-12 rounded-xl bg-gray-50 border-gray-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-gray-900">Cardholder Name</label>
+                    <Input
+                      placeholder="John Doe"
+                      value={paymentInfo.cardName}
+                      onChange={(e) =>
+                        setPaymentInfo((prev) => ({ ...prev, cardName: e.target.value }))
+                      }
+                      className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-gray-900">Expiry Date</label>
+                      <Input
+                        placeholder="MM/YY"
+                        value={paymentInfo.expiryDate}
+                        onChange={(e) =>
+                          setPaymentInfo((prev) => ({ ...prev, expiryDate: e.target.value }))
+                        }
+                        className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-gray-900">CVV</label>
+                      <Input
+                        placeholder="123"
+                        value={paymentInfo.cvv}
+                        onChange={(e) =>
+                          setPaymentInfo((prev) => ({ ...prev, cvv: e.target.value }))
+                        }
+                        className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border flex items-start gap-3 bg-blue-50 border-blue-100">
+                    <Lock className="w-5 h-5 mt-0.5" style={{ color: primaryColor }} />
+                    <div>
+                      <div className="font-semibold text-gray-900">Secure Payment</div>
+                      <div className="text-sm text-gray-600">
+                        You will be redirected to Paystack to complete your payment securely.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <input
+                      id="checkout-terms"
+                      type="checkbox"
+                      checked={agreeToTerms}
+                      onChange={(e) => setAgreeToTerms(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300"
+                    />
+                    <label htmlFor="checkout-terms" className="text-sm text-gray-700">
+                      I agree to the <Link href="/legal/terms" className="underline">Terms</Link> and <Link href="/legal/privacy" className="underline">Privacy Policy</Link>.
+                    </label>
+                  </div>
+
+                  {errors.submit && <p className="text-sm text-red-500">{errors.submit}</p>}
+
+                  <div className="flex gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setStep(2)}
+                      className="flex-1 h-14 rounded-xl font-semibold"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={!canProceed() || isSubmitting}
+                      className="flex-1 h-14 rounded-xl font-semibold text-white"
+                      style={{ backgroundColor: accentColor || primaryColor }}
+                    >
+                      {isSubmitting ? "Processing..." : "Complete Booking"}
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </form>
           </div>
 
-          {/* Booking Summary Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              {/* Property Card */}
-              <Card
-                className="p-6 border border-gray-200 !bg-white shadow-sm"
-                style={{ backgroundColor: "#ffffff", color: "#111827" }}
-              >
-                <h2
-                  className="text-lg font-semibold mb-4"
-                  style={{ color: secondaryColor }}
-                >
-                  Booking Summary
-                </h2>
+          <div className="space-y-6">
+            <Card className="p-6 rounded-2xl border bg-white border-gray-200 sticky top-24">
+              <h3 className="font-semibold mb-4 text-[20px] text-gray-900">Booking Summary</h3>
 
-                <div className="flex flex-col sm:flex-row items-start sm:space-x-4 space-y-4 sm:space-y-0 mb-4">
-                  <div className="relative w-full sm:w-24 h-48 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
-                    {property.images &&
-                    property.images.length > 0 &&
-                    property.images[0]?.url ? (
-                      <img
-                        src={property.images[0].url}
-                        alt={property.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <Home className="h-8 w-8 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 mb-1 truncate">
-                      {property.title}
-                    </h3>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      <span className="truncate">
-                        {property.city}, {property.state}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-200 pt-4 space-y-3">
-                  <div className="flex items-center text-gray-700">
-                    <Calendar
-                      className="h-5 w-5 mr-3"
-                      style={{ color: accentColor }}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Check-in</p>
-                      <p className="text-sm">{formatDate(checkIn)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center text-gray-700">
-                    <Calendar
-                      className="h-5 w-5 mr-3"
-                      style={{ color: accentColor }}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Check-out</p>
-                      <p className="text-sm">{formatDate(checkOut)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center text-gray-700">
-                    <Users
-                      className="h-5 w-5 mr-3"
-                      style={{ color: accentColor }}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Guests</p>
-                      <p className="text-sm">
-                        {guestsParam}{" "}
-                        {parseInt(guestsParam) === 1 ? "guest" : "guests"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Price Breakdown */}
-              <Card
-                className="p-6 border border-gray-200 !bg-white shadow-sm"
-                style={{
-                  backgroundColor: "#ffffff",
-                  color: "#111827",
-                  borderTop: `4px solid ${brandColor}`,
-                }}
-              >
-                <h2
-                  className="text-lg font-semibold mb-4"
-                  style={{ color: secondaryColor }}
-                >
-                  Price Details
-                </h2>
-
-                {(() => {
-                  
-                  return bookingCalculation ? (
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-gray-700">
-                        <span className="text-sm">
-                          {formatPrice(
-                            bookingCalculation.subtotal /
-                              bookingCalculation.nights,
-                            bookingCalculation.currency
-                          )}{" "}
-                          × {bookingCalculation.nights}{" "}
-                          {bookingCalculation.nights === 1 ? "night" : "nights"}
-                        </span>
-                        <span className="font-medium">
-                          {formatPrice(
-                            bookingCalculation.subtotal,
-                            bookingCalculation.currency
-                          )}
-                        </span>
-                      </div>
-
-                      {bookingCalculation.cleaningFee > 0 && (
-                        <div className="flex justify-between text-gray-700">
-                          <span className="text-sm">Cleaning fee</span>
-                          <span className="font-medium">
-                            {formatPrice(
-                              bookingCalculation.cleaningFee,
-                              bookingCalculation.currency
-                            )}
-                          </span>
-                        </div>
-                      )}
-
-                      {bookingCalculation.serviceFee > 0 && (
-                        <div className="flex justify-between text-gray-700">
-                          <div>
-                            <span className="text-sm">Service fee</span>
-                            {bookingCalculation.serviceFeeBreakdown && (
-                              <p className="text-xs text-gray-500">
-                                Includes Stayza + processing fee
-                              </p>
-                            )}
-                          </div>
-                          <span className="font-medium">
-                            {formatPrice(
-                              bookingCalculation.serviceFee,
-                              bookingCalculation.currency
-                            )}
-                          </span>
-                        </div>
-                      )}
-
-                      {bookingCalculation.securityDeposit > 0 && (
-                        <div className="flex justify-between text-gray-700">
-                          <span className="text-sm">
-                            Security deposit (refundable)
-                          </span>
-                          <span className="font-medium">
-                            {formatPrice(
-                              bookingCalculation.securityDeposit,
-                              bookingCalculation.currency
-                            )}
-                          </span>
-                        </div>
-                      )}
-
-                      {bookingCalculation.taxes > 0 && (
-                        <div className="flex justify-between text-gray-700">
-                          <span className="text-sm">Taxes</span>
-                          <span className="font-medium">
-                            {formatPrice(
-                              bookingCalculation.taxes,
-                              bookingCalculation.currency
-                            )}
-                          </span>
-                        </div>
-                      )}
-
-                      <div
-                        className="border-t-2 pt-4 flex justify-between items-center"
-                        style={{ borderColor: `${brandColor}30` }}
-                      >
-                        <span
-                          className="text-lg font-bold"
-                          style={{ color: secondaryColor }}
-                        >
-                          Total
-                        </span>
-                        <span
-                          className="text-xl font-bold"
-                          style={{ color: brandColor }}
-                        >
-                          {formatPrice(
-                            bookingCalculation.total,
-                            bookingCalculation.currency
-                          )}
-                        </span>
-                      </div>
-                    </div>
+              <div className="flex items-start gap-4 mb-6">
+                <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                  {propertyImage ? (
+                    <img src={propertyImage} alt={property.title} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="space-y-3">
-                      <div className="h-5 bg-gray-200 rounded animate-pulse"></div>
-                      <div className="h-5 bg-gray-200 rounded animate-pulse"></div>
-                      <div className="h-5 bg-gray-200 rounded animate-pulse"></div>
-                      <div className="h-6 bg-gray-200 rounded animate-pulse mt-4"></div>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Home className="w-6 h-6 text-gray-400" />
                     </div>
-                  );
-                })()}
-              </Card>
-            </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 line-clamp-1">{property.title}</div>
+                  <div className="flex items-center gap-1 text-sm text-gray-600 mt-1 line-clamp-1">
+                    <MapPin className="w-4 h-4" />
+                    {property.city}
+                    {property.state ? `, ${property.state}` : ""}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center gap-3 text-sm text-gray-700">
+                  <CalendarIcon className="w-4 h-4" style={{ color: accentColor || primaryColor }} />
+                  <span>
+                    {checkIn ? format(new Date(checkIn), "PPP") : "Select check-in"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-700">
+                  <CalendarIcon className="w-4 h-4" style={{ color: accentColor || primaryColor }} />
+                  <span>
+                    {checkOut ? format(new Date(checkOut), "PPP") : "Select check-out"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-gray-700">
+                  <Users className="w-4 h-4" style={{ color: accentColor || primaryColor }} />
+                  <span>{guests} {guests === 1 ? "guest" : "guests"}</span>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-3 border-gray-200">
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>
+                    {formatPrice(nights > 0 ? subtotal / Math.max(nights, 1) : property.pricePerNight)} × {nights || 0} {nights === 1 ? "night" : "nights"}
+                  </span>
+                  <span className="font-medium">{formatPrice(subtotal)}</span>
+                </div>
+
+                {cleaningFee > 0 && (
+                  <div className="flex justify-between text-sm text-gray-700">
+                    <span>Cleaning fee</span>
+                    <span className="font-medium">{formatPrice(cleaningFee)}</span>
+                  </div>
+                )}
+
+                {serviceFee > 0 && (
+                  <div className="flex justify-between text-sm text-gray-700">
+                    <span>Service fee</span>
+                    <span className="font-medium">{formatPrice(serviceFee)}</span>
+                  </div>
+                )}
+
+                {securityDeposit > 0 && (
+                  <div className="flex justify-between text-sm text-gray-700">
+                    <span>Security deposit</span>
+                    <span className="font-medium">{formatPrice(securityDeposit)}</span>
+                  </div>
+                )}
+
+                {taxes > 0 && (
+                  <div className="flex justify-between text-sm text-gray-700">
+                    <span>Taxes</span>
+                    <span className="font-medium">{formatPrice(taxes)}</span>
+                  </div>
+                )}
+
+                <div className="border-t pt-4 flex items-center justify-between border-gray-200">
+                  <span className="font-semibold text-gray-900">Total</span>
+                  <span className="text-xl font-bold" style={{ color: primaryColor }}>
+                    {formatPrice(total)}
+                  </span>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </main>
@@ -825,7 +682,9 @@ export default function BookingCheckoutPage() {
         tagline={tagline}
         logo={logoUrl}
         description={description}
-        primaryColor={brandColor}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+        accentColor={accentColor}
       />
     </div>
   );
