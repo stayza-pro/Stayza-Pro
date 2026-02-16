@@ -322,8 +322,12 @@ router.post(
       },
     });
 
-    if (!user || !(await comparePassword(password, user.password))) {
-      throw new AppError("Invalid email or password", 401);
+    if (!user) {
+      throw new AppError("No account found with this email address", 404);
+    }
+
+    if (!(await comparePassword(password, user.password))) {
+      throw new AppError("Incorrect password. Please try again.", 401);
     }
 
     const { accessToken, refreshToken } = generateTokens({

@@ -1,5 +1,6 @@
 import { apiClient, PaginatedResponse } from "./api";
 import { Review, ReviewFormData, ReviewResponse, SearchParams } from "../types";
+import { serviceUtils } from "./utils";
 
 export const reviewService = {
   // Create a new review
@@ -17,7 +18,7 @@ export const reviewService = {
   // Update review (only author can update)
   updateReview: async (
     id: string,
-    data: Partial<ReviewFormData>
+    data: Partial<ReviewFormData>,
   ): Promise<Review> => {
     const response = await apiClient.put<Review>(`/reviews/${id}`, data);
     return response.data;
@@ -31,7 +32,7 @@ export const reviewService = {
   // Get property reviews
   getPropertyReviews: async (
     propertyId: string,
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<PaginatedResponse<Review>> => {
     const params = new URLSearchParams();
 
@@ -55,7 +56,7 @@ export const reviewService = {
 
   // Get user's reviews (as author)
   getUserReviews: async (
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<PaginatedResponse<Review>> => {
     const params = new URLSearchParams();
 
@@ -79,7 +80,7 @@ export const reviewService = {
 
   // Get reviews received by realtor
   getRealtorReviews: async (
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<PaginatedResponse<Review>> => {
     const params = new URLSearchParams();
 
@@ -104,14 +105,14 @@ export const reviewService = {
   // Get reviews for a booking
   getBookingReviews: async (bookingId: string): Promise<Review[]> => {
     const response = await apiClient.get<Review[]>(
-      `/reviews/booking/${bookingId}`
+      `/reviews/booking/${bookingId}`,
     );
     return response.data;
   },
 
   // Check if user can review a booking
   canReview: async (
-    bookingId: string
+    bookingId: string,
   ): Promise<{
     canReview: boolean;
     reason?: string;
@@ -126,7 +127,7 @@ export const reviewService = {
   // Report a review (inappropriate content)
   reportReview: async (
     reviewId: string,
-    reasonData: string | { reason: string }
+    reasonData: string | { reason: string },
   ): Promise<void> => {
     const payload =
       typeof reasonData === "string" ? { reason: reasonData } : reasonData;
@@ -136,7 +137,7 @@ export const reviewService = {
 
   // Get review statistics for property
   getPropertyReviewStats: async (
-    propertyId: string
+    propertyId: string,
   ): Promise<{
     totalReviews: number;
     averageRating: number;
@@ -191,7 +192,7 @@ export const reviewService = {
 
   // Get host review statistics
   getHostReviewStats: async (
-    hostId?: string
+    hostId?: string,
   ): Promise<{
     totalReviews: number;
     averageRating: number;
@@ -212,7 +213,7 @@ export const reviewService = {
 
   // Get all reviews (admin only)
   getAllReviews: async (
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<PaginatedResponse<Review>> => {
     const params = new URLSearchParams();
 
@@ -236,21 +237,21 @@ export const reviewService = {
   moderateReview: async (
     reviewId: string,
     isVisible: boolean,
-    reason?: string
+    reason?: string,
   ): Promise<Review> => {
     const response = await apiClient.patch<Review>(
       `/reviews/${reviewId}/moderate`,
       {
         isVisible,
         reason,
-      }
+      },
     );
     return response.data;
   },
 
   // Get pending reviews (admin only)
   getPendingReviews: async (
-    searchParams?: SearchParams
+    searchParams?: SearchParams,
   ): Promise<PaginatedResponse<Review>> => {
     const params = new URLSearchParams();
 
@@ -307,7 +308,7 @@ export const reviewService = {
   // Respond to a review (realtor only)
   respondToReview: async (
     reviewId: string,
-    responseData: string | { response: string }
+    responseData: string | { response: string },
   ): Promise<ReviewResponse> => {
     const payload =
       typeof responseData === "string"
@@ -316,7 +317,7 @@ export const reviewService = {
 
     const response = await apiClient.post<ReviewResponse>(
       `/reviews/${reviewId}/respond`,
-      payload
+      payload,
     );
     return response.data;
   },
@@ -324,11 +325,11 @@ export const reviewService = {
   // Add host response to review (realtor only)
   addHostResponse: async (
     reviewId: string,
-    comment: string
+    comment: string,
   ): Promise<ReviewResponse> => {
     const response = await apiClient.post<ReviewResponse>(
       `/reviews/${reviewId}/response`,
-      { comment }
+      { comment },
     );
     return response.data;
   },
@@ -336,11 +337,11 @@ export const reviewService = {
   // Update host response (realtor only)
   updateHostResponse: async (
     reviewId: string,
-    comment: string
+    comment: string,
   ): Promise<ReviewResponse> => {
     const response = await apiClient.put<ReviewResponse>(
       `/reviews/${reviewId}/response`,
-      { comment }
+      { comment },
     );
     return response.data;
   },
@@ -352,7 +353,7 @@ export const reviewService = {
 
   // Mark review as helpful (toggle)
   markAsHelpful: async (
-    reviewId: string
+    reviewId: string,
   ): Promise<{
     reviewId: string;
     helpfulCount: number;
@@ -368,7 +369,7 @@ export const reviewService = {
 
   // Upload photos for review
   uploadReviewPhotos: async (
-    photos: File[]
+    photos: File[],
   ): Promise<Array<{ url: string; caption?: string }>> => {
     const formData = new FormData();
     photos.forEach((photo) => {
@@ -413,11 +414,11 @@ export const reviewService = {
   // Toggle review visibility (realtor only)
   toggleReviewVisibility: async (
     reviewId: string,
-    visible: boolean
+    visible: boolean,
   ): Promise<Review> => {
     const response = await apiClient.patch<Review>(
       `/reviews/${reviewId}/visibility`,
-      { visible }
+      { visible },
     );
     return response.data;
   },
@@ -428,7 +429,7 @@ export const reviewService = {
   },
 
   getReviewModerationStats: (
-    reviews: Review[]
+    reviews: Review[],
   ): {
     total: number;
     visible: number;
@@ -482,20 +483,14 @@ export const reviewService = {
   // Additional missing methods for moderation dashboard
   flagReviewForAdmin: async (
     reviewId: string,
-    reason: string
+    reason: string,
   ): Promise<void> => {
     await apiClient.post(`/reviews/${reviewId}/flag`, { reason });
   },
 
   extractErrorMessage: (error: any): string => {
     if (typeof error === "string") return error;
-    // Check for backend error format: { error: { message: "..." } }
-    if (error?.response?.data?.error?.message)
-      return error.response.data.error.message;
-    // Fallback to direct message
-    if (error?.response?.data?.message) return error.response.data.message;
-    if (error?.message) return error.message;
-    return "An unexpected error occurred";
+    return serviceUtils.extractErrorMessage(error);
   },
 
   hasPhotos: (review: Review): boolean => {

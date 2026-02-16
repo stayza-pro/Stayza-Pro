@@ -10,6 +10,7 @@ import adminWithdrawalService, {
 } from "../../../services/adminWithdrawalService";
 import { formatCurrency } from "../../../utils/formatters";
 import { toast } from "react-hot-toast";
+import { serviceUtils } from "@/services";
 
 export default function WithdrawalsPage() {
   const { user, isAuthenticated, isLoading } = useAuthStore();
@@ -48,7 +49,7 @@ export default function WithdrawalsPage() {
       setWithdrawals(withdrawalsData.data);
       setTotalPages(withdrawalsData.pagination.totalPages);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to load data");
+      toast.error(serviceUtils.extractErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -67,9 +68,7 @@ export default function WithdrawalsPage() {
       toast.success("Withdrawal processed successfully!");
       loadData();
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Failed to process withdrawal"
-      );
+      toast.error(serviceUtils.extractErrorMessage(error));
     } finally {
       setProcessing(null);
     }
@@ -84,13 +83,11 @@ export default function WithdrawalsPage() {
       setRetrying(true);
       const result = await adminWithdrawalService.retryFailedWithdrawals();
       toast.success(
-        `Processed: ${result.processed}, Successful: ${result.successful}, Failed: ${result.failed}`
+        `Processed: ${result.processed}, Successful: ${result.successful}, Failed: ${result.failed}`,
       );
       loadData();
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Failed to retry withdrawals"
-      );
+      toast.error(serviceUtils.extractErrorMessage(error));
     } finally {
       setRetrying(false);
     }
@@ -106,9 +103,7 @@ export default function WithdrawalsPage() {
       toast.success("Withdrawal cancelled and funds released");
       loadData();
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Failed to cancel withdrawal"
-      );
+      toast.error(serviceUtils.extractErrorMessage(error));
     } finally {
       setProcessing(null);
     }
@@ -406,7 +401,7 @@ export default function WithdrawalsPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(
-                              withdrawal.status
+                              withdrawal.status,
                             )}`}
                           >
                             {withdrawal.status}
@@ -414,11 +409,11 @@ export default function WithdrawalsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(
-                            withdrawal.requestedAt
+                            withdrawal.requestedAt,
                           ).toLocaleDateString()}
                           <br />
                           {new Date(
-                            withdrawal.requestedAt
+                            withdrawal.requestedAt,
                           ).toLocaleTimeString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

@@ -13,7 +13,7 @@ export class AppError extends Error {
     message: string,
     statusCode: number,
     code?: string,
-    details?: any
+    details?: any,
   ) {
     super(message);
     this.statusCode = statusCode;
@@ -32,7 +32,7 @@ export class ValidationError extends AppError {
 }
 
 export class AuthenticationError extends AppError {
-  constructor(message: string = "Authentication failed") {
+  constructor(message: string = "Please sign in to continue") {
     super(message, 401, "AUTHENTICATION_ERROR");
   }
 }
@@ -78,11 +78,9 @@ const logError = async (
   err: Error,
   req: Request,
   errorId: string,
-  statusCode: number
+  statusCode: number,
 ) => {
   const logLevel = statusCode >= 500 ? "ERROR" : "WARN";
-
-  
 
   // Audit log critical errors
   if (statusCode >= 500) {
@@ -107,7 +105,7 @@ const logError = async (
 
 // Enhanced Prisma error handling
 const handlePrismaError = (
-  err: Prisma.PrismaClientKnownRequestError
+  err: Prisma.PrismaClientKnownRequestError,
 ): AppError => {
   const errorMap: Record<
     string,
@@ -168,7 +166,7 @@ export const errorHandler = async (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   let error: AppError;
   const errorId = `ERR_${Date.now()}_${Math.random()
@@ -188,7 +186,7 @@ export const errorHandler = async (
     error = new AppError(
       "Database connection failed",
       500,
-      "DATABASE_CONNECTION_ERROR"
+      "DATABASE_CONNECTION_ERROR",
     );
   } else if (err instanceof Prisma.PrismaClientRustPanicError) {
     error = new AppError("Database engine error", 500, "DATABASE_ENGINE_ERROR");
@@ -229,13 +227,13 @@ export const errorHandler = async (
     error = new AppError(
       "External service unavailable",
       503,
-      "SERVICE_UNAVAILABLE"
+      "SERVICE_UNAVAILABLE",
     );
   } else if (err.message.includes("timeout")) {
     error = new AppError(
       "Request timeout - please try again",
       408,
-      "REQUEST_TIMEOUT"
+      "REQUEST_TIMEOUT",
     );
   } else {
     // Unknown error - log and return generic message
@@ -245,7 +243,7 @@ export const errorHandler = async (
       "INTERNAL_ERROR",
       config.NODE_ENV === "development"
         ? { originalError: err.message, stack: err.stack }
-        : undefined
+        : undefined,
     );
   }
 
@@ -255,6 +253,7 @@ export const errorHandler = async (
   // Prepare response
   const response: any = {
     success: false,
+    message: error.message,
     error: {
       message: error.message,
       code: error.code || "UNKNOWN_ERROR",
@@ -299,7 +298,7 @@ export const notFound = (req: Request, res: Response, next: NextFunction) => {
 type AsyncRouteHandler = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => Promise<unknown> | unknown;
 
 export const asyncHandler = (fn: AsyncRouteHandler) => {
@@ -312,10 +311,6 @@ export const asyncHandler = (fn: AsyncRouteHandler) => {
 export const setupGlobalErrorHandlers = () => {
   // Handle uncaught exceptions
   process.on("uncaughtException", (err: Error) => {
-    
-    
-    
-
     // Log to audit system if possible
     auditLogger
       .log("SYSTEM_ERROR", "ADMIN", {
@@ -333,10 +328,6 @@ export const setupGlobalErrorHandlers = () => {
 
   // Handle unhandled promise rejections
   process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
-    
-    
-    
-
     // Log to audit system if possible
     auditLogger
       .log("SYSTEM_ERROR", "ADMIN", {
@@ -354,13 +345,11 @@ export const setupGlobalErrorHandlers = () => {
 
   // Handle SIGTERM gracefully
   process.on("SIGTERM", () => {
-    
     process.exit(0);
   });
 
   // Handle SIGINT gracefully (Ctrl+C)
   process.on("SIGINT", () => {
-    
     process.exit(0);
   });
 };
@@ -372,7 +361,7 @@ export class HealthCheckError extends AppError {
       `Health check failed for ${service}`,
       503,
       "HEALTH_CHECK_ERROR",
-      details
+      details,
     );
   }
 }
@@ -384,7 +373,7 @@ export const handleDatabaseError = (err: any): AppError => {
       "Database connection refused",
       503,
       "DATABASE_CONNECTION_REFUSED",
-      { host: err.address, port: err.port }
+      { host: err.address, port: err.port },
     );
   }
 
@@ -393,7 +382,7 @@ export const handleDatabaseError = (err: any): AppError => {
       "Database host not found",
       503,
       "DATABASE_HOST_NOT_FOUND",
-      { hostname: err.hostname }
+      { hostname: err.hostname },
     );
   }
 
@@ -401,7 +390,7 @@ export const handleDatabaseError = (err: any): AppError => {
     return new AppError(
       "Database connection timeout",
       503,
-      "DATABASE_CONNECTION_TIMEOUT"
+      "DATABASE_CONNECTION_TIMEOUT",
     );
   }
 
@@ -409,14 +398,14 @@ export const handleDatabaseError = (err: any): AppError => {
     "Database connection error",
     503,
     "DATABASE_CONNECTION_ERROR",
-    { originalError: err.message }
+    { originalError: err.message },
   );
 };
 
 // Request validation middleware
 export const validateRequest = (
   requiredFields: string[],
-  optionalFields: string[] = []
+  optionalFields: string[] = [],
 ) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const allFields = [...requiredFields, ...optionalFields];
@@ -427,29 +416,29 @@ export const validateRequest = (
       (field) =>
         !providedFields.includes(field) ||
         req.body[field] === undefined ||
-        req.body[field] === null
+        req.body[field] === null,
     );
 
     if (missingFields.length > 0) {
       return next(
         new ValidationError(
           `Missing required fields: ${missingFields.join(", ")}`,
-          { missingFields, providedFields }
-        )
+          { missingFields, providedFields },
+        ),
       );
     }
 
     // Check for unexpected fields
     const unexpectedFields = providedFields.filter(
-      (field) => !allFields.includes(field)
+      (field) => !allFields.includes(field),
     );
 
     if (unexpectedFields.length > 0) {
       return next(
         new ValidationError(
           `Unexpected fields provided: ${unexpectedFields.join(", ")}`,
-          { unexpectedFields, allowedFields: allFields }
-        )
+          { unexpectedFields, allowedFields: allFields },
+        ),
       );
     }
 

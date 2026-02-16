@@ -135,14 +135,13 @@ export default function OnboardingPage() {
 
   // Helper function to redirect to realtor subdomain dashboard
   const redirectToRealtorDashboard = () => {
-    const currentUser = (user || useAuthStore.getState().user) as RealtorUserContext;
+    const currentUser = (user ||
+      useAuthStore.getState().user) as RealtorUserContext;
 
     if (currentUser?.role === "REALTOR" && currentUser.realtor?.slug) {
       // Construct realtor subdomain URL
       const realtorSlug = currentUser.realtor.slug;
       const redirectUrl = `http://${realtorSlug}.${window.location.host}/dashboard`;
-
-      
 
       // Check if cross-domain redirect
       const currentHost = window.location.host;
@@ -157,14 +156,11 @@ export default function OnboardingPage() {
             redirectUrlObj.searchParams.set("token", accessToken);
             redirectUrlObj.searchParams.set("refresh", refreshToken);
 
-            
             window.location.href = redirectUrlObj.toString();
             return;
           }
         }
-      } catch (urlError) {
-        
-      }
+      } catch (urlError) {}
 
       // Fallback to direct navigation
       window.location.href = redirectUrl;
@@ -267,7 +263,7 @@ export default function OnboardingPage() {
 
       try {
         const response = await fetch(
-          `${API_URL}/realtors/check-subdomain?subdomain=${value}`
+          `${API_URL}/realtors/check-subdomain?subdomain=${value}`,
         );
 
         if (response.ok) {
@@ -286,7 +282,6 @@ export default function OnboardingPage() {
           });
         }
       } catch (error) {
-        
         setSubdomainStatus({
           state: "error",
           message: "Check your connection and try again",
@@ -295,7 +290,7 @@ export default function OnboardingPage() {
         setIsCheckingSubdomain(false);
       }
     },
-    [API_URL]
+    [API_URL],
   );
 
   const steps: OnboardingStep[] = [
@@ -352,7 +347,7 @@ export default function OnboardingPage() {
     // If user is already logged in, skip account creation
     if (user) {
       const hasCompletedOnboarding = localStorage.getItem(
-        `onboarding_completed_${user.id}`
+        `onboarding_completed_${user.id}`,
       );
       if (hasCompletedOnboarding === "true") {
         router.push("/realtor/dashboard");
@@ -367,7 +362,7 @@ export default function OnboardingPage() {
   const handleSkip = () => {
     if (
       confirm(
-        "Are you sure you want to skip onboarding? You can always add properties and setup payouts later."
+        "Are you sure you want to skip onboarding? You can always add properties and setup payouts later.",
       )
     ) {
       localStorage.setItem(`onboarding_completed_${user?.id}`, "true");
@@ -462,7 +457,7 @@ export default function OnboardingPage() {
     const subdomainRegex = /^[a-z0-9-]+$/;
     if (!subdomainRegex.test(accountData.subdomain)) {
       toast.error(
-        "Subdomain can only contain lowercase letters, numbers, and hyphens"
+        "Subdomain can only contain lowercase letters, numbers, and hyphens",
       );
       return;
     }
@@ -531,7 +526,7 @@ export default function OnboardingPage() {
       if (response.ok) {
         toast.success(
           "Account created successfully! Continue to complete your profile.",
-          { duration: 4000 }
+          { duration: 4000 },
         );
 
         // Store user email for the final verification step
@@ -561,7 +556,6 @@ export default function OnboardingPage() {
         toast.error(errorMessage);
       }
     } catch (error) {
-      
       toast.error("Failed to create account. Please try again.");
     } finally {
       setIsCreatingAccount(false);
@@ -592,7 +586,7 @@ export default function OnboardingPage() {
               Authorization: `Bearer ${token}`,
             },
             body: formData,
-          }
+          },
         );
 
         if (logoResponse.ok) {
@@ -624,8 +618,6 @@ export default function OnboardingPage() {
         brandingPayload.logoUrl = logoUrl;
       }
 
-      
-
       const response = await fetch(`${API_URL}/realtors/profile`, {
         method: "PUT",
         headers: {
@@ -642,9 +634,8 @@ export default function OnboardingPage() {
         toast.error(errorData.message || "Failed to save branding");
       }
     } catch (error) {
-      
       toast.error(
-        "Failed to save branding. You can update it later from settings."
+        "Failed to save branding. You can update it later from settings.",
       );
     }
   };
@@ -680,7 +671,6 @@ export default function OnboardingPage() {
           errorMessage.includes("CAC")
         ) {
           // Don't throw error, just inform user they can set this up later
-          
           // This is not an error during onboarding, so we just log it
         } else {
           throw new Error(errorMessage || "Access denied");
@@ -694,9 +684,8 @@ export default function OnboardingPage() {
         throw new Error(errorMessage);
       }
     } catch (error) {
-      
       toast.error(
-        "Failed to save payout info. You can update it later in settings."
+        "Failed to save payout info. You can update it later in settings.",
       );
     }
   };
@@ -763,7 +752,6 @@ export default function OnboardingPage() {
       await response.json();
       return null;
     } catch (error) {
-      
       return null;
     }
   };
@@ -1951,6 +1939,9 @@ function BrandingStep({
 
 // Video Tutorial Step Component
 function VideoTutorialStep({ brandColor }: { brandColor: string }) {
+  const cloudinaryVideoUrl =
+    "https://res.cloudinary.com/dpffxy2bo/video/upload/f_auto,q_auto:good,vc_auto/Stayza_1.mp4";
+
   return (
     <div className="text-center">
       <motion.div
@@ -1964,44 +1955,32 @@ function VideoTutorialStep({ brandColor }: { brandColor: string }) {
       </motion.div>
 
       <h1 className="text-4xl font-bold text-gray-100 mb-4">
-        How to Add Your Properties ðŸ“¹
+        How to Add Your Properties
       </h1>
       <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
         Watch this quick tutorial to learn how to add and manage your properties
         on Stayza Pro.
       </p>
 
-      {/* Video Player Placeholder */}
+      {/* Property tutorial video */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
         className="relative aspect-video max-w-4xl mx-auto mb-8 rounded-xl overflow-hidden shadow-2xl bg-gray-900"
       >
-        <div className="absolute inset-0 p-6 md:p-10 text-left flex flex-col justify-center">
-          <h3 className="text-white text-2xl font-bold mb-6">
-            Quick setup walkthrough
-          </h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            {[
-              "Add a clear property title and full address",
-              "Upload at least one high-quality photo",
-              "Set nightly price, capacity, and house rules",
-              "Publish the listing when all required fields are complete",
-            ].map((item) => (
-              <div
-                key={item}
-                className="rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-sm text-white"
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-          <p className="text-gray-300 text-sm mt-6">
-            You can complete this flow now or return to your dashboard and add
-            properties anytime.
-          </p>
-        </div>
+        <video
+          className="h-full w-full"
+          controls
+          controlsList="nodownload noplaybackrate"
+          disablePictureInPicture
+          preload="metadata"
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <source src={cloudinaryVideoUrl} type="video/mp4" />
+          <source src="/Stayza_1.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
       </motion.div>
 
       {/* Quick Tips */}
@@ -2093,7 +2072,6 @@ function PayoutStep({
           setBanks(data.data || []);
         }
       } catch (error) {
-        
         // Fallback to some common Nigerian banks
         setBanks([
           { code: "044", name: "Access Bank" },
@@ -2354,7 +2332,7 @@ function CompleteStep({
     if (resendCooldown > 0) {
       const timer = setTimeout(
         () => setResendCooldown(resendCooldown - 1),
-        1000
+        1000,
       );
       return () => clearTimeout(timer);
     }
@@ -2403,11 +2381,11 @@ function CompleteStep({
       if (isTimeoutError) {
         toast.error(
           "Email service is temporarily unavailable. Your verification link was already sent to your email. Please check your inbox and spam folder.",
-          { duration: 8000 }
+          { duration: 8000 },
         );
       } else {
         toast.error(
-          "Failed to resend verification email. Please try again later."
+          "Failed to resend verification email. Please try again later.",
         );
       }
     } finally {
@@ -2545,4 +2523,3 @@ function CompleteStep({
     </div>
   );
 }
-

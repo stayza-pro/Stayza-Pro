@@ -4,6 +4,7 @@ import {
   formatBookingStatus as formatBookingStatusUtil,
   getBookingStatusColor as getBookingStatusColorUtil,
 } from "@/utils/bookingEnums";
+import { serviceUtils } from "./utils";
 
 // =====================================================
 // TYPE DEFINITIONS
@@ -276,7 +277,7 @@ const normalizeAdminBooking = (booking: AdminBookingPayload): AdminBooking => {
   const platformFeeFromBooking = toNumber(booking.platformFee);
   const platformFeeFromPayment = toNumber(
     (booking.payment as unknown as { platformFeeAmount?: unknown } | undefined)
-      ?.platformFeeAmount
+      ?.platformFeeAmount,
   );
   const refundAmount = toNumber(booking.payment?.refundAmount ?? 0);
 
@@ -329,7 +330,9 @@ const normalizeAdminBooking = (booking: AdminBookingPayload): AdminBooking => {
     totalPrice,
     totalAmount: paymentAmount > 0 ? paymentAmount : totalPrice,
     commissionAmount:
-      platformFeeFromBooking > 0 ? platformFeeFromBooking : platformFeeFromPayment,
+      platformFeeFromBooking > 0
+        ? platformFeeFromBooking
+        : platformFeeFromPayment,
     hasDisputes,
     disputeCount,
     refundStatus,
@@ -353,7 +356,7 @@ const normalizeAdminBooking = (booking: AdminBookingPayload): AdminBooking => {
  * Get all bookings with advanced filtering and search
  */
 export const getAdminBookings = async (
-  filters: BookingSearchFilters = {}
+  filters: BookingSearchFilters = {},
 ): Promise<BookingsResponse> => {
   try {
     const queryParams = new URLSearchParams();
@@ -366,7 +369,7 @@ export const getAdminBookings = async (
     });
 
     const response = await apiClient.get<BookingsResponse["data"]>(
-      `/admin/bookings?${queryParams.toString()}`
+      `/admin/bookings?${queryParams.toString()}`,
     );
     const rawBookings = Array.isArray(response.data.bookings)
       ? response.data.bookings
@@ -377,15 +380,12 @@ export const getAdminBookings = async (
       data: {
         ...response.data,
         bookings: rawBookings.map((booking) =>
-          normalizeAdminBooking(booking as unknown as AdminBookingPayload)
+          normalizeAdminBooking(booking as unknown as AdminBookingPayload),
         ),
       },
     };
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.message || "Failed to fetch bookings"
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -393,11 +393,11 @@ export const getAdminBookings = async (
  * Get booking statistics for dashboard
  */
 export const getBookingStats = async (
-  period: number = 30
+  period: number = 30,
 ): Promise<BookingStatsResponse> => {
   try {
     const response = await apiClient.get<BookingStatsResponse["data"]>(
-      `/admin/bookings/stats?period=${period}`
+      `/admin/bookings/stats?period=${period}`,
     );
     return {
       ...response,
@@ -407,17 +407,16 @@ export const getBookingStats = async (
           ...response.data.metrics,
           totalRevenue: toNumber(response.data.metrics.totalRevenue),
           totalCommission: toNumber(response.data.metrics.totalCommission),
-          averageBookingValue: toNumber(response.data.metrics.averageBookingValue),
+          averageBookingValue: toNumber(
+            response.data.metrics.averageBookingValue,
+          ),
           conversionRate: toNumber(response.data.metrics.conversionRate),
           cancellationRate: toNumber(response.data.metrics.cancellationRate),
         },
       },
     };
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.message || "Failed to fetch booking statistics"
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -425,18 +424,15 @@ export const getBookingStats = async (
  * Get detailed booking information
  */
 export const getBookingById = async (
-  id: string
+  id: string,
 ): Promise<BookingDetailsResponse> => {
   try {
     const response = await apiClient.get<BookingDetailsResponse["data"]>(
-      `/admin/bookings/${id}`
+      `/admin/bookings/${id}`,
     );
     return response;
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.message || "Failed to fetch booking details"
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -445,19 +441,16 @@ export const getBookingById = async (
  */
 export const updateBookingStatus = async (
   id: string,
-  data: UpdateBookingStatusRequest
+  data: UpdateBookingStatusRequest,
 ): Promise<ApiResponse<{ booking: AdminBooking }>> => {
   try {
     const response = await apiClient.put<{ booking: AdminBooking }>(
       `/admin/bookings/${id}/status`,
-      data
+      data,
     );
     return response;
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.message || "Failed to update booking status"
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -466,7 +459,7 @@ export const updateBookingStatus = async (
  */
 export const cancelBooking = async (
   id: string,
-  data: CancelBookingRequest
+  data: CancelBookingRequest,
 ): Promise<ApiResponse<{ booking: AdminBooking; refundAmount: number }>> => {
   try {
     const response = await apiClient.post<{
@@ -475,10 +468,7 @@ export const cancelBooking = async (
     }>(`/admin/bookings/${id}/cancel`, data);
     return response;
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.message || "Failed to cancel booking"
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -516,7 +506,7 @@ export const formatPaymentMethod = (method: PaymentMethod): string => {
  */
 export const getBookingDuration = (
   checkIn: string,
-  checkOut: string
+  checkOut: string,
 ): number => {
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
@@ -543,7 +533,7 @@ export const isBookingActive = (booking: AdminBooking): boolean => {
  */
 export const formatCurrency = (
   amount: number,
-  currency: string = "NGN"
+  currency: string = "NGN",
 ): string => {
   const currencyPrefix = currency === "NGN" ? "NGN " : `${currency} `;
   const safeAmount = Number.isFinite(amount) ? amount : 0;
@@ -554,12 +544,12 @@ export const formatCurrency = (
  * Get booking urgency level based on check-in date and status
  */
 export const getBookingUrgency = (
-  booking: AdminBooking
+  booking: AdminBooking,
 ): "low" | "medium" | "high" => {
   const checkInDate = new Date(booking.checkInDate);
   const now = new Date();
   const daysUntilCheckIn = Math.ceil(
-    (checkInDate.getTime() - now.getTime()) / (1000 * 3600 * 24)
+    (checkInDate.getTime() - now.getTime()) / (1000 * 3600 * 24),
   );
 
   if (booking.status === "PENDING") {

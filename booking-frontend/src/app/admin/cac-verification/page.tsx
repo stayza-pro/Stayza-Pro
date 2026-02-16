@@ -22,6 +22,7 @@ import {
   rejectCac,
   Realtor,
 } from "@/services/adminService";
+import { serviceUtils } from "@/services";
 import toast from "react-hot-toast";
 import { format, differenceInDays } from "date-fns";
 
@@ -58,7 +59,7 @@ export default function CacVerificationPage() {
 
       // Filter to show only those needing CAC verification
       const needsVerification = response.realtors.filter(
-        (r) => r.cacStatus === "PENDING" || r.cacStatus === "REJECTED"
+        (r) => r.cacStatus === "PENDING" || r.cacStatus === "REJECTED",
       );
 
       setRealtors(needsVerification);
@@ -67,10 +68,7 @@ export default function CacVerificationPage() {
         total: needsVerification.length,
       });
     } catch (error: any) {
-      
-      toast.error(
-        error.response?.data?.message || "Failed to load CAC verifications"
-      );
+      toast.error(serviceUtils.extractErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +82,7 @@ export default function CacVerificationPage() {
       toast.success(`CAC approved for ${selectedRealtor.businessName}!`);
       fetchRealtors();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to approve CAC");
+      toast.error(serviceUtils.extractErrorMessage(error));
       throw error;
     }
   };
@@ -96,7 +94,7 @@ export default function CacVerificationPage() {
       toast.success(`CAC rejected for ${selectedRealtor.businessName}`);
       fetchRealtors();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to reject CAC");
+      toast.error(serviceUtils.extractErrorMessage(error));
       throw error;
     }
   };
@@ -272,7 +270,7 @@ export default function CacVerificationPage() {
                 <p className="text-2xl font-bold text-gray-900">
                   {
                     realtors.filter(
-                      (r) => r.cacStatus === "REJECTED" && r.canAppeal
+                      (r) => r.cacStatus === "REJECTED" && r.canAppeal,
                     ).length
                   }
                 </p>
@@ -440,7 +438,7 @@ export default function CacVerificationPage() {
                       Rejected:{" "}
                       {format(
                         new Date(selectedRealtor.cacRejectedAt),
-                        "MMM dd, yyyy"
+                        "MMM dd, yyyy",
                       )}
                     </span>
                   )}

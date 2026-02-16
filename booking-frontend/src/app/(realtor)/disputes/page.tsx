@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
 import { disputeService } from "@/services/disputes";
+import { serviceUtils } from "@/services";
 import { Dispute, DisputeStats } from "@/types/dispute";
 import {
   AlertCircle,
@@ -55,8 +56,7 @@ export default function RealtorDisputesPage() {
       const data = await disputeService.getRealtorDisputes(filterStatus);
       setDisputes(data);
     } catch (error: any) {
-      
-      showError(error.response?.data?.message || "Failed to load disputes");
+      showError(serviceUtils.extractErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -66,9 +66,7 @@ export default function RealtorDisputesPage() {
     try {
       const data = await disputeService.getRealtorDisputeStats();
       setStats(data);
-    } catch (error) {
-      
-    }
+    } catch (error) {}
   };
 
   const handleViewDispute = (dispute: Dispute) => {
@@ -102,8 +100,7 @@ export default function RealtorDisputesPage() {
       await fetchDisputes();
       await fetchStats();
     } catch (error: any) {
-      
-      showError(error.response?.data?.message || "Failed to submit response");
+      showError(serviceUtils.extractErrorMessage(error));
     } finally {
       setIsResponding(false);
     }
@@ -125,8 +122,7 @@ export default function RealtorDisputesPage() {
       await fetchDisputes();
       await fetchStats();
     } catch (error: any) {
-      
-      showError(error.response?.data?.message || "Failed to accept dispute");
+      showError(serviceUtils.extractErrorMessage(error));
     } finally {
       setIsAccepting(false);
     }
@@ -466,7 +462,7 @@ export default function RealtorDisputesPage() {
                             <span className="text-xs text-gray-500">
                               {formatDistanceToNow(
                                 new Date(message.createdAt),
-                                { addSuffix: true }
+                                { addSuffix: true },
                               )}
                             </span>
                           </div>

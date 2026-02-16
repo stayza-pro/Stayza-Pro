@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/authStore";
+import { serviceUtils } from "@/services";
 
 // Force dynamic rendering since this page uses search params
 export const dynamic = "force-dynamic";
@@ -50,19 +51,16 @@ function RealtorLoginContent() {
     setError("");
 
     try {
-      
       const response = await login(email, password);
 
       // Check if user is a realtor after successful login
       const { user } = useAuthStore.getState();
       if (user && user.role !== "REALTOR") {
         toast.error(
-          "This login is for realtors only. Please use the correct login page for your account type."
+          "This login is for realtors only. Please use the correct login page for your account type.",
         );
         return;
       }
-
-      
 
       toast.success(`Welcome back, ${user?.firstName}!`);
 
@@ -73,7 +71,6 @@ function RealtorLoginContent() {
       // Use backend-provided redirect URL if available
       if (loginResponse?.redirectUrl) {
         redirectUrl = loginResponse.redirectUrl;
-        
 
         // Fix: If backend returns localhost URL in production, replace with actual domain
         if (
@@ -85,10 +82,9 @@ function RealtorLoginContent() {
           redirectUrl = redirectUrl
             .replace(
               /http:\/\/([^.]+)\.localhost:3000/,
-              `https://$1.${currentHost}`
+              `https://$1.${currentHost}`,
             )
             .replace(/http:\/\/localhost:3000/, `https://${currentHost}`);
-          
         }
       } else if (
         user?.role === "REALTOR" &&
@@ -99,13 +95,10 @@ function RealtorLoginContent() {
         redirectUrl = `http://${user.realtor.slug}.${
           window.location.host
         }/dashboard`;
-        
       }
 
       // Handle cross-domain navigation
       setTimeout(() => {
-        
-
         const currentHost = window.location.host;
         try {
           const redirectHost = new URL(redirectUrl, window.location.origin)
@@ -113,7 +106,6 @@ function RealtorLoginContent() {
 
           if (currentHost !== redirectHost) {
             // Cross-domain redirect (realtor subdomain)
-            
 
             // Add authentication tokens to URL for cross-domain transfer
             const { accessToken, refreshToken } = useAuthStore.getState();
@@ -122,41 +114,36 @@ function RealtorLoginContent() {
               redirectUrlObj.searchParams.set("token", accessToken);
               redirectUrlObj.searchParams.set("refresh", refreshToken);
 
-              
               window.location.href = redirectUrlObj.toString();
             } else {
               window.location.href = redirectUrl;
             }
           } else {
             // Same-domain redirect
-            
+
             router.push(redirectUrl);
           }
         } catch {
           // Fallback for relative URLs
-          
+
           router.push(redirectUrl);
         }
       }, 1000); // Small delay to show success message
     } catch (error: unknown) {
-      
-
       // Handle different types of errors
       const httpError = error as HttpLikeError;
       if (httpError.response) {
         // Server responded with error status
-        const message =
-          httpError.response.data?.message ||
-          "Login failed. Please check your credentials.";
+        const message = serviceUtils.extractErrorMessage(error);
         setError(message);
       } else if (httpError.request) {
         // Network error - server not reachable
         setError(
-          "Unable to connect to server. Please check your internet connection and try again."
+          "Unable to connect to server. Please check your internet connection and try again.",
         );
       } else {
         // Other error
-        setError(httpError.message || "Login failed. Please try again.");
+        setError(serviceUtils.extractErrorMessage(error));
       }
     }
   };

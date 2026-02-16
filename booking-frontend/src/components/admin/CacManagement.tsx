@@ -25,7 +25,7 @@ import { format } from "date-fns";
 
 import { Card, Button, Loading } from "@/components/ui";
 import { Realtor, CacStatus, RealtorStatus } from "@/types";
-import { realtorService } from "@/services";
+import { realtorService, serviceUtils } from "@/services";
 
 interface CacManagementProps {
   className?: string;
@@ -58,7 +58,7 @@ export const CacManagement: React.FC<CacManagementProps> = ({
       }),
     {
       refetchInterval: 30000, // Refresh every 30 seconds
-    }
+    },
   );
 
   // Approve CAC mutation
@@ -71,9 +71,12 @@ export const CacManagement: React.FC<CacManagementProps> = ({
         setSelectedRealtor(null);
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || "Failed to approve CAC");
+        toast.error(
+          serviceUtils.extractErrorMessage(error) ||
+            "Unable to approve CAC right now. Please try again.",
+        );
       },
-    }
+    },
   );
 
   // Reject CAC mutation
@@ -89,9 +92,12 @@ export const CacManagement: React.FC<CacManagementProps> = ({
         setRejectionReason("");
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || "Failed to reject CAC");
+        toast.error(
+          serviceUtils.extractErrorMessage(error) ||
+            "Unable to reject CAC right now. Please try again.",
+        );
       },
-    }
+    },
   );
 
   const realtors = realtorsData?.data || [];
@@ -103,7 +109,7 @@ export const CacManagement: React.FC<CacManagementProps> = ({
       realtor.user?.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       realtor.corporateRegNumber
         ?.toLowerCase()
-        .includes(searchQuery.toLowerCase())
+        .includes(searchQuery.toLowerCase()),
   );
 
   const handleApproveCac = (realtor: Realtor) => {
@@ -232,7 +238,7 @@ export const CacManagement: React.FC<CacManagementProps> = ({
             <strong>Suspended until:</strong>{" "}
             {format(
               new Date(realtor.suspensionExpiresAt),
-              "MMM dd, yyyy HH:mm"
+              "MMM dd, yyyy HH:mm",
             )}
           </p>
           {realtor.canAppeal && (

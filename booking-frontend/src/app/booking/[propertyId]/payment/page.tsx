@@ -22,6 +22,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService } from "@/services/bookings";
 import { paymentService } from "@/services/payments";
+import { serviceUtils } from "@/services";
 import { useAuthStore } from "@/store/authStore";
 import type { SavedPaymentMethod } from "@/services/payments";
 import type { Booking, User } from "@/types";
@@ -57,22 +58,8 @@ interface PaystackPop {
   }) => PaystackHandler;
 }
 
-interface AppError {
-  message?: string;
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
-}
-
 const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (typeof error === "object" && error !== null) {
-    const appError = error as AppError;
-    return appError.response?.data?.message || appError.message || fallback;
-  }
-
-  return fallback;
+  return serviceUtils.extractErrorMessage(error) || fallback;
 };
 
 const getBookingImageUrl = (booking: Booking | null): string | null => {
@@ -143,12 +130,10 @@ export default function PaymentPage() {
     paystackScript.id = "paystack-script";
 
     paystackScript.onload = () => {
-      
       setIsPaystackLoaded(true);
     };
 
     paystackScript.onerror = () => {
-      
       setError("Failed to load payment system. Please refresh the page.");
       setPaymentStatus("failed");
     };
@@ -172,14 +157,14 @@ export default function PaymentPage() {
 
       if (!currentUser && !userLoading) {
         router.push(
-          `/guest/login?redirect=/booking/${propertyId}/payment?bookingId=${bookingId}`
+          `/guest/login?redirect=/booking/${propertyId}/payment?bookingId=${bookingId}`,
         );
         return;
       }
 
       try {
         const bookingData = await bookingService.getBooking(bookingId);
-        
+
         setBooking(bookingData);
 
         if (!hasTrackedPaymentViewRef.current) {
@@ -257,7 +242,7 @@ export default function PaymentPage() {
     if (!currentUser) {
       setError("Please log in to continue with payment");
       router.push(
-        `/guest/login?redirect=/booking/${propertyId}/payment?bookingId=${bookingId}&paymentMethod=${paymentMethod}`
+        `/guest/login?redirect=/booking/${propertyId}/payment?bookingId=${bookingId}&paymentMethod=${paymentMethod}`,
       );
       return;
     }
@@ -272,20 +257,16 @@ export default function PaymentPage() {
 
   const initiatePaystackPayment = async (
     currentUser: User,
-    currentBooking: Booking
+    currentBooking: Booking,
   ) => {
     setPaymentStatus("processing");
     setError("");
 
     try {
-      
-
       // Call backend API to initialize payment
       const response = await paymentService.initializePaystackPayment({
         bookingId: currentBooking.id,
       });
-
-      
 
       if (!response.reference) {
         throw new Error("No payment reference received from server");
@@ -296,7 +277,7 @@ export default function PaymentPage() {
         .PaystackPop;
       if (!paystackPop) {
         throw new Error(
-          "Paystack payment system not loaded. Please refresh the page."
+          "Paystack payment system not loaded. Please refresh the page.",
         );
       }
 
@@ -325,15 +306,10 @@ export default function PaymentPage() {
           ],
         },
         onClose: function () {
-          
           setPaymentStatus("ready");
           setError("Payment was cancelled. Please try again when ready.");
         },
         callback: function (paystackResponse: PaystackCallbackResponse) {
-          
-          
-          
-
           // Handle verification in a separate async call
           const verifyAndRedirect = async () => {
             setPaymentStatus("processing");
@@ -360,10 +336,8 @@ export default function PaymentPage() {
               const verifyResponse = await paymentService.verifyPaystackPayment(
                 {
                   reference: reference,
-                }
+                },
               );
-
-              
 
               if (verifyResponse.success) {
                 void paymentService.trackCheckoutEvent({
@@ -384,7 +358,7 @@ export default function PaymentPage() {
                       paymentId: verifyResponse.payment.id,
                       bookingId: verifyResponse.booking.id,
                       reference: reference,
-                    })
+                    }),
                   );
                 }
 
@@ -396,7 +370,7 @@ export default function PaymentPage() {
                 }, 1500);
               } else {
                 throw new Error(
-                  verifyResponse.message || "Payment verification failed"
+                  verifyResponse.message || "Payment verification failed",
                 );
               }
             } catch (error: unknown) {
@@ -405,18 +379,15 @@ export default function PaymentPage() {
                 bookingId: currentBooking.id,
                 propertyId: currentBooking.propertyId,
                 context: {
-                  message: getErrorMessage(
-                    error,
-                    "verify_paystack_failed"
-                  ),
+                  message: getErrorMessage(error, "verify_paystack_failed"),
                 },
               });
               setPaymentStatus("failed");
               setError(
                 getErrorMessage(
                   error,
-                  "Payment completed but verification failed. Please contact support."
-                )
+                  "Payment completed but verification failed. Please contact support.",
+                ),
               );
             }
           };
@@ -434,7 +405,10 @@ export default function PaymentPage() {
     } catch (error: unknown) {
       setPaymentStatus("failed");
       setError(
-        getErrorMessage(error, "Failed to initialize payment. Please try again.")
+        getErrorMessage(
+          error,
+          "Failed to initialize payment. Please try again.",
+        ),
       );
     }
   };
@@ -479,7 +453,7 @@ export default function PaymentPage() {
             paymentId: result.payment.id,
             bookingId: result.booking.id,
             reference: result.payment.reference,
-          })
+          }),
         );
       }
 
@@ -500,8 +474,8 @@ export default function PaymentPage() {
       setError(
         getErrorMessage(
           error,
-          "Saved method payment failed. Please try Paystack checkout."
-        )
+          "Saved method payment failed. Please try Paystack checkout.",
+        ),
       );
     }
   }, [booking, selectedSavedMethodId, router]);
@@ -518,7 +492,7 @@ export default function PaymentPage() {
     }
     if (!selectedSavedMethodId) {
       setError(
-        "No saved card found for one-click rebooking. Choose a payment option below."
+        "No saved card found for one-click rebooking. Choose a payment option below.",
       );
       return;
     }
@@ -573,16 +547,14 @@ export default function PaymentPage() {
 
     // Validate dates
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-      
       return null;
     }
     if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-      
       return null;
     }
 
     const nights = Math.ceil(
-      (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
+      (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     const roomFee = Number(booking.roomFee ?? 0);
@@ -602,7 +574,7 @@ export default function PaymentPage() {
       (
         booking.totalPrice ||
         subtotal + serviceFee + cleaningFee + securityDeposit
-      ).toFixed(2)
+      ).toFixed(2),
     );
 
     return {
@@ -830,12 +802,13 @@ export default function PaymentPage() {
                       <h3 className="text-lg font-semibold text-gray-900">
                         {booking.property?.title || "Property"}
                       </h3>
-                      {sensitiveDetailsUnlocked && booking.property?.address && (
-                        <p className="text-gray-600 text-sm mt-1 flex items-start">
-                          <MapPin className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
-                          {booking.property.address}
-                        </p>
-                      )}
+                      {sensitiveDetailsUnlocked &&
+                        booking.property?.address && (
+                          <p className="text-gray-600 text-sm mt-1 flex items-start">
+                            <MapPin className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
+                            {booking.property.address}
+                          </p>
+                        )}
                       {!sensitiveDetailsUnlocked && (
                         <p className="text-amber-700 text-sm mt-1 flex items-start">
                           <MapPin className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
@@ -938,7 +911,10 @@ export default function PaymentPage() {
                           className="w-full mb-3 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700"
                         >
                           {savedMethods.map((method) => (
-                            <option key={method.methodId} value={method.methodId}>
+                            <option
+                              key={method.methodId}
+                              value={method.methodId}
+                            >
                               {getSavedMethodLabel(method)}
                             </option>
                           ))}
@@ -1079,14 +1055,14 @@ export default function PaymentPage() {
                             <span className="text-sm">
                               {formatPrice(
                                 priceBreakdown.pricePerNight,
-                                priceBreakdown.currency
+                                priceBreakdown.currency,
                               )}{" "}
                               x {priceBreakdown.nights} nights
                             </span>
                             <span className="font-medium">
                               {formatPrice(
                                 priceBreakdown.subtotal,
-                                priceBreakdown.currency
+                                priceBreakdown.currency,
                               )}
                             </span>
                           </div>
@@ -1097,7 +1073,7 @@ export default function PaymentPage() {
                               <span className="font-medium">
                                 {formatPrice(
                                   priceBreakdown.cleaningFee,
-                                  priceBreakdown.currency
+                                  priceBreakdown.currency,
                                 )}
                               </span>
                             </div>
@@ -1107,8 +1083,10 @@ export default function PaymentPage() {
                             <div className="flex justify-between text-gray-700">
                               <div>
                                 <span className="text-sm">Service fee</span>
-                                {(priceBreakdown.serviceFeeBreakdown.stayza > 0 ||
-                                  priceBreakdown.serviceFeeBreakdown.processing > 0) && (
+                                {(priceBreakdown.serviceFeeBreakdown.stayza >
+                                  0 ||
+                                  priceBreakdown.serviceFeeBreakdown
+                                    .processing > 0) && (
                                   <p className="text-xs text-gray-500">
                                     Includes Stayza + processing fee
                                   </p>
@@ -1117,7 +1095,7 @@ export default function PaymentPage() {
                               <span className="font-medium">
                                 {formatPrice(
                                   priceBreakdown.serviceFee,
-                                  priceBreakdown.currency
+                                  priceBreakdown.currency,
                                 )}
                               </span>
                             </div>
@@ -1131,7 +1109,7 @@ export default function PaymentPage() {
                               <span className="font-medium">
                                 {formatPrice(
                                   priceBreakdown.securityDeposit,
-                                  priceBreakdown.currency
+                                  priceBreakdown.currency,
                                 )}
                               </span>
                             </div>
@@ -1143,7 +1121,7 @@ export default function PaymentPage() {
                               <span className="font-medium">
                                 {formatPrice(
                                   priceBreakdown.taxes,
-                                  priceBreakdown.currency
+                                  priceBreakdown.currency,
                                 )}
                               </span>
                             </div>
@@ -1166,7 +1144,7 @@ export default function PaymentPage() {
                           >
                             {formatPrice(
                               priceBreakdown.total,
-                              priceBreakdown.currency
+                              priceBreakdown.currency,
                             )}
                           </span>
                         </div>
@@ -1201,4 +1179,3 @@ export default function PaymentPage() {
     </div>
   );
 }
-

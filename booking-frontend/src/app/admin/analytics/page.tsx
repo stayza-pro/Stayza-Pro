@@ -20,6 +20,7 @@ import {
   LeakageMetrics,
   PlatformAnalytics,
 } from "@/services/adminService";
+import { serviceUtils } from "@/services";
 import RevenueTracking from "@/components/admin/RevenueTracking";
 import toast from "react-hot-toast";
 import {
@@ -47,20 +48,13 @@ const getWindowDays = (timeRange: TimeRange): number => {
 };
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
-  if (typeof error === "object" && error !== null) {
-    const maybeError = error as {
-      message?: string;
-      response?: { data?: { message?: string } };
-    };
-    return maybeError.response?.data?.message || maybeError.message || fallback;
-  }
-  return fallback;
+  return serviceUtils.extractErrorMessage(error) || fallback;
 };
 
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
   const [leakageMetrics, setLeakageMetrics] = useState<LeakageMetrics | null>(
-    null
+    null,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
@@ -184,7 +178,7 @@ export default function AnalyticsPage() {
       overviewWithCommission?.totalCommissions ??
       overviewWithCommission?.commissionEarned ??
       0,
-    0
+    0,
   );
   const MetricCard = ({
     title,
@@ -295,7 +289,7 @@ export default function AnalyticsPage() {
               <MetricCard
                 title="Total Revenue"
                 value={formatCurrency(
-                  safeNumber(analytics?.overview.totalRevenue, 0)
+                  safeNumber(analytics?.overview.totalRevenue, 0),
                 )}
                 icon={DollarSign}
                 trend={revenueGrowth >= 0 ? "up" : "down"}
@@ -353,7 +347,9 @@ export default function AnalyticsPage() {
                   </p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Payment Conversion</p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    Payment Conversion
+                  </p>
                   <p className="text-2xl font-bold text-green-700">
                     {safeNumber(leakageMetrics?.conversionRate, 0).toFixed(1)}%
                   </p>
@@ -379,7 +375,7 @@ export default function AnalyticsPage() {
                   <p className="text-2xl font-bold text-amber-700">
                     {safeNumber(
                       leakageMetrics?.checkoutToPaymentDropOffRate,
-                      0
+                      0,
                     ).toFixed(1)}
                     %
                   </p>
@@ -391,7 +387,7 @@ export default function AnalyticsPage() {
                   <p className="text-2xl font-bold text-orange-700">
                     {safeNumber(
                       leakageMetrics?.paymentToSuccessDropOffRate,
-                      0
+                      0,
                     ).toFixed(1)}
                     %
                   </p>
@@ -403,7 +399,7 @@ export default function AnalyticsPage() {
                   <p className="text-2xl font-bold text-blue-700">
                     {safeNumber(
                       leakageMetrics?.funnel?.savedMethodSuccesses,
-                      0
+                      0,
                     )}
                   </p>
                 </div>
@@ -548,11 +544,13 @@ export default function AnalyticsPage() {
                     <p className="text-2xl font-bold text-blue-600">
                       {(() => {
                         const totalRevenue = parseFloat(
-                          String(safeNumber(analytics?.overview.totalRevenue, 0))
+                          String(
+                            safeNumber(analytics?.overview.totalRevenue, 0),
+                          ),
                         );
                         const totalBookings = safeNumber(
                           analytics?.overview.totalBookings,
-                          0
+                          0,
                         );
                         const avgValue =
                           totalBookings > 0 ? totalRevenue / totalBookings : 0;

@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import { serviceUtils } from "./utils";
 
 // =====================================================
 // TYPE DEFINITIONS
@@ -67,7 +68,7 @@ export interface UpdateSettingRequest {
  * Get all platform settings, optionally filtered by category
  */
 export const getAllSettings = async (
-  category?: string
+  category?: string,
 ): Promise<SettingsResponse> => {
   try {
     const params = category ? { category } : {};
@@ -75,16 +76,11 @@ export const getAllSettings = async (
       "/admin/settings",
       {
         params,
-      }
+      },
     );
     return response;
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.error?.message ||
-        error.response?.data?.message ||
-        "Failed to fetch settings"
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -92,20 +88,15 @@ export const getAllSettings = async (
  * Get a specific setting by key
  */
 export const getSettingByKey = async (
-  key: string
+  key: string,
 ): Promise<SingleSettingResponse> => {
   try {
     const response = await apiClient.get<PlatformSetting>(
-      `/admin/settings/${key}`
+      `/admin/settings/${key}`,
     );
     return response;
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.error?.message ||
-        error.response?.data?.message ||
-        `Failed to fetch setting ${key}`
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -113,7 +104,7 @@ export const getSettingByKey = async (
  * Get settings by category
  */
 export const getSettingsByCategory = async (
-  category: string
+  category: string,
 ): Promise<CategorySettingsResponse> => {
   try {
     const response = await apiClient.get<{
@@ -123,12 +114,7 @@ export const getSettingsByCategory = async (
     }>(`/admin/settings/category/${category}`);
     return response;
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.error?.message ||
-        error.response?.data?.message ||
-        `Failed to fetch ${category} settings`
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -137,21 +123,16 @@ export const getSettingsByCategory = async (
  */
 export const updateSetting = async (
   key: string,
-  data: UpdateSettingRequest
+  data: UpdateSettingRequest,
 ): Promise<SingleSettingResponse> => {
   try {
     const response = await apiClient.put<PlatformSetting>(
       `/admin/settings/${key}`,
-      data
+      data,
     );
     return response;
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.error?.message ||
-        error.response?.data?.message ||
-        `Failed to update setting ${key}`
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -159,21 +140,16 @@ export const updateSetting = async (
  * Create a new platform setting
  */
 export const createSetting = async (
-  data: CreateSettingRequest
+  data: CreateSettingRequest,
 ): Promise<SingleSettingResponse> => {
   try {
     const response = await apiClient.post<PlatformSetting>(
       "/admin/settings",
-      data
+      data,
     );
     return response;
   } catch (error: any) {
-    
-    throw new Error(
-      error.response?.data?.error?.message ||
-        error.response?.data?.message ||
-        "Failed to create setting"
-    );
+    throw new Error(serviceUtils.extractErrorMessage(error));
   }
 };
 
@@ -211,13 +187,13 @@ export const getCommissionRate = async (): Promise<number> => {
  * Update the commission rate
  */
 export const updateCommissionRate = async (
-  rate: number
+  rate: number,
 ): Promise<SingleSettingResponse> => {
   const tiersResponse = await getSettingByKey("finance.commission.tiers.v1");
   const rawTiers = tiersResponse.data.value;
   if (!Array.isArray(rawTiers) || rawTiers.length === 0) {
     throw new Error(
-      "Cannot update base commission rate without finance.commission.tiers.v1"
+      "Cannot update base commission rate without finance.commission.tiers.v1",
     );
   }
 
@@ -252,7 +228,6 @@ export const getPayoutThreshold = async (): Promise<number> => {
     const response = await getSettingByKey("payout_threshold");
     return Number(response.data.value);
   } catch (error) {
-    
     // Return default fallback
     return 10000; // ₦10,000
   }
@@ -262,7 +237,7 @@ export const getPayoutThreshold = async (): Promise<number> => {
  * Update the payout threshold
  */
 export const updatePayoutThreshold = async (
-  threshold: number
+  threshold: number,
 ): Promise<SingleSettingResponse> => {
   return updateSetting("payout_threshold", {
     value: threshold,
@@ -278,7 +253,6 @@ export const getCancellationWindow = async (): Promise<number> => {
     const response = await getSettingByKey("booking_cancellation_window");
     return Number(response.data.value);
   } catch (error) {
-    
     return 24; // 24 hours default
   }
 };
@@ -291,7 +265,6 @@ export const getAutoPayoutEnabled = async (): Promise<boolean> => {
     const response = await getSettingByKey("auto_payout_enabled");
     return Boolean(response.data.value);
   } catch (error) {
-    
     return true; // Default enabled
   }
 };
@@ -300,7 +273,7 @@ export const getAutoPayoutEnabled = async (): Promise<boolean> => {
  * Toggle auto payout
  */
 export const toggleAutoPayout = async (
-  enabled: boolean
+  enabled: boolean,
 ): Promise<SingleSettingResponse> => {
   return updateSetting("auto_payout_enabled", {
     value: enabled,
@@ -318,7 +291,6 @@ export const getMaxPropertyImages = async (): Promise<number> => {
     const response = await getSettingByKey("max_property_images");
     return Number(response.data.value);
   } catch (error) {
-    
     return 10; // Default 10 images
   }
 };
@@ -335,7 +307,6 @@ export const getCommissionSettings = async (): Promise<PlatformSetting[]> => {
     const response = await getSettingsByCategory("commission");
     return response.data.settings;
   } catch (error) {
-    
     return [];
   }
 };
@@ -348,7 +319,6 @@ export const getPayoutSettings = async (): Promise<PlatformSetting[]> => {
     const response = await getSettingsByCategory("payout");
     return response.data.settings;
   } catch (error) {
-    
     return [];
   }
 };
@@ -361,7 +331,6 @@ export const getBookingSettings = async (): Promise<PlatformSetting[]> => {
     const response = await getSettingsByCategory("booking");
     return response.data.settings;
   } catch (error) {
-    
     return [];
   }
 };

@@ -94,14 +94,19 @@ function ResetPasswordContent() {
         }, 2000);
       } else {
         const errorMessage =
-          data.error?.message || data.message || "Failed to reset password";
+          data.error?.message ||
+          data.message ||
+          "We couldn't reset your password. The reset link may be invalid or expired.";
         setError(errorMessage);
         toast.error(errorMessage);
       }
     } catch (error) {
-      
-      setError("Something went wrong. Please try again.");
-      toast.error("Something went wrong. Please try again.");
+      setError(
+        "We couldn't reach the server. Please check your internet connection and try again.",
+      );
+      toast.error(
+        "We couldn't reach the server. Please check your internet connection and try again.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -247,12 +252,12 @@ function ResetPasswordContent() {
                         passwordStrength.strength === 1
                           ? "bg-red-500 w-1/5"
                           : passwordStrength.strength === 2
-                          ? "bg-orange-500 w-2/5"
-                          : passwordStrength.strength === 3
-                          ? "bg-yellow-500 w-3/5"
-                          : passwordStrength.strength === 4
-                          ? "bg-green-500 w-4/5"
-                          : "bg-green-600 w-full"
+                            ? "bg-orange-500 w-2/5"
+                            : passwordStrength.strength === 3
+                              ? "bg-yellow-500 w-3/5"
+                              : passwordStrength.strength === 4
+                                ? "bg-green-500 w-4/5"
+                                : "bg-green-600 w-full"
                       }`}
                     ></div>
                   </div>

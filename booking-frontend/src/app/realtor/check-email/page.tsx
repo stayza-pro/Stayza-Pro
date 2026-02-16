@@ -39,12 +39,13 @@ function CheckEmailContent() {
         const errorMessage =
           data.error?.message ||
           data.message ||
-          "Failed to resend verification email";
+          "We couldn't resend the verification email right now. Please try again.";
         toast.error(errorMessage);
       }
     } catch (error) {
-      
-      toast.error("Network error. Please try again.");
+      toast.error(
+        "We couldn't reach the server. Please check your internet connection and try again.",
+      );
     } finally {
       setIsResending(false);
     }

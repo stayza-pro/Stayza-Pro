@@ -41,12 +41,15 @@ export default function RealtorForgotPasswordPage() {
         toast.success("Password reset link sent! Check your email.");
       } else {
         const errorMessage =
-          data.error?.message || data.message || "Failed to send reset link";
+          data.error?.message ||
+          data.message ||
+          "We couldn't send a reset link for this email. Please check the address and try again.";
         toast.error(errorMessage);
       }
     } catch (error) {
-      
-      toast.error("Something went wrong. Please try again.");
+      toast.error(
+        "We couldn't reach the server. Please check your internet connection and try again.",
+      );
     } finally {
       setIsLoading(false);
     }

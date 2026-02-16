@@ -13,6 +13,7 @@ import {
 import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
 import { DataTable } from "@/components/admin/DataTable";
 import { getAuditLogs, AuditLog } from "@/services/adminService";
+import { serviceUtils } from "@/services";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
 
@@ -56,11 +57,10 @@ export default function AuditLogsPage() {
           limit: 15,
           total: 0,
           totalPages: 0,
-        }
+        },
       );
     } catch (error: any) {
-      
-      toast.error(error.response?.data?.message || "Failed to load audit logs");
+      toast.error(serviceUtils.extractErrorMessage(error));
       setLogs([]);
     } finally {
       setIsLoading(false);
@@ -95,7 +95,7 @@ export default function AuditLogsPage() {
       ...csvData.map((row) =>
         headers
           .map((header) => `"${row[header as keyof typeof row]}"`)
-          .join(",")
+          .join(","),
       ),
     ].join("\n");
 
@@ -161,7 +161,7 @@ export default function AuditLogsPage() {
       render: (log: AuditLog) => (
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getActionBadgeColor(
-            log.action
+            log.action,
           )}`}
         >
           {log.action.replace(/_/g, " ")}

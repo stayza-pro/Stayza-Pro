@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { palette } from "@/app/(marketing)/content";
 import { LogoLockup } from "@/app/(marketing)/components/LogoLockup";
 import { authService } from "@/services/auth";
+import { serviceUtils } from "@/services";
 import { TestCredentials } from "@/components/dev/TestCredentials";
 
 // Force dynamic rendering since this page uses search params
@@ -44,14 +45,10 @@ function AdminLoginContent() {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
-      
-
       const result = await authService.login({
         email: trimmedEmail,
         password: trimmedPassword,
       });
-
-      
 
       if (result.user) {
         // Check if user is an admin
@@ -59,7 +56,7 @@ function AdminLoginContent() {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("refreshToken");
           toast.error(
-            "This login is for administrators only. Please use the correct login page for your account type."
+            "This login is for administrators only. Please use the correct login page for your account type.",
           );
           return;
         }
@@ -68,11 +65,7 @@ function AdminLoginContent() {
         router.push(returnTo);
       }
     } catch (err: any) {
-      
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Login failed. Please check your credentials.";
+      const errorMessage = serviceUtils.extractErrorMessage(err);
       setError(errorMessage);
     } finally {
       setIsLoading(false);

@@ -24,6 +24,7 @@ import {
   Realtor,
   RealtorListResponse,
 } from "@/services/adminService";
+import { serviceUtils } from "@/services";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
 
@@ -66,8 +67,7 @@ export default function RealtorsPage() {
       setRealtors(response.realtors);
       setPagination(response.pagination);
     } catch (error: any) {
-      
-      toast.error(error.response?.data?.message || "Failed to load realtors");
+      toast.error(serviceUtils.extractErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -81,7 +81,7 @@ export default function RealtorsPage() {
       toast.success(`${selectedRealtor.businessName} has been approved!`);
       fetchRealtors();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to approve realtor");
+      toast.error(serviceUtils.extractErrorMessage(error));
       throw error;
     }
   };
@@ -93,7 +93,7 @@ export default function RealtorsPage() {
       toast.success(`${selectedRealtor.businessName} has been rejected`);
       fetchRealtors();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to reject realtor");
+      toast.error(serviceUtils.extractErrorMessage(error));
       throw error;
     }
   };
@@ -105,7 +105,7 @@ export default function RealtorsPage() {
       toast.success(`${selectedRealtor.businessName} has been suspended`);
       fetchRealtors();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to suspend realtor");
+      toast.error(serviceUtils.extractErrorMessage(error));
       throw error;
     }
   };
@@ -117,9 +117,7 @@ export default function RealtorsPage() {
       toast.success(`${selectedRealtor.businessName} has been reinstated`);
       fetchRealtors();
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "Failed to reinstate realtor"
-      );
+      toast.error(serviceUtils.extractErrorMessage(error));
       throw error;
     }
   };
@@ -475,7 +473,7 @@ export default function RealtorsPage() {
                       <p className="font-medium">
                         {format(
                           new Date(selectedRealtor.createdAt),
-                          "MMMM dd, yyyy"
+                          "MMMM dd, yyyy",
                         )}
                       </p>
                     </div>
@@ -485,7 +483,7 @@ export default function RealtorsPage() {
                         <p className="font-medium">
                           {format(
                             new Date(selectedRealtor.cacVerifiedAt),
-                            "MMMM dd, yyyy"
+                            "MMMM dd, yyyy",
                           )}
                         </p>
                       </div>
@@ -496,7 +494,7 @@ export default function RealtorsPage() {
                         <p className="font-medium text-red-600">
                           {format(
                             new Date(selectedRealtor.cacRejectedAt),
-                            "MMMM dd, yyyy"
+                            "MMMM dd, yyyy",
                           )}
                         </p>
                       </div>
@@ -519,7 +517,7 @@ export default function RealtorsPage() {
                         {selectedRealtor.suspensionExpiresAt &&
                           format(
                             new Date(selectedRealtor.suspensionExpiresAt),
-                            "MMMM dd, yyyy"
+                            "MMMM dd, yyyy",
                           )}
                       </p>
                     )}

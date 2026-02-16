@@ -11,7 +11,7 @@ export { AuthenticatedRequest };
 export const authenticate = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
@@ -19,7 +19,7 @@ export const authenticate = async (
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       res.status(401).json({
         success: false,
-        message: "Access token required",
+        message: "Please sign in to continue",
       });
       return;
     }
@@ -59,7 +59,7 @@ export const authenticate = async (
     if (!user) {
       res.status(401).json({
         success: false,
-        message: "Invalid token - user not found",
+        message: "Your session is no longer valid. Please sign in again.",
       });
       return;
     }
@@ -70,7 +70,7 @@ export const authenticate = async (
     if (error instanceof jwt.TokenExpiredError) {
       res.status(401).json({
         success: false,
-        message: "Token expired",
+        message: "Your session has expired. Please sign in again.",
       });
       return;
     }
@@ -78,14 +78,14 @@ export const authenticate = async (
     if (error instanceof jwt.JsonWebTokenError) {
       res.status(401).json({
         success: false,
-        message: "Invalid token",
+        message: "Your session is invalid. Please sign in again.",
       });
       return;
     }
 
     res.status(500).json({
       success: false,
-      message: "Authentication error",
+      message: "Unable to verify your session right now. Please try again.",
     });
     return;
   }
@@ -95,7 +95,7 @@ export const authenticate = async (
 export const optionalAuthenticate = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
@@ -144,7 +144,6 @@ export const optionalAuthenticate = async (
       }
     } catch (error) {
       // Token invalid or expired - continue without user
-      
     }
 
     next();
@@ -157,7 +156,7 @@ export const authorize = (...roles: UserRole[]) => {
   return (
     req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): void => {
     if (!req.user) {
       res.status(401).json({
@@ -187,7 +186,7 @@ export const requireRole = (role: UserRole) => {
 export const optionalAuth = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const authHeader = req.headers.authorization;
 
@@ -243,7 +242,7 @@ export const optionalAuth = async (
 export const requireApprovedRealtor = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -367,7 +366,6 @@ export const requireApprovedRealtor = async (
     req.realtor = realtor;
     next();
   } catch (error) {
-    
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -382,7 +380,7 @@ export const requireApprovedRealtor = async (
 export const requireRealtorDashboardAccess = async (
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -455,10 +453,10 @@ export const requireRealtorDashboardAccess = async (
 
     next();
   } catch (error) {
-    
     res.status(500).json({
       success: false,
-      message: "Authentication failed",
+      message:
+        "Unable to verify your account status right now. Please try again.",
     });
   }
 };

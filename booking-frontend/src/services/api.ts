@@ -6,6 +6,7 @@ import axios, {
 } from "axios";
 import { toast } from "react-hot-toast";
 import { getCookie, setCookie, deleteCookie } from "@/utils/cookies";
+import { serviceUtils } from "./utils";
 
 const normalizeApiUrl = (value: string): string => {
   const trimmed = value.replace(/\/+$/, "");
@@ -153,13 +154,12 @@ api.interceptors.response.use(
 
     // Handle other errors
     const message =
-      (typeof error.response?.data === "object" &&
-      error.response?.data !== null &&
-      "message" in error.response.data
-        ? String((error.response.data as { message?: string }).message)
-        : undefined) ||
-      error.message ||
-      "An error occurred";
+      serviceUtils.extractErrorMessage(error) || "An error occurred";
+
+    // Normalize Axios error message so downstream consumers get readable text
+    if (error && typeof error === "object") {
+      (error as AxiosError).message = message;
+    }
 
     // Don't show toast for certain errors
     const silentErrors = [400, 401, 403, 404];
