@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Calendar as CalendarIcon,
   Users,
-  CreditCard,
   Lock,
   CheckCircle2,
   Info,
@@ -19,7 +18,7 @@ import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { bookingService } from "@/services";
+import { bookingService, paymentService } from "@/services";
 
 interface GuestInfo {
   firstName: string;
@@ -29,11 +28,17 @@ interface GuestInfo {
   specialRequests: string;
 }
 
-interface PaymentInfo {
-  cardNumber: string;
-  cardName: string;
-  expiryDate: string;
-  cvv: string;
+interface PaystackPopup {
+  setup: (config: {
+    key?: string;
+    email: string;
+    amount: number;
+    currency: string;
+    ref: string;
+    metadata: Record<string, unknown>;
+    callback: (response: { reference?: string; trxref?: string }) => void;
+    onClose: () => void;
+  }) => { openIframe: () => void };
 }
 
 export default function BookingCheckoutPage() {
@@ -66,6 +71,11 @@ export default function BookingCheckoutPage() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [createdBooking, setCreatedBooking] = useState<{
+    id: string;
+    totalPrice: number;
+    currency: string;
+  } | null>(null);
 
   const [checkIn, setCheckIn] = useState(searchParams.get("checkIn") || "");
   const [checkOut, setCheckOut] = useState(searchParams.get("checkOut") || "");
@@ -79,13 +89,6 @@ export default function BookingCheckoutPage() {
     email: user?.email || "",
     phone: "",
     specialRequests: "",
-  });
-
-  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
-    cardNumber: "",
-    cardName: "",
-    expiryDate: "",
-    cvv: "",
   });
 
   const [bookingCalculation, setBookingCalculation] = useState<{
@@ -114,6 +117,17 @@ export default function BookingCheckoutPage() {
       router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [userLoading, user, router, propertyId, checkIn, checkOut, guests]);
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://js.paystack.co/v1/inline.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchBookingCalculation = async () => {
@@ -210,12 +224,7 @@ export default function BookingCheckoutPage() {
     }
 
     if (step === 3) {
-      return Boolean(
-        paymentInfo.cardNumber.trim() &&
-        paymentInfo.cardName.trim() &&
-        paymentInfo.expiryDate.trim() &&
-        paymentInfo.cvv.trim(),
-      );
+      return true;
     }
 
     return false;
@@ -237,17 +246,101 @@ export default function BookingCheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      const booking = await bookingService.createBooking({
-        propertyId,
-        checkIn: new Date(checkIn),
-        checkOut: new Date(checkOut),
-        guests,
-        specialRequests: guestInfo.specialRequests,
+      let bookingId = createdBooking?.id;
+      let bookingAmount = createdBooking?.totalPrice ?? total;
+      let bookingCurrency = createdBooking?.currency ?? currency;
+
+      if (!bookingId) {
+        const booking = await bookingService.createBooking({
+          propertyId,
+          checkIn: new Date(checkIn),
+          checkOut: new Date(checkOut),
+          guests,
+          specialRequests: guestInfo.specialRequests,
+        });
+
+        bookingId = booking.id;
+        bookingAmount = booking.totalPrice || bookingAmount;
+        bookingCurrency = booking.currency || bookingCurrency;
+
+        setCreatedBooking({
+          id: booking.id,
+          totalPrice: booking.totalPrice || bookingAmount,
+          currency: booking.currency || bookingCurrency,
+        });
+      }
+
+      const paystack = (window as unknown as { PaystackPop?: PaystackPopup })
+        .PaystackPop;
+      if (!paystack) {
+        throw new Error(
+          "Payment system not loaded. Please refresh and try again.",
+        );
+      }
+
+      const initResponse = await paymentService.initializePaystackPayment({
+        bookingId,
       });
 
-      router.push(
-        `/booking/${propertyId}/payment?bookingId=${booking.id}&paymentMethod=paystack`,
-      );
+      if (!initResponse.reference) {
+        throw new Error("Unable to initialize Paystack payment reference.");
+      }
+
+      const paystackKey =
+        process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
+        process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC;
+
+      const currentUser = user;
+      if (!currentUser) {
+        throw new Error("Please log in again to continue with payment.");
+      }
+
+      if (!paystackKey) {
+        throw new Error("Paystack public key is missing.");
+      }
+
+      const handler = paystack.setup({
+        key: paystackKey,
+        email: guestInfo.email.trim() || currentUser.email,
+        amount: Math.round(bookingAmount * 100),
+        currency: bookingCurrency || "NGN",
+        ref: initResponse.reference,
+        metadata: {
+          bookingId,
+          propertyId,
+          guestId: currentUser.id,
+          guestName: `${guestInfo.firstName} ${guestInfo.lastName}`.trim(),
+          guestPhone: guestInfo.phone,
+        },
+        callback: (response: { reference?: string; trxref?: string }) => {
+          const reference = response.reference || response.trxref;
+          if (!reference) {
+            toast.error("Payment reference missing. Please contact support.");
+            return;
+          }
+
+          paymentService
+            .verifyPaystackPayment({ reference })
+            .then((verification) => {
+              if (verification.success) {
+                toast.success("Booking payment successful!");
+                router.push(`/guest/bookings/${bookingId}`);
+                return;
+              }
+              toast.error(
+                verification.message || "Payment verification failed.",
+              );
+            })
+            .catch(() => {
+              toast.error("Payment verification failed.");
+            });
+        },
+        onClose: () => {
+          toast("Payment cancelled");
+        },
+      });
+
+      handler.openIframe();
     } catch (error: unknown) {
       const message =
         error instanceof Error
@@ -683,102 +776,29 @@ export default function BookingCheckoutPage() {
                       Payment Information
                     </h2>
                     <p style={{ color: colors.neutralDark }}>
-                      Your payment is secure and encrypted
+                      Your payment is secure and encrypted with Paystack
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <label style={{ color: colors.neutralDarkest }}>
-                      Card Number
-                    </label>
-                    <div className="relative">
-                      <CreditCard
-                        className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5"
-                        style={{ color: colors.neutral }}
-                      />
-                      <Input
-                        required
-                        placeholder="1234 5678 9012 3456"
-                        value={paymentInfo.cardNumber}
-                        onChange={(e) =>
-                          setPaymentInfo((prev) => ({
-                            ...prev,
-                            cardNumber: e.target.value,
-                          }))
-                        }
-                        className="pl-12 h-12 rounded-xl"
-                        style={{
-                          backgroundColor: colors.neutralLightest,
-                          borderColor: colors.neutralLight,
-                        }}
-                      />
+                  <div
+                    className="p-4 rounded-xl border"
+                    style={{
+                      backgroundColor: colors.neutralLightest,
+                      borderColor: colors.neutralLight,
+                    }}
+                  >
+                    <div
+                      className="text-sm font-semibold mb-1"
+                      style={{ color: colors.neutralDarkest }}
+                    >
+                      Payment Method
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label style={{ color: colors.neutralDarkest }}>
-                      Cardholder Name
-                    </label>
-                    <Input
-                      required
-                      placeholder="John Doe"
-                      value={paymentInfo.cardName}
-                      onChange={(e) =>
-                        setPaymentInfo((prev) => ({
-                          ...prev,
-                          cardName: e.target.value,
-                        }))
-                      }
-                      className="h-12 rounded-xl"
-                      style={{
-                        backgroundColor: colors.neutralLightest,
-                        borderColor: colors.neutralLight,
-                      }}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label style={{ color: colors.neutralDarkest }}>
-                        Expiry Date
-                      </label>
-                      <Input
-                        required
-                        placeholder="MM/YY"
-                        value={paymentInfo.expiryDate}
-                        onChange={(e) =>
-                          setPaymentInfo((prev) => ({
-                            ...prev,
-                            expiryDate: e.target.value,
-                          }))
-                        }
-                        className="h-12 rounded-xl"
-                        style={{
-                          backgroundColor: colors.neutralLightest,
-                          borderColor: colors.neutralLight,
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label style={{ color: colors.neutralDarkest }}>
-                        CVV
-                      </label>
-                      <Input
-                        required
-                        placeholder="123"
-                        value={paymentInfo.cvv}
-                        onChange={(e) =>
-                          setPaymentInfo((prev) => ({
-                            ...prev,
-                            cvv: e.target.value,
-                          }))
-                        }
-                        className="h-12 rounded-xl"
-                        style={{
-                          backgroundColor: colors.neutralLightest,
-                          borderColor: colors.neutralLight,
-                        }}
-                      />
+                    <div
+                      className="text-sm"
+                      style={{ color: colors.neutralDark }}
+                    >
+                      Paystack inline popup (Card, Bank Transfer, USSD, Mobile
+                      Money)
                     </div>
                   </div>
 

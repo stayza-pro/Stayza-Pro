@@ -30,10 +30,7 @@ export default function GuestPropertyDetailsPage() {
 
   const { user } = useCurrentUser();
   const { data: property, isLoading, error } = useProperty(propertyId);
-  const {
-    brandColor: primaryColor,
-    accentColor,
-  } = useRealtorBranding();
+  const { brandColor: primaryColor, accentColor } = useRealtorBranding();
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
@@ -423,7 +420,11 @@ export default function GuestPropertyDetailsPage() {
                     onClick={() => triggerDatePicker(checkInInputRef.current)}
                     className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-left flex items-center justify-between"
                   >
-                    <span className={checkInDate ? "text-gray-900" : "text-gray-500"}>
+                    <span
+                      className={
+                        checkInDate ? "text-gray-900" : "text-gray-500"
+                      }
+                    >
                       {checkInDate
                         ? new Date(checkInDate).toLocaleDateString("en-US", {
                             month: "short",
@@ -453,7 +454,11 @@ export default function GuestPropertyDetailsPage() {
                     onClick={() => triggerDatePicker(checkOutInputRef.current)}
                     className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-left flex items-center justify-between"
                   >
-                    <span className={checkOutDate ? "text-gray-900" : "text-gray-500"}>
+                    <span
+                      className={
+                        checkOutDate ? "text-gray-900" : "text-gray-500"
+                      }
+                    >
                       {checkOutDate
                         ? new Date(checkOutDate).toLocaleDateString("en-US", {
                             month: "short",
@@ -510,36 +515,48 @@ export default function GuestPropertyDetailsPage() {
               </div>
 
               <div className="border-t pt-6 border-gray-200 space-y-3">
-                <div className="text-sm font-medium text-gray-900">Price Breakdown</div>
+                <div className="text-sm font-medium text-gray-900">
+                  Price Breakdown
+                </div>
 
                 {isCalculating ? (
-                  <div className="text-sm text-gray-500">Calculating totals...</div>
+                  <div className="text-sm text-gray-500">
+                    Calculating totals...
+                  </div>
                 ) : totalNights > 0 ? (
                   <>
                     <div className="flex justify-between text-sm text-gray-700">
                       <span>
-                        {formatPrice(property.pricePerNight)} × {totalNights} {totalNights === 1 ? "night" : "nights"}
+                        {formatPrice(property.pricePerNight)} × {totalNights}{" "}
+                        {totalNights === 1 ? "night" : "nights"}
                       </span>
                       <span>
                         {formatPrice(
-                          bookingCalculation?.subtotal || property.pricePerNight * totalNights,
+                          bookingCalculation?.subtotal ||
+                            property.pricePerNight * totalNights,
                         )}
                       </span>
                     </div>
 
                     <div className="flex justify-between text-sm text-gray-700">
                       <span>Cleaning fee</span>
-                      <span>{formatPrice(bookingCalculation?.cleaningFee || 0)}</span>
+                      <span>
+                        {formatPrice(bookingCalculation?.cleaningFee || 0)}
+                      </span>
                     </div>
 
                     <div className="flex justify-between text-sm text-gray-700">
                       <span>Service fee</span>
-                      <span>{formatPrice(bookingCalculation?.serviceFee || 0)}</span>
+                      <span>
+                        {formatPrice(bookingCalculation?.serviceFee || 0)}
+                      </span>
                     </div>
 
                     <div className="flex justify-between text-sm text-gray-700">
                       <span>Security deposit</span>
-                      <span>{formatPrice(bookingCalculation?.securityDeposit || 0)}</span>
+                      <span>
+                        {formatPrice(bookingCalculation?.securityDeposit || 0)}
+                      </span>
                     </div>
 
                     <div className="flex justify-between text-sm text-gray-700">
@@ -550,7 +567,9 @@ export default function GuestPropertyDetailsPage() {
                     <div className="border-t pt-3 mt-2 border-gray-200 flex justify-between items-center">
                       <span className="font-semibold text-gray-900">Total</span>
                       <span className="font-bold text-gray-900">
-                        {formatPrice(bookingCalculation?.total || estimatedTotal)}
+                        {formatPrice(
+                          bookingCalculation?.total || estimatedTotal,
+                        )}
                       </span>
                     </div>
                   </>

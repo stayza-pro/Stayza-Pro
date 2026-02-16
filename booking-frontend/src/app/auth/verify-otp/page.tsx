@@ -218,9 +218,12 @@ function OTPVerificationContent() {
         const firstName = result.data.user.firstName || "there";
 
         if (type === "register") {
-          toast.success(`Welcome to ${realtorName || "Stayza Pro"}, ${firstName}! 🎉`, {
-            duration: 2000,
-          });
+          toast.success(
+            `Welcome to ${realtorName || "Stayza Pro"}, ${firstName}! 🎉`,
+            {
+              duration: 2000,
+            },
+          );
         } else {
           toast.success(`Welcome back, ${firstName}!`);
         }

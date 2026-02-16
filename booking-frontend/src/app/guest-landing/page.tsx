@@ -76,8 +76,7 @@ export default function GuestLandingPage() {
 
         let nextImage = previousImage;
         while (nextImage === previousImage) {
-          nextImage =
-            heroImages[Math.floor(Math.random() * heroImages.length)];
+          nextImage = heroImages[Math.floor(Math.random() * heroImages.length)];
         }
 
         return nextImage;
