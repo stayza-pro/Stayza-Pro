@@ -123,6 +123,9 @@ const getBankCodeCandidates = (value: unknown): string[] => {
   return Array.from(new Set([normalized, preferred].filter(Boolean)));
 };
 
+const normalizeEmailAddress = (value: unknown): string =>
+  String(value ?? "").trim().toLowerCase();
+
 const hashPayoutAccountOtp = (otp: string) =>
   createHash("sha256").update(`${otp}:${config.JWT_SECRET}`).digest("hex");
 
@@ -984,9 +987,16 @@ router.post(
       );
     }
 
+    const normalizedBusinessEmail = normalizeEmailAddress(businessEmail);
+
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: businessEmail },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedBusinessEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (existingUser) {
@@ -1022,8 +1032,8 @@ router.post(
       // Create user with REALTOR role and email verification
       const user = await tx.user.create({
         data: {
-          email: businessEmail,
-          businessEmail,
+          email: normalizedBusinessEmail,
+          businessEmail: normalizedBusinessEmail,
           password: hashedPassword,
           fullName: fullName || `${firstName} ${lastName}`,
           firstName,
@@ -1112,11 +1122,11 @@ router.post(
     createAdminNotification({
       type: "REALTOR_REGISTRATION",
       title: "New Realtor Registration",
-      message: `${agencyName} (${businessEmail}) has registered and is awaiting approval.`,
+      message: `${agencyName} (${normalizedBusinessEmail}) has registered and is awaiting approval.`,
       data: {
         realtorId: result.realtor.id,
         businessName: agencyName,
-        email: businessEmail,
+        email: normalizedBusinessEmail,
         subdomain: slug,
       },
       priority: "normal",

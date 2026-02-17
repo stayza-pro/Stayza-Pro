@@ -1,5 +1,6 @@
 import express from "express";
 import { prisma } from "@/config/database";
+import { config } from "@/config";
 import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
 import { asyncHandler } from "@/middleware/errorHandler";
@@ -234,6 +235,141 @@ router.get(
       },
     });
   })
+);
+
+/**
+ * @swagger
+ * /api/admin/system/email-worker-health:
+ *   get:
+ *     summary: Get email queue and worker health
+ *     tags: [System]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Email worker health retrieved successfully
+ *       403:
+ *         description: Admin access required
+ */
+router.get(
+  "/email-worker-health",
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const user = req.user;
+    if (!user || user.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required",
+      });
+    }
+
+    try {
+      const now = new Date();
+
+      const [pendingCount, processingCount, sentCount, failedCount] =
+        await Promise.all([
+          prisma.emailJob.count({ where: { status: "PENDING" } }),
+          prisma.emailJob.count({ where: { status: "PROCESSING" } }),
+          prisma.emailJob.count({ where: { status: "SENT" } }),
+          prisma.emailJob.count({ where: { status: "FAILED" } }),
+        ]);
+
+      const [stuckProcessing, nextPendingJobs, recentFailedJobs, latestSentJob] =
+        await Promise.all([
+          prisma.emailJob.count({
+            where: {
+              status: "PROCESSING",
+              lockedAt: {
+                lt: new Date(
+                  now.getTime() - config.EMAIL_WORKER_LOCK_TIMEOUT_MS,
+                ),
+              },
+            },
+          }),
+          prisma.emailJob.findMany({
+            where: { status: "PENDING" },
+            orderBy: { nextAttemptAt: "asc" },
+            take: 5,
+            select: {
+              id: true,
+              to: true,
+              attempts: true,
+              maxAttempts: true,
+              nextAttemptAt: true,
+              lastError: true,
+              createdAt: true,
+            },
+          }),
+          prisma.emailJob.findMany({
+            where: { status: "FAILED" },
+            orderBy: { updatedAt: "desc" },
+            take: 10,
+            select: {
+              id: true,
+              to: true,
+              attempts: true,
+              maxAttempts: true,
+              lastError: true,
+              updatedAt: true,
+              provider: true,
+            },
+          }),
+          prisma.emailJob.findFirst({
+            where: { status: "SENT" },
+            orderBy: { sentAt: "desc" },
+            select: {
+              id: true,
+              to: true,
+              sentAt: true,
+              provider: true,
+              providerMessageId: true,
+            },
+          }),
+        ]);
+
+      return res.json({
+        success: true,
+        data: {
+          worker: {
+            enabled: config.EMAIL_WORKER_ENABLED,
+            intervalMs: config.EMAIL_WORKER_INTERVAL_MS,
+            batchSize: config.EMAIL_WORKER_BATCH_SIZE,
+            lockTimeoutMs: config.EMAIL_WORKER_LOCK_TIMEOUT_MS,
+            maxRetries: config.EMAIL_MAX_RETRIES,
+          },
+          queue: {
+            pending: pendingCount,
+            processing: processingCount,
+            sent: sentCount,
+            failed: failedCount,
+            stuckProcessing,
+            total: pendingCount + processingCount + sentCount + failedCount,
+          },
+          latestSentJob,
+          nextPendingJobs,
+          recentFailedJobs,
+          checkedAt: now.toISOString(),
+        },
+      });
+    } catch (error: any) {
+      const errorMessage =
+        error?.code === "P2021" ||
+        String(error?.message || "")
+          .toLowerCase()
+          .includes("email_jobs")
+          ? "Email queue table is missing. Run Prisma migrations to enable queue health checks."
+          : "Unable to fetch email worker health right now.";
+
+      logger.error("Failed to fetch email worker health", {
+        error: error?.message || error,
+        userId: user.id,
+      });
+
+      return res.status(503).json({
+        success: false,
+        message: errorMessage,
+      });
+    }
+  }),
 );
 
 /**

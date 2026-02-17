@@ -213,7 +213,8 @@ router.post(
       if (!canDirectMessage(senderRole, recipient.role)) {
         res.status(403).json({
           success: false,
-          error: "Direct messaging is only available between guest and realtor accounts",
+          error:
+            "Direct messaging is only available between guest and realtor accounts",
         });
         return;
       }
@@ -390,7 +391,8 @@ router.get(
       if (!canDirectMessage(userRole, otherUser.role)) {
         return res.status(403).json({
           success: false,
-          error: "Direct messaging is only available between guest and realtor accounts",
+          error:
+            "Direct messaging is only available between guest and realtor accounts",
         });
       }
 
@@ -720,7 +722,9 @@ router.get(
       const { propertyId } = req.params;
       const userId = req.user!.id;
       const otherUserId =
-        typeof req.query.otherUserId === "string" ? req.query.otherUserId.trim() : "";
+        typeof req.query.otherUserId === "string"
+          ? req.query.otherUserId.trim()
+          : "";
 
       // Verify user has access to this property inquiry
       const property = await prisma.property.findUnique({
@@ -1267,9 +1271,7 @@ router.get(
       for (const msg of messages) {
         const isInquiryMessage = msg.type === "INQUIRY" && !!msg.propertyId;
         const isDirectMessage =
-          !msg.bookingId &&
-          !msg.propertyId &&
-          msg.type === "BOOKING_MESSAGE";
+          !msg.bookingId && !msg.propertyId && msg.type === "BOOKING_MESSAGE";
         const directOtherUserId =
           msg.senderId === userId ? msg.recipientId : msg.senderId;
         const key = msg.bookingId
@@ -1289,7 +1291,11 @@ router.get(
             msg.senderId === userId ? msg.recipient : msg.sender;
           conversationMap.set(key, {
             id: key,
-            type: msg.bookingId ? "booking" : isDirectMessage ? "direct" : "property",
+            type: msg.bookingId
+              ? "booking"
+              : isDirectMessage
+                ? "direct"
+                : "property",
             bookingId: msg.bookingId,
             propertyId: msg.propertyId,
             otherUserId: directOtherUserId,

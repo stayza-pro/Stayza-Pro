@@ -22,7 +22,11 @@ import {
   sendPasswordReset,
 } from "@/services/email";
 import { config } from "@/config";
-import { getEmailVerificationUrl, getDashboardUrl } from "@/utils/domains";
+import {
+  getEmailVerificationUrl,
+  getDashboardUrl,
+  buildMainDomainUrl,
+} from "@/utils/domains";
 import { authenticate } from "@/middleware/auth";
 import { authLimiter } from "@/middleware/rateLimiter";
 import { uploadSinglePhoto } from "@/services/photoUpload";
@@ -52,14 +56,8 @@ async function cleanupExpiredPendingRegistrations() {
   }
 }
 
-/**
- * Helper function to build main domain URLs
- */
-function buildMainDomainUrl(path: string, host?: string): string {
-  const isDev = config.NODE_ENV === "development";
-  const baseUrl = isDev ? config.DEV_DOMAIN : "https://stayza.pro";
-  return `${baseUrl}${path}`;
-}
+const normalizeEmail = (value: unknown): string =>
+  String(value ?? "").trim().toLowerCase();
 
 /**
  * @swagger
@@ -296,8 +294,13 @@ router.post(
     const normalizedEmail = String(email).trim().toLowerCase();
 
     // Optimize query - only fetch realtor data if user role is REALTOR
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
       select: {
         id: true,
         email: true,
@@ -355,8 +358,11 @@ router.post(
       user.realtor &&
       !user.isEmailVerified
     ) {
+      const checkEmailPath = `/realtor/check-email?email=${encodeURIComponent(
+        user.email,
+      )}`;
       loginRedirectUrl = buildMainDomainUrl(
-        "/realtor/check-email",
+        checkEmailPath,
         req.headers.host,
       );
     } else if (user.role === "ADMIN") {
@@ -598,25 +604,38 @@ router.get(
   "/verify-email",
   asyncHandler(async (req: Request, res: Response) => {
     const { token, email } = req.query;
+    const verificationToken = Array.isArray(token)
+      ? String(token[0] || "")
+      : String(token || "");
+    const normalizedEmail = normalizeEmail(
+      Array.isArray(email) ? email[0] : email,
+    );
 
     logger.info("🔍 Email verification request:", {
-      token: token ? `${String(token).substring(0, 10)}...` : "missing",
-      email: email,
+      token: verificationToken
+        ? `${verificationToken.substring(0, 10)}...`
+        : "missing",
+      email: normalizedEmail || email,
     });
 
-    if (!token || !email) {
+    if (!verificationToken || !normalizedEmail) {
       throw new AppError("Verification token and email are required", 400);
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email as string },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
       include: {
         realtor: true,
       },
     });
 
     if (!user) {
-      logger.info("❌ User not found for email:", email);
+      logger.info("❌ User not found for email:", normalizedEmail);
       throw new AppError("User not found", 404);
     }
 
@@ -635,7 +654,10 @@ router.get(
       });
     }
 
-    if (!user.emailVerificationToken || user.emailVerificationToken !== token) {
+    if (
+      !user.emailVerificationToken ||
+      user.emailVerificationToken !== verificationToken
+    ) {
       throw new AppError("Invalid verification token", 400);
     }
 
@@ -731,13 +753,19 @@ router.post(
   authLimiter,
   asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email) {
+    if (!normalizedEmail) {
       throw new AppError("Email is required", 400);
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (!user) {
@@ -786,8 +814,8 @@ router.post(
     try {
       deliveryResult = await sendEmailVerification(
         user.email,
-        user.firstName || "User",
         verificationUrl,
+        user.firstName || "User",
       );
       logger.info(`Verification email sent successfully to ${user.email}`);
     } catch (emailError: any) {
@@ -800,10 +828,9 @@ router.post(
 
     res.json({
       success: true,
-      message:
-        deliveryResult?.queued
-          ? "Verification email queued for delivery. Please check your inbox shortly."
-          : "Verification email sent successfully",
+      message: deliveryResult?.queued
+        ? "Verification email queued for delivery. Please check your inbox shortly."
+        : "Verification email sent successfully",
       data: {
         queued: Boolean(deliveryResult?.queued),
       },
@@ -837,8 +864,13 @@ router.post(
       throw new AppError(error.details[0].message, 400);
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: value.email.toLowerCase() },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizeEmail(value.email),
+          mode: "insensitive",
+        },
+      },
     });
 
     if (!user) {
@@ -894,8 +926,13 @@ router.post(
 
     const { token, email, password } = value;
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizeEmail(email),
+          mode: "insensitive",
+        },
+      },
     });
 
     if (!user) {
@@ -964,12 +1001,18 @@ router.post(
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!emailRegex.test(normalizedEmail)) {
       throw new AppError("Please provide a valid email address", 400);
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (existingUser) {
@@ -990,12 +1033,17 @@ router.post(
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     await prisma.pendingRegistration.deleteMany({
-      where: { email },
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     await prisma.pendingRegistration.create({
       data: {
-        email,
+        email: normalizedEmail,
         firstName,
         lastName,
         phone,
@@ -1007,13 +1055,17 @@ router.post(
       } as any,
     });
 
-    await sendEmailVerification(email, otp, `${firstName} ${lastName}`);
+    await sendEmailVerification(
+      normalizedEmail,
+      otp,
+      `${firstName} ${lastName}`,
+    );
 
     res.status(201).json({
       success: true,
       message: "Verification code sent to your email",
       data: {
-        email,
+        email: normalizedEmail,
         expiresIn: "10 minutes",
       },
     });
@@ -1043,18 +1095,24 @@ router.post(
   authLimiter,
   asyncHandler(async (req: Request, res: Response) => {
     const { email, type = "login" } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email) {
+    if (!normalizedEmail) {
       throw new AppError("Email is required", 400);
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       throw new AppError("Please provide a valid email address", 400);
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (!user) {
@@ -1080,7 +1138,7 @@ router.post(
     });
 
     await sendEmailVerification(
-      email,
+      normalizedEmail,
       otp,
       user.fullName || `${user.firstName} ${user.lastName}`,
     );
@@ -1089,7 +1147,7 @@ router.post(
       success: true,
       message: "Verification code sent to your email",
       data: {
-        email,
+        email: normalizedEmail,
         expiresIn: "10 minutes",
       },
     });
@@ -1118,14 +1176,18 @@ router.post(
   "/verify-registration",
   asyncHandler(async (req: Request, res: Response) => {
     const { email, otp } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email || !otp) {
+    if (!normalizedEmail || !otp) {
       throw new AppError("Email and OTP are required", 400);
     }
 
     const pendingReg = await prisma.pendingRegistration.findFirst({
       where: {
-        email,
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
         otp,
       },
     });
@@ -1138,8 +1200,13 @@ router.post(
       throw new AppError("Verification code has expired", 400);
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (existingUser) {
@@ -1181,7 +1248,7 @@ router.post(
 
     try {
       await sendWelcomeEmail(
-        email,
+        normalizedEmail,
         user.fullName || `${user.firstName} ${user.lastName}`,
       );
     } catch (emailError) {
@@ -1234,14 +1301,18 @@ router.post(
   "/verify-login",
   asyncHandler(async (req: Request, res: Response) => {
     const { email, otp } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email || !otp) {
+    if (!normalizedEmail || !otp) {
       throw new AppError("Email and OTP are required", 400);
     }
 
     const user = await prisma.user.findFirst({
       where: {
-        email,
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
         emailVerificationToken: otp,
         role: "GUEST",
       },
@@ -1257,8 +1328,13 @@ router.post(
     });
 
     if (!user) {
-      const userCheck = await prisma.user.findUnique({
-        where: { email },
+      const userCheck = await prisma.user.findFirst({
+        where: {
+          email: {
+            equals: normalizedEmail,
+            mode: "insensitive",
+          },
+        },
       });
 
       if (!userCheck) {

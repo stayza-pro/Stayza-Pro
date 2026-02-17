@@ -53,8 +53,8 @@ export interface SystemHealthStats {
   retries: {
     totalRetries: number;
     successRate: number;
-    averageAttempts: number;
-    criticalFailures: number;
+    averageRetries: number;
+    maxRetriesReached: number;
   };
   transfers: {
     pending: number;
@@ -62,6 +62,55 @@ export interface SystemHealthStats {
     failed: number;
     reversed: number;
   };
+}
+
+export interface EmailWorkerJobSummary {
+  id: string;
+  to: string[];
+  attempts: number;
+  maxAttempts: number;
+}
+
+export interface EmailWorkerPendingJob extends EmailWorkerJobSummary {
+  nextAttemptAt: string;
+  lastError: string | null;
+  createdAt: string;
+}
+
+export interface EmailWorkerFailedJob extends EmailWorkerJobSummary {
+  lastError: string | null;
+  updatedAt: string;
+  provider: string | null;
+}
+
+export interface EmailWorkerLatestSentJob {
+  id: string;
+  to: string[];
+  sentAt: string | null;
+  provider: string | null;
+  providerMessageId: string | null;
+}
+
+export interface EmailWorkerHealth {
+  worker: {
+    enabled: boolean;
+    intervalMs: number;
+    batchSize: number;
+    lockTimeoutMs: number;
+    maxRetries: number;
+  };
+  queue: {
+    pending: number;
+    processing: number;
+    sent: number;
+    failed: number;
+    stuckProcessing: number;
+    total: number;
+  };
+  latestSentJob: EmailWorkerLatestSentJob | null;
+  nextPendingJobs: EmailWorkerPendingJob[];
+  recentFailedJobs: EmailWorkerFailedJob[];
+  checkedAt: string;
 }
 
 // New Escrow Tracker Types
@@ -154,6 +203,14 @@ export async function getSystemHealthStats(): Promise<SystemHealthStats> {
 }
 
 /**
+ * Get email worker and queue health (admin only)
+ */
+export async function getEmailWorkerHealth(): Promise<EmailWorkerHealth> {
+  const response = await api.get("/admin/system/email-worker-health");
+  return response.data?.data ?? response.data;
+}
+
+/**
  * Force release an expired job lock (admin only)
  */
 export async function forceReleaseJobLock(lockId: string): Promise<void> {
@@ -183,6 +240,7 @@ export const escrowService = {
   getBookingEscrowEvents,
   getActiveJobLocks,
   getSystemHealthStats,
+  getEmailWorkerHealth,
   forceReleaseJobLock,
   getWebhookDeliveryStatus,
   getEscrowStatus,

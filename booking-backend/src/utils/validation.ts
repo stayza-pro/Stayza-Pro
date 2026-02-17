@@ -35,7 +35,7 @@ export const updateProfileSchema = Joi.object({
 // Realtor registration validation schema
 export const realtorRegisterSchema = Joi.object({
   fullName: Joi.string().min(3).max(100).required(),
-  businessEmail: Joi.string().email().required(),
+  businessEmail: Joi.string().email().trim().lowercase().required(),
   password: Joi.string().min(8).required(),
   phoneNumber: Joi.string()
     .pattern(/^\+?[1-9]\d{1,14}$/)

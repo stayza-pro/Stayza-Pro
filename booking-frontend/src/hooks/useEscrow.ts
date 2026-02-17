@@ -3,9 +3,11 @@ import {
   getBookingEscrowEvents,
   getActiveJobLocks,
   getSystemHealthStats,
+  getEmailWorkerHealth,
   EscrowEvent,
   JobLock,
   SystemHealthStats,
+  EmailWorkerHealth,
 } from "@/services/escrow";
 
 /**
@@ -50,6 +52,19 @@ export function useSystemHealthStats(enabled = true) {
     enabled,
     refetchInterval: 10000, // Refetch every 10 seconds
     staleTime: 5000,
+  });
+}
+
+/**
+ * Hook to fetch email worker health (admin only)
+ */
+export function useEmailWorkerHealth(enabled = true) {
+  return useQuery<EmailWorkerHealth, Error>({
+    queryKey: ["email-worker-health"],
+    queryFn: getEmailWorkerHealth,
+    enabled,
+    refetchInterval: 15000,
+    staleTime: 8000,
   });
 }
 
