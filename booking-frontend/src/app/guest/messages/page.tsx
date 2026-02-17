@@ -93,6 +93,7 @@ function MessagesContent() {
 
     if (hostConversation) {
       const conversationId =
+        hostConversation.id ||
         hostConversation.bookingId ||
         hostConversation.propertyId ||
         hostConversation.otherUser.id ||
@@ -165,6 +166,7 @@ function MessagesContent() {
 
     const selectedConv = conversations.find(
       (c) =>
+        c.id === selectedConversation ||
         c.propertyId === selectedConversation ||
         c.bookingId === selectedConversation ||
         c.otherUser.id === selectedConversation,
@@ -425,6 +427,7 @@ function MessagesContent() {
 
   const selectedConversationData = conversations.find(
     (c) =>
+      c.id === selectedConversation ||
       c.propertyId === selectedConversation ||
       c.bookingId === selectedConversation ||
       c.otherUser.id === selectedConversation,
@@ -489,6 +492,7 @@ function MessagesContent() {
               ) : filteredConversations.length > 0 ? (
                 filteredConversations.map((conversation) => {
                   const conversationId =
+                    conversation.id ||
                     conversation.propertyId ||
                     conversation.bookingId ||
                     conversation.otherUser.id;

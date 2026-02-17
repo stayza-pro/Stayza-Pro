@@ -219,9 +219,15 @@ class MessageService {
    */
   async getPropertyMessages(
     propertyId: string,
+    otherUserId?: string,
   ): Promise<ApiResponse<Message[]>> {
+    const query =
+      otherUserId && otherUserId.trim().length
+        ? `?otherUserId=${encodeURIComponent(otherUserId.trim())}`
+        : "";
+
     const response = await apiClient.get<Message[] | { messages?: Message[] }>(
-      `/messages/property/${propertyId}/inquiry`,
+      `/messages/property/${propertyId}/inquiry${query}`,
     );
 
     return {

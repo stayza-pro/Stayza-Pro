@@ -719,6 +719,8 @@ router.get(
     try {
       const { propertyId } = req.params;
       const userId = req.user!.id;
+      const otherUserId =
+        typeof req.query.otherUserId === "string" ? req.query.otherUserId.trim() : "";
 
       // Verify user has access to this property inquiry
       const property = await prisma.property.findUnique({
@@ -745,12 +747,22 @@ router.get(
       }
 
       // Fetch messages
+      const inquiryWhere: any = {
+        propertyId,
+        type: "INQUIRY",
+      };
+
+      if (isRealtor && otherUserId) {
+        inquiryWhere.OR = [
+          { senderId: userId, recipientId: otherUserId },
+          { senderId: otherUserId, recipientId: userId },
+        ];
+      } else {
+        inquiryWhere.OR = [{ senderId: userId }, { recipientId: userId }];
+      }
+
       const messages = await prisma.message.findMany({
-        where: {
-          propertyId,
-          OR: [{ senderId: userId }, { recipientId: userId }],
-          type: "INQUIRY",
-        },
+        where: inquiryWhere,
         include: {
           sender: {
             select: {
@@ -766,12 +778,18 @@ router.get(
       });
 
       // Mark as read if user is recipient
+      const markReadWhere: any = {
+        propertyId,
+        recipientId: userId,
+        isRead: false,
+      };
+
+      if (isRealtor && otherUserId) {
+        markReadWhere.senderId = otherUserId;
+      }
+
       await prisma.message.updateMany({
-        where: {
-          propertyId,
-          recipientId: userId,
-          isRead: false,
-        },
+        where: markReadWhere,
         data: {
           isRead: true,
           readAt: new Date(),
@@ -1247,12 +1265,20 @@ router.get(
       // Group by booking/property to create conversation threads
       const conversationMap = new Map();
       for (const msg of messages) {
-        const isDirectMessage = !msg.bookingId && msg.type === "BOOKING_MESSAGE";
+        const isInquiryMessage = msg.type === "INQUIRY" && !!msg.propertyId;
+        const isDirectMessage =
+          !msg.bookingId &&
+          !msg.propertyId &&
+          msg.type === "BOOKING_MESSAGE";
         const directOtherUserId =
           msg.senderId === userId ? msg.recipientId : msg.senderId;
-        const key = isDirectMessage
-          ? `direct:${directOtherUserId}`
-          : msg.bookingId || msg.propertyId;
+        const key = msg.bookingId
+          ? `booking:${msg.bookingId}`
+          : isInquiryMessage
+            ? `inquiry:${msg.propertyId}:${directOtherUserId}`
+            : isDirectMessage
+              ? `direct:${directOtherUserId}`
+              : undefined;
 
         if (!key) {
           continue;
@@ -1263,11 +1289,7 @@ router.get(
             msg.senderId === userId ? msg.recipient : msg.sender;
           conversationMap.set(key, {
             id: key,
-            type: msg.bookingId
-              ? "booking"
-              : isDirectMessage
-                ? "direct"
-                : "property",
+            type: msg.bookingId ? "booking" : isDirectMessage ? "direct" : "property",
             bookingId: msg.bookingId,
             propertyId: msg.propertyId,
             otherUserId: directOtherUserId,

@@ -781,9 +781,10 @@ router.post(
       user.email,
     );
 
-    // Try to send email, but don't fail the request if email service is down
+    let deliveryResult: { success: boolean; queued?: boolean } | undefined;
+
     try {
-      await sendEmailVerification(
+      deliveryResult = await sendEmailVerification(
         user.email,
         user.firstName || "User",
         verificationUrl,
@@ -791,15 +792,21 @@ router.post(
       logger.info(`Verification email sent successfully to ${user.email}`);
     } catch (emailError: any) {
       logger.error("Failed to send verification email:", emailError);
-      // Log the error but don't throw - user data is already updated
-      // In production, you might want to queue this for retry
+      throw new AppError(
+        "We couldn't send the verification email right now. Please try again shortly.",
+        503,
+      );
     }
 
-    // Always return success to prevent email enumeration
-    // Token is already updated in DB, user can try resending again
     res.json({
       success: true,
-      message: "Verification email sent successfully",
+      message:
+        deliveryResult?.queued
+          ? "Verification email queued for delivery. Please check your inbox shortly."
+          : "Verification email sent successfully",
+      data: {
+        queued: Boolean(deliveryResult?.queued),
+      },
     });
   }),
 );

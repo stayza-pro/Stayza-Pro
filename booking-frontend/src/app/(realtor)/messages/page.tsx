@@ -39,6 +39,7 @@ export default function RealtorMessagesPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
   const getConversationKey = (conversation: Conversation): string =>
+    conversation.id ||
     conversation.bookingId ||
     conversation.propertyId ||
     conversation.otherUser.id;
@@ -99,7 +100,10 @@ export default function RealtorMessagesPage() {
       const response = conversation.bookingId
         ? await messageService.getBookingMessages(conversation.bookingId)
         : conversation.propertyId
-          ? await messageService.getPropertyMessages(conversation.propertyId)
+          ? await messageService.getPropertyMessages(
+              conversation.propertyId,
+              conversation.otherUser?.id,
+            )
           : conversation.otherUser?.id
             ? await messageService.getDirectMessages(conversation.otherUser.id)
             : null;
