@@ -234,7 +234,7 @@ export default function PropertiesPage() {
                 </div>
                 <div className="absolute bottom-3 left-3 text-white">
                   <p className="text-lg font-bold">
-                    NGN {Number(property.pricePerNight ?? 0).toLocaleString("en-NG")}/night
+                    ₦{Number(property.pricePerNight ?? 0).toLocaleString("en-NG")}/night
                   </p>
                 </div>
               </div>
@@ -355,7 +355,7 @@ export default function PropertiesPage() {
                       {selectedProperty.state}
                     </div>
                     <div>
-                      <strong>Price:</strong> NGN 
+                      <strong>Price:</strong> ₦
                       {Number(selectedProperty.pricePerNight ?? 0).toLocaleString("en-NG")}/night
                     </div>
                     <div>

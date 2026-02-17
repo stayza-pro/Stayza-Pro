@@ -114,7 +114,8 @@ async function sendAllTestEmails() {
     await sendCacApprovalEmail(
       TEST_EMAIL,
       "Jane Smith",
-      "Premium Properties Ltd"
+      "Premium Properties Ltd",
+      "https://premium-properties.stayza.pro/dashboard"
     );
     
 

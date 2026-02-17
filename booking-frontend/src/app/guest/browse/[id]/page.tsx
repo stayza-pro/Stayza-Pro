@@ -81,12 +81,13 @@ export default function GuestPropertyDetailsPage() {
         .join(" "),
     ) || [];
 
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: property?.currency || "USD",
+  const formatPrice = (value: number) => {
+    const safeValue = Number.isFinite(value) ? value : 0;
+    return `₦${safeValue.toLocaleString("en-NG", {
       minimumFractionDigits: 0,
-    }).format(value);
+      maximumFractionDigits: 0,
+    })}`;
+  };
 
   const minCheckInDate = new Date().toISOString().split("T")[0];
   const totalNights = useMemo(() => {

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -28,7 +28,7 @@ export default function EditPropertyPage() {
     description: "",
     type: "APARTMENT",
     pricePerNight: 0,
-    currency: "USD",
+    currency: "NGN",
     maxGuests: 1,
     bedrooms: 0,
     bathrooms: 0,
@@ -400,7 +400,7 @@ export default function EditPropertyPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price per Night ({formData.currency || "USD"}) *
+                    Price per Night ({formData.currency || "₦"}) *
                   </label>
                   <input
                     type="number"
@@ -422,14 +422,11 @@ export default function EditPropertyPage() {
                     Currency
                   </label>
                   <select
-                    value={formData.currency || "USD"}
+                    value={formData.currency || "NGN"}
                     onChange={(e) => updateFormData("currency", e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="NGN">NGN (₦)</option>
+                    <option value="NGN">₦ Naira</option>
                   </select>
                 </div>
               </div>
@@ -587,3 +584,4 @@ export default function EditPropertyPage() {
     </div>
   );
 }
+

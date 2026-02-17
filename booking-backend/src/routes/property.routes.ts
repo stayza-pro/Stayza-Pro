@@ -21,6 +21,21 @@ const router = express.Router();
 
 const MAX_PROPERTY_IMAGES = 8;
 
+const normalizeCustomAmenities = (
+  customAmenities: unknown
+): string[] | undefined => {
+  if (!Array.isArray(customAmenities)) {
+    return undefined;
+  }
+
+  const normalized = customAmenities
+    .flatMap((item) => String(item ?? "").split(","))
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(normalized));
+};
+
 const sanitizePublicProperty = <T extends Record<string, unknown>>(
   property: T
 ): T & {
@@ -535,10 +550,17 @@ router.post(
     }
 
     const realtorId = req.realtor?.id || req.user!.id;
+    const normalizedCustomAmenities = normalizeCustomAmenities(
+      value.customAmenities
+    );
 
     const property = await prisma.property.create({
       data: {
         ...value,
+        currency: "NGN",
+        ...(normalizedCustomAmenities !== undefined
+          ? { customAmenities: normalizedCustomAmenities }
+          : {}),
         realtorId,
       },
       include: {
@@ -630,9 +652,18 @@ router.put(
       throw new AppError("Not authorized to update this property", 403);
     }
 
+    const normalizedCustomAmenities = normalizeCustomAmenities(
+      value.customAmenities
+    );
+
     const property = await prisma.property.update({
       where: { id },
-      data: value,
+      data: {
+        ...value,
+        ...(normalizedCustomAmenities !== undefined
+          ? { customAmenities: normalizedCustomAmenities }
+          : {}),
+      },
       include: {
         realtor: {
           select: {

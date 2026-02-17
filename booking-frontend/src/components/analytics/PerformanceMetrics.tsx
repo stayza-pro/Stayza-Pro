@@ -216,9 +216,10 @@ export const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({
       case "percentage":
         return `${value.toFixed(1)}%`;
       case "currency":
-        return new Intl.NumberFormat("en-US", {
+        return new Intl.NumberFormat("en-NG", {
           style: "currency",
-          currency: "USD",
+          currency: "NGN",
+          currencyDisplay: "narrowSymbol",
           minimumFractionDigits: 0,
         }).format(value);
       case "rating":

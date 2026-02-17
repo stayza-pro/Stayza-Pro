@@ -32,9 +32,10 @@ export const AnalyticsOverview: React.FC<AnalyticsOverviewProps> = ({
 
   // Format currency
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-NG", {
       style: "currency",
-      currency: "USD",
+      currency: "NGN",
+      currencyDisplay: "narrowSymbol",
       minimumFractionDigits: 0,
     }).format(value);
   };

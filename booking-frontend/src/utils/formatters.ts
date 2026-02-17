@@ -1,21 +1,16 @@
-/**
+﻿/**
  * Format number as currency (Naira)
  */
 export const formatCurrency = (
   amount: number,
-  currency: string = "NGN"
+  _currency: string = "NGN"
 ): string => {
-  if (currency === "NGN" || currency === "₦") {
-    return `₦${amount.toLocaleString("en-NG", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  }
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency,
-  }).format(amount);
+  void _currency;
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  return `₦${safeAmount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 };
 
 /**

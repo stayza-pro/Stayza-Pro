@@ -3,6 +3,25 @@ import type { NextRequest } from "next/server";
 
 const SUBDOMAIN_LOGIN_PATHS = new Set(["/login", "/realtor/login"]);
 const LOCALE_ROOT_PATHS = new Set(["/en", "/fr", "/pt"]);
+const MAIN_DOMAIN_ALLOWED_EXACT_PATHS = new Set(["/", "/en", "/fr", "/pt"]);
+const MAIN_DOMAIN_ALLOWED_PREFIXES = [
+  "/admin",
+  "/how-it-works",
+  "/get-started",
+  "/join-waitlist",
+  "/booking-website-for-realtors",
+  "/become-host",
+  "/help",
+  "/legal",
+  "/privacy",
+  "/terms",
+  "/realtor/login",
+  "/realtor/forgot-password",
+  "/realtor/reset-password",
+  "/realtor/check-email",
+  "/verify-email",
+  "/auth/verify-otp",
+];
 
 const getHostname = (hostHeader: string): string => {
   return hostHeader.split(":")[0].toLowerCase();
@@ -21,6 +40,16 @@ const getRootDomain = (hostname: string): string => {
   }
 
   return hostname;
+};
+
+const isAllowedMainDomainPath = (pathname: string): boolean => {
+  if (MAIN_DOMAIN_ALLOWED_EXACT_PATHS.has(pathname)) {
+    return true;
+  }
+
+  return MAIN_DOMAIN_ALLOWED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
 };
 
 export function middleware(request: NextRequest) {
@@ -55,6 +84,13 @@ export function middleware(request: NextRequest) {
     } else if (subdomain !== "www") {
       tenantType = "realtor";
     }
+  }
+
+  // Keep primary domain focused on marketing + admin + required realtor auth flows.
+  if (tenantType === "main" && !isAllowedMainDomainPath(url.pathname)) {
+    const redirectUrl = url.clone();
+    redirectUrl.pathname = "/en";
+    return NextResponse.redirect(redirectUrl, 307);
   }
 
   // Ensure subdomain root/localized marketing routes never leak through.

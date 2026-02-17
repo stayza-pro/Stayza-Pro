@@ -535,9 +535,9 @@ export const formatCurrency = (
   amount: number,
   currency: string = "NGN",
 ): string => {
-  const currencyPrefix = currency === "NGN" ? "NGN " : `${currency} `;
   const safeAmount = Number.isFinite(amount) ? amount : 0;
-  return `${currencyPrefix}${safeAmount.toLocaleString("en-NG")}`;
+  const symbol = currency === "NGN" ? "₦" : `${currency} `;
+  return `${symbol}${safeAmount.toLocaleString("en-NG")}`;
 };
 
 /**

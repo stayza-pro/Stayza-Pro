@@ -93,17 +93,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
 
   // Currency helper
   const getCurrencySymbol = () => {
-    switch (currency?.toLowerCase()) {
-      case "usd":
-        return "$";
-      case "eur":
-        return "€";
-      case "gbp":
-        return "£";
-      case "ngn":
-      default:
-        return "₦";
-    }
+    return "₦";
   };
 
   const getNormalizedPhone = () => {
@@ -490,7 +480,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
           {/* No Properties State */}
           {!loading && filteredProperties.length === 0 && (
             <div className="text-center py-20">
-              <div className="text-6xl mb-4">🏠</div>
+              <div className="text-6xl mb-4">{"\u{1F3E0}"}</div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">
                 No Properties Found
               </h3>
@@ -654,7 +644,7 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
 
           <div className="border-t border-gray-700 mt-12 pt-8 text-center">
             <p className="text-gray-400 text-sm">
-              © 2024 {data.agencyName || "Stayza Pro"}. All rights reserved.
+              &copy; 2024 {data.agencyName || "Stayza Pro"}. All rights reserved.
             </p>
           </div>
         </div>
@@ -662,3 +652,4 @@ export const RealtorWebsite: React.FC<RealtorWebsiteProps> = ({
     </div>
   );
 };
+

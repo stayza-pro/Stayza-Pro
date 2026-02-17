@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { getSubdomainInfo, getRealtorSubdomain } from "../../utils/subdomain";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { getSubdomainInfo } from "../../utils/subdomain";
 import { buildMainDomainUrl } from "../../utils/domains";
 import ProtectedRouteWrapper from "../../components/auth/ProtectedRouteWrapper";
-import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
 import { BrandProvider } from "@/components/realtor/context/BrandContext";
 import { DashboardHeader } from "@/components/realtor/DashboardHeader";
@@ -16,7 +16,6 @@ import {
   Building2,
   Calendar,
   Settings,
-  Plus,
   Shield,
   DollarSign,
   BarChart3,
@@ -30,6 +29,44 @@ import {
   QrCode,
 } from "lucide-react";
 
+const resolveActiveNav = (currentPath: string): string => {
+  if (currentPath.includes("/properties")) {
+    return "properties";
+  } else if (currentPath.includes("/bookings")) {
+    return "bookings";
+  } else if (currentPath.includes("/messages")) {
+    return "messages";
+  } else if (currentPath.includes("/escrow")) {
+    return "escrow-tracker";
+  } else if (currentPath.includes("/refund-requests")) {
+    return "refund-requests";
+  } else if (currentPath.includes("/disputes")) {
+    return "disputes";
+  } else if (currentPath.includes("/verify-booking")) {
+    return "verify-booking";
+  } else if (
+    currentPath.includes("/earnings") ||
+    currentPath.includes("/revenue")
+  ) {
+    return "earnings";
+  } else if (
+    currentPath.includes("/dashboard/payments") ||
+    currentPath.includes("/payments")
+  ) {
+    return "payments";
+  } else if (currentPath.includes("/wallet")) {
+    return "wallet";
+  } else if (currentPath.includes("/payouts")) {
+    return "payouts";
+  } else if (currentPath.includes("/notifications")) {
+    return "notifications";
+  } else if (currentPath.includes("/settings")) {
+    return "settings";
+  }
+
+  return "dashboard";
+};
+
 export default function RealtorLayout({
   children,
 }: {
@@ -37,10 +74,7 @@ export default function RealtorLayout({
 }) {
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const pathname = usePathname();
-  const router = useRouter();
-  const { user } = useAuth();
   const { branding } = useBranding();
-  const [activeNav, setActiveNav] = useState("dashboard");
   const [mounted, setMounted] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isTenantValid, setIsTenantValid] = useState<boolean | null>(null);
@@ -116,46 +150,6 @@ export default function RealtorLayout({
     }
   }, [mounted, tenantInfo.type, pathname]);
 
-  // Determine active nav based on current pathname
-  useEffect(() => {
-    const currentPath = pathname;
-    if (currentPath.includes("/properties")) {
-      setActiveNav("properties");
-    } else if (currentPath.includes("/bookings")) {
-      setActiveNav("bookings");
-    } else if (currentPath.includes("/messages")) {
-      setActiveNav("messages");
-    } else if (currentPath.includes("/escrow")) {
-      setActiveNav("escrow-tracker");
-    } else if (currentPath.includes("/refund-requests")) {
-      setActiveNav("refund-requests");
-    } else if (currentPath.includes("/disputes")) {
-      setActiveNav("disputes");
-    } else if (currentPath.includes("/verify-booking")) {
-      setActiveNav("verify-booking");
-    } else if (
-      currentPath.includes("/earnings") ||
-      currentPath.includes("/revenue")
-    ) {
-      setActiveNav("earnings");
-    } else if (
-      currentPath.includes("/dashboard/payments") ||
-      currentPath.includes("/payments")
-    ) {
-      setActiveNav("payments");
-    } else if (currentPath.includes("/wallet")) {
-      setActiveNav("wallet");
-    } else if (currentPath.includes("/payouts")) {
-      setActiveNav("payouts");
-    } else if (currentPath.includes("/notifications")) {
-      setActiveNav("notifications");
-    } else if (currentPath.includes("/settings")) {
-      setActiveNav("settings");
-    } else {
-      setActiveNav("dashboard");
-    }
-  }, [pathname]);
-
   // NOW we can do conditional returns - after all hooks are called
   // During SSR or before mount, render without layout to avoid hydration mismatch
   if (!mounted) {
@@ -189,9 +183,6 @@ export default function RealtorLayout({
       </div>
     );
   }
-
-  const realtorSubdomain =
-    tenantInfo.type === "realtor" ? tenantInfo.subdomain : null;
 
   if (pathname === "/login") {
     return (
@@ -311,6 +302,8 @@ export default function RealtorLayout({
     },
   ];
 
+  const activeNav = resolveActiveNav(pathname);
+
   // Apply ProtectedRoute for protected pages with sidebar layout
   return (
     <ProtectedRouteWrapper
@@ -357,12 +350,10 @@ export default function RealtorLayout({
                 const Icon = item.icon;
                 const isActive = activeNav === item.id;
                 return (
-                  <button
+                  <Link
                     key={item.id}
-                    onClick={() => {
-                      setActiveNav(item.id);
-                      router.push(item.href);
-                    }}
+                    href={item.href}
+                    prefetch
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-colors ${
                       isActive
                         ? "font-medium text-white"
@@ -378,7 +369,7 @@ export default function RealtorLayout({
                     <span className="flex-1 text-left text-sm">
                       {item.label}
                     </span>
-                  </button>
+                  </Link>
                 );
               })}
             </nav>

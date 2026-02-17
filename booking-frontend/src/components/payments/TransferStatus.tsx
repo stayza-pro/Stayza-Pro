@@ -172,7 +172,7 @@ export const TransferTimeline: React.FC<TransferTimelineProps> = ({
                       {new Date(event.executedAt).toLocaleString()}
                     </p>
                     <p className="text-sm font-semibold text-gray-900 mt-1">
-                      NGN {formatCurrencyAmount(event.amount)}
+                      ₦{formatCurrencyAmount(event.amount)}
                     </p>
                     {event.transactionReference && (
                       <p className="text-xs text-gray-400 mt-1 font-mono">

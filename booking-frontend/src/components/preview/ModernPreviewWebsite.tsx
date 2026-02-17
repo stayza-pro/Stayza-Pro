@@ -79,19 +79,9 @@ export const ModernPreviewWebsite: React.FC<ModernPreviewWebsiteProps> = ({
   // Color scheme with fallbacks - solid colors only
   const primaryColor = data.primaryColor || "#374151";
 
-  // Currency helper - defaults to Naira
-    const getCurrencySymbol = () => {
-    switch (currency?.toLowerCase()) {
-      case "usd":
-        return "$";
-      case "eur":
-        return "EUR ";
-      case "gbp":
-        return "GBP ";
-      case "ngn":
-      default:
-        return "NGN ";
-    }
+  // Currency helper - Naira-only for now
+  const getCurrencySymbol = () => {
+    return "₦";
   };
 
   // Phone number with Nigerian format first

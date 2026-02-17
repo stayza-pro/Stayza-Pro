@@ -13,6 +13,7 @@ import { logger } from "@/utils/logger";
 import jwt from "jsonwebtoken";
 import { config } from "@/config";
 import { sendCacApprovalEmail, sendCacRejectionEmail } from "@/services/email";
+import { getDashboardUrl } from "@/utils/domains";
 
 const router = express.Router();
 
@@ -294,7 +295,14 @@ router.patch(
 
         updatedRealtor = await prisma.realtor.update({
           where: { id },
-          data: { status: "APPROVED" },
+          data: {
+            status: "APPROVED",
+            cacStatus: "APPROVED",
+            cacVerifiedAt: new Date(),
+            cacRejectedAt: null,
+            cacRejectionReason: null,
+            canAppeal: true,
+          },
           include: {
             user: {
               select: {
@@ -308,7 +316,12 @@ router.patch(
         });
 
         try {
-          const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard`;
+          const dashboardUrl = getDashboardUrl(
+            "realtor",
+            updatedRealtor.slug,
+            true,
+            req.headers.host
+          );
           await emailService.sendRealtorApproval(
             updatedRealtor.user.email,
             updatedRealtor.businessName,
@@ -509,6 +522,11 @@ router.patch(
             isActive: true,
             suspendedAt: null,
             status: "APPROVED",
+            cacStatus: "APPROVED",
+            cacVerifiedAt: new Date(),
+            cacRejectedAt: null,
+            cacRejectionReason: null,
+            canAppeal: true,
           },
           include: {
             user: {
@@ -529,10 +547,16 @@ router.patch(
 
         try {
           const { sendRealtorApproval } = await import("@/services/email");
+          const dashboardUrl = getDashboardUrl(
+            "realtor",
+            realtor.slug,
+            true,
+            req.headers.host
+          );
           await sendRealtorApproval(
             realtor.user.email,
             realtor.businessName,
-            notes || "Your account has been reinstated and is now active."
+            dashboardUrl
           );
         } catch (emailError) {
           logger.error(
@@ -909,10 +933,17 @@ router.patch(
 
       // Send approval email
       try {
+        const dashboardUrl = getDashboardUrl(
+          "realtor",
+          realtor.slug,
+          true,
+          req.headers.host
+        );
         await sendCacApprovalEmail(
           realtor.user.email,
           realtor.user.firstName || "there",
-          realtor.businessName || "Business"
+          realtor.businessName || "Business",
+          dashboardUrl
         );
         logger.info(`CAC approval email sent to ${realtor.user.email}`);
       } catch (emailError) {

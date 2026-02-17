@@ -47,9 +47,10 @@ const viewTabs: {
 ];
 
 const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-US", {
+  new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: "USD",
+    currency: "NGN",
+    currencyDisplay: "narrowSymbol",
     minimumFractionDigits: 0,
   }).format(value);
 

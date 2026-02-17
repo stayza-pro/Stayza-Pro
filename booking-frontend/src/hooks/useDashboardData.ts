@@ -56,7 +56,7 @@ export interface DashboardData {
 
 const defaultState: Omit<DashboardData, "loading" | "error" | "refresh"> = {
   stats: {
-    totalRevenue: { value: "NGN 0.00", change: { value: 0, type: "increase" } },
+    totalRevenue: { value: "₦0.00", change: { value: 0, type: "increase" } },
     activeBookings: { value: "0", change: { value: 0, type: "increase" } },
     propertiesListed: { value: "0", change: { value: 0, type: "increase" } },
     guestSatisfaction: {
@@ -130,7 +130,7 @@ export function useDashboardData(): DashboardData {
           ...prev,
           stats: {
             totalRevenue: {
-              value: `NGN ${(statsData.totalRevenue || 0).toLocaleString("en-NG", {
+              value: `₦${(statsData.totalRevenue || 0).toLocaleString("en-NG", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`,
@@ -182,7 +182,7 @@ export function useDashboardData(): DashboardData {
             checkIn: booking.checkInDate,
             checkOut: booking.checkOutDate,
             status: toUiBookingStatus(booking.status),
-            amount: `NGN ${booking.totalAmount?.toLocaleString() || "0"}`,
+            amount: `₦${booking.totalAmount?.toLocaleString() || "0"}`,
             nights:
               booking.nights ||
               Math.ceil(

@@ -22,7 +22,7 @@ const RANGE_OPTIONS: Array<{ value: TimeRange; label: string }> = [
 const formatCurrency = (value: unknown) => {
   const amount = Number(value);
   const safeAmount = Number.isFinite(amount) ? amount : 0;
-  return `NGN ${safeAmount.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
+  return `₦${safeAmount.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
 };
 
 export default function RevenueChartPanel() {
@@ -143,7 +143,7 @@ export default function RevenueChartPanel() {
                         />
 
                         <span className="text-white text-sm font-bold relative z-10">
-                          NGN {(item.amount / 1000).toFixed(0)}k
+                          ₦{(item.amount / 1000).toFixed(0)}k
                         </span>
                       </motion.div>
                     </div>

@@ -96,7 +96,7 @@ export const createPropertySchema = Joi.object({
     )
     .required(),
   pricePerNight: Joi.number().positive().required(),
-  currency: Joi.string().valid("USD", "NGN", "GBP", "EUR").default("USD"),
+  currency: Joi.string().valid("NGN").default("NGN"),
   maxGuests: Joi.number().integer().positive().max(20).required(),
   bedrooms: Joi.number().integer().min(0).required(),
   bathrooms: Joi.number().integer().positive().required(),
@@ -129,7 +129,7 @@ export const updatePropertySchema = Joi.object({
     )
     .optional(),
   pricePerNight: Joi.number().positive().optional(),
-  currency: Joi.string().valid("USD", "NGN", "GBP", "EUR").optional(),
+  currency: Joi.string().valid("NGN").optional(),
   maxGuests: Joi.number().integer().positive().max(20).optional(),
   bedrooms: Joi.number().integer().min(0).optional(),
   bathrooms: Joi.number().integer().positive().optional(),

@@ -162,7 +162,7 @@ export default function RefundRequestsContent() {
                 <div>
                   <p className="text-sm text-gray-600">Total Refunded</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
-                    NGN {formatNgnAmount(stats.totalRefunded)}
+                    ₦{formatNgnAmount(stats.totalRefunded)}
                   </p>
                 </div>
                 <div className="p-3 bg-blue-100 rounded-lg">
@@ -251,11 +251,11 @@ export default function RefundRequestsContent() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          NGN {formatNgnAmount(refund.requestedAmount)}
+                          ₦{formatNgnAmount(refund.requestedAmount)}
                         </div>
                         {refund.actualRefundAmount !== undefined && (
                           <div className="text-xs text-gray-500">
-                            Actual: NGN {formatNgnAmount(refund.actualRefundAmount)}
+                            Actual: ₦{formatNgnAmount(refund.actualRefundAmount)}
                           </div>
                         )}
                       </td>

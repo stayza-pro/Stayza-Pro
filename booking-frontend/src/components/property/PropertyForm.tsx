@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { Building2 } from "lucide-react";
@@ -89,7 +89,7 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     description: property?.description || "",
     type: property?.type || "APARTMENT",
     pricePerNight: property?.pricePerNight ?? 0,
-    currency: property?.currency || "USD",
+    currency: property?.currency || "NGN",
     maxGuests: property?.maxGuests || 1,
     bedrooms: property?.bedrooms || 1,
     bathrooms: property?.bathrooms || 1,
@@ -333,10 +333,7 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
                 disabled={isLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="USD">USD ($)</option>
-                <option value="NGN">NGN (₦)</option>
-                <option value="GBP">GBP (£)</option>
-                <option value="EUR">EUR (€)</option>
+                <option value="NGN">₦ Naira</option>
               </select>
             </div>
           </div>
@@ -638,3 +635,4 @@ export const PropertyForm: React.FC<PropertyFormProps> = ({
     </form>
   );
 };
+

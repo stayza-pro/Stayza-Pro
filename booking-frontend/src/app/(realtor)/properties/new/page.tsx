@@ -225,10 +225,7 @@ const AMENITIES_OPTIONS: {
 
 // Currency symbols mapping
 const CURRENCY_SYMBOLS: { [key: string]: string } = {
-  NGN: "NGN",
-  USD: "$",
-  EUR: "EUR",
-  GBP: "GBP",
+  NGN: "₦",
 };
 
 export default function AddPropertyPage() {
@@ -267,6 +264,24 @@ export default function AddPropertyPage() {
     value: PropertyFormData[K]
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const addCustomAmenitiesFromInput = (rawInput: string) => {
+    const parsedAmenities = rawInput
+      .split(",")
+      .map((item) => item.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (parsedAmenities.length === 0) {
+      return;
+    }
+
+    const existingAmenities = formData.customAmenities || [];
+    const mergedAmenities = Array.from(
+      new Set([...existingAmenities, ...parsedAmenities])
+    );
+
+    updateFormData("customAmenities", mergedAmenities);
   };
 
   const toggleAmenity = (amenity: PropertyAmenity) => {
@@ -759,10 +774,7 @@ export default function AddPropertyPage() {
                 onChange={(e) => updateFormData("currency", e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:border-transparent transition-all"
               >
-                <option value="NGN">NGN Nigerian Naira (NGN)</option>
-                <option value="USD">$ US Dollar (USD)</option>
-                <option value="EUR">EUR Euro (EUR)</option>
-                <option value="GBP">GBP British Pound (GBP)</option>
+                <option value="NGN">₦ Naira</option>
               </select>
             </div>
 
@@ -1032,7 +1044,7 @@ export default function AddPropertyPage() {
               </h4>
               <p className="text-xs text-gray-600 mb-4">
                 Add any unique amenities not listed above. Separate each with
-                Enter/Return.
+                commas or Enter/Return.
               </p>
 
               {/* Input for new custom amenity */}
@@ -1044,14 +1056,8 @@ export default function AddPropertyPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && e.currentTarget.value.trim()) {
                       e.preventDefault();
-                      const value = e.currentTarget.value.trim().toUpperCase();
-                      if (value && !formData.customAmenities?.includes(value)) {
-                        updateFormData("customAmenities", [
-                          ...(formData.customAmenities || []),
-                          value,
-                        ]);
-                        e.currentTarget.value = "";
-                      }
+                      addCustomAmenitiesFromInput(e.currentTarget.value);
+                      e.currentTarget.value = "";
                     }
                   }}
                 />
@@ -1060,14 +1066,8 @@ export default function AddPropertyPage() {
                   onClick={(e) => {
                     const input = e.currentTarget
                       .previousElementSibling as HTMLInputElement;
-                    const value = input.value.trim().toUpperCase();
-                    if (value && !formData.customAmenities?.includes(value)) {
-                      updateFormData("customAmenities", [
-                        ...(formData.customAmenities || []),
-                        value,
-                      ]);
-                      input.value = "";
-                    }
+                    addCustomAmenitiesFromInput(input.value);
+                    input.value = "";
                   }}
                   className="px-4 py-2 text-white rounded-lg transition-colors text-sm font-medium"
                   style={{ backgroundColor: brandColors.primary }}
@@ -1254,7 +1254,8 @@ export default function AddPropertyPage() {
                 <div>
                   <p className="text-gray-500">Price Per Night</p>
                   <p className="font-medium">
-                    {formData.currency} {formData.pricePerNight ?? 0}
+                    {CURRENCY_SYMBOLS[formData.currency || "NGN"]}
+                    {formData.pricePerNight ?? 0}
                   </p>
                 </div>
                 {(formData.cleaningFee || formData.securityDeposit) && (
@@ -1263,7 +1264,8 @@ export default function AddPropertyPage() {
                       <div>
                         <p className="text-gray-500">Cleaning Fee</p>
                         <p className="font-medium">
-                          {formData.currency} {formData.cleaningFee}
+                          {CURRENCY_SYMBOLS[formData.currency || "NGN"]}
+                          {formData.cleaningFee}
                         </p>
                       </div>
                     )}
@@ -1273,7 +1275,8 @@ export default function AddPropertyPage() {
                           Security Deposit (Refundable)
                         </p>
                         <p className="font-medium">
-                          {formData.currency} {formData.securityDeposit}
+                          {CURRENCY_SYMBOLS[formData.currency || "NGN"]}
+                          {formData.securityDeposit}
                         </p>
                       </div>
                     )}

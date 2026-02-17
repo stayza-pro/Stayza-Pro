@@ -71,13 +71,14 @@ export default function BrowsePropertiesPage() {
     limit: 30,
   });
 
-  const formatPrice = (price: number, currency: string = "USD") =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
+  const formatPrice = (price: number, _currency: string = "NGN") => {
+    void _currency;
+    const safePrice = Number.isFinite(price) ? price : 0;
+    return `₦${safePrice.toLocaleString("en-NG", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(price);
+    })}`;
+  };
 
   const properties = useMemo(() => {
     const items = [...(propertiesResponse?.data || [])];

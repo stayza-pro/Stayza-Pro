@@ -91,12 +91,13 @@ export default function FavoritesPage() {
     }
   };
 
-  const formatPrice = (price: number, currency = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
+  const formatPrice = (price: number, _currency = "NGN") => {
+    void _currency;
+    const safePrice = Number.isFinite(price) ? price : 0;
+    return `₦${safePrice.toLocaleString("en-NG", {
       minimumFractionDigits: 0,
-    }).format(price);
+      maximumFractionDigits: 0,
+    })}`;
   };
 
   const getPrimaryImage = (property: Property) => {

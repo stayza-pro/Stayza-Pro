@@ -115,7 +115,7 @@ export const useUIStore = create<UIState & UIActions>((set, get) => ({
   searchFiltersOpen: false,
   mobileMenuOpen: false,
   filtersDrawerOpen: false,
-  currency: "USD",
+  currency: "NGN",
   language: "en",
   dateFormat: "MM/dd/yyyy",
 

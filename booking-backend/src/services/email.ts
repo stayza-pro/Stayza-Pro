@@ -1278,10 +1278,8 @@ export const sendCacApprovalEmail = async (
   to: string,
   name: string,
   businessName: string,
+  dashboardUrl: string,
 ) => {
-  const dashboardUrl = `https://${businessName
-    .toLowerCase()
-    .replace(/\s+/g, "-")}.stayza.pro/settings?tab=business`;
   const template = emailTemplates.cacApproved(businessName, dashboardUrl);
   return sendEmail(to, template);
 };

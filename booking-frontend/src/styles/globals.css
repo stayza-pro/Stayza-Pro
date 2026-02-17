@@ -17,6 +17,54 @@
     @apply text-gray-900;
     background-color: #fff8f0; /* Warm beige/off-white background */
   }
+
+  /* Keep image crops visually consistent in cards, grids, and thumbnails */
+  img {
+    object-fit: cover;
+    object-position: center;
+  }
+
+  /* Unified animated styling for all native date/time fields */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    @apply rounded-xl border border-gray-300 bg-white text-gray-900 shadow-sm transition-all duration-300;
+    background-image: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  }
+
+  input[type="date"]:hover,
+  input[type="time"]:hover,
+  input[type="datetime-local"]:hover {
+    border-color: #9ca3af;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+  }
+
+  input[type="date"]:focus-visible,
+  input[type="time"]:focus-visible,
+  input[type="datetime-local"]:focus-visible {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow:
+      0 0 0 3px rgba(37, 99, 235, 0.2),
+      0 8px 20px rgba(37, 99, 235, 0.15);
+    transform: translateY(-1px);
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.85;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  input[type="date"]:hover::-webkit-calendar-picker-indicator,
+  input[type="time"]:hover::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    transform: scale(1.08);
+  }
 }
 
 @layer components {
