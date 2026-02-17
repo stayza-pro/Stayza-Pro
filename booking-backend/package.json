@@ -14,6 +14,7 @@
     "prisma:reset": "prisma migrate reset",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
+    "admin:bootstrap": "tsx src/scripts/bootstrap-admin.ts",
     "postinstall": "prisma generate",
     "test": "jest",
     "test:watch": "jest --watch",

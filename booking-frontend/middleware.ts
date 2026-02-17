@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const SUBDOMAIN_LOGIN_PATHS = new Set(["/login", "/realtor/login"]);
+const LOCALE_ROOT_PATHS = new Set(["/en", "/fr", "/pt"]);
 
 const getHostname = (hostHeader: string): string => {
   return hostHeader.split(":")[0].toLowerCase();
@@ -54,6 +55,19 @@ export function middleware(request: NextRequest) {
     } else if (subdomain !== "www") {
       tenantType = "realtor";
     }
+  }
+
+  // Ensure subdomain root/localized marketing routes never leak through.
+  if (tenantType === "admin" && (url.pathname === "/" || LOCALE_ROOT_PATHS.has(url.pathname))) {
+    const redirectUrl = url.clone();
+    redirectUrl.pathname = "/admin/login";
+    return NextResponse.redirect(redirectUrl, 307);
+  }
+
+  if (tenantType === "realtor" && (url.pathname === "/" || LOCALE_ROOT_PATHS.has(url.pathname))) {
+    const redirectUrl = url.clone();
+    redirectUrl.pathname = "/guest-landing";
+    return NextResponse.redirect(redirectUrl, 307);
   }
 
   // Realtor subdomains should never serve local /login pages.

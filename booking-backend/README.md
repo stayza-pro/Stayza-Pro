@@ -178,12 +178,36 @@ The system uses the following main models:
 - \`npm run dev\` - Start development server
 - \`npm run build\` - Build for production
 - \`npm start\` - Start production server
+- \`npm run admin:bootstrap\` - Create or update permanent admin account
 - \`npm run prisma:migrate\` - Run database migrations
 - \`npm run prisma:generate\` - Generate Prisma client
 - \`npm run prisma:seed\` - Seed database
 - \`npm run prisma:studio\` - Open Prisma Studio
 - \`npm test\` - Run tests
 - \`npm run lint\` - Lint code
+
+## Permanent Admin Account
+
+Use the bootstrap script to create (or update) an admin account after any DB change:
+
+\`\`\`bash
+npm run prisma:migrate:deploy
+ADMIN_EMAIL=admin@stayza.com ADMIN_PASSWORD="ChangeThisStrongPassword123!" npm run admin:bootstrap
+\`\`\`
+
+For Windows PowerShell:
+
+\`\`\`powershell
+$env:ADMIN_EMAIL="admin@stayza.com"
+$env:ADMIN_PASSWORD="ChangeThisStrongPassword123!"
+$env:ADMIN_FIRST_NAME="System"
+$env:ADMIN_LAST_NAME="Administrator"
+npm run admin:bootstrap
+\`\`\`
+
+Notes:
+- Re-running this script is safe (idempotent): it updates existing admin credentials.
+- If the database is replaced, run the same command again to restore admin access.
 
 ## Environment Variables
 
