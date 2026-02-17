@@ -91,7 +91,8 @@ export function buildSubdomainUrl(subdomain: string, path = "/"): string {
     }
   }
 
-  return `${url.protocol}//${newHostname}:${url.port}${path}`;
+  const portPart = url.port ? `:${url.port}` : "";
+  return `${url.protocol}//${newHostname}${portPart}${path}`;
 }
 
 // Get the main domain URL (without subdomain)

@@ -1105,9 +1105,19 @@ router.post(
       "realtor",
       slug,
       result.user.email,
+      req.headers.host,
     );
-    const dashboardUrl = getDashboardUrl("realtor", slug, false); // Not verified yet
-    const registrationSuccessUrl = getRegistrationSuccessUrl("realtor", slug);
+    const dashboardUrl = getDashboardUrl(
+      "realtor",
+      slug,
+      false,
+      req.headers.host,
+    ); // Not verified yet
+    const registrationSuccessUrl = getRegistrationSuccessUrl(
+      "realtor",
+      slug,
+      req.headers.host,
+    );
 
     // Send realtor welcome email with verification link
     sendRealtorWelcomeEmail(

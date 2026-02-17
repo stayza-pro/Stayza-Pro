@@ -351,7 +351,12 @@ router.post(
     let loginRedirectUrl = "/";
 
     if (user.role === "REALTOR" && user.realtor && user.isEmailVerified) {
-      dashboardUrl = getDashboardUrl("realtor", user.realtor.slug, true);
+      dashboardUrl = getDashboardUrl(
+        "realtor",
+        user.realtor.slug,
+        true,
+        req.headers.host,
+      );
       loginRedirectUrl = dashboardUrl;
     } else if (
       user.role === "REALTOR" &&
@@ -366,7 +371,7 @@ router.post(
         req.headers.host,
       );
     } else if (user.role === "ADMIN") {
-      dashboardUrl = getDashboardUrl("admin");
+      dashboardUrl = getDashboardUrl("admin", undefined, false, req.headers.host);
       loginRedirectUrl = dashboardUrl;
     } else {
       loginRedirectUrl = buildMainDomainUrl("/", req.headers.host);
@@ -642,9 +647,19 @@ router.get(
     if (user.isEmailVerified) {
       let dashboardUrl = "/";
       if (user.role === "REALTOR" && user.realtor) {
-        dashboardUrl = getDashboardUrl("realtor", user.realtor.slug, true);
+        dashboardUrl = getDashboardUrl(
+          "realtor",
+          user.realtor.slug,
+          true,
+          req.headers.host,
+        );
       } else if (user.role === "ADMIN") {
-        dashboardUrl = getDashboardUrl("admin");
+        dashboardUrl = getDashboardUrl(
+          "admin",
+          undefined,
+          false,
+          req.headers.host,
+        );
       }
 
       return res.json({
@@ -697,9 +712,15 @@ router.get(
         "realtor",
         verifiedUser.realtor.slug,
         true,
+        req.headers.host,
       );
     } else if (verifiedUser.role === "ADMIN") {
-      dashboardUrl = getDashboardUrl("admin");
+      dashboardUrl = getDashboardUrl(
+        "admin",
+        undefined,
+        false,
+        req.headers.host,
+      );
     }
 
     return res.json({
@@ -807,6 +828,7 @@ router.post(
       userType,
       realtorSlug,
       user.email,
+      req.headers.host,
     );
 
     let deliveryResult: { success: boolean; queued?: boolean } | undefined;

@@ -61,7 +61,7 @@ router.get(
       success: true,
       data: locks,
     });
-  })
+  }),
 );
 
 /**
@@ -109,7 +109,7 @@ router.get(
       (e) =>
         e.providerResponse &&
         typeof e.providerResponse === "object" &&
-        "transferConfirmed" in e.providerResponse
+        "transferConfirmed" in e.providerResponse,
     );
 
     const webhookStats = {
@@ -117,13 +117,13 @@ router.get(
       successRate:
         webhookEvents.length > 0
           ? (webhookEvents.filter(
-              (e: any) => e.providerResponse?.transferConfirmed
+              (e: any) => e.providerResponse?.transferConfirmed,
             ).length /
               webhookEvents.length) *
             100
           : 0,
       failedCount: webhookEvents.filter(
-        (e: any) => e.providerResponse?.transferFailed
+        (e: any) => e.providerResponse?.transferFailed,
       ).length,
       lastReceived:
         webhookEvents.length > 0
@@ -131,7 +131,7 @@ router.get(
           : undefined,
       byProvider: {
         paystack: webhookEvents.filter((e: any) =>
-          e.transactionReference?.includes("PAYSTACK")
+          e.transactionReference?.includes("PAYSTACK"),
         ).length,
       },
     };
@@ -142,7 +142,7 @@ router.get(
         e.providerResponse &&
         typeof e.providerResponse === "object" &&
         ("retryCount" in e.providerResponse ||
-          "retryAttempt" in e.providerResponse)
+          "retryAttempt" in e.providerResponse),
     );
 
     const retryStats = {
@@ -157,7 +157,7 @@ router.get(
       maxRetriesReached: retryEvents.filter(
         (e: any) =>
           e.providerResponse?.retryCount >= 3 ||
-          e.providerResponse?.retryAttempt >= 3
+          e.providerResponse?.retryAttempt >= 3,
       ).length,
       averageRetries:
         retryEvents.length > 0
@@ -167,7 +167,7 @@ router.get(
                 (e.providerResponse?.retryCount ||
                   e.providerResponse?.retryAttempt ||
                   0),
-              0
+              0,
             ) / retryEvents.length
           : 0,
     };
@@ -193,18 +193,18 @@ router.get(
     const transferStats = {
       totalTransfers: transferEvents.length,
       confirmed: transferEvents.filter(
-        (e: any) => e.providerResponse?.transferConfirmed
+        (e: any) => e.providerResponse?.transferConfirmed,
       ).length,
       pending: transferEvents.filter(
         (e: any) =>
           !e.providerResponse?.transferConfirmed &&
-          !e.providerResponse?.transferFailed
+          !e.providerResponse?.transferFailed,
       ).length,
       failed: transferEvents.filter(
-        (e: any) => e.providerResponse?.transferFailed
+        (e: any) => e.providerResponse?.transferFailed,
       ).length,
       reversed: transferEvents.filter(
-        (e: any) => e.providerResponse?.transferReversed
+        (e: any) => e.providerResponse?.transferReversed,
       ).length,
     };
 
@@ -234,7 +234,7 @@ router.get(
         },
       },
     });
-  })
+  }),
 );
 
 /**
@@ -273,58 +273,60 @@ router.get(
           prisma.emailJob.count({ where: { status: "FAILED" } }),
         ]);
 
-      const [stuckProcessing, nextPendingJobs, recentFailedJobs, latestSentJob] =
-        await Promise.all([
-          prisma.emailJob.count({
-            where: {
-              status: "PROCESSING",
-              lockedAt: {
-                lt: new Date(
-                  now.getTime() - config.EMAIL_WORKER_LOCK_TIMEOUT_MS,
-                ),
-              },
+      const [
+        stuckProcessing,
+        nextPendingJobs,
+        recentFailedJobs,
+        latestSentJob,
+      ] = await Promise.all([
+        prisma.emailJob.count({
+          where: {
+            status: "PROCESSING",
+            lockedAt: {
+              lt: new Date(now.getTime() - config.EMAIL_WORKER_LOCK_TIMEOUT_MS),
             },
-          }),
-          prisma.emailJob.findMany({
-            where: { status: "PENDING" },
-            orderBy: { nextAttemptAt: "asc" },
-            take: 5,
-            select: {
-              id: true,
-              to: true,
-              attempts: true,
-              maxAttempts: true,
-              nextAttemptAt: true,
-              lastError: true,
-              createdAt: true,
-            },
-          }),
-          prisma.emailJob.findMany({
-            where: { status: "FAILED" },
-            orderBy: { updatedAt: "desc" },
-            take: 10,
-            select: {
-              id: true,
-              to: true,
-              attempts: true,
-              maxAttempts: true,
-              lastError: true,
-              updatedAt: true,
-              provider: true,
-            },
-          }),
-          prisma.emailJob.findFirst({
-            where: { status: "SENT" },
-            orderBy: { sentAt: "desc" },
-            select: {
-              id: true,
-              to: true,
-              sentAt: true,
-              provider: true,
-              providerMessageId: true,
-            },
-          }),
-        ]);
+          },
+        }),
+        prisma.emailJob.findMany({
+          where: { status: "PENDING" },
+          orderBy: { nextAttemptAt: "asc" },
+          take: 5,
+          select: {
+            id: true,
+            to: true,
+            attempts: true,
+            maxAttempts: true,
+            nextAttemptAt: true,
+            lastError: true,
+            createdAt: true,
+          },
+        }),
+        prisma.emailJob.findMany({
+          where: { status: "FAILED" },
+          orderBy: { updatedAt: "desc" },
+          take: 10,
+          select: {
+            id: true,
+            to: true,
+            attempts: true,
+            maxAttempts: true,
+            lastError: true,
+            updatedAt: true,
+            provider: true,
+          },
+        }),
+        prisma.emailJob.findFirst({
+          where: { status: "SENT" },
+          orderBy: { sentAt: "desc" },
+          select: {
+            id: true,
+            to: true,
+            sentAt: true,
+            provider: true,
+            providerMessageId: true,
+          },
+        }),
+      ]);
 
       return res.json({
         success: true,
@@ -437,7 +439,7 @@ router.delete(
       message: "Job lock released successfully",
       data: { id: lock.id, jobName: lock.jobName },
     });
-  })
+  }),
 );
 
 /**
@@ -520,10 +522,10 @@ router.get(
         status: response?.transferConfirmed
           ? "confirmed"
           : response?.transferFailed
-          ? "failed"
-          : response?.transferReversed
-          ? "reversed"
-          : "pending",
+            ? "failed"
+            : response?.transferReversed
+              ? "reversed"
+              : "pending",
         failureReason: response?.failureReason,
         retryCount: response?.retryCount || response?.retryAttempt || 0,
       };
@@ -539,7 +541,7 @@ router.get(
       success: true,
       data: webhookStatus,
     });
-  })
+  }),
 );
 
 export default router;

@@ -13,40 +13,149 @@ export interface DomainConfig {
   protocol: string;
 }
 
+const toSafeHost = (value?: string | null): string => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const parsed = raw.includes("://") ? new URL(raw) : new URL(`http://${raw}`);
+    return parsed.hostname.toLowerCase().replace(/\.$/, "");
+  } catch {
+    return raw
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .split("/")[0]
+      .split(":")[0]
+      .replace(/\.$/, "");
+  }
+};
+
+const getPortFromHostLike = (value?: string | null): string | null => {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  try {
+    const parsed = raw.includes("://") ? new URL(raw) : new URL(`http://${raw}`);
+    return parsed.port || null;
+  } catch {
+    const match = raw.match(/:(\d+)(?:\/|$)/);
+    return match?.[1] || null;
+  }
+};
+
+const isLocalHost = (host: string): boolean =>
+  host === "localhost" ||
+  host.endsWith(".localhost") ||
+  host === "127.0.0.1";
+
+const toRootDomain = (host: string): string => {
+  if (!host) return "";
+  if (isLocalHost(host)) return host;
+
+  const parts = host.split(".").filter(Boolean);
+  if (parts.length <= 2) {
+    return host;
+  }
+
+  return parts.slice(-2).join(".");
+};
+
+const getFrontendHostAndProtocol = (): { host: string; protocol: string } => {
+  const raw = String(process.env.FRONTEND_URL || config.FRONTEND_URL || "").trim();
+  if (!raw) {
+    return { host: "", protocol: "https" };
+  }
+
+  try {
+    const parsed = new URL(raw);
+    return {
+      host: toSafeHost(parsed.hostname),
+      protocol: parsed.protocol === "http:" ? "http" : "https",
+    };
+  } catch {
+    const host = toSafeHost(raw);
+    return {
+      host,
+      protocol: host && isLocalHost(host) ? "http" : "https",
+    };
+  }
+};
+
 /**
  * Get current domain configuration based on environment
  */
 export function getDomainConfig(requestHost?: string): DomainConfig {
   const isProduction = config.NODE_ENV === "production";
+  const { host: frontendHost, protocol: frontendProtocol } =
+    getFrontendHostAndProtocol();
 
-  // Dynamic domain detection based on request or config
-  let mainDomain: string;
-  let baseDomain: string;
+  const explicitMainDomainFromEnv = toSafeHost(
+    process.env.MAIN_DOMAIN || config.MAIN_DOMAIN || "",
+  );
+  const requestDomain = toRootDomain(toSafeHost(requestHost)).replace(/^www\./, "");
+  const frontendDomain = toRootDomain(frontendHost).replace(/^www\./, "");
+  const configuredMainDomain = explicitMainDomainFromEnv.replace(/^www\./, "");
 
-  if (requestHost && !isProduction) {
-    // Development: Extract port from request host if available
-    const hostParts = requestHost.split(":");
-    const port = hostParts[1] || "3000"; // Default to 3000 for frontend
-    mainDomain = `localhost:${port}`;
-    baseDomain = `localhost:${port}`;
-  } else if (isProduction) {
-    mainDomain = config.MAIN_DOMAIN;
-    baseDomain = config.MAIN_DOMAIN;
-  } else {
-    // Fallback to config
-    mainDomain = config.DEV_DOMAIN;
-    baseDomain = config.DEV_DOMAIN;
+  if (
+    frontendDomain &&
+    frontendDomain.includes(".") &&
+    !isLocalHost(frontendDomain)
+  ) {
+    return {
+      isProduction: true,
+      mainDomain: frontendDomain,
+      baseDomain: frontendDomain,
+      protocol: frontendProtocol,
+    };
   }
 
-  const protocol = isProduction ? "https" : "http";
+  if (
+    isProduction &&
+    configuredMainDomain &&
+    configuredMainDomain.includes(".") &&
+    !isLocalHost(configuredMainDomain)
+  ) {
+    return {
+      isProduction: true,
+      mainDomain: configuredMainDomain,
+      baseDomain: configuredMainDomain,
+      protocol: "https",
+    };
+  }
 
-  
+  if (
+    configuredMainDomain &&
+    configuredMainDomain.includes(".") &&
+    !isLocalHost(configuredMainDomain)
+  ) {
+    return {
+      isProduction: false,
+      mainDomain: configuredMainDomain,
+      baseDomain: configuredMainDomain,
+      protocol: "https",
+    };
+  }
+
+  if (requestDomain && requestDomain.includes(".") && !isLocalHost(requestDomain)) {
+    return {
+      isProduction: false,
+      mainDomain: requestDomain,
+      baseDomain: requestDomain,
+      protocol: "https",
+    };
+  }
+
+  const devPort =
+    getPortFromHostLike(config.DEV_DOMAIN) ||
+    getPortFromHostLike(requestHost) ||
+    "3000";
+  const localDomain = `localhost:${devPort}`;
 
   return {
-    isProduction,
-    mainDomain,
-    baseDomain,
-    protocol,
+    isProduction: false,
+    mainDomain: localDomain,
+    baseDomain: localDomain,
+    protocol: "http",
   };
 }
 
@@ -88,7 +197,8 @@ export function getEmailVerificationUrl(
   token: string,
   userType: "admin" | "realtor" | "guest",
   realtorSlug?: string,
-  email?: string
+  email?: string,
+  requestHost?: string,
 ): string {
   const params = new URLSearchParams();
   params.set("token", token);
@@ -103,7 +213,7 @@ export function getEmailVerificationUrl(
 
   // All email verifications happen on main domain for consistency
   // The verify-email page is at the root level and handles all user types
-  return buildMainDomainUrl(path);
+  return buildMainDomainUrl(path, requestHost);
 }
 
 /**
@@ -112,20 +222,21 @@ export function getEmailVerificationUrl(
 export function getDashboardUrl(
   userType: "admin" | "realtor" | "guest",
   realtorSlug?: string,
-  isVerified: boolean = false
+  isVerified: boolean = false,
+  requestHost?: string,
 ): string {
   if (userType === "admin") {
-    return buildMainDomainUrl("/admin/dashboard");
+    return buildMainDomainUrl("/admin/dashboard", requestHost);
   } else if (userType === "realtor" && realtorSlug) {
     if (isVerified) {
-      return buildSubdomainUrl(realtorSlug, "/dashboard");
+      return buildSubdomainUrl(realtorSlug, "/dashboard", requestHost);
     } else {
       // Unverified realtors stay on main domain until verification
-      return buildMainDomainUrl("/realtor/check-email");
+      return buildMainDomainUrl("/realtor/check-email", requestHost);
     }
   } else {
     // Guests typically don't have dashboards, redirect to main
-    return buildMainDomainUrl("/");
+    return buildMainDomainUrl("/", requestHost);
   }
 }
 
@@ -145,15 +256,16 @@ export function getLoginUrl(userType?: "admin" | "realtor" | "guest"): string {
  */
 export function getRegistrationSuccessUrl(
   userType: "admin" | "realtor" | "guest",
-  realtorSlug?: string
+  realtorSlug?: string,
+  requestHost?: string,
 ): string {
   if (userType === "realtor" && realtorSlug) {
     // After registration, realtors need to verify email first
-    return buildMainDomainUrl("/realtor/check-email");
+    return buildMainDomainUrl("/realtor/check-email", requestHost);
   } else if (userType === "admin") {
-    return buildMainDomainUrl("/admin/dashboard");
+    return buildMainDomainUrl("/admin/dashboard", requestHost);
   } else {
-    return buildMainDomainUrl("/");
+    return buildMainDomainUrl("/", requestHost);
   }
 }
 

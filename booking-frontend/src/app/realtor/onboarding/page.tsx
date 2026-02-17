@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useAuthStore } from "@/store/authStore";
+import { buildSubdomainUrl } from "@/utils/subdomain";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import Link from "next/link";
@@ -141,7 +142,7 @@ export default function OnboardingPage() {
     if (currentUser?.role === "REALTOR" && currentUser.realtor?.slug) {
       // Construct realtor subdomain URL
       const realtorSlug = currentUser.realtor.slug;
-      const redirectUrl = `http://${realtorSlug}.${window.location.host}/dashboard`;
+      const redirectUrl = buildSubdomainUrl(realtorSlug, "/dashboard");
 
       // Check if cross-domain redirect
       const currentHost = window.location.host;

@@ -21,6 +21,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/store/authStore";
 import { serviceUtils } from "@/services";
+import { buildSubdomainUrl, getMainDomainUrl } from "@/utils/subdomain";
 
 // Force dynamic rendering since this page uses search params
 export const dynamic = "force-dynamic";
@@ -45,6 +46,41 @@ function RealtorLoginContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  const normalizeBackendRedirectUrl = (rawUrl: string): string => {
+    if (typeof window === "undefined" || !rawUrl) {
+      return rawUrl;
+    }
+
+    // Keep localhost URLs untouched in local development.
+    if (window.location.hostname.includes("localhost")) {
+      return rawUrl;
+    }
+
+    try {
+      const parsedUrl = new URL(rawUrl, window.location.origin);
+      if (!parsedUrl.hostname.includes("localhost")) {
+        return rawUrl;
+      }
+
+      const redirectPath = `${
+        parsedUrl.pathname || "/"
+      }${parsedUrl.search}${parsedUrl.hash}`;
+
+      if (parsedUrl.hostname === "localhost") {
+        return getMainDomainUrl(redirectPath);
+      }
+
+      const subdomain = parsedUrl.hostname.split(".")[0];
+      if (subdomain && subdomain !== "localhost") {
+        return buildSubdomainUrl(subdomain, redirectPath);
+      }
+
+      return getMainDomainUrl(redirectPath);
+    } catch {
+      return rawUrl;
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,30 +107,14 @@ function RealtorLoginContent() {
       // Use backend-provided redirect URL if available
       if (loginResponse?.redirectUrl) {
         redirectUrl = loginResponse.redirectUrl;
-
-        // Fix: If backend returns localhost URL in production, replace with actual domain
-        if (
-          typeof window !== "undefined" &&
-          redirectUrl.includes("localhost") &&
-          !window.location.hostname.includes("localhost")
-        ) {
-          const currentHost = window.location.host;
-          redirectUrl = redirectUrl
-            .replace(
-              /http:\/\/([^.]+)\.localhost:3000/,
-              `https://$1.${currentHost}`,
-            )
-            .replace(/http:\/\/localhost:3000/, `https://${currentHost}`);
-        }
+        redirectUrl = normalizeBackendRedirectUrl(redirectUrl);
       } else if (
         user?.role === "REALTOR" &&
         user?.realtor?.slug &&
         user.isEmailVerified
       ) {
         // Fallback: Construct realtor subdomain URL
-        redirectUrl = `http://${user.realtor.slug}.${
-          window.location.host
-        }/dashboard`;
+        redirectUrl = buildSubdomainUrl(user.realtor.slug, "/dashboard");
       }
 
       // Handle cross-domain navigation
