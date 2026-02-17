@@ -1,10 +1,13 @@
 import express from "express";
+import { hash } from "bcrypt";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import swaggerUi from "swagger-ui-express";
 import cron from "node-cron";
+import { UserRole } from "@prisma/client";
 import { config } from "@/config";
+import { prisma } from "@/config/database";
 import {
   errorHandler,
   notFound,
@@ -49,6 +52,71 @@ import waitlistRoutes from "@/routes/waitlist.routes";
 import testRoutes from "@/routes/test.routes";
 
 const app = express();
+
+const bootstrapAdminIfConfigured = async () => {
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD?.trim();
+
+  if (!adminEmail || !adminPassword) {
+    logger.warn("Admin bootstrap skipped: ADMIN_EMAIL or ADMIN_PASSWORD missing");
+    return;
+  }
+
+  if (adminPassword.length < 8) {
+    logger.warn("Admin bootstrap skipped: ADMIN_PASSWORD is too short");
+    return;
+  }
+
+  const adminFirstName = process.env.ADMIN_FIRST_NAME?.trim() || "System";
+  const adminLastName = process.env.ADMIN_LAST_NAME?.trim() || "Administrator";
+  const fullName = `${adminFirstName} ${adminLastName}`.trim();
+  const hashedPassword = await hash(adminPassword, 10);
+
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      email: {
+        equals: adminEmail,
+        mode: "insensitive",
+      },
+    },
+    select: {
+      id: true,
+      role: true,
+      email: true,
+    },
+  });
+
+  if (!existingUser) {
+    await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password: hashedPassword,
+        firstName: adminFirstName,
+        lastName: adminLastName,
+        fullName,
+        role: UserRole.ADMIN,
+        isEmailVerified: true,
+      },
+    });
+
+    logger.info("Admin account created from environment", { email: adminEmail });
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: existingUser.id },
+    data: {
+      password: hashedPassword,
+      role: UserRole.ADMIN,
+      firstName: adminFirstName,
+      lastName: adminLastName,
+      fullName,
+      isEmailVerified: true,
+    },
+  });
+
+  logger.info("Admin account updated from environment", { email: adminEmail });
+};
 
 // Trust proxy for accurate IP addresses
 app.set("trust proxy", 1);
@@ -391,6 +459,7 @@ if (require.main === module) {
   // Setup global error handlers
   setupGlobalErrorHandlers();
   const bootstrap = async () => {
+    await bootstrapAdminIfConfigured();
     await loadFinanceConfig();
 
     const server = app.listen(PORT, () => {
