@@ -58,7 +58,9 @@ const bootstrapAdminIfConfigured = async () => {
   const adminPassword = process.env.ADMIN_PASSWORD?.trim();
 
   if (!adminEmail || !adminPassword) {
-    logger.warn("Admin bootstrap skipped: ADMIN_EMAIL or ADMIN_PASSWORD missing");
+    logger.warn(
+      "Admin bootstrap skipped: ADMIN_EMAIL or ADMIN_PASSWORD missing",
+    );
     return;
   }
 
@@ -99,7 +101,9 @@ const bootstrapAdminIfConfigured = async () => {
       },
     });
 
-    logger.info("Admin account created from environment", { email: adminEmail });
+    logger.info("Admin account created from environment", {
+      email: adminEmail,
+    });
     return;
   }
 
@@ -124,7 +128,7 @@ app.set("trust proxy", 1);
 // Webhook routes (BEFORE express.json to preserve raw payload for signature verification)
 app.use(
   "/api/webhooks/paystack",
-  express.raw({ type: "application/json", limit: "2mb" })
+  express.raw({ type: "application/json", limit: "2mb" }),
 );
 app.use("/api/webhooks", express.json({ limit: "2mb" }), webhookRoutes);
 
@@ -139,7 +143,7 @@ app.use("/public", express.static("public"));
 const corsOptions = {
   origin: (
     origin: string | undefined,
-    callback: (err: Error | null, allow?: boolean) => void
+    callback: (err: Error | null, allow?: boolean) => void,
   ) => {
     // Development: Allow everything
     if (config.NODE_ENV === "development") {
@@ -161,13 +165,12 @@ const corsOptions = {
       (domain) =>
         origin === `https://${domain}` ||
         origin === `http://${domain}` ||
-        origin.endsWith(`.${productionDomain}`)
+        origin.endsWith(`.${productionDomain}`),
     );
 
     if (isAllowed) {
       callback(null, true);
     } else {
-      
       callback(new Error("Not allowed by CORS"), false);
     }
   },
@@ -263,8 +266,8 @@ app.get("/health", async (req, res) => {
     health.status === "healthy"
       ? 200
       : health.status === "degraded"
-      ? 200
-      : 503;
+        ? 200
+        : 503;
   res.status(httpStatus).json({
     success: health.status !== "unhealthy",
     data: health,
@@ -335,22 +338,22 @@ app.get("/health/detailed", async (req, res) => {
     "PAYSTACK_WEBHOOK_SECRET",
   ];
   const missingEnvVars = requiredEnvVars.filter(
-    (varName) => !process.env[varName]
+    (varName) => !process.env[varName],
   );
   const hasResendConfig = Boolean(process.env.RESEND_API_KEY);
   const hasSmtpConfig = Boolean(
-    process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
+    process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS,
   );
 
   const environmentErrors: string[] = [];
   if (missingEnvVars.length > 0) {
     environmentErrors.push(
-      `Missing environment variables: ${missingEnvVars.join(", ")}`
+      `Missing environment variables: ${missingEnvVars.join(", ")}`,
     );
   }
   if (!hasResendConfig && !hasSmtpConfig) {
     environmentErrors.push(
-      "Configure email provider: set RESEND_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASS"
+      "Configure email provider: set RESEND_API_KEY or SMTP_HOST/SMTP_USER/SMTP_PASS",
     );
   }
 
