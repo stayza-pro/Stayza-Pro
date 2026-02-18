@@ -18,12 +18,19 @@ import {
 } from "lucide-react";
 import { AnimatedDateInput, Button } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { useProperty } from "@/hooks/useProperties";
+import { useProperty, usePropertyAvailability } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService, favoritesService } from "@/services";
 import toast from "react-hot-toast";
 import { formatPrice as formatNaira } from "@/utils/currency";
+
+const toDateKey = (value: Date): string => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export default function GuestPropertyDetailsPage() {
   const params = useParams();
@@ -56,6 +63,36 @@ export default function GuestPropertyDetailsPage() {
     };
   } | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const minCheckInDate = useMemo(() => toDateKey(new Date()), []);
+  const availabilityRangeEnd = useMemo(() => {
+    const rangeEnd = new Date();
+    rangeEnd.setFullYear(rangeEnd.getFullYear() + 1);
+    return toDateKey(rangeEnd);
+  }, []);
+  const { data: availabilityData } = usePropertyAvailability(
+    propertyId,
+    minCheckInDate,
+    availabilityRangeEnd,
+  );
+  const unavailableDateSet = useMemo(
+    () =>
+      new Set(
+        (availabilityData?.unavailableDates || []).filter((value): value is string =>
+          Boolean(value),
+        ),
+      ),
+    [availabilityData?.unavailableDates],
+  );
+  const unavailableDateList = useMemo(
+    () => Array.from(unavailableDateSet),
+    [unavailableDateSet],
+  );
+  const minimumCheckOutDate = useMemo(() => {
+    if (!checkInDate) return minCheckInDate;
+    const nextDay = new Date(checkInDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return toDateKey(nextDay);
+  }, [checkInDate, minCheckInDate]);
 
   const images = useMemo(
     () =>
@@ -99,7 +136,6 @@ export default function GuestPropertyDetailsPage() {
 
   const formatPrice = (value: number) => formatNaira(value);
 
-  const minCheckInDate = new Date().toISOString().split("T")[0];
   const totalNights = useMemo(() => {
     if (!checkInDate || !checkOutDate) return 0;
     const start = new Date(checkInDate);
@@ -150,13 +186,42 @@ export default function GuestPropertyDetailsPage() {
 
     const nextDay = new Date(value);
     nextDay.setDate(nextDay.getDate() + 1);
-    const suggestedCheckOut = nextDay.toISOString().split("T")[0];
+    let suggestedCheckOut = toDateKey(nextDay);
+    let guard = 0;
 
-    if (!checkOutDate || checkOutDate <= value) {
+    while (unavailableDateSet.has(suggestedCheckOut) && guard < 365) {
+      nextDay.setDate(nextDay.getDate() + 1);
+      suggestedCheckOut = toDateKey(nextDay);
+      guard += 1;
+    }
+
+    if (
+      !checkOutDate ||
+      checkOutDate <= value ||
+      unavailableDateSet.has(checkOutDate)
+    ) {
       setCheckOutDate(suggestedCheckOut);
     }
 
   };
+
+  useEffect(() => {
+    if (!checkOutDate || !unavailableDateSet.has(checkOutDate)) {
+      return;
+    }
+
+    const nextAvailable = new Date(minimumCheckOutDate);
+    let candidate = toDateKey(nextAvailable);
+    let guard = 0;
+
+    while (unavailableDateSet.has(candidate) && guard < 365) {
+      nextAvailable.setDate(nextAvailable.getDate() + 1);
+      candidate = toDateKey(nextAvailable);
+      guard += 1;
+    }
+
+    setCheckOutDate(candidate);
+  }, [checkOutDate, minimumCheckOutDate, unavailableDateSet]);
 
   const nextImage = () => {
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -218,6 +283,14 @@ export default function GuestPropertyDetailsPage() {
 
     if (totalNights <= 0) {
       toast.error("Check-out date must be after check-in date");
+      return;
+    }
+
+    if (
+      unavailableDateSet.has(checkInDate) ||
+      unavailableDateSet.has(checkOutDate)
+    ) {
+      toast.error("Selected date is no longer available. Choose another date.");
       return;
     }
 
@@ -473,6 +546,8 @@ export default function GuestPropertyDetailsPage() {
                   label="Check-in"
                   value={checkInDate}
                   min={minCheckInDate}
+                  disablePastDates
+                  unavailableDates={unavailableDateList}
                   onChange={handleCheckInChange}
                   inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-blue-50/50"
                   iconClassName="text-blue-500"
@@ -481,7 +556,9 @@ export default function GuestPropertyDetailsPage() {
                 <AnimatedDateInput
                   label="Check-out"
                   value={checkOutDate}
-                  min={checkInDate || minCheckInDate}
+                  min={minimumCheckOutDate}
+                  disablePastDates
+                  unavailableDates={unavailableDateList}
                   onChange={setCheckOutDate}
                   inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-blue-50/50"
                   iconClassName="text-blue-500"

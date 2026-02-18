@@ -13,6 +13,8 @@ interface BaseAnimatedInputProps {
   onChange: (value: string) => void;
   min?: string;
   max?: string;
+  unavailableDates?: Array<string | Date>;
+  disablePastDates?: boolean;
   required?: boolean;
   disabled?: boolean;
   className?: string;
@@ -31,6 +33,22 @@ const parseDateValue = (value: string): Date | null => {
   const parsedDate = parse(value, "yyyy-MM-dd", new Date());
   return isValid(parsedDate) ? parsedDate : null;
 };
+
+const parseFlexibleDateValue = (value: string): Date | null => {
+  const parsed = parseDateValue(value);
+  if (parsed) return parsed;
+
+  const fallback = new Date(value);
+  return isValid(fallback) ? fallback : null;
+};
+
+const normalizeDate = (value: Date): Date => {
+  const normalized = new Date(value);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+const toDateKey = (value: Date): string => format(normalizeDate(value), "yyyy-MM-dd");
 
 const parseTimeValue = (value: string): {
   hour12: number;
@@ -165,6 +183,8 @@ export const AnimatedDateInput = ({
   onChange,
   min,
   max,
+  unavailableDates,
+  disablePastDates = false,
   required,
   disabled,
   className,
@@ -178,6 +198,52 @@ export const AnimatedDateInput = ({
   const selectedDate = useMemo(() => parseDateValue(value), [value]);
   const minDate = useMemo(() => parseDateValue(min || ""), [min]);
   const maxDate = useMemo(() => parseDateValue(max || ""), [max]);
+  const today = useMemo(() => normalizeDate(new Date()), []);
+  const unavailableDateKeys = useMemo(() => {
+    const keys = new Set<string>();
+
+    (unavailableDates || []).forEach((item) => {
+      const date =
+        item instanceof Date
+          ? item
+          : parseFlexibleDateValue(String(item));
+
+      if (date) {
+        keys.add(toDateKey(date));
+      }
+    });
+
+    return keys;
+  }, [unavailableDates]);
+
+  const effectiveMinDate = useMemo(() => {
+    if (!disablePastDates) {
+      return minDate || null;
+    }
+
+    if (!minDate) {
+      return today;
+    }
+
+    return minDate > today ? minDate : today;
+  }, [disablePastDates, minDate, today]);
+
+  const isDateSelectable = React.useCallback(
+    (candidateDate: Date) => {
+      const normalizedCandidate = normalizeDate(candidateDate);
+
+      if (effectiveMinDate && normalizedCandidate < effectiveMinDate) {
+        return false;
+      }
+
+      if (maxDate && normalizedCandidate > maxDate) {
+        return false;
+      }
+
+      return !unavailableDateKeys.has(toDateKey(normalizedCandidate));
+    },
+    [effectiveMinDate, maxDate, unavailableDateKeys],
+  );
 
   return (
     <AnimatedInputShell
@@ -194,12 +260,22 @@ export const AnimatedDateInput = ({
       <DatePicker
         selected={selectedDate}
         onChange={(date: Date | null) => onChange(date ? format(date, "yyyy-MM-dd") : "")}
-        minDate={minDate || undefined}
+        minDate={effectiveMinDate || undefined}
         maxDate={maxDate || undefined}
+        filterDate={isDateSelectable}
+        dayClassName={(date) =>
+          unavailableDateKeys.has(toDateKey(date))
+            ? "react-datepicker__day--blocked"
+            : null
+        }
         onCalendarOpen={() => setIsFocused(true)}
         onCalendarClose={() => setIsFocused(false)}
         dateFormat="MMM d, yyyy"
         placeholderText="mm/dd/yyyy"
+        nextMonthButtonLabel=""
+        previousMonthButtonLabel=""
+        nextMonthAriaLabel="Next month"
+        previousMonthAriaLabel="Previous month"
         disabled={disabled}
         required={required}
         className={cn(

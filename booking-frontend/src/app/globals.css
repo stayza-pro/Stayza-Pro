@@ -330,7 +330,8 @@
   color: #0f172a;
   font-size: 15px;
   font-weight: 700;
-  margin-bottom: 8px;
+  text-align: left;
+  margin: 0 56px 8px 12px;
 }
 
 .stayza-datepicker .react-datepicker__day-name {
@@ -362,6 +363,15 @@
   background-color: #dbeafe;
 }
 
+.stayza-datepicker .react-datepicker__day--disabled,
+.stayza-datepicker .react-datepicker__day--blocked {
+  color: #9ca3af !important;
+  background: transparent !important;
+  cursor: not-allowed;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
 .stayza-datepicker .react-datepicker__day--selected,
 .stayza-datepicker .react-datepicker__day--keyboard-selected {
   background-color: #2563eb !important;
@@ -382,6 +392,10 @@
   background: transparent;
   border: 0;
   cursor: pointer;
+  font-size: 0;
+  text-indent: -999em;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .stayza-datepicker .react-datepicker__navigation-icon::before {
