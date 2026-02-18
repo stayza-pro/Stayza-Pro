@@ -507,6 +507,8 @@ export default function BookingCheckoutPage() {
                       value={checkIn}
                       min={new Date().toISOString().split("T")[0]}
                       onChange={setCheckIn}
+                      inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
+                      iconClassName="text-slate-500"
                     />
 
                     <AnimatedDateInput
@@ -514,6 +516,8 @@ export default function BookingCheckoutPage() {
                       value={checkOut}
                       min={checkIn || new Date().toISOString().split("T")[0]}
                       onChange={setCheckOut}
+                      inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
+                      iconClassName="text-slate-500"
                     />
                   </div>
 

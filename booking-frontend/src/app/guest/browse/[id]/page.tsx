@@ -474,6 +474,8 @@ export default function GuestPropertyDetailsPage() {
                   value={checkInDate}
                   min={minCheckInDate}
                   onChange={handleCheckInChange}
+                  inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-blue-50/50"
+                  iconClassName="text-blue-500"
                 />
 
                 <AnimatedDateInput
@@ -481,6 +483,8 @@ export default function GuestPropertyDetailsPage() {
                   value={checkOutDate}
                   min={checkInDate || minCheckInDate}
                   onChange={setCheckOutDate}
+                  inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-blue-50/50"
+                  iconClassName="text-blue-500"
                 />
 
                 <div className="space-y-2">

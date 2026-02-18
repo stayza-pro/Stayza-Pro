@@ -903,11 +903,15 @@ export default function AddPropertyPage() {
                 label="Check-in Time"
                 value={formData.checkInTime || "14:00"}
                 onChange={(value) => updateFormData("checkInTime", value)}
+                inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-emerald-50/45"
+                iconClassName="text-emerald-600"
               />
               <AnimatedTimeInput
                 label="Check-out Time"
                 value={formData.checkOutTime || "11:00"}
                 onChange={(value) => updateFormData("checkOutTime", value)}
+                inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-emerald-50/45"
+                iconClassName="text-emerald-600"
               />
             </div>
 
