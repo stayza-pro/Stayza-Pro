@@ -7,6 +7,8 @@ import { Booking } from "@/types";
 import {
   BookingDisputeWindows,
   BookingModificationOptions,
+  DepositDisputeCategory,
+  RoomFeeDisputeCategory,
   bookingService,
 } from "@/services/bookings";
 import { Button, Card } from "@/components/ui";
@@ -16,6 +18,37 @@ interface BookingLifecycleActionsProps {
   role: "GUEST" | "REALTOR";
   onRefresh?: () => void | Promise<void>;
 }
+
+const LAGOS_TIMEZONE = "Africa/Lagos";
+
+const GUEST_DISPUTE_CATEGORY_OPTIONS: {
+  value: RoomFeeDisputeCategory;
+  label: string;
+}[] = [
+  { value: "MINOR_INCONVENIENCE", label: "Minor inconvenience" },
+  {
+    value: "MISSING_AMENITIES_CLEANLINESS",
+    label: "Missing amenities or cleanliness",
+  },
+  {
+    value: "MAJOR_MISREPRESENTATION",
+    label: "Major misrepresentation",
+  },
+  {
+    value: "SAFETY_UNINHABITABLE",
+    label: "Safety or uninhabitable issue",
+  },
+];
+
+const REALTOR_DISPUTE_CATEGORY_OPTIONS: {
+  value: DepositDisputeCategory;
+  label: string;
+}[] = [
+  { value: "PROPERTY_DAMAGE", label: "Property damage" },
+  { value: "MISSING_ITEMS", label: "Missing items" },
+  { value: "CLEANING_REQUIRED", label: "Cleaning required" },
+  { value: "OTHER_DEPOSIT_CLAIM", label: "Other deposit claim" },
+];
 
 const formatNaira = (amount: number) =>
   new Intl.NumberFormat("en-NG", {
@@ -39,6 +72,28 @@ const toInputDate = (value?: string | Date) => {
   return date.toISOString().split("T")[0];
 };
 
+const toLagosDateKey = (value?: string | Date) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-CA", {
+    timeZone: LAGOS_TIMEZONE,
+  });
+};
+
+const hasReachedDateInLagos = (target?: string | Date) => {
+  const today = toLagosDateKey(new Date());
+  const targetDate = toLagosDateKey(target);
+  if (!today || !targetDate) return false;
+  return today >= targetDate;
+};
+
+const isSameDateInLagos = (valueA?: string | Date, valueB?: string | Date) => {
+  const dateA = toLagosDateKey(valueA);
+  const dateB = toLagosDateKey(valueB);
+  return Boolean(dateA && dateB && dateA === dateB);
+};
+
 const formatDeadline = (value?: string) => {
   if (!value) return "N/A";
   const date = new Date(value);
@@ -51,38 +106,63 @@ export function BookingLifecycleActions({
   role,
   onRefresh,
 }: BookingLifecycleActionsProps) {
-  const [newCheckInDate, setNewCheckInDate] = React.useState(
-    toInputDate(booking.checkInDate),
-  );
   const [newCheckOutDate, setNewCheckOutDate] = React.useState(
     toInputDate(booking.checkOutDate),
   );
-  const [newGuestCount, setNewGuestCount] = React.useState(
-    booking.totalGuests || 1,
-  );
   const [modifyReason, setModifyReason] = React.useState("");
-  const [additionalNights, setAdditionalNights] = React.useState(1);
   const [loadingAction, setLoadingAction] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [modificationPreview, setModificationPreview] =
     React.useState<BookingModificationOptions | null>(null);
   const [disputeWindows, setDisputeWindows] =
     React.useState<BookingDisputeWindows | null>(null);
+  const [showDisputeForm, setShowDisputeForm] = React.useState(false);
+  const [disputeWriteup, setDisputeWriteup] = React.useState("");
+  const [guestDisputeCategory, setGuestDisputeCategory] =
+    React.useState<RoomFeeDisputeCategory>("MINOR_INCONVENIENCE");
+  const [realtorDisputeCategory, setRealtorDisputeCategory] =
+    React.useState<DepositDisputeCategory>("PROPERTY_DAMAGE");
+  const [claimedAmount, setClaimedAmount] = React.useState(
+    Number(booking.securityDeposit || 0),
+  );
   const isBlockedBooking = isBlockedDatesBooking(booking.specialRequests);
+
+  React.useEffect(() => {
+    setNewCheckOutDate(toInputDate(booking.checkOutDate));
+    setClaimedAmount(Number(booking.securityDeposit || 0));
+    setModificationPreview(null);
+    setError(null);
+  }, [booking.id, booking.checkOutDate, booking.securityDeposit]);
 
   const canModify =
     !isBlockedBooking &&
     (booking.status === "PENDING" || booking.status === "ACTIVE");
-  const canExtend = role === "GUEST" && booking.status === "ACTIVE";
-  const canCheckIn =
+
+  const checkInBaseReady =
     !isBlockedBooking &&
     booking.status === "ACTIVE" &&
     booking.stayStatus !== "CHECKED_IN" &&
     booking.stayStatus !== "CHECKED_OUT";
+
+  const canGuestCheckInToday = isSameDateInLagos(new Date(), booking.checkInDate);
+  const canRealtorCheckIn = hasReachedDateInLagos(booking.checkInDate);
+
+  const canCheckIn =
+    checkInBaseReady &&
+    ((role === "GUEST" && canGuestCheckInToday) ||
+      (role === "REALTOR" && canRealtorCheckIn));
+
   const canCheckOut =
     role === "GUEST" &&
     booking.status === "ACTIVE" &&
     booking.stayStatus === "CHECKED_IN";
+
+  const activeWindow =
+    role === "GUEST"
+      ? disputeWindows?.guestDisputeWindow
+      : disputeWindows?.realtorDisputeWindow;
+  const canOpenDispute = Boolean(activeWindow?.canOpen);
+  const disputeAlreadyOpened = Boolean(activeWindow?.opened);
 
   const refreshParent = React.useCallback(async () => {
     if (!onRefresh) return;
@@ -95,7 +175,7 @@ export function BookingLifecycleActions({
       const windows = await bookingService.getDisputeWindows(booking.id);
       setDisputeWindows(windows);
     } catch {
-      // keep silent for optional panel
+      // Optional panel only
     }
   }, [booking?.id]);
 
@@ -126,36 +206,34 @@ export function BookingLifecycleActions({
     }
   };
 
-  const handlePreviewModification = async () => {
-    await runAction("preview-modification", async () => {
-      if (!newCheckInDate || !newCheckOutDate) {
-        throw new Error("Select new check-in and check-out dates.");
-      }
-      const preview = await bookingService.getModificationOptions(
-        booking.id,
-        newCheckInDate,
-        newCheckOutDate,
-      );
-      setModificationPreview(preview);
-    }, { refreshAfterSuccess: false });
+  const handlePreviewReduction = async () => {
+    await runAction(
+      "preview-modification",
+      async () => {
+        const currentCheckIn = toInputDate(booking.checkInDate);
+        if (!currentCheckIn || !newCheckOutDate) {
+          throw new Error("Select the reduced check-out date.");
+        }
+
+        const preview = await bookingService.getModificationOptions(
+          booking.id,
+          currentCheckIn,
+          newCheckOutDate,
+        );
+        setModificationPreview(preview);
+      },
+      { refreshAfterSuccess: false },
+    );
   };
 
-  const handleModifyBooking = async () => {
+  const handleReduceStay = async () => {
     await runAction("modify-booking", async () => {
       await bookingService.modifyBooking(booking.id, {
-        newCheckInDate,
+        newCheckInDate: toInputDate(booking.checkInDate),
         newCheckOutDate,
-        newGuestCount,
         reason: modifyReason.trim() || undefined,
       });
-      toast.success("Modification request submitted.");
-    });
-  };
-
-  const handleExtendBooking = async () => {
-    await runAction("extend-booking", async () => {
-      await bookingService.extendBooking(booking.id, additionalNights);
-      toast.success(`Booking extended by ${additionalNights} night(s).`);
+      toast.success("Date-reduction request submitted.");
     });
   };
 
@@ -170,6 +248,41 @@ export function BookingLifecycleActions({
     await runAction("check-out", async () => {
       await bookingService.checkOut(booking.id);
       toast.success("Checkout completed.");
+    });
+  };
+
+  const handleOpenDispute = async () => {
+    await runAction("open-dispute", async () => {
+      if (!canOpenDispute) {
+        throw new Error("Dispute window is closed.");
+      }
+
+      const writeup = disputeWriteup.trim();
+      if (writeup.length < 20) {
+        throw new Error("Provide at least 20 characters for dispute details.");
+      }
+
+      if (role === "GUEST") {
+        await bookingService.openRoomFeeDispute(
+          booking.id,
+          guestDisputeCategory,
+          writeup,
+        );
+      } else {
+        if (!Number.isFinite(claimedAmount) || claimedAmount <= 0) {
+          throw new Error("Enter a valid claimed amount.");
+        }
+        await bookingService.openDepositDispute(
+          booking.id,
+          realtorDisputeCategory,
+          claimedAmount,
+          writeup,
+        );
+      }
+
+      setShowDisputeForm(false);
+      setDisputeWriteup("");
+      toast.success("Dispute opened.");
     });
   };
 
@@ -220,22 +333,25 @@ export function BookingLifecycleActions({
                 </Button>
               )}
             </div>
+            {role === "GUEST" && checkInBaseReady && !canGuestCheckInToday ? (
+              <p className="text-xs text-gray-500">
+                Guest check-in is only available on the official check-in day.
+              </p>
+            ) : null}
           </div>
         )}
 
         {canModify && (
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-900">
-              Modify Booking
-            </h4>
+            <h4 className="text-sm font-semibold text-gray-900">Reduce Stay</h4>
             <div className="grid sm:grid-cols-2 gap-3">
               <label className="text-sm text-gray-600">
-                New Check-in
+                Check-in (fixed)
                 <input
                   type="date"
-                  value={newCheckInDate}
-                  onChange={(event) => setNewCheckInDate(event.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  value={toInputDate(booking.checkInDate)}
+                  disabled
+                  className="mt-1 block w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500"
                 />
               </label>
               <label className="text-sm text-gray-600">
@@ -250,19 +366,6 @@ export function BookingLifecycleActions({
             </div>
 
             <label className="text-sm text-gray-600 block">
-              New Guest Count
-              <input
-                type="number"
-                min={1}
-                value={newGuestCount}
-                onChange={(event) =>
-                  setNewGuestCount(Math.max(1, Number(event.target.value || 1)))
-                }
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-              />
-            </label>
-
-            <label className="text-sm text-gray-600 block">
               Reason (optional)
               <textarea
                 rows={2}
@@ -274,19 +377,19 @@ export function BookingLifecycleActions({
 
             <div className="flex flex-wrap gap-2">
               <Button
-                onClick={() => void handlePreviewModification()}
+                onClick={() => void handlePreviewReduction()}
                 loading={loadingAction === "preview-modification"}
                 variant="secondary"
                 size="sm"
               >
-                Preview Cost
+                Preview Refund
               </Button>
               <Button
-                onClick={() => void handleModifyBooking()}
+                onClick={() => void handleReduceStay()}
                 loading={loadingAction === "modify-booking"}
                 size="sm"
               >
-                Submit Modification
+                Submit Date Reduction
               </Button>
             </div>
 
@@ -295,45 +398,16 @@ export function BookingLifecycleActions({
                 <p>Old subtotal: {formatNaira(modificationPreview.oldSubtotal)}</p>
                 <p>New subtotal: {formatNaira(modificationPreview.newSubtotal)}</p>
                 <p>Difference: {formatNaira(modificationPreview.difference)}</p>
-                {modificationPreview.refundAmount > 0 ? (
-                  <p>
-                    Estimated refund:{" "}
-                    {formatNaira(modificationPreview.refundAmount)}
-                  </p>
-                ) : null}
+                <p>
+                  Estimated refund:{" "}
+                  {formatNaira(Math.max(modificationPreview.refundAmount, 0))}
+                </p>
               </div>
             )}
-          </div>
-        )}
 
-        {canExtend && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-900">Extend Stay</h4>
-            <label className="text-sm text-gray-600 block">
-              Additional Nights
-              <input
-                type="number"
-                min={1}
-                value={additionalNights}
-                onChange={(event) =>
-                  setAdditionalNights(Math.max(1, Number(event.target.value || 1)))
-                }
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-              />
-            </label>
-            <Button
-              onClick={() => void handleExtendBooking()}
-              loading={loadingAction === "extend-booking"}
-              disabled={booking.paymentStatus !== "HELD"}
-              size="sm"
-            >
-              Extend Booking
-            </Button>
-            {booking.paymentStatus !== "HELD" ? (
-              <p className="text-xs text-gray-500">
-                Extensions are available while payment is in escrow hold.
-              </p>
-            ) : null}
+            <p className="text-xs text-gray-500">
+              Stay extension is disabled. To stay longer, create a new booking.
+            </p>
           </div>
         )}
 
@@ -363,14 +437,116 @@ export function BookingLifecycleActions({
                 </p>
               </div>
             </div>
+
+            {activeWindow ? (
+              <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+                <div className="flex flex-wrap gap-2 items-center justify-between">
+                  <p className="text-sm text-gray-700">
+                    {disputeAlreadyOpened
+                      ? "Dispute already opened for this window."
+                      : canOpenDispute
+                        ? "Dispute window is open."
+                        : "Dispute window is closed."}
+                  </p>
+                  {canOpenDispute && !disputeAlreadyOpened ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowDisputeForm((value) => !value)}
+                    >
+                      {showDisputeForm ? "Close Form" : "Open Dispute"}
+                    </Button>
+                  ) : null}
+                </div>
+
+                {showDisputeForm && canOpenDispute ? (
+                  <div className="space-y-3">
+                    {role === "GUEST" ? (
+                      <label className="text-sm text-gray-600 block">
+                        Dispute Category
+                        <select
+                          value={guestDisputeCategory}
+                          onChange={(event) =>
+                            setGuestDisputeCategory(
+                              event.target.value as RoomFeeDisputeCategory,
+                            )
+                          }
+                          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                        >
+                          {GUEST_DISPUTE_CATEGORY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : (
+                      <>
+                        <label className="text-sm text-gray-600 block">
+                          Dispute Category
+                          <select
+                            value={realtorDisputeCategory}
+                            onChange={(event) =>
+                              setRealtorDisputeCategory(
+                                event.target.value as DepositDisputeCategory,
+                              )
+                            }
+                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                          >
+                            {REALTOR_DISPUTE_CATEGORY_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-sm text-gray-600 block">
+                          Claimed Amount
+                          <input
+                            type="number"
+                            min={0}
+                            value={claimedAmount}
+                            onChange={(event) =>
+                              setClaimedAmount(
+                                Math.max(0, Number(event.target.value || 0)),
+                              )
+                            }
+                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                          />
+                        </label>
+                      </>
+                    )}
+
+                    <label className="text-sm text-gray-600 block">
+                      Dispute Details
+                      <textarea
+                        rows={3}
+                        value={disputeWriteup}
+                        onChange={(event) => setDisputeWriteup(event.target.value)}
+                        placeholder="Describe the issue in detail..."
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                      />
+                    </label>
+
+                    <Button
+                      size="sm"
+                      onClick={() => void handleOpenDispute()}
+                      loading={loadingAction === "open-dispute"}
+                    >
+                      Submit Dispute
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         )}
 
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs text-gray-500 flex items-start gap-2">
           <CalendarDays className="w-4 h-4 mt-0.5" />
           <span>
-            Modification and extension availability depends on booking timeline,
-            payment state, and role permissions enforced by backend rules.
+            Actions are controlled by booking timeline, role permissions, and
+            backend policy checks.
           </span>
         </div>
       </div>

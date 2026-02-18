@@ -261,6 +261,12 @@ export const openRoomFeeDispute = async (
     throw new Error("Can only dispute during ACTIVE booking");
   }
 
+  const { canGuestOpenDispute } = await import("./checkinService");
+  const disputeWindow = await canGuestOpenDispute(bookingId);
+  if (!disputeWindow.canOpen) {
+    throw new Error(disputeWindow.reason || "Guest dispute window is closed");
+  }
+
   // Check if already disputed
   const existingDispute = await prisma.dispute.findFirst({
     where: {
@@ -336,7 +342,10 @@ export const openRoomFeeDispute = async (
     // Update booking status
     await tx.booking.update({
       where: { id: bookingId },
-      data: { status: BookingStatus.DISPUTED },
+      data: {
+        status: BookingStatus.DISPUTED,
+        userDisputeOpened: true,
+      },
     });
 
     // Freeze escrow (prevent auto-release)
@@ -390,6 +399,12 @@ export const openDepositDispute = async (
 
   if (booking.property.realtorId !== realtorId) {
     throw new Error("Only the property owner can open deposit disputes");
+  }
+
+  const { canRealtorOpenDispute } = await import("./checkinService");
+  const disputeWindow = await canRealtorOpenDispute(bookingId);
+  if (!disputeWindow.canOpen) {
+    throw new Error(disputeWindow.reason || "Realtor dispute window is closed");
   }
 
   // Check if already disputed
@@ -480,6 +495,14 @@ export const openDepositDispute = async (
         },
       });
     }
+
+    await tx.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: BookingStatus.DISPUTED,
+        realtorDisputeOpened: true,
+      },
+    });
 
     return dispute;
   });

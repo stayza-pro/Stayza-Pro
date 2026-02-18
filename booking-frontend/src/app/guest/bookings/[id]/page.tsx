@@ -26,6 +26,8 @@ import BookingLifecycleActions from "@/components/booking/BookingLifecycleAction
 import { Button, Card } from "@/components/ui";
 import AlertModal from "@/components/ui/AlertModal";
 
+const DISPLAY_TIMEZONE = "Africa/Lagos";
+
 export default function GuestBookingDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -96,6 +98,7 @@ export default function GuestBookingDetailsPage() {
       month: "long",
       day: "numeric",
       year: "numeric",
+      timeZone: DISPLAY_TIMEZONE,
     });
 
   const formatTime = (value?: Date | string) => {
@@ -111,6 +114,7 @@ export default function GuestBookingDetailsPage() {
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
+      timeZone: DISPLAY_TIMEZONE,
     });
   };
 
@@ -361,7 +365,7 @@ export default function GuestBookingDetailsPage() {
                         )
                       }
                     >
-                      Get Directions →
+                      Get Directions {"->"}
                     </button>
                   </div>
                 </div>

@@ -57,6 +57,26 @@ export interface BookingExtensionResult {
   booking: Booking;
 }
 
+export type RoomFeeDisputeCategory =
+  | "SAFETY_UNINHABITABLE"
+  | "MAJOR_MISREPRESENTATION"
+  | "MISSING_AMENITIES_CLEANLINESS"
+  | "MINOR_INCONVENIENCE";
+
+export type DepositDisputeCategory =
+  | "PROPERTY_DAMAGE"
+  | "MISSING_ITEMS"
+  | "CLEANING_REQUIRED"
+  | "OTHER_DEPOSIT_CLAIM";
+
+export interface OpenDisputeResult {
+  message?: string;
+  dispute?: {
+    id: string;
+    status: string;
+  };
+}
+
 export interface BookingDisputeWindows {
   bookingId: string;
   status: string;
@@ -236,6 +256,42 @@ export const bookingService = {
       BookingDisputeWindows | { data: BookingDisputeWindows }
     >(`/bookings/${id}/dispute-windows`);
     return ((response as any)?.data || response) as BookingDisputeWindows;
+  },
+
+  openRoomFeeDispute: async (
+    bookingId: string,
+    category: RoomFeeDisputeCategory,
+    writeup: string,
+    attachments: string[] = [],
+  ): Promise<OpenDisputeResult> => {
+    const response = await apiClient.post<
+      OpenDisputeResult | { data: OpenDisputeResult }
+    >("/disputes/room-fee", {
+      bookingId,
+      category,
+      writeup,
+      attachments,
+    });
+    return ((response as any)?.data || response) as OpenDisputeResult;
+  },
+
+  openDepositDispute: async (
+    bookingId: string,
+    category: DepositDisputeCategory,
+    claimedAmount: number,
+    writeup: string,
+    attachments: string[] = [],
+  ): Promise<OpenDisputeResult> => {
+    const response = await apiClient.post<
+      OpenDisputeResult | { data: OpenDisputeResult }
+    >("/disputes/deposit", {
+      bookingId,
+      category,
+      claimedAmount,
+      writeup,
+      attachments,
+    });
+    return ((response as any)?.data || response) as OpenDisputeResult;
   },
 
   verifyBookingArtifact: async (

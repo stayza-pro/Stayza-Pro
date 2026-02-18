@@ -25,8 +25,18 @@ import { BookingStatus } from "@/types";
 import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
 import BookingLifecycleActions from "@/components/booking/BookingLifecycleActions";
-import { format } from "date-fns";
 import { toast as showToast } from "react-hot-toast";
+
+const DISPLAY_TIMEZONE = "Africa/Lagos";
+
+const formatDateInLagos = (
+  value: string | Date,
+  options?: Intl.DateTimeFormatOptions,
+) =>
+  new Date(value).toLocaleDateString("en-US", {
+    timeZone: DISPLAY_TIMEZONE,
+    ...options,
+  });
 
 export default function RealtorBookingDetailsPage() {
   const params = useParams();
@@ -303,7 +313,11 @@ export default function RealtorBookingDetailsPage() {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Booking Date</p>
                 <p className="font-medium text-gray-900">
-                  {format(new Date(booking.createdAt), "MMM dd, yyyy")}
+                  {formatDateInLagos(booking.createdAt, {
+                    month: "short",
+                    day: "2-digit",
+                    year: "numeric",
+                  })}
                 </p>
               </div>
             </div>
@@ -321,20 +335,32 @@ export default function RealtorBookingDetailsPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Check-in</p>
                   <p className="font-semibold text-gray-900">
-                    {format(new Date(booking.checkInDate), "MMM dd, yyyy")}
+                    {formatDateInLagos(booking.checkInDate, {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {format(new Date(booking.checkInDate), "EEEE")}
+                    {formatDateInLagos(booking.checkInDate, {
+                      weekday: "long",
+                    })}
                   </p>
                 </div>
 
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Check-out</p>
                   <p className="font-semibold text-gray-900">
-                    {format(new Date(booking.checkOutDate), "MMM dd, yyyy")}
+                    {formatDateInLagos(booking.checkOutDate, {
+                      month: "short",
+                      day: "2-digit",
+                      year: "numeric",
+                    })}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {format(new Date(booking.checkOutDate), "EEEE")}
+                    {formatDateInLagos(booking.checkOutDate, {
+                      weekday: "long",
+                    })}
                   </p>
                 </div>
               </div>

@@ -2,8 +2,13 @@ import { prisma } from "@/config/database";
 import { AppError } from "@/middleware/errorHandler";
 import { logger } from "@/utils/logger";
 import escrowService from "./escrowService";
-import { StayStatus } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
+
+const LAGOS_TIMEZONE = "Africa/Lagos";
+
+const toLagosDateKey = (value: Date): string =>
+  value.toLocaleDateString("en-CA", {
+    timeZone: LAGOS_TIMEZONE,
+  });
 
 /**
  * Check-In Confirmation Service
@@ -92,7 +97,18 @@ export const validateCheckInEligibility = async (
     }
   }
 
-  // For GUEST_CONFIRMED: Can be done anytime after payment (no time restriction)
+  // For GUEST_CONFIRMED: Must be on official check-in day (Lagos calendar day)
+  if (confirmationType === "GUEST_CONFIRMED") {
+    const todayInLagos = toLagosDateKey(now);
+    const checkInDayInLagos = toLagosDateKey(checkInDate);
+
+    if (todayInLagos !== checkInDayInLagos) {
+      throw new AppError(
+        "Guest check-in can only be confirmed on the official check-in day",
+        400
+      );
+    }
+  }
 };
 
 /**
@@ -313,7 +329,7 @@ export const canRealtorOpenDispute = async (
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     select: {
-      status: true,
+      stayStatus: true,
       checkOutTime: true,
       realtorDisputeClosesAt: true,
       realtorDisputeOpened: true,
@@ -324,7 +340,7 @@ export const canRealtorOpenDispute = async (
     return { canOpen: false, reason: "Booking not found" };
   }
 
-  if (booking.status !== "COMPLETED") {
+  if (booking.stayStatus !== "CHECKED_OUT" && !booking.checkOutTime) {
     return { canOpen: false, reason: "Guest has not checked out yet" };
   }
 

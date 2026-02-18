@@ -1966,52 +1966,67 @@ router.post(
       );
     }
 
-    // Validate dates if provided
-    if (newCheckInDate && newCheckOutDate) {
-      const checkIn = new Date(newCheckInDate);
-      const checkOut = new Date(newCheckOutDate);
+    if (!newCheckOutDate) {
+      throw new AppError(
+        "Only checkout-date reduction is allowed. Provide newCheckOutDate.",
+        400
+      );
+    }
 
-      if (checkOut <= checkIn) {
-        throw new AppError("Check-out must be after check-in", 400);
+    if (newCheckInDate) {
+      const incomingCheckIn = new Date(newCheckInDate);
+      if (Number.isNaN(incomingCheckIn.getTime())) {
+        throw new AppError("Invalid new check-in date", 400);
       }
 
-      // Check for conflicts with other bookings
-      const conflicts = await prisma.booking.findMany({
-        where: {
-          propertyId: booking.propertyId,
-          id: { not: id },
-          status: { in: ["ACTIVE"] },
-          OR: [
-            {
-              checkInDate: { lte: checkOut },
-              checkOutDate: { gte: checkIn },
-            },
-          ],
-        },
-      });
+      const sameCheckInDate =
+        incomingCheckIn.toISOString().split("T")[0] ===
+        new Date(booking.checkInDate).toISOString().split("T")[0];
 
-      if (conflicts.length > 0) {
-        throw new AppError("New dates conflict with existing bookings", 400);
+      if (!sameCheckInDate) {
+        throw new AppError(
+          "Check-in date cannot be changed. You can only reduce checkout date.",
+          400
+        );
       }
     }
 
-    // Calculate price difference if dates changed
-    let priceDifference = 0;
-    if (newCheckInDate && newCheckOutDate) {
-      const oldNights = Math.ceil(
-        (new Date(booking.checkOutDate).getTime() -
-          new Date(booking.checkInDate).getTime()) /
-          (1000 * 60 * 60 * 24)
+    if (newGuestCount !== undefined && newGuestCount !== booking.totalGuests) {
+      throw new AppError(
+        "Guest-count modification is disabled. Only date reduction is allowed.",
+        400
       );
-      const newNights = Math.ceil(
-        (new Date(newCheckOutDate).getTime() -
-          new Date(newCheckInDate).getTime()) /
-          (1000 * 60 * 60 * 24)
-      );
-      const nightsDifference = newNights - oldNights;
-      priceDifference =
-        nightsDifference * Number(booking.property.pricePerNight);
     }
+
+    const currentCheckIn = new Date(booking.checkInDate);
+    const currentCheckOut = new Date(booking.checkOutDate);
+    const proposedCheckOut = new Date(newCheckOutDate);
+
+    if (Number.isNaN(proposedCheckOut.getTime())) {
+      throw new AppError("Invalid new check-out date", 400);
+    }
+
+    if (proposedCheckOut <= currentCheckIn) {
+      throw new AppError("Check-out must be after check-in", 400);
+    }
+
+    if (proposedCheckOut >= currentCheckOut) {
+      throw new AppError(
+        "Stay extension is disabled. To stay longer, create a new booking.",
+        400
+      );
+    }
+
+    const oldNights = Math.ceil(
+      (currentCheckOut.getTime() - currentCheckIn.getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+    const newNights = Math.ceil(
+      (proposedCheckOut.getTime() - currentCheckIn.getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+    const nightsDifference = newNights - oldNights;
+    const priceDifference = nightsDifference * Number(booking.property.pricePerNight);
 
     // Create notification for the other party
     const recipientId =
@@ -2024,7 +2039,7 @@ router.post(
         userId: recipientId,
         type: "BOOKING_REMINDER",
         title: "Booking Modification Request",
-        message: `Modification requested for booking #${booking.id.slice(
+        message: `Checkout-date reduction requested for booking #${booking.id.slice(
           -6
         )}: ${reason || "No reason provided"}`,
         bookingId: id,
@@ -2033,9 +2048,9 @@ router.post(
         data: {
           bookingId: id,
           requestedBy: userId,
-          newCheckInDate,
-          newCheckOutDate,
-          newGuestCount,
+          newCheckInDate: booking.checkInDate,
+          newCheckOutDate: proposedCheckOut,
+          newGuestCount: booking.totalGuests,
           priceDifference,
         },
       },
@@ -2052,9 +2067,9 @@ router.post(
           oldCheckIn: booking.checkInDate,
           oldCheckOut: booking.checkOutDate,
           oldGuestCount: booking.totalGuests,
-          newCheckInDate,
-          newCheckOutDate,
-          newGuestCount,
+          newCheckInDate: booking.checkInDate,
+          newCheckOutDate: proposedCheckOut,
+          newGuestCount: booking.totalGuests,
           reason,
           priceDifference,
         },
@@ -2070,11 +2085,11 @@ router.post(
     return res.json({
       success: true,
       message:
-        "Modification request submitted. The other party will be notified.",
+        "Date-reduction request submitted. The other party will be notified.",
       data: {
         priceDifference,
-        requiresPayment: priceDifference > 0,
-        refundAmount: priceDifference < 0 ? Math.abs(priceDifference) : 0,
+        requiresPayment: false,
+        refundAmount: Math.abs(Math.min(priceDifference, 0)),
       },
     });
   })
@@ -2140,19 +2155,56 @@ router.get(
       throw new AppError("Not authorized", 403);
     }
 
-    if (!newCheckIn || !newCheckOut) {
-      throw new AppError("New check-in and check-out dates required", 400);
+    if (!newCheckOut) {
+      throw new AppError(
+        "Only checkout-date reduction is allowed. Provide newCheckOut.",
+        400
+      );
     }
 
-    // Calculate old and new costs
+    if (newCheckIn) {
+      const incomingCheckIn = new Date(newCheckIn as string);
+      if (Number.isNaN(incomingCheckIn.getTime())) {
+        throw new AppError("Invalid newCheckIn date", 400);
+      }
+
+      const sameCheckInDate =
+        incomingCheckIn.toISOString().split("T")[0] ===
+        new Date(booking.checkInDate).toISOString().split("T")[0];
+
+      if (!sameCheckInDate) {
+        throw new AppError(
+          "Check-in date cannot be changed. You can only reduce checkout date.",
+          400
+        );
+      }
+    }
+
+    const currentCheckIn = new Date(booking.checkInDate);
+    const currentCheckOut = new Date(booking.checkOutDate);
+    const proposedCheckOut = new Date(newCheckOut as string);
+
+    if (Number.isNaN(proposedCheckOut.getTime())) {
+      throw new AppError("Invalid newCheckOut date", 400);
+    }
+
+    if (proposedCheckOut <= currentCheckIn) {
+      throw new AppError("Check-out must be after check-in", 400);
+    }
+
+    if (proposedCheckOut >= currentCheckOut) {
+      throw new AppError(
+        "Stay extension is disabled. To stay longer, create a new booking.",
+        400
+      );
+    }
+
     const oldNights = Math.ceil(
-      (new Date(booking.checkOutDate).getTime() -
-        new Date(booking.checkInDate).getTime()) /
+      (currentCheckOut.getTime() - currentCheckIn.getTime()) /
         (1000 * 60 * 60 * 24)
     );
     const newNights = Math.ceil(
-      (new Date(newCheckOut as string).getTime() -
-        new Date(newCheckIn as string).getTime()) /
+      (proposedCheckOut.getTime() - currentCheckIn.getTime()) /
         (1000 * 60 * 60 * 24)
     );
 
@@ -2170,8 +2222,8 @@ router.get(
         oldSubtotal,
         newSubtotal,
         difference,
-        requiresPayment: difference > 0,
-        refundAmount: difference < 0 ? Math.abs(difference) : 0,
+        requiresPayment: false,
+        refundAmount: Math.abs(Math.min(difference, 0)),
       },
     });
   })
@@ -2214,13 +2266,15 @@ router.post(
   "/:id/extend",
   authenticate,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Stay extension is disabled. To stay longer, create a new booking.",
+    });
+
     const { id } = req.params;
     const parsedAdditionalNights = Number(req.body?.additionalNights);
     const userId = req.user!.id;
-
-    if (!Number.isInteger(parsedAdditionalNights) || parsedAdditionalNights < 1) {
-      throw new AppError("Invalid additional nights", 400);
-    }
 
     const booking = await prisma.booking.findUnique({
       where: { id },
@@ -2365,12 +2419,12 @@ router.post(
       !Array.isArray(providerResponse.authorization)
         ? (providerResponse.authorization as Record<string, unknown>)
         : {};
-    const authorizationCode =
+    const authorizationCode: string | undefined =
       (typeof authorizationData.authorization_code === "string"
-        ? authorizationData.authorization_code
+        ? String(authorizationData.authorization_code)
         : undefined) ||
       (typeof paymentMetadata.authorizationCode === "string"
-        ? paymentMetadata.authorizationCode
+        ? String(paymentMetadata.authorizationCode)
         : undefined);
 
     if (!authorizationCode || typeof authorizationCode !== "string") {
@@ -2421,10 +2475,10 @@ router.post(
       providerId: chargeData?.id?.toString?.() || null,
     };
 
-    const existingExtensionCharges = Array.isArray(
+    const existingExtensionCharges: Array<Record<string, unknown>> = Array.isArray(
       paymentMetadata.extensionCharges
     )
-      ? paymentMetadata.extensionCharges
+      ? (paymentMetadata.extensionCharges as Array<Record<string, unknown>>)
       : [];
 
     const updatedBooking = await prisma.$transaction(async (tx) => {
@@ -2492,7 +2546,7 @@ router.post(
             ...paymentMetadata,
             extensionCharges: [...existingExtensionCharges, extensionChargeEntry],
             lastExtensionCharge: extensionChargeEntry,
-          },
+          } as Prisma.InputJsonValue,
         },
       });
 
