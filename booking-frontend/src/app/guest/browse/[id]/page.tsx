@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -8,20 +8,22 @@ import {
   MapPin,
   Bed,
   Bath,
-  Square,
+  UserRound,
   Heart,
   Share2,
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Star,
 } from "lucide-react";
-import { Button } from "@/components/ui";
+import { AnimatedDateInput, Button } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService, favoritesService } from "@/services";
 import toast from "react-hot-toast";
+import { formatPrice as formatNaira } from "@/utils/currency";
 
 export default function GuestPropertyDetailsPage() {
   const params = useParams();
@@ -55,9 +57,6 @@ export default function GuestPropertyDetailsPage() {
   } | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  const checkInInputRef = useRef<HTMLInputElement | null>(null);
-  const checkOutInputRef = useRef<HTMLInputElement | null>(null);
-
   const images = useMemo(
     () =>
       property?.images?.map((image) => image.url).filter(Boolean) || [
@@ -72,22 +71,33 @@ export default function GuestPropertyDetailsPage() {
     [property?.city, property?.state].filter(Boolean).join(", ") ||
     "Address unavailable";
 
-  const featureList =
-    property?.amenities?.map((item) =>
-      item
-        .toLowerCase()
-        .split("_")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" "),
-    ) || [];
+  const featureList = useMemo(() => {
+    const standardAmenities =
+      property?.amenities?.map((item) =>
+        item
+          .toLowerCase()
+          .split("_")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" "),
+      ) || [];
+    const customAmenities =
+      property?.customAmenities
+        ?.map((item) => item?.trim())
+        .filter((item): item is string => Boolean(item)) || [];
+    const mergedAmenities = [...standardAmenities, ...customAmenities];
+    const seen = new Set<string>();
 
-  const formatPrice = (value: number) => {
-    const safeValue = Number.isFinite(value) ? value : 0;
-    return `₦${safeValue.toLocaleString("en-NG", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })}`;
-  };
+    return mergedAmenities.filter((item) => {
+      const key = item.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }, [property?.amenities, property?.customAmenities]);
+
+  const formatPrice = (value: number) => formatNaira(value);
 
   const minCheckInDate = new Date().toISOString().split("T")[0];
   const totalNights = useMemo(() => {
@@ -130,14 +140,6 @@ export default function GuestPropertyDetailsPage() {
     void calculateTotals();
   }, [property?.id, checkInDate, checkOutDate, guests, totalNights]);
 
-  const triggerDatePicker = (input: HTMLInputElement | null) => {
-    if (!input) return;
-    input.focus();
-    if (typeof input.showPicker === "function") {
-      input.showPicker();
-    }
-  };
-
   const handleCheckInChange = (value: string) => {
     setCheckInDate(value);
 
@@ -154,9 +156,6 @@ export default function GuestPropertyDetailsPage() {
       setCheckOutDate(suggestedCheckOut);
     }
 
-    window.setTimeout(() => {
-      triggerDatePicker(checkOutInputRef.current);
-    }, 50);
   };
 
   const nextImage = () => {
@@ -168,7 +167,7 @@ export default function GuestPropertyDetailsPage() {
   };
 
   const handleFavorite = async () => {
-    if (!user) {
+    if (!user || user.role !== "GUEST") {
       router.push(
         `/guest/login?returnTo=${encodeURIComponent(`/guest/browse/${propertyId}`)}`,
       );
@@ -361,7 +360,7 @@ export default function GuestPropertyDetailsPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Square className="w-5 h-5 text-gray-500" />
+                    <UserRound className="w-5 h-5 text-gray-500" />
                     <span className="font-medium text-gray-600">
                       {property.maxGuests} guests
                     </span>
@@ -403,6 +402,64 @@ export default function GuestPropertyDetailsPage() {
                 ))}
               </div>
             </div>
+
+            <div className="p-8 rounded-2xl border bg-white border-gray-200">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="font-semibold text-[24px] text-gray-900">
+                    Reviews
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Verified guests can review after a completed stay.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 text-amber-700">
+                  <Star className="w-4 h-4 fill-current" />
+                  <span className="text-sm font-semibold">
+                    {(property.averageRating || 0).toFixed(1)} / 5
+                  </span>
+                  <span className="text-sm text-amber-600">
+                    ({property.reviewCount || 0})
+                  </span>
+                </div>
+              </div>
+
+              {property.reviews && property.reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {property.reviews.slice(0, 5).map((review) => (
+                    <div
+                      key={review.id}
+                      className="p-4 rounded-xl border border-gray-200 bg-gray-50"
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <div className="font-medium text-gray-900">
+                          {review.author?.firstName || "Guest"}{" "}
+                          {review.author?.lastName || ""}
+                        </div>
+                        <div className="flex items-center gap-1 text-amber-500">
+                          {Array.from({ length: 5 }, (_, index) => (
+                            <Star
+                              key={`${review.id}-${index}`}
+                              className={`w-4 h-4 ${
+                                index < review.rating ? "fill-current" : ""
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700">
+                        {review.comment || "No written feedback provided."}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600">
+                  No reviews yet. Guests will be able to leave feedback after
+                  completing their booking.
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -412,73 +469,19 @@ export default function GuestPropertyDetailsPage() {
               </h3>
 
               <div className="space-y-4 mb-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">
-                    Check-in
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => triggerDatePicker(checkInInputRef.current)}
-                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-left flex items-center justify-between"
-                  >
-                    <span
-                      className={
-                        checkInDate ? "text-gray-900" : "text-gray-500"
-                      }
-                    >
-                      {checkInDate
-                        ? new Date(checkInDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "Select check-in date"}
-                    </span>
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                  </button>
-                  <input
-                    ref={checkInInputRef}
-                    type="date"
-                    value={checkInDate}
-                    min={minCheckInDate}
-                    onChange={(e) => handleCheckInChange(e.target.value)}
-                    className="sr-only"
-                  />
-                </div>
+                <AnimatedDateInput
+                  label="Check-in"
+                  value={checkInDate}
+                  min={minCheckInDate}
+                  onChange={handleCheckInChange}
+                />
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-900">
-                    Check-out
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => triggerDatePicker(checkOutInputRef.current)}
-                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-left flex items-center justify-between"
-                  >
-                    <span
-                      className={
-                        checkOutDate ? "text-gray-900" : "text-gray-500"
-                      }
-                    >
-                      {checkOutDate
-                        ? new Date(checkOutDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "Select check-out date"}
-                    </span>
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                  </button>
-                  <input
-                    ref={checkOutInputRef}
-                    type="date"
-                    value={checkOutDate}
-                    min={checkInDate || minCheckInDate}
-                    onChange={(e) => setCheckOutDate(e.target.value)}
-                    className="sr-only"
-                  />
-                </div>
+                <AnimatedDateInput
+                  label="Check-out"
+                  value={checkOutDate}
+                  min={checkInDate || minCheckInDate}
+                  onChange={setCheckOutDate}
+                />
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-900">

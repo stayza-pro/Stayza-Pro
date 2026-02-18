@@ -5,6 +5,7 @@ export { default as Select } from "./Select";
 export { default as TextArea } from "./TextArea";
 export { default as Card } from "./Card";
 export { default as Loading, Skeleton } from "./Loading";
+export { AnimatedDateInput, AnimatedTimeInput } from "./AnimatedDateTimeInput";
 
 // Export component types
 export type { ButtonProps } from "./Button";

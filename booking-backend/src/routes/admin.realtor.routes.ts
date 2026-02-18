@@ -14,6 +14,7 @@ import jwt from "jsonwebtoken";
 import { config } from "@/config";
 import { sendCacApprovalEmail, sendCacRejectionEmail } from "@/services/email";
 import { getDashboardUrl } from "@/utils/domains";
+import { buildApprovedRealtorUpdate } from "@/services/realtorApproval";
 
 const router = express.Router();
 
@@ -295,14 +296,7 @@ router.patch(
 
         updatedRealtor = await prisma.realtor.update({
           where: { id },
-          data: {
-            status: "APPROVED",
-            cacStatus: "APPROVED",
-            cacVerifiedAt: new Date(),
-            cacRejectedAt: null,
-            cacRejectionReason: null,
-            canAppeal: true,
-          },
+          data: buildApprovedRealtorUpdate(),
           include: {
             user: {
               select: {
@@ -518,16 +512,10 @@ router.patch(
 
         updatedRealtor = await prisma.realtor.update({
           where: { id },
-          data: {
+          data: buildApprovedRealtorUpdate({
             isActive: true,
             suspendedAt: null,
-            status: "APPROVED",
-            cacStatus: "APPROVED",
-            cacVerifiedAt: new Date(),
-            cacRejectedAt: null,
-            cacRejectionReason: null,
-            canAppeal: true,
-          },
+          }),
           include: {
             user: {
               select: {

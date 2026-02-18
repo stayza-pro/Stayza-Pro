@@ -55,10 +55,19 @@ export default function GuestBookingDetailsPage() {
     }
   }, [authChecked, isLoading, isAuthenticated, router, bookingId]);
 
+  React.useEffect(() => {
+    if (authChecked && !isLoading && user && user.role !== "GUEST") {
+      router.push(`/guest/login?returnTo=/guest/bookings/${bookingId}`);
+    }
+  }, [authChecked, isLoading, user, router, bookingId]);
+
   const { data: booking, isLoading: bookingLoading } = useQuery({
     queryKey: ["booking", bookingId],
     queryFn: () => bookingService.getBooking(bookingId),
-    enabled: !!user && !!bookingId,
+    enabled: !!user && user.role === "GUEST" && !!bookingId,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 30 * 1000,
   });
 
   const cancelBookingMutation = useMutation({

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useBranding } from "@/hooks/useBranding";
 import { propertyService } from "@/services/properties";
 import { PropertyFormData, PropertyType, PropertyAmenity } from "@/types";
+import { AnimatedTimeInput } from "@/components/ui";
 import toast, { Toaster } from "react-hot-toast";
 import {
   MapPin,
@@ -38,7 +39,6 @@ import {
   Cigarette,
   Accessibility,
   Shield,
-  Clock,
   UtensilsCrossed,
   Microwave,
   CupSoda,
@@ -225,7 +225,7 @@ const AMENITIES_OPTIONS: {
 
 // Currency symbols mapping
 const CURRENCY_SYMBOLS: { [key: string]: string } = {
-  NGN: "₦",
+  NGN: "\u20A6",
 };
 
 export default function AddPropertyPage() {
@@ -269,7 +269,7 @@ export default function AddPropertyPage() {
   const addCustomAmenitiesFromInput = (rawInput: string) => {
     const parsedAmenities = rawInput
       .split(",")
-      .map((item) => item.trim().toUpperCase())
+      .map((item) => item.trim())
       .filter(Boolean);
 
     if (parsedAmenities.length === 0) {
@@ -277,9 +277,26 @@ export default function AddPropertyPage() {
     }
 
     const existingAmenities = formData.customAmenities || [];
-    const mergedAmenities = Array.from(
-      new Set([...existingAmenities, ...parsedAmenities])
-    );
+    const amenitiesByKey = new Map<string, string>();
+
+    existingAmenities.forEach((amenity) => {
+      const trimmedAmenity = amenity.trim();
+      if (trimmedAmenity) {
+        amenitiesByKey.set(trimmedAmenity.toLowerCase(), trimmedAmenity);
+      }
+    });
+
+    parsedAmenities.forEach((amenity) => {
+      const trimmedAmenity = amenity.trim();
+      if (!trimmedAmenity) return;
+
+      const key = trimmedAmenity.toLowerCase();
+      if (!amenitiesByKey.has(key)) {
+        amenitiesByKey.set(key, trimmedAmenity);
+      }
+    });
+
+    const mergedAmenities = Array.from(amenitiesByKey.values());
 
     updateFormData("customAmenities", mergedAmenities);
   };
@@ -769,13 +786,9 @@ export default function AddPropertyPage() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Currency
               </label>
-              <select
-                value={formData.currency || "NGN"}
-                onChange={(e) => updateFormData("currency", e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:border-transparent transition-all"
-              >
-                <option value="NGN">₦ Naira</option>
-              </select>
+              <div className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-700 font-medium">
+                {"\u20A6"} Naira
+              </div>
             </div>
 
             <div>
@@ -885,50 +898,17 @@ export default function AddPropertyPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <Clock className="inline h-4 w-4 mr-1" />
-                  Check-in Time
-                </label>
-                <div className="relative">
-                  <input
-                    type="time"
-                    value={formData.checkInTime || "14:00"}
-                    onChange={(e) =>
-                      updateFormData("checkInTime", e.target.value)
-                    }
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 hover:border-blue-300 group-hover:shadow-md cursor-pointer"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)",
-                    }}
-                  />
-                  <div className="absolute inset-0 rounded-xl pointer-events-none transition-all duration-300 group-hover:ring-2 ring-blue-200"></div>
-                </div>
-              </div>
-
-              <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <Clock className="inline h-4 w-4 mr-1" />
-                  Check-out Time
-                </label>
-                <div className="relative">
-                  <input
-                    type="time"
-                    value={formData.checkOutTime || "11:00"}
-                    onChange={(e) =>
-                      updateFormData("checkOutTime", e.target.value)
-                    }
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:border-transparent transition-all duration-300 hover:border-purple-300 group-hover:shadow-md cursor-pointer"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)",
-                    }}
-                  />
-                  <div className="absolute inset-0 rounded-xl pointer-events-none transition-all duration-300 group-hover:ring-2 ring-purple-200"></div>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <AnimatedTimeInput
+                label="Check-in Time"
+                value={formData.checkInTime || "14:00"}
+                onChange={(value) => updateFormData("checkInTime", value)}
+              />
+              <AnimatedTimeInput
+                label="Check-out Time"
+                value={formData.checkOutTime || "11:00"}
+                onChange={(value) => updateFormData("checkOutTime", value)}
+              />
             </div>
 
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 shadow-sm">
@@ -1054,8 +1034,17 @@ export default function AddPropertyPage() {
                   placeholder="e.g., Beach Access, Mountain View, Private Chef..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#c7a162] focus:border-transparent text-sm"
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                    if (
+                      (e.key === "Enter" || e.key === ",") &&
+                      e.currentTarget.value.trim()
+                    ) {
                       e.preventDefault();
+                      addCustomAmenitiesFromInput(e.currentTarget.value);
+                      e.currentTarget.value = "";
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (e.currentTarget.value.trim()) {
                       addCustomAmenitiesFromInput(e.currentTarget.value);
                       e.currentTarget.value = "";
                     }

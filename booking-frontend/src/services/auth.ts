@@ -12,6 +12,7 @@ export interface PasswordlessRegisterPayload {
   email: string;
   firstName: string;
   lastName: string;
+  phone: string;
   role?: "GUEST";
   realtorId?: string;
   referralSource?: string;
@@ -128,8 +129,17 @@ export const authService = {
         ? { headers: { "Content-Type": "multipart/form-data" } }
         : {};
 
-    const response = await apiClient.put<User>("/auth/profile", data, config);
-    return response.data;
+    const response = await apiClient.put<{ user: User }>(
+      "/auth/profile",
+      data,
+      config,
+    );
+
+    if (!response.data?.user) {
+      throw new Error("Invalid profile update response format");
+    }
+
+    return response.data.user;
   },
 
   // Change password

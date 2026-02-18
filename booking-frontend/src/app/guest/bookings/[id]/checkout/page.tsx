@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Calendar as CalendarIcon,
+  CalendarDays,
   Clock,
   Users,
   Lock,
@@ -13,11 +13,12 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "react-hot-toast";
-import { Button, Input } from "@/components/ui";
+import { AnimatedDateInput, Button, Input } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { bookingService, paymentService } from "@/services";
+import { formatPrice as formatNaira } from "@/utils/currency";
 
 interface PaystackPopup {
   setup: (config: {
@@ -71,7 +72,7 @@ export default function GuestBookingCheckoutPage() {
     accentColor,
   } = useRealtorBranding();
 
-  const { isAuthenticated, isLoading: authLoading } = useCurrentUser();
+  const { user, isAuthenticated, isLoading: authLoading } = useCurrentUser();
   const [authChecked, setAuthChecked] = useState(false);
   const [booking, setBooking] = useState<CheckoutBooking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,6 +124,7 @@ export default function GuestBookingCheckoutPage() {
         firstName: data?.guest?.firstName || prev.firstName,
         lastName: data?.guest?.lastName || prev.lastName,
         email: data?.guest?.email || prev.email,
+        phone: user?.phone || prev.phone,
       }));
     } catch {
       toast.error("Failed to load checkout details");
@@ -130,7 +132,7 @@ export default function GuestBookingCheckoutPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [bookingId, router]);
+  }, [bookingId, router, user?.phone]);
 
   useEffect(() => {
     if (!authLoading && (isAuthenticated || !authChecked)) {
@@ -147,10 +149,21 @@ export default function GuestBookingCheckoutPage() {
   }, [authChecked, authLoading, isAuthenticated, router, bookingId]);
 
   useEffect(() => {
-    if (authChecked && isAuthenticated) {
+    if (!authChecked || authLoading || !user) {
+      return;
+    }
+
+    if (user.role !== "GUEST") {
+      toast.error("Please sign in with a guest account to continue checkout.");
+      router.push(`/guest/login?returnTo=/guest/bookings/${bookingId}/checkout`);
+    }
+  }, [authChecked, authLoading, user, router, bookingId]);
+
+  useEffect(() => {
+    if (authChecked && isAuthenticated && user?.role === "GUEST") {
       void fetchBooking();
     }
-  }, [authChecked, isAuthenticated, fetchBooking]);
+  }, [authChecked, isAuthenticated, fetchBooking, user?.role]);
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -182,12 +195,7 @@ export default function GuestBookingCheckoutPage() {
     );
   }, [booking]);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-    }).format(value);
+  const formatCurrency = (value: number) => formatNaira(value);
 
   const handlePayment = async () => {
     if (!booking || !booking.payment) {
@@ -228,22 +236,44 @@ export default function GuestBookingCheckoutPage() {
           propertyId: booking.propertyId,
           guestId: booking.guestId,
         },
-        callback: (response: { reference: string }) => {
-          paymentService
-            .verifyPaystackPayment({ reference: response.reference })
-            .then((verifyResponse) => {
-              if (verifyResponse.success) {
+        callback: async (response: { reference: string }) => {
+          try {
+            const verifyResponse = await paymentService.verifyPaystackPayment({
+              reference: response.reference,
+            });
+            if (verifyResponse.success) {
+              toast.success("Booking payment successful!");
+              router.push(`/guest/bookings/${bookingId}`);
+              return;
+            }
+
+            const fallback = await paymentService.verifyPaymentByBooking({
+              bookingId,
+            });
+            if (fallback.success) {
+              toast.success("Booking payment successful!");
+              router.push(`/guest/bookings/${bookingId}`);
+              return;
+            }
+
+            toast.error(fallback.message || "Payment verification failed.");
+            setIsProcessing(false);
+          } catch {
+            try {
+              const fallback = await paymentService.verifyPaymentByBooking({
+                bookingId,
+              });
+              if (fallback.success) {
                 toast.success("Booking payment successful!");
                 router.push(`/guest/bookings/${bookingId}`);
-              } else {
-                toast.error("Payment verification failed.");
-                setIsProcessing(false);
+                return;
               }
-            })
-            .catch(() => {
+              toast.error(fallback.message || "Payment verification failed.");
+            } catch {
               toast.error("Payment verification failed.");
-              setIsProcessing(false);
-            });
+            }
+            setIsProcessing(false);
+          }
         },
         onClose: () => {
           setIsProcessing(false);
@@ -275,6 +305,10 @@ export default function GuestBookingCheckoutPage() {
         Loading...
       </div>
     );
+  }
+
+  if (!user || user.role !== "GUEST") {
+    return null;
   }
 
   if (!booking) {
@@ -360,24 +394,14 @@ export default function GuestBookingCheckoutPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-gray-900">Viewing Date</label>
-                    <div className="relative">
-                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                      <Input
-                        type="date"
-                        className="pl-12 h-14 rounded-xl border text-base bg-gray-50 border-gray-200"
-                        value={date ? format(date, "yyyy-MM-dd") : ""}
-                        onChange={(e) =>
-                          setDate(
-                            e.target.value
-                              ? new Date(e.target.value)
-                              : undefined,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
+                  <AnimatedDateInput
+                    label="Viewing Date"
+                    value={date ? format(date, "yyyy-MM-dd") : ""}
+                    min={new Date().toISOString().split("T")[0]}
+                    onChange={(value) =>
+                      setDate(value ? new Date(value) : undefined)
+                    }
+                  />
 
                   <div className="space-y-2">
                     <label className="text-gray-900">Viewing Time</label>
@@ -526,7 +550,7 @@ export default function GuestBookingCheckoutPage() {
 
                   <div className="p-6 rounded-xl space-y-4 bg-[#f9f4ef]">
                     <div className="flex items-center gap-3">
-                      <CalendarIcon
+                      <CalendarDays
                         className="w-5 h-5"
                         style={{ color: primaryColor }}
                       />

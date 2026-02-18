@@ -39,13 +39,87 @@ interface HttpLikeError {
 function RealtorLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnTo = searchParams.get("returnTo") || "/dashboard";
+
+  const sanitizeReturnTo = (rawValue: string | null): string => {
+    if (!rawValue) {
+      return "/dashboard";
+    }
+
+    if (typeof window === "undefined") {
+      return rawValue.startsWith("/") ? rawValue : "/dashboard";
+    }
+
+    if (rawValue.startsWith("/")) {
+      return rawValue.startsWith("/realtor/login") ? "/dashboard" : rawValue;
+    }
+
+    try {
+      const parsed = new URL(rawValue);
+      const currentHost = window.location.hostname;
+      const isDevHost = currentHost.includes("localhost");
+      const isAllowedHost = isDevHost
+        ? parsed.hostname.includes("localhost")
+        : parsed.hostname.endsWith("stayza.pro");
+
+      if (!isAllowedHost) {
+        return "/dashboard";
+      }
+
+      const normalizedPath = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+      if (!normalizedPath.startsWith("/")) {
+        return "/dashboard";
+      }
+
+      return normalizedPath.startsWith("/realtor/login")
+        ? "/dashboard"
+        : normalizedPath;
+    } catch {
+      return "/dashboard";
+    }
+  };
+
+  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
 
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, checkAuth } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const handleExistingSession = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        return;
+      }
+
+      try {
+        await checkAuth();
+        if (!isMounted) {
+          return;
+        }
+
+        const { isAuthenticated, user } = useAuthStore.getState();
+        if (isAuthenticated && user?.role === "REALTOR") {
+          if (user.realtor?.slug) {
+            router.replace(buildSubdomainUrl(user.realtor.slug, "/dashboard"));
+            return;
+          }
+          router.replace(returnTo);
+        }
+      } catch {
+        // Silent fallback to normal login form.
+      }
+    };
+
+    void handleExistingSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [checkAuth, returnTo, router]);
 
   const normalizeBackendRedirectUrl = (rawUrl: string): string => {
     if (typeof window === "undefined" || !rawUrl) {

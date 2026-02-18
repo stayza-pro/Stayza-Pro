@@ -40,6 +40,12 @@ const fallbackBranding: RealtorBranding = {
   description: "",
 };
 
+const BRANDING_CACHE_TTL_MS = 5 * 60 * 1000;
+const inMemoryBrandingCache = new Map<
+  string,
+  { data: RealtorBranding; cachedAt: number }
+>();
+
 /**
  * Custom hook to fetch fresh realtor branding data
  * Falls back to localStorage data if API call fails
@@ -91,6 +97,14 @@ export function useRealtorBranding() {
       const subdomain = getRealtorSubdomain();
 
       if (subdomain) {
+        const cacheKey = `subdomain:${subdomain}`;
+        const cached = inMemoryBrandingCache.get(cacheKey);
+        if (cached && Date.now() - cached.cachedAt < BRANDING_CACHE_TTL_MS) {
+          setRealtorBranding(cached.data);
+          setIsLoading(false);
+          return;
+        }
+
         try {
           // Use the same endpoint as guest-landing page
           const response = await apiClient.get<APIRealtorBranding>(
@@ -100,6 +114,10 @@ export function useRealtorBranding() {
           if (response.data) {
             const mappedBranding = mapApiBranding(response.data);
             setRealtorBranding(mappedBranding);
+            inMemoryBrandingCache.set(cacheKey, {
+              data: mappedBranding,
+              cachedAt: Date.now(),
+            });
             try {
               localStorage.setItem(
                 `realtor-branding:${subdomain}`,
@@ -123,11 +141,24 @@ export function useRealtorBranding() {
 
     const tryFetchByRealtorContext = async () => {
       if (user?.role === "REALTOR") {
+        const cacheKey = `user:${user.id}`;
+        const cached = inMemoryBrandingCache.get(cacheKey);
+        if (cached && Date.now() - cached.cachedAt < BRANDING_CACHE_TTL_MS) {
+          setRealtorBranding(cached.data);
+          setIsLoading(false);
+          return;
+        }
+
         try {
           const response =
             await apiClient.get<APIRealtorBranding>("/branding/me");
           if (response.data) {
-            setRealtorBranding(mapApiBranding(response.data));
+            const mappedBranding = mapApiBranding(response.data);
+            setRealtorBranding(mappedBranding);
+            inMemoryBrandingCache.set(cacheKey, {
+              data: mappedBranding,
+              cachedAt: Date.now(),
+            });
             return;
           }
         } catch (error) {}

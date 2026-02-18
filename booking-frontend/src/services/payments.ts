@@ -199,9 +199,14 @@ export const paymentService = {
     const responseData = response.data.data || response.data;
     
 
-    if (!responseData || !responseData.authorizationUrl) {
-      
-      throw new Error("No authorization URL returned from payment API");
+    if (!responseData) {
+      throw new Error("Invalid response payload from payment API");
+    }
+
+    if (!responseData.authorizationUrl && !responseData.reference) {
+      throw new Error(
+        "Payment initialization did not return an authorization URL or reference",
+      );
     }
 
     return {

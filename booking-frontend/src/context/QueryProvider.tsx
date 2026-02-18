@@ -13,9 +13,12 @@ export function QueryProvider({ children }: QueryProviderProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            refetchOnWindowFocus: false,
+            refetchOnWindowFocus: true,
+            refetchOnReconnect: true,
+            refetchInterval: 30 * 1000,
+            refetchIntervalInBackground: false,
             retry: 1,
-            staleTime: 5 * 60 * 1000, // 5 minutes
+            staleTime: 30 * 1000,
           },
         },
       })

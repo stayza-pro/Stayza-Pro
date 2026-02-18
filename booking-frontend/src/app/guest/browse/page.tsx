@@ -8,7 +8,7 @@ import {
   Search,
   SlidersHorizontal,
   MapPin,
-  Square,
+  UserRound,
   Heart,
   ChevronDown,
 } from "lucide-react";
@@ -21,6 +21,51 @@ import { useProperties } from "@/hooks/useProperties";
 import { favoritesService } from "@/services";
 import { Button, Input, Select, Skeleton } from "@/components/ui";
 import type { PropertyFilters } from "@/types";
+import { formatPrice as formatNaira } from "@/utils/currency";
+
+function SmoothPropertyImage({
+  src,
+  alt,
+  fallbackSrc,
+}: {
+  src: string;
+  alt: string;
+  fallbackSrc: string;
+}) {
+  const [currentSrc, setCurrentSrc] = useState(src);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setCurrentSrc(src);
+    setIsLoaded(false);
+  }, [src]);
+
+  return (
+    <div className="relative w-full h-full bg-gray-100">
+      <div
+        className={`absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 transition-opacity duration-500 ${
+          isLoaded ? "opacity-0" : "opacity-100"
+        }`}
+      />
+      <img
+        src={currentSrc}
+        alt={alt}
+        loading="lazy"
+        className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-105 ${
+          isLoaded ? "opacity-100" : "opacity-0"
+        }`}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => {
+          if (currentSrc !== fallbackSrc) {
+            setCurrentSrc(fallbackSrc);
+            return;
+          }
+          setIsLoaded(true);
+        }}
+      />
+    </div>
+  );
+}
 
 export default function BrowsePropertiesPage() {
   const router = useRouter();
@@ -46,7 +91,7 @@ export default function BrowsePropertiesPage() {
   const neutralDark = "#4b5563";
   const neutralDarkest = "#111827";
   const surfaceElevated = "#ffffff";
-  const { isAuthenticated } = useCurrentUser();
+  const { user, isAuthenticated } = useCurrentUser();
 
   useEffect(() => {
     const location = new URLSearchParams(window.location.search).get(
@@ -71,13 +116,9 @@ export default function BrowsePropertiesPage() {
     limit: 30,
   });
 
-  const formatPrice = (price: number, _currency: string = "NGN") => {
-    void _currency;
-    const safePrice = Number.isFinite(price) ? price : 0;
-    return `₦${safePrice.toLocaleString("en-NG", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })}`;
+  const formatPrice = (price: unknown) => {
+    const numericPrice = Number(price);
+    return formatNaira(Number.isFinite(numericPrice) ? numericPrice : 0);
   };
 
   const properties = useMemo(() => {
@@ -98,7 +139,7 @@ export default function BrowsePropertiesPage() {
 
   useEffect(() => {
     const loadFavoriteStates = async () => {
-      if (!isAuthenticated || properties.length === 0) {
+      if (!isAuthenticated || user?.role !== "GUEST" || properties.length === 0) {
         setLikedProperties(new Set());
         return;
       }
@@ -126,10 +167,10 @@ export default function BrowsePropertiesPage() {
     };
 
     loadFavoriteStates();
-  }, [properties, isAuthenticated]);
+  }, [properties, isAuthenticated, user?.role]);
 
   const toggleLike = async (propertyId: string) => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || user?.role !== "GUEST") {
       toast.error("Please sign in to save favorites");
       router.push(
         `/guest/login?returnTo=${encodeURIComponent("/guest/browse")}`,
@@ -245,9 +286,9 @@ export default function BrowsePropertiesPage() {
           <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {properties.map((property) => {
-                const imageUrl =
-                  property.images?.[0]?.url ||
+                const fallbackImage =
                   "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80";
+                const imageUrl = property.images?.[0]?.url || fallbackImage;
 
                 const propertyType = property.type
                   ? property.type.toLowerCase().replace(/_/g, " ")
@@ -263,10 +304,10 @@ export default function BrowsePropertiesPage() {
                     }}
                   >
                     <div className="relative aspect-[4/3] overflow-hidden">
-                      <img
+                      <SmoothPropertyImage
                         src={imageUrl}
                         alt={property.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        fallbackSrc={fallbackImage}
                       />
 
                       <div
@@ -301,10 +342,7 @@ export default function BrowsePropertiesPage() {
                       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
                         <div className="flex items-baseline gap-2">
                           <span className="text-2xl font-bold text-white">
-                            {formatPrice(
-                              property.pricePerNight,
-                              property.currency,
-                            )}
+                            {formatPrice(property.pricePerNight)}
                           </span>
                           <span className="text-lg text-white/90">/ night</span>
                         </div>
@@ -357,7 +395,7 @@ export default function BrowsePropertiesPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Square className="w-4 h-4 text-gray-500" />
+                          <UserRound className="w-4 h-4 text-gray-500" />
                           <span className="text-sm font-medium text-gray-700">
                             {property.maxGuests} guests
                           </span>
@@ -427,3 +465,4 @@ export default function BrowsePropertiesPage() {
     </div>
   );
 }
+

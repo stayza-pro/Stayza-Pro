@@ -36,6 +36,7 @@ const PaymentSuccessContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference") || searchParams.get("trxref");
+  const bookingIdFromQuery = searchParams.get("bookingId");
   const provider = (searchParams.get("provider") || "").toLowerCase();
   const flutterwaveTransactionId = searchParams.get("transaction_id");
 
@@ -107,13 +108,14 @@ const PaymentSuccessContent = () => {
       setHasAttemptedVerification(true);
       setStatus("processing");
       setErrorMessage(null);
+      let verificationSucceeded = false;
 
       const storedMeta = localStorage.getItem("paystackPaymentMeta");
       const storedFlutterwaveMeta = localStorage.getItem(
         "flutterwavePaymentMeta",
       );
       let storedPaymentId: string | null = null;
-      let storedBookingId: string | null = null;
+      let storedBookingId: string | null = bookingIdFromQuery || null;
 
       // Try to get stored metadata from either payment provider
       if (storedMeta) {
@@ -156,6 +158,7 @@ const PaymentSuccessContent = () => {
               router.push(`/booking/confirmation/${resolvedBookingId}`);
             }, 2000);
           }
+          verificationSucceeded = true;
           return;
         }
 
@@ -192,6 +195,7 @@ const PaymentSuccessContent = () => {
               router.push(`/booking/confirmation/${resolvedBookingId}`);
             }, 2000);
           }
+          verificationSucceeded = true;
         } else {
           // No reference and no bookingId - can't verify
           throw new Error(
@@ -219,6 +223,7 @@ const PaymentSuccessContent = () => {
                 router.push(`/booking/confirmation/${bookingIdToUse}`);
               }, 2000);
             }
+            verificationSucceeded = true;
             return;
           } catch (fallbackErr) {
             // Fall through to error handling below
@@ -229,11 +234,13 @@ const PaymentSuccessContent = () => {
         setErrorMessage(message);
         toast.error(message);
       } finally {
-        if (storedMeta) {
-          localStorage.removeItem("paystackPaymentMeta");
-        }
-        if (storedFlutterwaveMeta) {
-          localStorage.removeItem("flutterwavePaymentMeta");
+        if (verificationSucceeded) {
+          if (storedMeta) {
+            localStorage.removeItem("paystackPaymentMeta");
+          }
+          if (storedFlutterwaveMeta) {
+            localStorage.removeItem("flutterwavePaymentMeta");
+          }
         }
       }
     };

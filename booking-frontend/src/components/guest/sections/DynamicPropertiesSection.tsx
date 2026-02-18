@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { apiClient } from "@/services/api";
 import { Property } from "@/types";
+import { formatPrice as formatNaira } from "@/utils/currency";
 
 interface DynamicPropertiesSectionProps {
   primaryColor: string; // 60% - Main backgrounds and dominant elements
@@ -191,14 +192,7 @@ export const DynamicPropertiesSection: React.FC<
   }, [hasActiveFilters, properties, realtorId, searchFilters]);
 
   // Currency formatter
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
+  const formatPrice = (price: number) => formatNaira(price);
 
   if (loading) {
     return (
@@ -455,46 +449,39 @@ export const DynamicPropertiesSection: React.FC<
                     }}
                   >
                     {property.images && property.images.length > 0 ? (
-                      <>
-                        <img
-                          src={getImageUrl(property.images[0])}
-                          alt={property.title}
-                          className="group-hover:scale-110"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            display: "block",
-                            transition: "transform 0.5s ease",
-                            backgroundColor: "#e5e7eb",
-                          }}
-                          onLoad={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.backgroundColor = "transparent";
-                          }}
-                          onError={(e) => {
-                            // Fallback if image fails to load
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = "none";
-                            if (target.parentElement) {
-                              const fallbackDiv = document.createElement("div");
-                              fallbackDiv.style.cssText = `
-                            width: 100%;
-                            height: 100%;
-                            background: ${primaryColor}30;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 3rem;
-                            color: ${primaryColor};
-                            opacity: 0.3;
-                          `;
-                              fallbackDiv.textContent = "🏠";
-                              target.parentElement.appendChild(fallbackDiv);
-                            }
-                          }}
-                        />
-                      </>
+                      <img
+                        src={
+                          getImageUrl(property.images[0]) ||
+                          "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80"
+                        }
+                        alt={property.title}
+                        loading="lazy"
+                        className="group-hover:scale-110"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          display: "block",
+                          opacity: 0,
+                          transition: "transform 0.5s ease, opacity 0.4s ease",
+                          backgroundColor: "#e5e7eb",
+                        }}
+                        onLoad={(e) => {
+                          const target = e.currentTarget;
+                          target.style.opacity = "1";
+                        }}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const fallback =
+                            "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80";
+                          if (!target.dataset.fallbackApplied) {
+                            target.dataset.fallbackApplied = "true";
+                            target.src = fallback;
+                            return;
+                          }
+                          target.style.opacity = "1";
+                        }}
+                      />
                     ) : (
                       <div
                         style={{
@@ -504,12 +491,12 @@ export const DynamicPropertiesSection: React.FC<
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: "3rem",
+                          fontSize: "1rem",
                           color: primaryColor,
-                          opacity: 0.3,
+                          opacity: 0.7,
                         }}
                       >
-                        🏠
+                        No image
                       </div>
                     )}
 
@@ -537,7 +524,7 @@ export const DynamicPropertiesSection: React.FC<
                       }}
                     >
                       <span style={{ fontSize: "1.25rem", color: "#6b7280" }}>
-                        ♡
+                        {"\u2661"}
                       </span>
                     </div>
 
@@ -577,7 +564,7 @@ export const DynamicPropertiesSection: React.FC<
                         }}
                       >
                         <span style={{ color: accentColor, fontSize: "1rem" }}>
-                          ★
+                          {"\u2605"}
                         </span>
                         <span
                           style={{
@@ -609,7 +596,7 @@ export const DynamicPropertiesSection: React.FC<
                         }}
                       >
                         <span style={{ color: "white", fontSize: "0.875rem" }}>
-                          📸
+                          Photos
                         </span>
                         <span
                           style={{
@@ -627,7 +614,7 @@ export const DynamicPropertiesSection: React.FC<
                       <div
                         style={{ fontSize: "5rem", color: `${primaryColor}40` }}
                       >
-                        🏠
+                        Home
                       </div>
                     )}
                   </div>
@@ -663,7 +650,7 @@ export const DynamicPropertiesSection: React.FC<
                           marginTop: "0.125rem",
                         }}
                       >
-                        📍
+                        Location:
                       </span>
                       <span>
                         {[
@@ -697,7 +684,7 @@ export const DynamicPropertiesSection: React.FC<
                           fontWeight: 500,
                         }}
                       >
-                        🛏️ {property.bedrooms} Beds
+                        Beds: {property.bedrooms}
                       </div>
                       <div
                         style={{
@@ -708,7 +695,7 @@ export const DynamicPropertiesSection: React.FC<
                           fontWeight: 500,
                         }}
                       >
-                        🚿 {property.bathrooms} Baths
+                        Baths: {property.bathrooms}
                       </div>
                       <div
                         style={{
@@ -719,7 +706,7 @@ export const DynamicPropertiesSection: React.FC<
                           fontWeight: 500,
                         }}
                       >
-                        👥 {property.maxGuests} Guests
+                        Guests: {property.maxGuests}
                       </div>
                     </div>
 

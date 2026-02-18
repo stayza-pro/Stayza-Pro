@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Input, Card } from "../ui";
+import { AnimatedDateInput, Button, Input, Card } from "../ui";
 import {
   PropertyFilters as PropertyFiltersType,
   Property,
@@ -291,35 +291,41 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({
             </label>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Input
-                  type="date"
+                <AnimatedDateInput
+                  label="Check-in"
                   value={
                     filters.checkIn
                       ? filters.checkIn.toISOString().split("T")[0]
                       : ""
                   }
-                  onChange={(e) =>
+                  onChange={(value) =>
                     handleInputChange(
                       "checkIn",
-                      e.target.value ? new Date(e.target.value) : undefined
+                      value ? new Date(value) : undefined
                     )
                   }
+                  min={new Date().toISOString().split("T")[0]}
                   disabled={isLoading}
                 />
               </div>
               <div>
-                <Input
-                  type="date"
+                <AnimatedDateInput
+                  label="Check-out"
                   value={
                     filters.checkOut
                       ? filters.checkOut.toISOString().split("T")[0]
                       : ""
                   }
-                  onChange={(e) =>
+                  onChange={(value) =>
                     handleInputChange(
                       "checkOut",
-                      e.target.value ? new Date(e.target.value) : undefined
+                      value ? new Date(value) : undefined
                     )
+                  }
+                  min={
+                    filters.checkIn
+                      ? filters.checkIn.toISOString().split("T")[0]
+                      : new Date().toISOString().split("T")[0]
                   }
                   disabled={isLoading}
                 />

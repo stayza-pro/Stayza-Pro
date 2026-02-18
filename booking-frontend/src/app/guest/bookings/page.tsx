@@ -35,7 +35,10 @@ export default function GuestBookingsPage() {
   } = useQuery({
     queryKey: ["guest-bookings"],
     queryFn: () => bookingService.getUserBookings(),
-    enabled: !!user,
+    enabled: !!user && user.role === "GUEST",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 30 * 1000,
     retry: (failureCount, queryError: unknown) => {
       const status = (queryError as { response?: { status?: number } })
         ?.response?.status;
@@ -57,6 +60,12 @@ export default function GuestBookingsPage() {
       router.push("/guest/login?returnTo=/guest/bookings");
     }
   }, [authChecked, authLoading, isAuthenticated, router]);
+
+  React.useEffect(() => {
+    if (authChecked && !authLoading && user && user.role !== "GUEST") {
+      router.push("/guest/login?returnTo=/guest/bookings");
+    }
+  }, [authChecked, authLoading, user, router]);
 
   React.useEffect(() => {
     const status = (error as { response?: { status?: number } } | null)

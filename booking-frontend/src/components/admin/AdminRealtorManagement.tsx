@@ -12,6 +12,7 @@ import {
 } from "@/services";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
+import { AnimatedDateInput } from "@/components/ui";
 
 interface AdminRealtorManagementProps {
   className?: string;
@@ -677,11 +678,8 @@ const SuspensionModal: React.FC<{
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Suspension End Date (Optional)
-            </label>
-            <input
-              type="date"
+            <AnimatedDateInput
+              label="Suspension End Date (Optional)"
               value={
                 formData.suspendedUntil
                   ? new Date(formData.suspendedUntil)
@@ -689,15 +687,15 @@ const SuspensionModal: React.FC<{
                       .split("T")[0]
                   : ""
               }
-              onChange={(e) =>
+              onChange={(value) =>
                 setFormData((prev) => ({
                   ...prev,
-                  suspendedUntil: e.target.value
-                    ? new Date(e.target.value)
+                  suspendedUntil: value
+                    ? new Date(value)
                     : undefined,
                 }))
               }
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min={new Date().toISOString().split("T")[0]}
             />
             <p className="text-sm text-gray-500 mt-1">
               Leave empty for indefinite suspension

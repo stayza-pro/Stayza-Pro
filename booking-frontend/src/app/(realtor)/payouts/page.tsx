@@ -211,6 +211,19 @@ export default function PayoutsPage() {
     void loadWithdrawals();
   }, [loadTransactions, loadWithdrawals]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void fetchPayoutData();
+      void fetchWalletData();
+      void loadTransactions();
+      void loadWithdrawals();
+    }, 30 * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [fetchPayoutData, fetchWalletData, loadTransactions, loadWithdrawals]);
+
   const closeWithdrawModal = () => {
     setShowWithdrawModal(false);
     setWithdrawStep("amount");

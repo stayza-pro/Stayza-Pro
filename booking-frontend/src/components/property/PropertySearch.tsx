@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input } from "../ui";
+import { AnimatedDateInput, Button, Input } from "../ui";
 
 interface PropertySearchProps {
   onSearch?: (searchParams: {
@@ -103,34 +103,20 @@ export const PropertySearch: React.FC<PropertySearchProps> = ({
 
           {/* Check-in */}
           <div>
-            <label
-              htmlFor="checkIn"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Check-in
-            </label>
-            <Input
-              id="checkIn"
-              type="date"
+            <AnimatedDateInput
+              label="Check-in"
               value={searchData.checkIn}
-              onChange={(e) => handleInputChange("checkIn", e.target.value)}
+              onChange={(value) => handleInputChange("checkIn", value)}
               min={new Date().toISOString().split("T")[0]}
             />
           </div>
 
           {/* Check-out */}
           <div>
-            <label
-              htmlFor="checkOut"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Check-out
-            </label>
-            <Input
-              id="checkOut"
-              type="date"
+            <AnimatedDateInput
+              label="Check-out"
               value={searchData.checkOut}
-              onChange={(e) => handleInputChange("checkOut", e.target.value)}
+              onChange={(value) => handleInputChange("checkOut", value)}
               min={searchData.checkIn || new Date().toISOString().split("T")[0]}
             />
           </div>

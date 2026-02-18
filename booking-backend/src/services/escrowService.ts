@@ -232,14 +232,16 @@ export const holdFundsInEscrow = async (
     if (feeBreakdown.cleaningFee > 0) {
       const realtorWallet = await walletService.getOrCreateWallet(
         WalletOwnerType.REALTOR,
-        realtorId
+        realtorId,
+        tx
       );
       await walletService.creditWallet(
         realtorWallet.id,
         feeBreakdown.cleaningFee,
         WalletTransactionSource.CLEANING_FEE,
         bookingId,
-        { bookingId, paymentId }
+        { bookingId, paymentId },
+        tx
       );
     }
 
@@ -247,14 +249,16 @@ export const holdFundsInEscrow = async (
     if (feeBreakdown.serviceFee > 0) {
       const platformWallet = await walletService.getOrCreateWallet(
         WalletOwnerType.PLATFORM,
-        "platform" // Fixed platform ID
+        "platform", // Fixed platform ID
+        tx
       );
       await walletService.creditWallet(
         platformWallet.id,
         feeBreakdown.serviceFee,
         WalletTransactionSource.SERVICE_FEE,
         bookingId,
-        { bookingId, paymentId }
+        { bookingId, paymentId },
+        tx
       );
     }
   });
@@ -518,7 +522,8 @@ export const releaseRoomFeeSplit = async (
     // 1. Credit realtor wallet
     const realtorWallet = await walletService.getOrCreateWallet(
       WalletOwnerType.REALTOR,
-      realtorId
+      realtorId,
+      tx
     );
     await walletService.creditWallet(
       realtorWallet.id,
@@ -530,13 +535,15 @@ export const releaseRoomFeeSplit = async (
         paymentId,
         effectiveCommissionRate: effectiveRate,
         payoutRate: 1 - effectiveRate,
-      }
+      },
+      tx
     );
 
     // 2. Credit platform wallet
     const platformWallet = await walletService.getOrCreateWallet(
       WalletOwnerType.PLATFORM,
-      "platform"
+      "platform",
+      tx
     );
     await walletService.creditWallet(
       platformWallet.id,
@@ -547,7 +554,8 @@ export const releaseRoomFeeSplit = async (
         bookingId,
         paymentId,
         effectiveCommissionRate: effectiveRate,
-      }
+      },
+      tx
     );
 
     // 3. Update payment status

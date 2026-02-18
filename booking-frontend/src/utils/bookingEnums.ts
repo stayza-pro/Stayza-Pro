@@ -164,7 +164,7 @@ export const canDownloadReceipt = (
   status?: PaymentStatus | null
 ): boolean => {
   if (!status) return false;
-  return ["PARTIALLY_RELEASED", "SETTLED"].includes(status);
+  return ["HELD", "PARTIALLY_RELEASED", "SETTLED"].includes(status);
 };
 
 /**

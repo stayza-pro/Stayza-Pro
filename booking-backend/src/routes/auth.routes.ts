@@ -473,6 +473,11 @@ router.put(
     if (req.file) {
       updateData.avatar = req.file.path;
     }
+    if (updateData.firstName || updateData.lastName) {
+      const nextFirstName = updateData.firstName || req.user!.firstName;
+      const nextLastName = updateData.lastName || req.user!.lastName;
+      updateData.fullName = `${nextFirstName} ${nextLastName}`.trim();
+    }
 
     const user = await prisma.user.update({
       where: { id: req.user!.id },
@@ -483,7 +488,7 @@ router.put(
         firstName: true,
         lastName: true,
         fullName: true,
-        // phone: true,
+        phone: true,
         role: true,
         avatar: true,
         createdAt: true,
@@ -1037,7 +1042,21 @@ router.post(
       },
     });
 
+    if (role !== "GUEST") {
+      throw new AppError(
+        "This registration route only supports guest accounts",
+        400,
+      );
+    }
+
     if (existingUser) {
+      if (existingUser.role === "REALTOR" || existingUser.role === "ADMIN") {
+        throw new AppError(
+          "This email is already linked to a realtor/admin account. Please sign in through the correct portal.",
+          400,
+        );
+      }
+
       if (existingUser.isEmailVerified) {
         throw new AppError(
           "User with this email already exists. Please login instead.",
@@ -1045,10 +1064,12 @@ router.post(
         );
       }
 
-      logger.info(`🧹 Cleaning up unverified user: ${email}`);
-      await prisma.user.delete({
-        where: { id: existingUser.id },
-      });
+      if (existingUser.role === "GUEST") {
+        logger.info(`Cleaning up stale unverified guest: ${email}`);
+        await prisma.user.delete({
+          where: { id: existingUser.id },
+        });
+      }
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -1752,3 +1773,4 @@ router.delete(
 );
 
 export default router;
+

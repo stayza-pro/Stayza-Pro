@@ -19,6 +19,7 @@ import {
   FileText,
 } from "lucide-react";
 import { format } from "date-fns";
+import { formatPrice as formatNaira } from "@/utils/currency";
 
 type FilterPaymentStatus = "ALL" | "SETTLED" | "HELD" | "FAILED" | "REFUNDED";
 
@@ -73,15 +74,18 @@ export default function PaymentsPage() {
 
   const formatMoney = (value: unknown): string => {
     const amount = Number(value);
-    const safeAmount = Number.isFinite(amount) ? amount : 0;
-    return safeAmount.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    return formatNaira(Number.isFinite(amount) ? amount : 0);
   };
 
   useEffect(() => {
-    fetchPayments();
+    void fetchPayments();
+    const intervalId = window.setInterval(() => {
+      void fetchPayments();
+    }, 30 * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [currentPage, selectedStatus]);
 
   const fetchPayments = async () => {
@@ -223,7 +227,6 @@ export default function PaymentsPage() {
                 Total Earnings
               </p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
-                $
                 {formatMoney(stats.totalEarnings)}
               </p>
               <p className="text-sm text-gray-500 mt-1">All time</p>
@@ -239,7 +242,6 @@ export default function PaymentsPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">This Month</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
-                $
                 {formatMoney(stats.thisMonth)}
               </p>
               <p
@@ -262,7 +264,6 @@ export default function PaymentsPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Last Month</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
-                $
                 {formatMoney(stats.lastMonth)}
               </p>
               <p className="text-sm text-gray-500 mt-1">Previous period</p>
@@ -280,7 +281,6 @@ export default function PaymentsPage() {
                 Pending Payouts
               </p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
-                $
                 {formatMoney(stats.pendingPayouts)}
               </p>
               <p className="text-sm text-gray-500 mt-1">Being processed</p>
@@ -405,7 +405,6 @@ export default function PaymentsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          $
                           {formatMoney((Number(payment.amount) || 0) / 100)}
                         </div>
                       </td>

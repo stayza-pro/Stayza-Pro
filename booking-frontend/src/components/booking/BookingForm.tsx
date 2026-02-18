@@ -2,9 +2,10 @@
 
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
-import { Button, Input, Card, Loading } from "../ui";
+import { AnimatedDateInput, Button, Card, Loading } from "../ui";
 import { Calendar, Users, MapPin, Clock, AlertCircle } from "lucide-react";
 import { Property, BookingFormData } from "../../types";
+import { formatPrice as formatNaira } from "@/utils/currency";
 
 interface BookingFormProps {
   property: Property;
@@ -168,7 +169,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-gray-900">
-              {property.currency} {property.pricePerNight}
+              {formatNaira(property.pricePerNight)}
             </div>
             <div className="text-sm text-gray-600">per night</div>
           </div>
@@ -187,22 +188,13 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             {/* Date Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label
-                  htmlFor="checkIn"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Check-in Date *
-                </label>
-                <Input
-                  id="checkIn"
-                  type="date"
+                <AnimatedDateInput
+                  label="Check-in Date *"
                   min={today}
                   value={formData.checkIn ? formatDate(formData.checkIn) : ""}
-                  onChange={(e) =>
-                    handleInputChange("checkIn", new Date(e.target.value))
-                  }
+                  onChange={(value) => handleInputChange("checkIn", new Date(value))}
                   disabled={isLoading || isSubmitting}
-                  className={errors.checkIn ? "border-red-500" : ""}
+                  inputWrapperClassName={errors.checkIn ? "border-red-500" : ""}
                 />
                 {errors.checkIn && (
                   <p className="text-red-500 text-sm mt-1">{errors.checkIn}</p>
@@ -210,15 +202,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               </div>
 
               <div>
-                <label
-                  htmlFor="checkOut"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Check-out Date *
-                </label>
-                <Input
-                  id="checkOut"
-                  type="date"
+                <AnimatedDateInput
+                  label="Check-out Date *"
                   min={
                     formData.checkIn
                       ? formatDate(
@@ -229,11 +214,11 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                       : tomorrow
                   }
                   value={formData.checkOut ? formatDate(formData.checkOut) : ""}
-                  onChange={(e) =>
-                    handleInputChange("checkOut", new Date(e.target.value))
+                  onChange={(value) =>
+                    handleInputChange("checkOut", new Date(value))
                   }
                   disabled={isLoading || isSubmitting}
-                  className={errors.checkOut ? "border-red-500" : ""}
+                  inputWrapperClassName={errors.checkOut ? "border-red-500" : ""}
                 />
                 {errors.checkOut && (
                   <p className="text-red-500 text-sm mt-1">{errors.checkOut}</p>
@@ -310,25 +295,25 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             <div className="space-y-3">
               <div className="flex justify-between text-gray-600">
                 <span>
-                  {property.currency} {property.pricePerNight} ×{" "}
+                  {formatNaira(property.pricePerNight)} x{" "}
                   {bookingDetails.nights} nights
                 </span>
                 <span>
-                  {property.currency} {bookingDetails.subtotal.toFixed(2)}
+                  {formatNaira(bookingDetails.subtotal)}
                 </span>
               </div>
 
               <div className="flex justify-between text-gray-600">
                 <span>Service fee</span>
                 <span>
-                  {property.currency} {bookingDetails.serviceFee.toFixed(2)}
+                  {formatNaira(bookingDetails.serviceFee)}
                 </span>
               </div>
 
               <div className="flex justify-between text-gray-600">
                 <span>Taxes</span>
                 <span>
-                  {property.currency} {bookingDetails.taxes.toFixed(2)}
+                  {formatNaira(bookingDetails.taxes)}
                 </span>
               </div>
 
@@ -337,7 +322,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               <div className="flex justify-between text-lg font-semibold text-gray-900">
                 <span>Total</span>
                 <span>
-                  {property.currency} {bookingDetails.total.toFixed(2)}
+                  {formatNaira(bookingDetails.total)}
                 </span>
               </div>
             </div>
@@ -354,13 +339,13 @@ export const BookingForm: React.FC<BookingFormProps> = ({
               </h4>
               <ul className="text-sm text-blue-800 space-y-1">
                 <li>
-                  • You won&apos;t be charged until your reservation is accepted
+                  - You won&apos;t be charged until your reservation is accepted
                   by the host
                 </li>
-                <li>• Free cancellation until 48 hours before check-in</li>
-                <li>• Check-in time: 3:00 PM - 11:00 PM</li>
-                <li>• Check-out time: 11:00 AM</li>
-                <li>• No smoking or parties allowed</li>
+                <li>- Free cancellation until 48 hours before check-in</li>
+                <li>- Check-in time: 3:00 PM - 11:00 PM</li>
+                <li>- Check-out time: 11:00 AM</li>
+                <li>- No smoking or parties allowed</li>
               </ul>
             </div>
           </div>

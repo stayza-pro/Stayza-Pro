@@ -8,14 +8,30 @@ import {
 } from "@prisma/client";
 import { logger } from "@/utils/logger";
 
+type WalletDbClient = Prisma.TransactionClient | typeof prisma;
+
+const withTransaction = async <T>(
+  txClient: Prisma.TransactionClient | undefined,
+  operation: (client: Prisma.TransactionClient) => Promise<T>
+): Promise<T> => {
+  if (txClient) {
+    return operation(txClient);
+  }
+
+  return prisma.$transaction(async (tx) => operation(tx));
+};
+
 /**
  * Get or create wallet for realtor or platform
  */
 export const getOrCreateWallet = async (
   ownerType: WalletOwnerType,
-  ownerId: string
+  ownerId: string,
+  txClient?: Prisma.TransactionClient
 ) => {
-  let wallet = await prisma.wallet.findUnique({
+  const db: WalletDbClient = txClient || prisma;
+
+  let wallet = await db.wallet.findUnique({
     where: {
       ownerType_ownerId: {
         ownerType,
@@ -25,7 +41,7 @@ export const getOrCreateWallet = async (
   });
 
   if (!wallet) {
-    wallet = await prisma.wallet.create({
+    wallet = await db.wallet.create({
       data: {
         ownerType,
         ownerId,
@@ -49,13 +65,14 @@ export const creditWallet = async (
   amount: number,
   source: WalletTransactionSource,
   referenceId?: string,
-  metadata?: any
+  metadata?: any,
+  txClient?: Prisma.TransactionClient
 ): Promise<{ success: boolean; transaction: any; newBalance: number }> => {
   if (amount <= 0) {
     throw new Error("Credit amount must be positive");
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await withTransaction(txClient, async (tx) => {
     // Update wallet balance
     const wallet = await tx.wallet.update({
       where: { id: walletId },
@@ -109,13 +126,14 @@ export const debitWallet = async (
   amount: number,
   source: WalletTransactionSource,
   referenceId?: string,
-  metadata?: any
+  metadata?: any,
+  txClient?: Prisma.TransactionClient
 ): Promise<{ success: boolean; transaction: any; newBalance: number }> => {
   if (amount <= 0) {
     throw new Error("Debit amount must be positive");
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await withTransaction(txClient, async (tx) => {
     // Check sufficient balance
     const wallet = await tx.wallet.findUnique({
       where: { id: walletId },

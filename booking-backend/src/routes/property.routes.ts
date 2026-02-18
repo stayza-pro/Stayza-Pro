@@ -355,6 +355,13 @@ router.get(
 
     const propertiesWithRatings = properties.map((property) => ({
       ...sanitizePublicProperty(property),
+      pricePerNight: Math.round(Number(property.pricePerNight) * 100) / 100,
+      cleaningFee: property.cleaningFee
+        ? Math.round(Number(property.cleaningFee) * 100) / 100
+        : null,
+      securityDeposit: property.securityDeposit
+        ? Math.round(Number(property.securityDeposit) * 100) / 100
+        : null,
       averageRating: property.averageRating
         ? Number(property.averageRating)
         : 0,

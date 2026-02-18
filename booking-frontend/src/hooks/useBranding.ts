@@ -1,90 +1,45 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
+import { useQuery } from "react-query";
 import { useAuthStore } from "../store/authStore";
 import { brandingService, RealtorBranding } from "../services/branding";
 
 export const useBranding = () => {
   const { user } = useAuthStore();
-  const [branding, setBranding] = useState<RealtorBranding | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchBranding = async () => {
-      if (!user) {
-        setIsLoading(false);
-        return;
-      }
+  const fallbackBranding = useMemo(() => {
+    if (!user) {
+      return null;
+    }
 
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        if (user.role === "REALTOR") {
-          // Fetch realtor-specific branding
-          const realtorBranding = await brandingService.getRealtorBranding();
-          setBranding(realtorBranding);
-        } else {
-          // Use default branding for non-realtors
-          const defaultBranding = brandingService.getDefaultBranding(
-            user.role,
-            user.firstName
-          );
-          setBranding(defaultBranding);
-        }
-      } catch (err) {
-        
-        setError("Failed to load branding");
-
-        // Fallback to default branding
-        const fallbackBranding = brandingService.getDefaultBranding(
-          user.role,
-          user.firstName
-        );
-        setBranding(fallbackBranding);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchBranding();
+    return brandingService.getDefaultBranding(user.role, user.firstName);
   }, [user]);
 
-  const refetch = async () => {
-    if (!user) return;
-
-    try {
-      setIsLoading(true);
-      setError(null);
+  const query = useQuery<RealtorBranding | null>(
+    ["branding", user?.id, user?.role],
+    async () => {
+      if (!user) {
+        return null;
+      }
 
       if (user.role === "REALTOR") {
-        const realtorBranding = await brandingService.getRealtorBranding();
-        setBranding(realtorBranding);
-      } else {
-        const defaultBranding = brandingService.getDefaultBranding(
-          user.role,
-          user.firstName
-        );
-        setBranding(defaultBranding);
+        return brandingService.getRealtorBranding();
       }
-    } catch (err) {
-      
-      setError("Failed to load branding");
 
-      const fallbackBranding = brandingService.getDefaultBranding(
-        user.role,
-        user.firstName
-      );
-      setBranding(fallbackBranding);
-    } finally {
-      setIsLoading(false);
+      return brandingService.getDefaultBranding(user.role, user.firstName);
+    },
+    {
+      enabled: !!user,
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: true,
     }
-  };
+  );
 
   return {
-    branding,
-    isLoading,
-    error,
-    refetch,
-    refreshBranding: refetch, // Alias for compatibility
+    branding: query.data || fallbackBranding,
+    isLoading: query.isLoading,
+    error: query.error ? "Failed to load branding" : null,
+    refetch: query.refetch,
+    refreshBranding: query.refetch,
   };
 };

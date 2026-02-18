@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { apiClient } from "@/services/api";
+import { AnimatedDateInput } from "@/components/ui";
 import { guestUserMenuItems } from "./guestUserMenuItems";
 import { User, LogOut, ChevronDown } from "lucide-react";
 
@@ -487,29 +488,29 @@ export const DynamicHeroSection: React.FC<DynamicHeroSectionProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block font-medium mb-2 text-white/90 text-sm">
-                      Check In
-                    </label>
-                    <input
-                      type="date"
+                    <AnimatedDateInput
+                      label="Check In"
                       value={checkInDate}
-                      onChange={(e) => setCheckInDate(e.target.value)}
+                      onChange={setCheckInDate}
                       min={new Date().toISOString().split("T")[0]}
-                      className="w-full p-3.5 sm:p-4 bg-white/10 backdrop-blur-[10px] border border-white/20 rounded-xl text-white text-sm box-border [color-scheme:dark]"
+                      labelClassName="text-white/90"
+                      inputWrapperClassName="border-white/20 bg-white/10"
+                      inputClassName="text-white [color-scheme:dark]"
+                      iconClassName="text-white/70"
                     />
                   </div>
                   <div>
-                    <label className="block font-medium mb-2 text-white/90 text-sm">
-                      Check Out
-                    </label>
-                    <input
-                      type="date"
+                    <AnimatedDateInput
+                      label="Check Out"
                       value={checkOutDate}
-                      onChange={(e) => setCheckOutDate(e.target.value)}
+                      onChange={setCheckOutDate}
                       min={
                         checkInDate || new Date().toISOString().split("T")[0]
                       }
-                      className="w-full p-3.5 sm:p-4 bg-white/10 backdrop-blur-[10px] border border-white/20 rounded-xl text-white text-sm box-border [color-scheme:dark]"
+                      labelClassName="text-white/90"
+                      inputWrapperClassName="border-white/20 bg-white/10"
+                      inputClassName="text-white [color-scheme:dark]"
+                      iconClassName="text-white/70"
                     />
                   </div>
                 </div>

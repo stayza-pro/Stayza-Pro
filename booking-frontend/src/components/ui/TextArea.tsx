@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { cn } from "../../utils/cn";
 
 export interface TextAreaProps
@@ -25,8 +25,8 @@ const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(
     },
     ref
   ) => {
-    const textareaId =
-      props.id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const textareaId = props.id || `textarea-${generatedId}`;
 
     const resizeClass = {
       none: "resize-none",

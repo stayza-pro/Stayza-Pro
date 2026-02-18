@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { cn } from "../../utils/cn";
 import { ChevronDown } from "lucide-react";
 
@@ -41,7 +41,8 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     },
     ref
   ) => {
-    const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const selectId = id || `select-${generatedId}`;
 
     return (
       <div className={cn("flex flex-col space-y-2", fullWidth && "w-full")}>

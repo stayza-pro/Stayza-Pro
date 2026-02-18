@@ -29,6 +29,8 @@ import {
   QrCode,
 } from "lucide-react";
 
+const verifiedRealtorSubdomains = new Set<string>();
+
 const resolveActiveNav = (currentPath: string): string => {
   if (currentPath.includes("/properties")) {
     return "properties";
@@ -118,6 +120,11 @@ export default function RealtorLayout({
       return;
     }
 
+    if (verifiedRealtorSubdomains.has(tenantInfo.subdomain)) {
+      setIsTenantValid(true);
+      return;
+    }
+
     let isActive = true;
     setIsTenantValid(null);
 
@@ -125,6 +132,7 @@ export default function RealtorLayout({
       .getBrandingBySubdomain(tenantInfo.subdomain)
       .then(() => {
         if (!isActive) return;
+        verifiedRealtorSubdomains.add(tenantInfo.subdomain);
         setIsTenantValid(true);
       })
       .catch((error: any) => {

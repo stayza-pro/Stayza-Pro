@@ -363,24 +363,103 @@ router.post(
       throw new AppError("Unauthorized: Not your booking", 403);
     }
 
+    const isDev = config.NODE_ENV === "development";
+    const callbackBaseUrl = isDev
+      ? `http://localhost:${config.PORT}`
+      : `https://api.${config.MAIN_DOMAIN}`;
+
+    const initializeWithReference = async (
+      paymentId: string,
+      reference: string,
+    ) => {
+      const paystackResponse =
+        await paystackService.initializePaystackTransaction({
+          email: booking.guest.email,
+          amount: Math.round(Number(booking.totalPrice) * 100),
+          reference,
+          callback_url: `${callbackBaseUrl}/api/payments/callback?reference=${reference}`,
+          metadata: {
+            bookingId: booking.id,
+            paymentId,
+            guestId: booking.guestId,
+            propertyId: booking.propertyId,
+          },
+        });
+
+      return {
+        authorizationUrl: paystackResponse.data.authorization_url,
+        accessCode: paystackResponse.data.access_code,
+        reference,
+        paymentId,
+        publicKey: config.PAYSTACK_PUBLIC_KEY,
+      };
+    };
+
     const existingPayment = await prisma.payment.findUnique({
       where: { bookingId },
     });
 
     if (existingPayment) {
-      if (existingPayment.status === PaymentStatus.FAILED) {
-        return res.status(200).json({
-          success: true,
-          message: "Using existing payment record",
-          data: {
-            paymentId: existingPayment.id,
-            reference: existingPayment.reference,
-            status: existingPayment.status,
-          },
+      const retryableStatuses = new Set<PaymentStatus>([
+        PaymentStatus.INITIATED,
+        PaymentStatus.FAILED,
+      ]);
+
+      if (!retryableStatuses.has(existingPayment.status)) {
+        throw new AppError("Payment already exists for this booking", 400);
+      }
+
+      const reference =
+        existingPayment.reference ||
+        `PAY-${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2, 11)
+          .toUpperCase()}`;
+
+      if (!existingPayment.reference) {
+        await prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: { reference },
         });
       }
 
-      throw new AppError("Payment already exists for this booking", 400);
+      const payload = await initializeWithReference(existingPayment.id, reference)
+        .then((result) => result)
+        .catch(() => ({
+          authorizationUrl: undefined as string | undefined,
+          accessCode: undefined as string | undefined,
+          reference,
+          paymentId: existingPayment.id,
+          publicKey: config.PAYSTACK_PUBLIC_KEY,
+        }));
+
+      const existingMetadata =
+        typeof existingPayment.metadata === "object" &&
+        existingPayment.metadata !== null &&
+        !Array.isArray(existingPayment.metadata)
+          ? (existingPayment.metadata as Record<string, unknown>)
+          : {};
+
+      await prisma.payment.update({
+        where: { id: existingPayment.id },
+        data: {
+          status: PaymentStatus.INITIATED,
+          metadata: {
+            ...existingMetadata,
+            lastInitializationAt: new Date().toISOString(),
+            retryCount: Number(existingMetadata.retryCount || 0) + 1,
+          },
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Payment re-initialized successfully",
+        data: {
+          ...payload,
+          paymentStatus: PaymentStatus.INITIATED,
+        },
+      });
     }
 
     const reference = `PAY-${Date.now()}-${Math.random()
@@ -419,34 +498,14 @@ router.post(
       },
     });
 
-    const isDev = config.NODE_ENV === "development";
-    const callbackBaseUrl = isDev
-      ? `http://localhost:${config.PORT}`
-      : `https://api.${config.MAIN_DOMAIN}`;
-
-    const paystackResponse =
-      await paystackService.initializePaystackTransaction({
-        email: booking.guest.email,
-        amount: Math.round(Number(booking.totalPrice) * 100),
-        reference: payment.reference!,
-        callback_url: `${callbackBaseUrl}/api/payments/callback?reference=${reference}`,
-        metadata: {
-          bookingId: booking.id,
-          paymentId: payment.id,
-          guestId: booking.guestId,
-          propertyId: booking.propertyId,
-        },
-      });
+    const payload = await initializeWithReference(payment.id, reference);
 
     return res.status(200).json({
       success: true,
       message: "Payment initialized successfully",
       data: {
-        authorizationUrl: paystackResponse.data.authorization_url,
-        accessCode: paystackResponse.data.access_code,
-        reference: payment.reference,
-        paymentId: payment.id,
-        publicKey: config.PAYSTACK_PUBLIC_KEY,
+        ...payload,
+        paymentStatus: payment.status,
       },
     });
   })
@@ -1496,10 +1555,14 @@ router.get(
 
     // Only generate receipt for completed payments
     if (
+      payment.status !== "HELD" &&
       payment.status !== "PARTIALLY_RELEASED" &&
       payment.status !== "SETTLED"
     ) {
-      throw new AppError("Receipt only available for completed payments", 400);
+      throw new AppError(
+        "Receipt is available once payment is held or released",
+        400,
+      );
     }
 
     // Generate PDF

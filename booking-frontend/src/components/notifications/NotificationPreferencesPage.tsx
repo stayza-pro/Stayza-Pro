@@ -14,6 +14,7 @@ import { useNotificationPreferences } from "@/hooks/notifications/useNotificatio
 import { NotificationPreferences } from "@/types/notifications";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+import { AnimatedTimeInput } from "@/components/ui";
 
 interface NotificationPreferencesPageProps {
   className?: string;
@@ -434,32 +435,20 @@ export function NotificationPreferencesPage({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Quiet Hours Start
-                  </label>
-                  <input
-                    type="time"
+                  <AnimatedTimeInput
+                    label="Quiet Hours Start"
                     value={preferences.quietHoursStart}
-                    onChange={(e) =>
-                      handleTimeChange("quietHoursStart", e.target.value)
-                    }
+                    onChange={(value) => handleTimeChange("quietHoursStart", value)}
                     disabled={isLoading}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Quiet Hours End
-                  </label>
-                  <input
-                    type="time"
+                  <AnimatedTimeInput
+                    label="Quiet Hours End"
                     value={preferences.quietHoursEnd}
-                    onChange={(e) =>
-                      handleTimeChange("quietHoursEnd", e.target.value)
-                    }
+                    onChange={(value) => handleTimeChange("quietHoursEnd", value)}
                     disabled={isLoading}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                   />
                 </div>
               </div>

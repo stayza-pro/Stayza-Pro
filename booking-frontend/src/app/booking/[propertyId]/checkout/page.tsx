@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
-  Calendar as CalendarIcon,
   Users,
   Lock,
   CheckCircle2,
@@ -13,12 +12,13 @@ import {
 } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
 import { toast } from "react-hot-toast";
-import { Button, Card, Input, Select } from "@/components/ui";
+import { AnimatedDateInput, Button, Card, Input, Select } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { useProperty } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService, paymentService } from "@/services";
+import { formatPrice as formatNaira } from "@/utils/currency";
 
 interface GuestInfo {
   firstName: string;
@@ -87,7 +87,7 @@ export default function BookingCheckoutPage() {
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     email: user?.email || "",
-    phone: "",
+    phone: user?.phone || "",
     specialRequests: "",
   });
 
@@ -107,13 +107,25 @@ export default function BookingCheckoutPage() {
         firstName: user.firstName || prev.firstName,
         lastName: user.lastName || prev.lastName,
         email: user.email || prev.email,
+        phone: user.phone || prev.phone,
       }));
     }
   }, [user]);
 
   useEffect(() => {
-    if (!userLoading && !user) {
-      const returnTo = `/booking/${propertyId}/checkout?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&guests=${guests}`;
+    if (userLoading) {
+      return;
+    }
+
+    const returnTo = `/booking/${propertyId}/checkout?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&guests=${guests}`;
+
+    if (!user) {
+      router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
+      return;
+    }
+
+    if (user.role !== "GUEST") {
+      toast.error("Please sign in with a guest account to continue checkout.");
       router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [userLoading, user, router, propertyId, checkIn, checkOut, guests]);
@@ -202,12 +214,7 @@ export default function BookingCheckoutPage() {
   const taxes = bookingCalculation?.taxes ?? fallbackTaxes;
   const total = bookingCalculation?.total ?? fallbackTotal;
 
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-    }).format(price);
+  const formatPrice = (price: number) => formatNaira(price);
 
   const canProceed = () => {
     if (step === 1) {
@@ -312,28 +319,49 @@ export default function BookingCheckoutPage() {
           guestName: `${guestInfo.firstName} ${guestInfo.lastName}`.trim(),
           guestPhone: guestInfo.phone,
         },
-        callback: (response: { reference?: string; trxref?: string }) => {
+        callback: async (response: { reference?: string; trxref?: string }) => {
           const reference = response.reference || response.trxref;
           if (!reference) {
             toast.error("Payment reference missing. Please contact support.");
             return;
           }
 
-          paymentService
-            .verifyPaystackPayment({ reference })
-            .then((verification) => {
-              if (verification.success) {
+          try {
+            const verification = await paymentService.verifyPaystackPayment({
+              reference,
+            });
+
+            if (verification.success) {
+              toast.success("Booking payment successful!");
+              router.push(`/guest/bookings/${bookingId}`);
+              return;
+            }
+
+            const fallback = await paymentService.verifyPaymentByBooking({
+              bookingId,
+            });
+            if (fallback.success) {
+              toast.success("Booking payment successful!");
+              router.push(`/guest/bookings/${bookingId}`);
+              return;
+            }
+
+            toast.error(fallback.message || "Payment verification failed.");
+          } catch {
+            try {
+              const fallback = await paymentService.verifyPaymentByBooking({
+                bookingId,
+              });
+              if (fallback.success) {
                 toast.success("Booking payment successful!");
                 router.push(`/guest/bookings/${bookingId}`);
                 return;
               }
-              toast.error(
-                verification.message || "Payment verification failed.",
-              );
-            })
-            .catch(() => {
+              toast.error(fallback.message || "Payment verification failed.");
+            } catch {
               toast.error("Payment verification failed.");
-            });
+            }
+          }
         },
         onClose: () => {
           toast("Payment cancelled");
@@ -371,7 +399,7 @@ export default function BookingCheckoutPage() {
     );
   }
 
-  if (!user) {
+  if (!user || user.role !== "GUEST") {
     return null;
   }
 
@@ -474,55 +502,19 @@ export default function BookingCheckoutPage() {
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label style={{ color: colors.neutralDarkest }}>
-                        Check-in Date
-                      </label>
-                      <div className="relative">
-                        <CalendarIcon
-                          className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5"
-                          style={{ color: colors.neutral }}
-                        />
-                        <Input
-                          type="date"
-                          value={checkIn}
-                          min={new Date().toISOString().split("T")[0]}
-                          onChange={(e) => setCheckIn(e.target.value)}
-                          className="pl-12 h-14 rounded-xl"
-                          style={{
-                            backgroundColor: colors.neutralLightest,
-                            borderColor: colors.neutralLight,
-                            color: colors.neutralDarkest,
-                          }}
-                        />
-                      </div>
-                    </div>
+                    <AnimatedDateInput
+                      label="Check-in Date"
+                      value={checkIn}
+                      min={new Date().toISOString().split("T")[0]}
+                      onChange={setCheckIn}
+                    />
 
-                    <div className="space-y-2">
-                      <label style={{ color: colors.neutralDarkest }}>
-                        Check-out Date
-                      </label>
-                      <div className="relative">
-                        <CalendarIcon
-                          className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5"
-                          style={{ color: colors.neutral }}
-                        />
-                        <Input
-                          type="date"
-                          value={checkOut}
-                          min={
-                            checkIn || new Date().toISOString().split("T")[0]
-                          }
-                          onChange={(e) => setCheckOut(e.target.value)}
-                          className="pl-12 h-14 rounded-xl"
-                          style={{
-                            backgroundColor: colors.neutralLightest,
-                            borderColor: colors.neutralLight,
-                            color: colors.neutralDarkest,
-                          }}
-                        />
-                      </div>
-                    </div>
+                    <AnimatedDateInput
+                      label="Check-out Date"
+                      value={checkOut}
+                      min={checkIn || new Date().toISOString().split("T")[0]}
+                      onChange={setCheckOut}
+                    />
                   </div>
 
                   {checkIn && checkOut && (

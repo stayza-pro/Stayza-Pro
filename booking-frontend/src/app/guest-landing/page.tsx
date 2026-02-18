@@ -51,42 +51,66 @@ export default function GuestLandingPage() {
         .filter((url): url is string => Boolean(url && url.trim())),
     );
 
-    return images.length > 0 ? images : [fallbackHeroImage];
+    return images;
   }, [realtorProperties]);
 
-  const [heroImage, setHeroImage] = useState(fallbackHeroImage);
+  const [readyHeroImages, setReadyHeroImages] = useState<string[]>([]);
+  const [heroIndex, setHeroIndex] = useState(0);
   const [heroReady, setHeroReady] = useState(false);
 
   useEffect(() => {
-    if (heroImages.length === 0) {
-      setHeroImage(fallbackHeroImage);
+    let isCancelled = false;
+    setHeroReady(false);
+
+    const preloadImages = async () => {
+      const candidates = heroImages.length > 0 ? heroImages : [fallbackHeroImage];
+      const loadedResults = await Promise.all(
+        candidates.map(
+          (source) =>
+            new Promise<string | null>((resolve) => {
+              const img = new window.Image();
+              img.onload = () => resolve(source);
+              img.onerror = () => resolve(null);
+              img.src = source;
+            }),
+        ),
+      );
+
+      if (isCancelled) {
+        return;
+      }
+
+      const loaded = loadedResults.filter(
+        (source): source is string => typeof source === "string" && source.length > 0,
+      );
+      const resolved = loaded.length > 0 ? loaded : [fallbackHeroImage];
+      setReadyHeroImages(resolved);
+      setHeroIndex(Math.floor(Math.random() * resolved.length));
       setHeroReady(true);
+    };
+
+    void preloadImages();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [heroImages]);
+
+  useEffect(() => {
+    if (!heroReady || readyHeroImages.length <= 1) {
       return;
     }
 
-    const initialIndex = Math.floor(Math.random() * heroImages.length);
-    setHeroImage(heroImages[initialIndex]);
-    setHeroReady(true);
-
     const intervalId = window.setInterval(() => {
-      setHeroImage((previousImage) => {
-        if (heroImages.length === 1) {
-          return heroImages[0];
-        }
-
-        let nextImage = previousImage;
-        while (nextImage === previousImage) {
-          nextImage = heroImages[Math.floor(Math.random() * heroImages.length)];
-        }
-
-        return nextImage;
-      });
-    }, 3000);
+      setHeroIndex((previous) => (previous + 1) % readyHeroImages.length);
+    }, 5000);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [heroImages]);
+  }, [heroReady, readyHeroImages.length]);
+
+  const heroImage = readyHeroImages[heroIndex] || fallbackHeroImage;
 
   const features = [
     {
@@ -207,9 +231,11 @@ export default function GuestLandingPage() {
                 <div className="relative w-full h-[600px] rounded-2xl overflow-hidden shadow-2xl">
                   {heroReady ? (
                     <img
+                      key={heroImage}
                       src={heroImage}
                       alt="Luxury Property"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover animate-fade-in"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full bg-white/10 animate-pulse" />

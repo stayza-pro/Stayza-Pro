@@ -24,6 +24,23 @@ export default function ProtectedRoute({
   const [isChecking, setIsChecking] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
 
+  const buildRedirectTarget = () => {
+    if (typeof window === "undefined") {
+      return redirectTo;
+    }
+
+    if (
+      requiredRole === "REALTOR" &&
+      (redirectTo === "/realtor/login" || redirectTo.startsWith("/realtor/login?"))
+    ) {
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      const separator = redirectTo.includes("?") ? "&" : "?";
+      return `${redirectTo}${separator}returnTo=${encodeURIComponent(currentPath)}`;
+    }
+
+    return redirectTo;
+  };
+
   // Prevent hydration errors by only rendering after mount
   useEffect(() => {
     setIsMounted(true);
@@ -104,8 +121,7 @@ export default function ProtectedRoute({
       
 
       if (!isAuthenticated) {
-        
-        router.push(redirectTo);
+        router.push(buildRedirectTarget());
         return;
       }
 

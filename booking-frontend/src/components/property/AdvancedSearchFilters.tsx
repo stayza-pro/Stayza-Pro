@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
-import { Button, Card } from "../ui";
+import { AnimatedDateInput, Button, Card } from "../ui";
 import {
   Filter,
   X,
@@ -704,71 +704,50 @@ export const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({
                     {/* Availability */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Calendar className="h-4 w-4 inline mr-1" />
-                          Check-in
-                        </label>
-                        <input
-                          type="date"
+                        <AnimatedDateInput
+                          label="Check-in"
                           value={
                             filters.checkIn
                               ? filters.checkIn.toISOString().split("T")[0]
                               : ""
                           }
-                          onChange={(e) =>
+                          onChange={(value) =>
                             handleFilterChange(
                               "checkIn",
-                              e.target.value
-                                ? new Date(e.target.value)
+                              value
+                                ? new Date(value)
                                 : undefined
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
-                          style={{
-                            outline: "2px solid transparent",
-                            transition: "outline 0.2s",
-                          }}
-                          onFocus={(e) =>
-                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
-                          }
-                          onBlur={(e) =>
-                            (e.currentTarget.style.outline =
-                              "2px solid transparent")
-                          }
+                          min={new Date().toISOString().split("T")[0]}
+                          inputWrapperClassName="bg-white border-gray-300"
+                          iconClassName="text-gray-500"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Check-out
-                        </label>
-                        <input
-                          type="date"
+                        <AnimatedDateInput
+                          label="Check-out"
                           value={
                             filters.checkOut
                               ? filters.checkOut.toISOString().split("T")[0]
                               : ""
                           }
-                          onChange={(e) =>
+                          onChange={(value) =>
                             handleFilterChange(
                               "checkOut",
-                              e.target.value
-                                ? new Date(e.target.value)
+                              value
+                                ? new Date(value)
                                 : undefined
                             )
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-transparent"
-                          style={{
-                            outline: "2px solid transparent",
-                            transition: "outline 0.2s",
-                          }}
-                          onFocus={(e) =>
-                            (e.currentTarget.style.outline = `2px solid ${accentColor}`)
+                          min={
+                            filters.checkIn
+                              ? filters.checkIn.toISOString().split("T")[0]
+                              : new Date().toISOString().split("T")[0]
                           }
-                          onBlur={(e) =>
-                            (e.currentTarget.style.outline =
-                              "2px solid transparent")
-                          }
+                          inputWrapperClassName="bg-white border-gray-300"
+                          iconClassName="text-gray-500"
                         />
                       </div>
 

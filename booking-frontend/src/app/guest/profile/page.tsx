@@ -70,7 +70,7 @@ export default function ProfilePage() {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       email: user?.email || "",
-      phone: "",
+      phone: user?.phone || "",
       location: [user?.city, user?.country].filter(Boolean).join(", "),
     });
     setAvatarPreview(user?.avatar || null);
@@ -105,31 +105,30 @@ export default function ProfilePage() {
       return;
     }
 
-    const [cityPart, countryPart] = formData.location
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean);
-
     try {
       setIsSavingProfile(true);
+      let updatedUser;
 
       if (selectedAvatar) {
         const payload = new FormData();
         payload.append("firstName", formData.firstName.trim());
         payload.append("lastName", formData.lastName.trim());
-        payload.append("email", formData.email.trim());
-        if (cityPart) payload.append("city", cityPart);
-        if (countryPart) payload.append("country", countryPart);
+        payload.append("phone", formData.phone.trim());
         payload.append("avatar", selectedAvatar);
-        await authService.updateProfile(payload);
+        updatedUser = await authService.updateProfile(payload);
       } else {
-        await authService.updateProfile({
+        updatedUser = await authService.updateProfile({
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
-          email: formData.email.trim(),
-          city: cityPart,
-          country: countryPart,
+          phone: formData.phone.trim(),
         });
+      }
+
+      if (updatedUser) {
+        useAuthStore.setState((state) => ({
+          ...state,
+          user: state.user ? { ...state.user, ...updatedUser } : updatedUser,
+        }));
       }
 
       toast.success("Profile updated successfully");

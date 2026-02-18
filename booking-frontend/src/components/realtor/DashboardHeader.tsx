@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { Copy, ExternalLink, Share2, Wallet, TrendingUp } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
-import walletService, { WalletBalance } from "@/services/wallet";
+import walletService from "@/services/wallet";
+import { useQuery } from "react-query";
 
 interface DashboardHeaderProps {
   onCopySuccess?: () => void;
@@ -16,10 +17,16 @@ export function DashboardHeader({ onCopySuccess }: DashboardHeaderProps) {
   const { user } = useAuth();
   const { brandColor, tagline, realtorName, logoUrl } = useRealtorBranding();
   const realtorSubdomain = getRealtorSubdomain();
-  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(
-    null
+  const { data: walletBalance, isLoading: loadingBalance } = useQuery(
+    ["realtor-wallet-balance"],
+    () => walletService.getWalletBalance(),
+    {
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      refetchInterval: 30 * 1000,
+      staleTime: 30 * 1000,
+    }
   );
-  const [loadingBalance, setLoadingBalance] = useState(true);
 
   const websiteUrl = `https://${realtorSubdomain || "yourcompany"}.stayza.pro`;
   const businessName =
@@ -29,21 +36,6 @@ export function DashboardHeader({ onCopySuccess }: DashboardHeaderProps) {
   const statusLabel = statusKey.replace(/_/g, " ");
   const isSuspended = statusKey === "SUSPENDED";
   const fallbackInitial = businessName.charAt(0).toUpperCase();
-
-  useEffect(() => {
-    fetchWalletBalance();
-  }, []);
-
-  const fetchWalletBalance = async () => {
-    try {
-      const balance = await walletService.getWalletBalance();
-      setWalletBalance(balance);
-    } catch (error) {
-      
-    } finally {
-      setLoadingBalance(false);
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {

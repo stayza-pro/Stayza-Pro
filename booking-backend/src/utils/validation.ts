@@ -30,6 +30,7 @@ export const resetPasswordSchema = Joi.object({
 export const updateProfileSchema = Joi.object({
   firstName: Joi.string().min(2).max(50).optional(),
   lastName: Joi.string().min(2).max(50).optional(),
+  phone: Joi.string().max(20).allow("").optional(),
 });
 
 // Realtor registration validation schema

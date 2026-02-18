@@ -1,27 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isAllowedMainDomainPath } from "./src/lib/mainDomainRoutes";
 
 const SUBDOMAIN_LOGIN_PATHS = new Set(["/login", "/realtor/login"]);
 const LOCALE_ROOT_PATHS = new Set(["/en", "/fr", "/pt"]);
-const MAIN_DOMAIN_ALLOWED_EXACT_PATHS = new Set(["/", "/en", "/fr", "/pt"]);
-const MAIN_DOMAIN_ALLOWED_PREFIXES = [
-  "/admin",
-  "/how-it-works",
-  "/get-started",
-  "/join-waitlist",
-  "/booking-website-for-realtors",
-  "/become-host",
-  "/help",
-  "/legal",
-  "/privacy",
-  "/terms",
-  "/realtor/login",
-  "/realtor/forgot-password",
-  "/realtor/reset-password",
-  "/realtor/check-email",
-  "/verify-email",
-  "/auth/verify-otp",
-];
 
 const getHostname = (hostHeader: string): string => {
   return hostHeader.split(":")[0].toLowerCase();
@@ -40,16 +22,6 @@ const getRootDomain = (hostname: string): string => {
   }
 
   return hostname;
-};
-
-const isAllowedMainDomainPath = (pathname: string): boolean => {
-  if (MAIN_DOMAIN_ALLOWED_EXACT_PATHS.has(pathname)) {
-    return true;
-  }
-
-  return MAIN_DOMAIN_ALLOWED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
 };
 
 export function middleware(request: NextRequest) {
