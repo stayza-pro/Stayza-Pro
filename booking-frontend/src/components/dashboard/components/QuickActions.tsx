@@ -48,7 +48,7 @@ export default function QuickActions() {
       id: "manage-reviews",
       label: "Manage Reviews",
       icon: Star,
-      href: "/dashboard/reviews",
+      href: "/reviews",
       description: "Respond to feedback",
       color: "#8B5CF6", // Purple
     },

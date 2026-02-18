@@ -39,7 +39,7 @@ const navigationItems: NavItem[] = [
     href: "/dashboard/bookings",
     badge: "3",
   },
-  { icon: Star, label: "Reviews", href: "/dashboard/reviews" },
+  { icon: Star, label: "Reviews", href: "/reviews" },
   { icon: RefreshCcw, label: "Refunds", href: "/dashboard/refunds" },
   { icon: TrendingUp, label: "Revenue", href: "/dashboard/revenue" },
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },

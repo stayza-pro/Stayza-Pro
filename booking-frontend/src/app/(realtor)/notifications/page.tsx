@@ -4,7 +4,8 @@ import React from "react";
 import { useAlert } from "@/context/AlertContext";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { notificationApiService } from "@/services/notifications";
-import { type Notification } from "@/types/notifications";
+import NotificationStatsCards from "@/components/notifications/NotificationStatsCards";
+import { type Notification, type NotificationStats } from "@/types/notifications";
 import {
   Bell,
   Check,
@@ -54,6 +55,8 @@ export default function NotificationsPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState<FilterType>("all");
   const [unreadCount, setUnreadCount] = React.useState(0);
+  const [stats, setStats] = React.useState<NotificationStats | null>(null);
+  const [loadingStats, setLoadingStats] = React.useState(true);
 
   const fetchNotifications = React.useCallback(async () => {
     try {
@@ -82,16 +85,30 @@ export default function NotificationsPage() {
     }
   }, []);
 
+  const fetchStats = React.useCallback(async () => {
+    try {
+      setLoadingStats(true);
+      const summary = await notificationApiService.getStats();
+      setStats(summary);
+    } catch {
+      setStats(null);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     void fetchNotifications();
     void fetchUnreadCount();
-  }, [fetchNotifications, fetchUnreadCount]);
+    void fetchStats();
+  }, [fetchNotifications, fetchUnreadCount, fetchStats]);
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       await notificationApiService.markAsRead(notificationId);
       await fetchNotifications();
       await fetchUnreadCount();
+      await fetchStats();
     } catch (err) {
       showError(getErrorMessage(err, "Failed to mark as read"));
     }
@@ -102,6 +119,7 @@ export default function NotificationsPage() {
       await notificationApiService.markAllAsRead();
       await fetchNotifications();
       await fetchUnreadCount();
+      await fetchStats();
       showSuccess("All notifications marked as read!");
     } catch (err) {
       showError(getErrorMessage(err, "Failed to mark all as read"));
@@ -112,6 +130,7 @@ export default function NotificationsPage() {
     try {
       await notificationApiService.deleteNotification(notificationId);
       await fetchNotifications();
+      await fetchStats();
       showSuccess("Notification deleted!");
     } catch (err) {
       showError(getErrorMessage(err, "Failed to delete notification"));
@@ -160,6 +179,14 @@ export default function NotificationsPage() {
                 Mark all as read
               </button>
             </div>
+          </div>
+
+          <div className="mb-6">
+            <NotificationStatsCards
+              stats={stats}
+              loading={loadingStats}
+              accentColor={brandColor}
+            />
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">

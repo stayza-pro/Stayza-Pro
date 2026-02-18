@@ -22,6 +22,7 @@ import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
+import BookingLifecycleActions from "@/components/booking/BookingLifecycleActions";
 import { Button, Card } from "@/components/ui";
 import AlertModal from "@/components/ui/AlertModal";
 
@@ -61,7 +62,11 @@ export default function GuestBookingDetailsPage() {
     }
   }, [authChecked, isLoading, user, router, bookingId]);
 
-  const { data: booking, isLoading: bookingLoading } = useQuery({
+  const {
+    data: booking,
+    isLoading: bookingLoading,
+    refetch: refetchBooking,
+  } = useQuery({
     queryKey: ["booking", bookingId],
     queryFn: () => bookingService.getBooking(bookingId),
     enabled: !!user && user.role === "GUEST" && !!bookingId,
@@ -133,6 +138,12 @@ export default function GuestBookingDetailsPage() {
     }
     return booking.status === "PENDING" || booking.status === "ACTIVE";
   }, [booking]);
+
+  const handleLifecycleRefresh = React.useCallback(async () => {
+    await refetchBooking();
+    await queryClient.invalidateQueries({ queryKey: ["guest-bookings"] });
+    await queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
+  }, [bookingId, queryClient, refetchBooking]);
 
   const agentEmail =
     booking?.property?.realtor?.businessEmail ||
@@ -356,10 +367,10 @@ export default function GuestBookingDetailsPage() {
                 </div>
               </div>
 
-              {booking.specialRequests ? (
-                <div
-                  className="mt-6 p-4 rounded-xl"
-                  style={{ backgroundColor: secondarySurface }}
+            {booking.specialRequests ? (
+              <div
+                className="mt-6 p-4 rounded-xl"
+                style={{ backgroundColor: secondarySurface }}
                 >
                   <div className="text-sm font-semibold mb-2 text-gray-900">
                     Important Notes
@@ -368,6 +379,12 @@ export default function GuestBookingDetailsPage() {
                 </div>
               ) : null}
             </Card>
+
+            <BookingLifecycleActions
+              booking={booking}
+              role="GUEST"
+              onRefresh={handleLifecycleRefresh}
+            />
 
             <div className="grid sm:grid-cols-2 gap-4">
               <Button

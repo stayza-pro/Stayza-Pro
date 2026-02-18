@@ -18,12 +18,13 @@ import {
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { useBranding } from "@/hooks/useBranding";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { bookingService } from "@/services/bookings";
 import { paymentService } from "@/services/payments";
 import { BookingStatus } from "@/types";
 import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
 import { EscrowStatusSection } from "@/components/booking/EscrowStatusSection";
+import BookingLifecycleActions from "@/components/booking/BookingLifecycleActions";
 import { format } from "date-fns";
 import { toast as showToast } from "react-hot-toast";
 
@@ -31,17 +32,24 @@ export default function RealtorBookingDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { branding } = useBranding();
   const bookingId = params.id as string;
 
   const brandColor = branding?.colors?.primary || "#3B82F6";
 
   // Fetch booking details
-  const { data: booking, isLoading } = useQuery({
+  const { data: booking, isLoading, refetch: refetchBooking } = useQuery({
     queryKey: ["realtor-booking", bookingId],
     queryFn: () => bookingService.getRealtorBooking(bookingId),
     enabled: !!user && !!bookingId,
   });
+
+  const handleLifecycleRefresh = React.useCallback(async () => {
+    await refetchBooking();
+    await queryClient.invalidateQueries({ queryKey: ["realtor-booking", bookingId] });
+    await queryClient.invalidateQueries({ queryKey: ["realtor-bookings"] });
+  }, [bookingId, queryClient, refetchBooking]);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-NG", {
@@ -425,6 +433,12 @@ export default function RealtorBookingDetailsPage() {
             booking.status === "COMPLETED") && (
             <EscrowStatusSection booking={booking} viewType="host" />
           )}
+
+          <BookingLifecycleActions
+            booking={booking}
+            role="REALTOR"
+            onRefresh={handleLifecycleRefresh}
+          />
         </div>
 
         {/* Sidebar Actions */}

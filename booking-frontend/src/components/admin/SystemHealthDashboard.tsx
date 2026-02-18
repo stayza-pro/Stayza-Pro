@@ -6,6 +6,8 @@ import {
   XCircle,
   AlertTriangle,
   Server,
+  Search,
+  Trash2,
 } from "lucide-react";
 import { formatRelative, formatDuration } from "@/utils/timezone";
 
@@ -49,6 +51,24 @@ interface SystemHealthProps {
   retryStats?: RetryStats;
   transferStats?: TransferStats;
   isLoading?: boolean;
+  webhookLookupBookingId?: string;
+  webhookTimeline?: Array<{
+    eventId: string;
+    eventType: string;
+    executedAt: string;
+    transactionReference?: string | null;
+    status: string;
+    webhookReceived: boolean;
+    webhookReceivedAt?: string;
+    retryCount?: number;
+    failureReason?: string;
+  }>;
+  webhookLookupError?: string | null;
+  onWebhookLookupBookingIdChange?: (value: string) => void;
+  onRefreshWebhookTimeline?: () => void;
+  isWebhookTimelineLoading?: boolean;
+  onForceReleaseLock?: (lockId: string) => void;
+  forceReleasingLockId?: string | null;
 }
 
 export const SystemHealthDashboard: React.FC<SystemHealthProps> = ({
@@ -57,6 +77,14 @@ export const SystemHealthDashboard: React.FC<SystemHealthProps> = ({
   retryStats,
   transferStats,
   isLoading = false,
+  webhookLookupBookingId = "",
+  webhookTimeline = [],
+  webhookLookupError = null,
+  onWebhookLookupBookingIdChange,
+  onRefreshWebhookTimeline,
+  isWebhookTimelineLoading = false,
+  onForceReleaseLock,
+  forceReleasingLockId = null,
 }) => {
   if (isLoading) {
     return (
@@ -300,6 +328,11 @@ export const SystemHealthDashboard: React.FC<SystemHealthProps> = ({
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
+                  {onForceReleaseLock && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -343,6 +376,21 @@ export const SystemHealthDashboard: React.FC<SystemHealthProps> = ({
                           </span>
                         )}
                       </td>
+                      {onForceReleaseLock && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => onForceReleaseLock(lock.id)}
+                            disabled={forceReleasingLockId === lock.id}
+                            className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {forceReleasingLockId === lock.id
+                              ? "Releasing..."
+                              : "Force release"}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -351,6 +399,93 @@ export const SystemHealthDashboard: React.FC<SystemHealthProps> = ({
           </div>
         </div>
       )}
+
+      {/* Webhook Inspector */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Webhook Delivery Inspector
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Inspect transfer webhooks for a specific booking.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={webhookLookupBookingId}
+                onChange={(event) =>
+                  onWebhookLookupBookingIdChange?.(event.target.value)
+                }
+                placeholder="Enter booking ID"
+                className="rounded-lg border border-gray-300 py-2 pl-8 pr-3 text-sm"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={onRefreshWebhookTimeline}
+              disabled={!webhookLookupBookingId || isWebhookTimelineLoading}
+              className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isWebhookTimelineLoading ? "Loading..." : "Fetch"}
+            </button>
+          </div>
+        </div>
+
+        {webhookLookupError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {webhookLookupError}
+          </div>
+        ) : null}
+
+        {!webhookLookupError && webhookTimeline.length > 0 ? (
+          <div className="space-y-3">
+            {webhookTimeline.map((item) => (
+              <div
+                key={item.eventId}
+                className="rounded-lg border border-gray-200 p-3 text-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold text-gray-900">{item.eventType}</p>
+                  <span
+                    className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                      item.status === "confirmed"
+                        ? "bg-green-100 text-green-700"
+                        : item.status === "failed"
+                          ? "bg-red-100 text-red-700"
+                          : item.status === "reversed"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Executed: {formatRelative(item.executedAt)}
+                </p>
+                {item.transactionReference ? (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Ref: {item.transactionReference}
+                  </p>
+                ) : null}
+                {item.failureReason ? (
+                  <p className="mt-1 text-xs text-red-600">
+                    Failure: {item.failureReason}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : webhookLookupBookingId && !isWebhookTimelineLoading ? (
+          <p className="text-sm text-gray-500">
+            No webhook events found for this booking.
+          </p>
+        ) : null}
+      </div>
 
       {/* Critical Alerts */}
       {retryStats && retryStats.criticalFailures > 0 && (

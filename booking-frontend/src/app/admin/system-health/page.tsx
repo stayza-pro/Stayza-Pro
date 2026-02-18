@@ -14,11 +14,17 @@ import {
 import {
   useActiveJobLocks,
   useEmailWorkerHealth,
+  useForceReleaseJobLock,
   useSystemHealthStats,
+  useWebhookDeliveryStatus,
 } from "@/hooks/useEscrow";
 import { formatRelative } from "@/utils/timezone";
+import { toast } from "react-hot-toast";
 
 export default function SystemHealthPage() {
+  const [webhookLookupInput, setWebhookLookupInput] = React.useState("");
+  const [webhookLookupBookingId, setWebhookLookupBookingId] = React.useState("");
+
   const {
     data: jobLocks = [],
     isLoading: isLoadingLocks,
@@ -34,6 +40,28 @@ export default function SystemHealthPage() {
     isLoading: isLoadingEmailHealth,
     error: emailWorkerError,
   } = useEmailWorkerHealth(true);
+  const {
+    data: webhookTimelinePayload,
+    isLoading: isWebhookTimelineLoading,
+    error: webhookTimelineError,
+    refetch: refetchWebhookTimeline,
+  } = useWebhookDeliveryStatus(webhookLookupBookingId, Boolean(webhookLookupBookingId));
+  const forceReleaseMutation = useForceReleaseJobLock();
+
+  const webhookTimeline = React.useMemo(() => {
+    const payload = webhookTimelinePayload as unknown;
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    if (
+      payload &&
+      typeof payload === "object" &&
+      Array.isArray((payload as { data?: unknown[] }).data)
+    ) {
+      return (payload as { data: unknown[] }).data;
+    }
+    return [];
+  }, [webhookTimelinePayload]);
 
   const isLoadingDashboard = isLoadingLocks || isLoadingSystemStats;
   const hasSystemDataIssue = Boolean(jobLocksError || systemHealthError);
@@ -53,6 +81,43 @@ export default function SystemHealthPage() {
   const systemStatusIconClass = hasSystemDataIssue
     ? "text-yellow-600"
     : "text-green-600";
+
+  const handleFetchWebhookTimeline = () => {
+    const bookingId = webhookLookupInput.trim();
+    if (!bookingId) {
+      toast.error("Enter a booking ID to inspect webhook delivery.");
+      return;
+    }
+
+    if (bookingId === webhookLookupBookingId) {
+      void refetchWebhookTimeline();
+      return;
+    }
+
+    setWebhookLookupBookingId(bookingId);
+  };
+
+  const handleForceReleaseLock = (lockId: string) => {
+    const confirmed = window.confirm(
+      "Force-release this lock? Use this only when the job is stuck.",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    forceReleaseMutation.mutate(lockId, {
+      onSuccess: () => {
+        toast.success("Job lock released.");
+      },
+      onError: (error) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to force-release job lock.";
+        toast.error(message);
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -156,6 +221,18 @@ export default function SystemHealthPage() {
                   reversed: systemHealthStats.transfers.reversed,
                 }
               : undefined
+          }
+          webhookLookupBookingId={webhookLookupInput}
+          onWebhookLookupBookingIdChange={setWebhookLookupInput}
+          onRefreshWebhookTimeline={handleFetchWebhookTimeline}
+          webhookTimeline={webhookTimeline as any}
+          webhookLookupError={webhookTimelineError?.message || null}
+          isWebhookTimelineLoading={isWebhookTimelineLoading}
+          onForceReleaseLock={handleForceReleaseLock}
+          forceReleasingLockId={
+            forceReleaseMutation.isLoading
+              ? ((forceReleaseMutation.variables as string | undefined) || null)
+              : null
           }
         />
 

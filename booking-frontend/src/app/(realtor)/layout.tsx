@@ -15,6 +15,7 @@ import Image from "next/image";
 import {
   Building2,
   Calendar,
+  Star,
   Settings,
   Shield,
   DollarSign,
@@ -36,6 +37,8 @@ const resolveActiveNav = (currentPath: string): string => {
     return "properties";
   } else if (currentPath.includes("/bookings")) {
     return "bookings";
+  } else if (currentPath.includes("/reviews")) {
+    return "reviews";
   } else if (currentPath.includes("/messages")) {
     return "messages";
   } else if (currentPath.includes("/escrow")) {
@@ -252,6 +255,12 @@ export default function RealtorLayout({
       label: "Bookings",
       icon: Calendar,
       href: "/bookings",
+    },
+    {
+      id: "reviews",
+      label: "Reviews",
+      icon: Star,
+      href: "/reviews",
     },
     {
       id: "messages",

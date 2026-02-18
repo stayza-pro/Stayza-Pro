@@ -71,8 +71,8 @@ export const reviewService = {
 
     const queryString = params.toString();
     const url = queryString
-      ? `/reviews/my/reviews?${queryString}`
-      : "/reviews/my/reviews";
+      ? `/reviews/my-reviews?${queryString}`
+      : "/reviews/my-reviews";
 
     const response = await apiClient.get<Review[]>(url);
     return response as PaginatedResponse<Review>;
@@ -95,8 +95,8 @@ export const reviewService = {
 
     const queryString = params.toString();
     const url = queryString
-      ? `/reviews/realtor/reviews?${queryString}`
-      : "/reviews/realtor/reviews";
+      ? `/reviews/host-reviews?${queryString}`
+      : "/reviews/host-reviews";
 
     const response = await apiClient.get<Review[]>(url);
     return response as PaginatedResponse<Review>;
@@ -183,8 +183,8 @@ export const reviewService = {
     if (params?.searchQuery) searchParams.append("search", params.searchQuery);
 
     const url = searchParams.toString()
-      ? `/reviews/realtor/reviews?${searchParams}`
-      : "/reviews/realtor/reviews";
+      ? `/reviews/host-reviews?${searchParams}`
+      : "/reviews/host-reviews";
 
     const response = await apiClient.get<Review[]>(url);
     return response as PaginatedResponse<Review>;
@@ -239,13 +239,10 @@ export const reviewService = {
     isVisible: boolean,
     reason?: string,
   ): Promise<Review> => {
-    const response = await apiClient.patch<Review>(
-      `/reviews/${reviewId}/moderate`,
-      {
-        isVisible,
-        reason,
-      },
-    );
+    const response = await apiClient.patch<Review>(`/reviews/${reviewId}/visibility`, {
+      isVisible,
+      reason,
+    });
     return response.data;
   },
 
@@ -404,8 +401,8 @@ export const reviewService = {
     if (params?.rating) queryParams.append("rating", params.rating.toString());
 
     const url = queryParams.toString()
-      ? `/reviews/realtor/reviews?${queryParams}`
-      : "/reviews/realtor/reviews";
+      ? `/reviews/realtor/manage?${queryParams}`
+      : "/reviews/realtor/manage";
 
     const response = await apiClient.get<Review[]>(url);
     return response as PaginatedResponse<Review>;
@@ -418,7 +415,7 @@ export const reviewService = {
   ): Promise<Review> => {
     const response = await apiClient.patch<Review>(
       `/reviews/${reviewId}/visibility`,
-      { visible },
+      { isVisible: visible },
     );
     return response.data;
   },

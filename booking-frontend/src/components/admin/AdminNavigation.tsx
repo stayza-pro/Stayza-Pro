@@ -23,6 +23,9 @@ import {
   Calendar,
   Activity,
   UserPlus,
+  AlertTriangle,
+  MessageSquare,
+  Mail,
 } from "lucide-react";
 import { getMainDomainUrl } from "@/utils/subdomain";
 import { deleteCookie } from "@/utils/cookies";
@@ -36,8 +39,11 @@ import { format } from "date-fns";
 const navigationItems = [
   { name: "Dashboard", href: "/admin", icon: Home },
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
+  { name: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
+  { name: "Reviews", href: "/admin/reviews", icon: MessageSquare },
   { name: "Waitlist", href: "/admin/waitlist", icon: UserPlus },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: DollarSign },
+  { name: "Email Preview", href: "/admin/email-preview", icon: Mail },
   { name: "Finance", href: "/admin/settings", icon: DollarSign },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },

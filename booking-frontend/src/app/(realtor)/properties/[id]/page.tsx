@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useAlert } from "@/context/AlertContext";
 import { propertyService } from "@/services/properties";
 import { Property, PropertyFormData } from "@/types";
+import PropertyCalendarManager from "@/components/realtor/PropertyCalendarManager";
 import {
   ArrowLeft,
   Save,
@@ -628,6 +629,8 @@ export default function EditPropertyPage() {
               )}
             </div>
           </div>
+
+          <PropertyCalendarManager propertyId={propertyId} />
         </div>
 
         {/* Actions */}

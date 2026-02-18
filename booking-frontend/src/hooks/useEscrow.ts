@@ -1,9 +1,11 @@
-import { useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
   getBookingEscrowEvents,
   getActiveJobLocks,
   getSystemHealthStats,
   getEmailWorkerHealth,
+  forceReleaseJobLock,
+  getWebhookDeliveryStatus,
   EscrowEvent,
   JobLock,
   SystemHealthStats,
@@ -65,6 +67,40 @@ export function useEmailWorkerHealth(enabled = true) {
     enabled,
     refetchInterval: 15000,
     staleTime: 8000,
+  });
+}
+
+/**
+ * Hook to fetch webhook delivery timeline for a booking (admin only)
+ */
+export function useWebhookDeliveryStatus(
+  bookingId: string | undefined,
+  enabled = true,
+) {
+  return useQuery<any, Error>({
+    queryKey: ["webhook-delivery-status", bookingId],
+    queryFn: () => {
+      if (!bookingId) throw new Error("Booking ID is required");
+      return getWebhookDeliveryStatus(bookingId);
+    },
+    enabled: Boolean(bookingId) && enabled,
+    refetchInterval: 15000,
+    staleTime: 8000,
+  });
+}
+
+/**
+ * Hook to force-release stuck job locks (admin only)
+ */
+export function useForceReleaseJobLock() {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, string>({
+    mutationFn: (lockId: string) => forceReleaseJobLock(lockId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(["job-locks"]);
+      await queryClient.invalidateQueries(["system-health-stats"]);
+    },
   });
 }
 

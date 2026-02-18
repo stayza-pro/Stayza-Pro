@@ -26,6 +26,85 @@ export interface VerifiedBookingArtifact {
   message?: string;
 }
 
+export interface BookingModificationOptions {
+  oldNights: number;
+  newNights: number;
+  pricePerNight: number;
+  oldSubtotal: number;
+  newSubtotal: number;
+  difference: number;
+  requiresPayment: boolean;
+  refundAmount: number;
+}
+
+export interface BookingModifyPayload {
+  newCheckInDate?: string;
+  newCheckOutDate?: string;
+  newGuestCount?: number;
+  reason?: string;
+}
+
+export interface BookingModifyResult {
+  priceDifference: number;
+  requiresPayment: boolean;
+  refundAmount: number;
+}
+
+export interface BookingExtensionResult {
+  newCheckOutDate: string;
+  additionalCost: number;
+  paymentReference: string;
+  booking: Booking;
+}
+
+export interface BookingDisputeWindows {
+  bookingId: string;
+  status: string;
+  guestDisputeWindow: {
+    deadline: string;
+    expired: boolean;
+    opened: boolean;
+    canOpen: boolean;
+  } | null;
+  realtorDisputeWindow: {
+    deadline: string;
+    expired: boolean;
+    opened: boolean;
+    canOpen: boolean;
+  } | null;
+}
+
+export interface PropertyCalendarDay {
+  date: string;
+  available: boolean;
+  status?: string;
+}
+
+export interface PropertyAvailabilityCalendar {
+  propertyId: string;
+  propertyName: string;
+  calendar: PropertyCalendarDay[];
+}
+
+export interface BlockDatesPayload {
+  startDate: string;
+  endDate: string;
+  reason: string;
+}
+
+export interface BlockedDateBooking {
+  id: string;
+  checkInDate: string;
+  checkOutDate: string;
+  status: string;
+}
+
+export interface PropertyBlockedBooking extends BlockedDateBooking {
+  propertyId?: string;
+  specialRequests?: string | null;
+  reason?: string | null;
+}
+
 export const bookingService = {
   // Create new booking
   createBooking: async (data: BookingFormData): Promise<Booking> => {
@@ -115,6 +194,48 @@ export const bookingService = {
   getBooking: async (id: string): Promise<Booking> => {
     const response = await apiClient.get<Booking>(`/bookings/${id}`);
     return response.data;
+  },
+
+  getModificationOptions: async (
+    id: string,
+    newCheckInDate: string,
+    newCheckOutDate: string,
+  ): Promise<BookingModificationOptions> => {
+    const params = new URLSearchParams({
+      newCheckIn: newCheckInDate,
+      newCheckOut: newCheckOutDate,
+    });
+    const response = await apiClient.get<BookingModificationOptions | { data: BookingModificationOptions }>(
+      `/bookings/${id}/modification-options?${params.toString()}`,
+    );
+    return ((response as any)?.data || response) as BookingModificationOptions;
+  },
+
+  modifyBooking: async (
+    id: string,
+    payload: BookingModifyPayload,
+  ): Promise<BookingModifyResult> => {
+    const response = await apiClient.post<
+      BookingModifyResult | { data: BookingModifyResult }
+    >(`/bookings/${id}/modify`, payload);
+    return ((response as any)?.data || response) as BookingModifyResult;
+  },
+
+  extendBooking: async (
+    id: string,
+    additionalNights: number,
+  ): Promise<BookingExtensionResult> => {
+    const response = await apiClient.post<
+      BookingExtensionResult | { data: BookingExtensionResult }
+    >(`/bookings/${id}/extend`, { additionalNights });
+    return ((response as any)?.data || response) as BookingExtensionResult;
+  },
+
+  getDisputeWindows: async (id: string): Promise<BookingDisputeWindows> => {
+    const response = await apiClient.get<
+      BookingDisputeWindows | { data: BookingDisputeWindows }
+    >(`/bookings/${id}/dispute-windows`);
+    return ((response as any)?.data || response) as BookingDisputeWindows;
   },
 
   verifyBookingArtifact: async (
@@ -294,33 +415,88 @@ export const bookingService = {
   // Get booking calendar for property (hosts only)
   getPropertyCalendar: async (
     propertyId: string,
-    month: string,
-    year: string,
-  ): Promise<{
-    bookings: Array<{
-      id: string;
-      checkInDate: string;
-      checkOutDate: string;
-      guestName: string;
-      status: string;
-    }>;
-    unavailableDates: string[];
-  }> => {
-    const response = await apiClient.get<{
-      bookings: Array<{
-        id: string;
-        checkInDate: string;
-        checkOutDate: string;
-        guestName: string;
-        status: string;
-      }>;
-      unavailableDates: string[];
-    }>(
-      `/bookings/properties/${propertyId}/calendar?month=${encodeURIComponent(
-        month,
-      )}&year=${encodeURIComponent(year)}`,
+    months = 6,
+  ): Promise<PropertyAvailabilityCalendar> => {
+    const safeMonths = Number.isFinite(months)
+      ? Math.max(1, Math.min(12, Math.floor(months)))
+      : 6;
+
+    const response = await apiClient.get<
+      PropertyAvailabilityCalendar | { data: PropertyAvailabilityCalendar }
+    >(
+      `/bookings/properties/${propertyId}/calendar?format=json&months=${safeMonths}`,
     );
-    return response.data;
+    return ((response as any)?.data || response) as PropertyAvailabilityCalendar;
+  },
+
+  blockDates: async (
+    propertyId: string,
+    payload: BlockDatesPayload,
+  ): Promise<BlockedDateBooking> => {
+    const response = await apiClient.post<
+      { blockedBooking: BlockedDateBooking } | { data: { blockedBooking: BlockedDateBooking } }
+    >(`/bookings/properties/${propertyId}/block-dates`, payload);
+    const data = (response as any)?.data || response;
+    return (data?.blockedBooking || data?.data?.blockedBooking) as BlockedDateBooking;
+  },
+
+  unblockDates: async (
+    blockedBookingId: string,
+    reason = "Dates unblocked by host",
+  ): Promise<void> => {
+    await apiClient.put(`/bookings/${blockedBookingId}/cancel`, { reason });
+  },
+
+  getPropertyBlockedBookings: async (
+    propertyId: string,
+    limit = 250,
+  ): Promise<PropertyBlockedBooking[]> => {
+    const response = await apiClient.get<Booking[] | { data: Booking[] }>(
+      `/bookings/realtor-bookings?propertyId=${encodeURIComponent(
+        propertyId,
+      )}&status=ACTIVE&page=1&limit=${Math.max(50, Math.min(limit, 500))}&sortBy=checkInDate&sortOrder=asc`,
+    );
+
+    const payload = (response as any)?.data || response;
+    const bookings: Booking[] = Array.isArray(payload)
+      ? (payload as Booking[])
+      : Array.isArray((payload as any)?.data)
+        ? ((payload as any).data as Booking[])
+        : [];
+
+    return bookings
+      .filter((booking) => {
+        const specialRequests =
+          typeof booking?.specialRequests === "string"
+            ? booking.specialRequests
+            : "";
+        return (
+          specialRequests.includes("[SYSTEM_BLOCKED_DATES]") ||
+          specialRequests.includes("SYSTEM:BLOCKED_DATES")
+        );
+      })
+      .map((booking) => {
+        const specialRequests =
+          typeof booking?.specialRequests === "string"
+            ? booking.specialRequests
+            : null;
+        const reason = specialRequests
+          ? specialRequests
+              .replace("[SYSTEM_BLOCKED_DATES]", "")
+              .replace("SYSTEM:BLOCKED_DATES", "")
+              .trim() || null
+          : null;
+
+        return {
+          id: booking.id,
+          propertyId: booking.propertyId,
+          checkInDate: String(booking.checkInDate),
+          checkOutDate: String(booking.checkOutDate),
+          status: booking.status,
+          specialRequests,
+          reason,
+        } as PropertyBlockedBooking;
+      });
   },
 
   // Get booking statistics (for dashboards)

@@ -51,7 +51,7 @@ function getActionUrl(notification: Notification) {
     return `/guest/bookings/${notification.bookingId}`;
   if (notification.propertyId)
     return `/guest/browse/${notification.propertyId}`;
-  return "/guest/messages";
+  return "/guest/notifications";
 }
 
 export function GuestNotificationDropdown({
@@ -235,12 +235,12 @@ export function GuestNotificationDropdown({
 
           <div className="px-4 py-2 border-t border-gray-200">
             <Link
-              href="/guest/messages"
+              href="/guest/notifications"
               onClick={() => setIsOpen(false)}
               className="text-xs font-medium hover:underline"
               style={{ color: primaryColor }}
             >
-              Open Messages
+              View all notifications
             </Link>
           </div>
         </div>
