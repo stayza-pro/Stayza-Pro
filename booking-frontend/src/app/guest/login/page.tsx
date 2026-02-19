@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowRight } from "lucide-react";
@@ -16,7 +16,7 @@ const getBackendApiUrl = () => {
   return /\/api$/i.test(trimmed) ? trimmed : `${trimmed}/api`;
 };
 
-export default function GuestLoginPage() {
+function GuestLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -260,5 +260,21 @@ export default function GuestLoginPage() {
         </>
       }
     />
+  );
+}
+
+function AuthPageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-400" />
+    </div>
+  );
+}
+
+export default function GuestLoginPage() {
+  return (
+    <Suspense fallback={<AuthPageFallback />}>
+      <GuestLoginContent />
+    </Suspense>
   );
 }

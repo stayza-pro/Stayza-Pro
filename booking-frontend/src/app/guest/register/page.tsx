@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowRight, CheckCircle2, Phone } from "lucide-react";
@@ -25,7 +25,7 @@ interface GuestRegistrationData {
   agreedToTerms: boolean;
 }
 
-export default function GuestRegisterPage() {
+function GuestRegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [subdomain, setSubdomain] = useState<string | null>(null);
@@ -460,5 +460,21 @@ export default function GuestRegisterPage() {
         </>
       }
     />
+  );
+}
+
+function AuthPageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-400" />
+    </div>
+  );
+}
+
+export default function GuestRegisterPage() {
+  return (
+    <Suspense fallback={<AuthPageFallback />}>
+      <GuestRegisterContent />
+    </Suspense>
   );
 }
