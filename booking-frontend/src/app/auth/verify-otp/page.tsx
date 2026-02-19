@@ -7,6 +7,7 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useAuthStore } from "@/store";
+import { GuestAuthShell } from "@/components/auth/GuestAuthShell";
 
 const getBackendApiUrl = () => {
   const configured =
@@ -43,6 +44,7 @@ function OTPVerificationContent() {
   };
 
   const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
+  const encodedReturnTo = encodeURIComponent(returnTo);
   const realtorId = searchParams.get("realtorId");
   const referralSource = searchParams.get("referralSource");
   const firstName = searchParams.get("firstName");
@@ -275,7 +277,7 @@ function OTPVerificationContent() {
           toast.error(
             "Missing registration information. Please register again.",
           );
-          router.push("/guest/register");
+          router.push(`/guest/register?returnTo=${encodedReturnTo}`);
           return;
         }
 
@@ -353,15 +355,11 @@ function OTPVerificationContent() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      <div
-        className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
-        }}
-      >
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
-        <div className="relative flex flex-col justify-center px-12 xl:px-16 py-16">
+    <GuestAuthShell
+      primaryColor={primaryColor}
+      primaryDark={primaryDark}
+      leftPanel={
+        <>
           <Link href="/guest-landing" className="flex items-center gap-3 mb-12">
             {logoUrl ? (
               <img src={logoUrl} alt={realtorName} className="h-12 w-auto" />
@@ -402,11 +400,10 @@ function OTPVerificationContent() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-slate-50">
-        <div className="w-full max-w-md space-y-8">
+        </>
+      }
+      rightPanel={
+        <>
           <div className="text-center space-y-3">
             <div
               className="w-16 h-16 rounded-full mx-auto flex items-center justify-center"
@@ -494,7 +491,11 @@ function OTPVerificationContent() {
 
           <div className="flex items-center justify-between text-sm">
             <Link
-              href={type === "register" ? "/guest/register" : "/guest/login"}
+              href={
+                type === "register"
+                  ? `/guest/register?returnTo=${encodedReturnTo}`
+                  : `/guest/login?returnTo=${encodedReturnTo}`
+              }
               className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -504,9 +505,9 @@ function OTPVerificationContent() {
               Go to Home
             </Link>
           </div>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }
 

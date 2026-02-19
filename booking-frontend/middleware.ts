@@ -58,7 +58,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Keep primary domain focused on marketing + admin + required realtor auth flows.
+  // Keep primary domain focused on explicitly allowlisted marketing/admin/auth/guest flows.
   if (tenantType === "main" && !isAllowedMainDomainPath(url.pathname)) {
     const redirectUrl = url.clone();
     redirectUrl.pathname = "/en";

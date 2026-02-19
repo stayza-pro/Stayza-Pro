@@ -81,6 +81,7 @@ export default function RealtorLayout({
   const pathname = usePathname();
   const { branding } = useBranding();
   const [mounted, setMounted] = useState(false);
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isTenantValid, setIsTenantValid] = useState<boolean | null>(null);
   const [tenantInfo, setTenantInfo] = useState<
@@ -112,6 +113,7 @@ export default function RealtorLayout({
   useEffect(() => {
     setTenantInfo(getSubdomainInfo());
     setMounted(true);
+    setCurrentYear(new Date().getFullYear());
   }, []);
 
   // Validate realtor subdomain to avoid showing invalid pages
@@ -412,7 +414,7 @@ export default function RealtorLayout({
                   <span className="font-semibold text-gray-600">Stayza Pro</span>
                 </p>
                 <p className="text-xs text-gray-300 mt-1">
-                  v1.0.0 • {new Date().getFullYear()}
+                  v1.0.0 - {currentYear ?? "----"}
                 </p>
               </div>
             </div>

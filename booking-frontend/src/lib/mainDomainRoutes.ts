@@ -6,6 +6,10 @@ export const MAIN_DOMAIN_ALLOWED_EXACT_PATHS = new Set([
 ]);
 
 export const MAIN_DOMAIN_ALLOWED_PREFIXES = [
+  "/guest",
+  "/guest-landing",
+  "/booking",
+  "/auth",
   "/admin",
   "/how-it-works",
   "/get-started",
@@ -21,7 +25,6 @@ export const MAIN_DOMAIN_ALLOWED_PREFIXES = [
   "/realtor/reset-password",
   "/realtor/check-email",
   "/verify-email",
-  "/auth/verify-otp",
 ];
 
 export const isAllowedMainDomainPath = (pathname: string): boolean => {

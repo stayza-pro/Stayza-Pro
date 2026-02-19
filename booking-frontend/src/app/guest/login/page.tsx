@@ -2,11 +2,12 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowRight } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { GuestAuthShell } from "@/components/auth/GuestAuthShell";
 
 const getBackendApiUrl = () => {
   const configured =
@@ -17,6 +18,7 @@ const getBackendApiUrl = () => {
 
 export default function GuestLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -46,6 +48,10 @@ export default function GuestLoginPage() {
 
     return value;
   };
+
+  const safeReturnTo = sanitizeReturnTo(
+    searchParams.get("returnTo") || searchParams.get("redirect"),
+  );
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -80,10 +86,6 @@ export default function GuestLoginPage() {
         toast.success(result?.message || "Verification code sent!");
       }
 
-      const search = new URLSearchParams(window.location.search);
-      const returnTo =
-        search.get("returnTo") || search.get("redirect") || "/guest-landing";
-      const safeReturnTo = sanitizeReturnTo(returnTo);
       const otpParams = new URLSearchParams({
         email,
         type: "login",
@@ -111,16 +113,11 @@ export default function GuestLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      <div
-        className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
-        }}
-      >
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
-
-        <div className="relative flex flex-col justify-center px-12 xl:px-16 py-16">
+    <GuestAuthShell
+      primaryColor={primaryColor}
+      primaryDark={primaryDark}
+      leftPanel={
+        <>
           <Link href="/guest-landing" className="flex items-center gap-3 mb-12">
             {logoUrl ? (
               <img src={logoUrl} alt={realtorName} className="h-12 w-auto" />
@@ -161,11 +158,10 @@ export default function GuestLoginPage() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-slate-50">
-        <div className="w-full max-w-md space-y-8">
+        </>
+      }
+      rightPanel={
+        <>
           <div className="lg:hidden text-center space-y-4">
             <Link
               href="/guest-landing"
@@ -253,7 +249,7 @@ export default function GuestLoginPage() {
 
           <div className="text-center">
             <Link
-              href="/guest/register"
+              href={`/guest/register?returnTo=${encodeURIComponent(safeReturnTo)}`}
               className="inline-flex items-center gap-2 font-medium hover:underline"
               style={{ color: primaryColor }}
             >
@@ -261,8 +257,8 @@ export default function GuestLoginPage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }

@@ -8,11 +8,8 @@ import {
   Calendar,
   Clock,
   MapPin,
-  MessageSquare,
   Download,
   XCircle,
-  Mail,
-  User,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -25,6 +22,7 @@ import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import BookingLifecycleActions from "@/components/booking/BookingLifecycleActions";
 import { Button, Card } from "@/components/ui";
 import AlertModal from "@/components/ui/AlertModal";
+import { normalizeImageUrl } from "@/utils/imageUrl";
 
 const DISPLAY_TIMEZONE = "Africa/Lagos";
 
@@ -54,13 +52,21 @@ export default function GuestBookingDetailsPage() {
 
   React.useEffect(() => {
     if (authChecked && !isLoading && !isAuthenticated) {
-      router.push(`/guest/login?returnTo=/guest/bookings/${bookingId}`);
+      const returnTo =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : `/guest/bookings/${bookingId}`;
+      router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [authChecked, isLoading, isAuthenticated, router, bookingId]);
 
   React.useEffect(() => {
     if (authChecked && !isLoading && user && user.role !== "GUEST") {
-      router.push(`/guest/login?returnTo=/guest/bookings/${bookingId}`);
+      const returnTo =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : `/guest/bookings/${bookingId}`;
+      router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [authChecked, isLoading, user, router, bookingId]);
 
@@ -118,6 +124,81 @@ export default function GuestBookingDetailsPage() {
     });
   };
 
+  const formatScheduledTime = (value?: string | null) => {
+    if (!value) return "Not scheduled yet";
+
+    const timeMatch = value.match(/^(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
+        return date.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: DISPLAY_TIMEZONE,
+        });
+      }
+    }
+
+    return value;
+  };
+
+  const timeLabel = useMemo(() => {
+    if (!booking) return "Not scheduled yet";
+    const stayStatus = booking.stayStatus;
+    const checkedInOrOut =
+      stayStatus === "CHECKED_IN" || stayStatus === "CHECKED_OUT";
+
+    if (checkedInOrOut && booking.checkInTime) {
+      return formatTime(booking.checkInTime);
+    }
+
+    if (booking.property?.checkInTime) {
+      return formatScheduledTime(booking.property.checkInTime);
+    }
+
+    return "Not scheduled yet";
+  }, [booking]);
+
+  const toDateParam = (value: Date | string) => {
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.slice(0, 10);
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return "";
+    }
+    return parsed.toISOString().slice(0, 10);
+  };
+
+  const bookAgainUrl = useMemo(() => {
+    if (!booking) return "";
+    const params = new URLSearchParams({
+      sourceBookingId: booking.id,
+      checkIn: toDateParam(booking.checkInDate),
+      checkOut: toDateParam(booking.checkOutDate),
+      guests: String(Math.max(1, Number(booking.totalGuests || 1))),
+      firstName: user?.firstName || booking.guest?.firstName || "",
+      lastName: user?.lastName || booking.guest?.lastName || "",
+      email: user?.email || booking.guest?.email || "",
+      phone: user?.phone || "",
+      specialRequests: booking.specialRequests || "",
+    });
+
+    return `/booking/${booking.propertyId}/checkout?${params.toString()}`;
+  }, [booking, user?.email, user?.firstName, user?.lastName, user?.phone]);
+
+  const heroImageUrl = useMemo(() => {
+    const firstImage =
+      (booking?.property?.images as Array<
+        | string
+        | { url?: string | null; imageUrl?: string | null; src?: string | null }
+      >)?.[0] ?? null;
+    return normalizeImageUrl(firstImage);
+  }, [booking?.property?.images]);
+
   const getStatusColor = () => {
     if (!booking) return "#6b7280";
     if (booking.status === "ACTIVE") return accentColor || "#D97706";
@@ -148,13 +229,6 @@ export default function GuestBookingDetailsPage() {
     await queryClient.invalidateQueries({ queryKey: ["guest-bookings"] });
     await queryClient.invalidateQueries({ queryKey: ["booking", bookingId] });
   }, [bookingId, queryClient, refetchBooking]);
-
-  const agentEmail =
-    booking?.property?.realtor?.businessEmail ||
-    booking?.property?.realtor?.user?.email ||
-    null;
-
-  const agentAvatar = booking?.property?.realtor?.user?.avatar;
 
   const handleDownloadReceipt = () => {
     const paymentId = booking?.payment?.id;
@@ -229,9 +303,9 @@ export default function GuestBookingDetailsPage() {
       <GuestHeader currentPage="bookings" />
 
       <div className="relative h-[400px] lg:h-[500px]">
-        {booking.property?.images?.[0]?.url ? (
+        {heroImageUrl ? (
           <img
-            src={booking.property.images[0].url}
+            src={heroImageUrl}
             alt={booking.property?.title || "Property"}
             className="w-full h-full object-cover"
           />
@@ -327,7 +401,7 @@ export default function GuestBookingDetailsPage() {
                   <div>
                     <div className="text-sm mb-1 text-gray-500">Time</div>
                     <div className="font-semibold text-[18px] text-gray-900">
-                      {formatTime(booking.checkInTime || booking.checkInDate)}
+                      {timeLabel}
                     </div>
                     <div className="text-sm mt-1 text-gray-500">
                       Duration based on stay period
@@ -403,11 +477,15 @@ export default function GuestBookingDetailsPage() {
               <Button
                 variant="outline"
                 className="h-12 rounded-xl font-medium"
-                onClick={() =>
-                  router.push(`/guest/bookings/${bookingId}/checkout`)
-                }
+                onClick={() => {
+                  if (!bookAgainUrl) {
+                    toast.error("Unable to open Book Again right now.");
+                    return;
+                  }
+                  router.push(bookAgainUrl);
+                }}
               >
-                Reschedule Viewing
+                Book Again
               </Button>
 
               {canCancel ? (

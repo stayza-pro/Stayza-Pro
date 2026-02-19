@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bath, Bed, Heart, MapPin, Square } from "lucide-react";
 import { Property } from "../../types";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
+import { normalizeImageUrl } from "@/utils/imageUrl";
 
 interface PropertyCardProps {
   property: Property;
@@ -17,25 +18,6 @@ interface PropertyCardProps {
   secondaryColor?: string;
   accentColor?: string;
 }
-
-const getImageUrl = (image: unknown): string => {
-  if (!image) return "";
-  if (typeof image === "string") return image;
-
-  if (typeof image === "object") {
-    const candidate = image as {
-      url?: string;
-      imageUrl?: string;
-      src?: string;
-    };
-
-    if (candidate.url) return candidate.url;
-    if (candidate.imageUrl) return candidate.imageUrl;
-    if (candidate.src) return candidate.src;
-  }
-
-  return "";
-};
 
 export const PropertyCard: React.FC<PropertyCardProps> = ({
   property,
@@ -54,7 +36,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
   const hasImages = Boolean(property.images && property.images.length > 0);
   const imageUrl =
-    hasImages && property.images ? getImageUrl(property.images[0]) : "";
+    hasImages && property.images ? normalizeImageUrl(property.images[0]) : "";
   const hasValidImageUrl = imageUrl && imageUrl.trim() !== "";
 
   const handleFavoriteClick = (event: React.MouseEvent) => {
@@ -99,7 +81,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
               className="w-full h-full flex items-center justify-center text-4xl"
               style={{ backgroundColor: `${effectivePrimaryColor}22` }}
             >
-              🏠
+              No image
             </div>
           )}
 

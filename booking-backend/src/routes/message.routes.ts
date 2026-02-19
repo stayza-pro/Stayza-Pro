@@ -26,6 +26,7 @@ import { sendMessageActivityEmail } from "@/services/email";
 import { MessageFilterService } from "@/services/messageFilter";
 import { SystemMessageService } from "@/services/systemMessage";
 import { uploadMessageAttachments } from "@/services/photoUpload";
+import { NotificationService } from "@/services/notificationService";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -74,6 +75,39 @@ const canDirectMessage = (senderRole: UserRole, recipientRole: UserRole) => {
     (senderRole === "GUEST" && recipientRole === "REALTOR") ||
     (senderRole === "REALTOR" && recipientRole === "GUEST")
   );
+};
+
+const emitMessageRefreshEvent = (input: {
+  senderId: string;
+  recipientId: string;
+  messageId: string;
+  bookingId?: string | null;
+  propertyId?: string | null;
+}) => {
+  try {
+    const notificationService = NotificationService.getInstance();
+    const payload = {
+      messageId: input.messageId,
+      bookingId: input.bookingId || null,
+      propertyId: input.propertyId || null,
+      senderId: input.senderId,
+      recipientId: input.recipientId,
+      emittedAt: new Date().toISOString(),
+    };
+
+    notificationService.emitToUserRoom(
+      input.senderId,
+      "message:updated",
+      payload,
+    );
+    notificationService.emitToUserRoom(
+      input.recipientId,
+      "message:updated",
+      payload,
+    );
+  } catch {
+    // Socket layer is best-effort and should not block messaging.
+  }
 };
 
 const notifyMessageParticipantsByEmail = async (input: {
@@ -331,6 +365,12 @@ router.post(
         },
       });
 
+      emitMessageRefreshEvent({
+        senderId,
+        recipientId: recipient.id,
+        messageId: message.id,
+      });
+
       void notifyMessageParticipantsByEmail({
         senderId,
         recipientId: recipient.id,
@@ -398,8 +438,6 @@ router.get(
 
       const messages = await prisma.message.findMany({
         where: {
-          bookingId: null,
-          type: "BOOKING_MESSAGE",
           OR: [
             { senderId: userId, recipientId: otherUserId },
             { senderId: otherUserId, recipientId: userId },
@@ -423,8 +461,6 @@ router.get(
         where: {
           senderId: otherUserId,
           recipientId: userId,
-          bookingId: null,
-          type: "BOOKING_MESSAGE",
           isRead: false,
         },
         data: {
@@ -682,6 +718,13 @@ router.post(
           },
           attachments: true,
         },
+      });
+
+      emitMessageRefreshEvent({
+        senderId: userId,
+        recipientId,
+        messageId: message.id,
+        propertyId,
       });
 
       void notifyMessageParticipantsByEmail({
@@ -1011,6 +1054,14 @@ router.post(
         },
       });
 
+      emitMessageRefreshEvent({
+        senderId: userId,
+        recipientId,
+        messageId: message.id,
+        bookingId,
+        propertyId: booking.propertyId,
+      });
+
       void notifyMessageParticipantsByEmail({
         senderId: userId,
         recipientId,
@@ -1173,10 +1224,6 @@ const handleMarkConversationRead = async (
     if (bookingId) where.bookingId = bookingId;
     if (otherUserId) {
       where.senderId = otherUserId;
-      where.type = "BOOKING_MESSAGE";
-      if (!propertyId && !bookingId) {
-        where.bookingId = null;
-      }
     }
 
     const updateResult = await prisma.message.updateMany({
@@ -1266,25 +1313,13 @@ router.get(
         orderBy: { createdAt: "desc" },
       });
 
-      // Group by booking/property to create conversation threads
-      const conversationMap = new Map();
+      // Group by counterpart user so each person has a single thread.
+      // The latest message carries booking/property context for display.
+      const conversationMap = new Map<string, any>();
       for (const msg of messages) {
-        const isInquiryMessage = msg.type === "INQUIRY" && !!msg.propertyId;
-        const isDirectMessage =
-          !msg.bookingId && !msg.propertyId && msg.type === "BOOKING_MESSAGE";
         const directOtherUserId =
           msg.senderId === userId ? msg.recipientId : msg.senderId;
-        const key = msg.bookingId
-          ? `booking:${msg.bookingId}`
-          : isInquiryMessage
-            ? `inquiry:${msg.propertyId}:${directOtherUserId}`
-            : isDirectMessage
-              ? `direct:${directOtherUserId}`
-              : undefined;
-
-        if (!key) {
-          continue;
-        }
+        const key = `user:${directOtherUserId}`;
 
         if (!conversationMap.has(key)) {
           const otherUser =
@@ -1293,14 +1328,14 @@ router.get(
             id: key,
             type: msg.bookingId
               ? "booking"
-              : isDirectMessage
-                ? "direct"
-                : "property",
-            bookingId: msg.bookingId,
-            propertyId: msg.propertyId,
+              : msg.propertyId
+                ? "property"
+                : "direct",
+            bookingId: msg.bookingId || null,
+            propertyId: msg.propertyId || null,
             otherUserId: directOtherUserId,
-            property: msg.property,
-            booking: msg.booking,
+            property: msg.property || null,
+            booking: msg.booking || null,
             otherUser,
             lastMessage: msg,
             unreadCount: 0,

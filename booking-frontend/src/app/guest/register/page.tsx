@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, ArrowRight, CheckCircle2, Phone } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button, Input } from "@/components/ui";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { getRealtorSubdomain } from "@/utils/subdomain";
+import { GuestAuthShell } from "@/components/auth/GuestAuthShell";
 
 const getBackendApiUrl = () => {
   const configured =
@@ -26,6 +27,7 @@ interface GuestRegistrationData {
 
 export default function GuestRegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [subdomain, setSubdomain] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [data, setData] = useState<GuestRegistrationData>({
@@ -63,6 +65,10 @@ export default function GuestRegisterPage() {
 
     return value;
   };
+
+  const safeReturnTo = sanitizeReturnTo(
+    searchParams.get("returnTo") || searchParams.get("redirect"),
+  );
 
   useEffect(() => {
     setSubdomain(getRealtorSubdomain());
@@ -149,10 +155,7 @@ export default function GuestRegisterPage() {
         otpParams.append("referralSource", `subdomain:${subdomain}`);
       }
 
-      const search = new URLSearchParams(window.location.search);
-      const returnTo =
-        search.get("returnTo") || search.get("redirect") || "/guest-landing";
-      otpParams.append("returnTo", sanitizeReturnTo(returnTo));
+      otpParams.append("returnTo", safeReturnTo);
 
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
     } catch (error: unknown) {
@@ -184,16 +187,11 @@ export default function GuestRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      <div
-        className="hidden lg:flex lg:w-[40%] relative overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryDark} 100%)`,
-        }}
-      >
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,white_1px,transparent_0)] bg-[length:48px_48px]" />
-
-        <div className="relative flex flex-col justify-center px-12 xl:px-16 py-16">
+    <GuestAuthShell
+      primaryColor={primaryColor}
+      primaryDark={primaryDark}
+      leftPanel={
+        <>
           <Link href="/guest-landing" className="flex items-center gap-3 mb-12">
             {logoUrl ? (
               <div className="h-14 w-14 rounded-2xl bg-white/15 border border-white/25 shadow-lg p-2.5 flex items-center justify-center">
@@ -243,11 +241,10 @@ export default function GuestRegisterPage() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-slate-50">
-        <div className="w-full max-w-md space-y-8">
+        </>
+      }
+      rightPanel={
+        <>
           <div className="lg:hidden text-center space-y-4">
             <Link
               href="/guest-landing"
@@ -452,7 +449,7 @@ export default function GuestRegisterPage() {
 
           <div className="text-center">
             <Link
-              href="/guest/login"
+              href={`/guest/login?returnTo=${encodeURIComponent(safeReturnTo)}`}
               className="inline-flex items-center gap-2 font-medium hover:underline"
               style={{ color: primaryColor }}
             >
@@ -460,8 +457,8 @@ export default function GuestRegisterPage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }

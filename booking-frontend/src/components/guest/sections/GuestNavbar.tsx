@@ -1,18 +1,18 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  Menu,
-  X,
   Home,
   Calendar,
   Heart,
   MessageSquare,
   HelpCircle,
   User,
+  LogOut,
 } from "lucide-react";
+import { useAuthStore } from "@/store";
 import { GuestNotificationDropdown } from "./GuestNotificationDropdown";
 
 interface GuestNavbarProps {
@@ -31,7 +31,9 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
   isSticky = true,
 }) => {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
+  const logout = useAuthStore((state) => state.logout);
+  const hideBottomNav = pathname.startsWith("/guest/messages");
 
   const navigation = useMemo(
     () => [
@@ -56,6 +58,11 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
       return pathname.startsWith("/guest/bookings");
     }
     return pathname === href;
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/guest/login");
   };
 
   return (
@@ -142,6 +149,14 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
                   </Link>
                 );
               })}
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
             </div>
           </div>
         </div>
@@ -181,79 +196,51 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
             <div className="flex items-center gap-1">
               <GuestNotificationDropdown primaryColor={primaryColor} />
               <button
-                onClick={() => setMobileMenuOpen((prev) => !prev)}
-                className="p-2 rounded-lg text-gray-700"
-                aria-label="Toggle menu"
+                type="button"
+                onClick={() => void handleLogout()}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
+                aria-label="Logout"
               >
-                {mobileMenuOpen ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
+                <LogOut className="w-4 h-4" />
+                Logout
               </button>
             </div>
           </div>
         </div>
-
-        {mobileMenuOpen && (
-          <div
-            className="border-t px-4 py-4 space-y-1"
-            style={{ borderColor: "#e5e7eb" }}
-          >
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
-                  style={{
-                    backgroundColor: active
-                      ? `${primaryColor}12`
-                      : "transparent",
-                    color: active ? primaryColor : "#374151",
-                  }}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-sm font-medium">{item.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
       </nav>
 
-      <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[55] border-t bg-white"
-        style={{ borderColor: "#e5e7eb" }}
-      >
-        <div className="flex items-center justify-around px-2 py-2">
-          {[
-            ...navigation,
-            { name: "Profile", href: "/guest/profile", icon: User },
-          ].map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="flex flex-col items-center gap-1 p-2 rounded-lg min-w-[64px]"
-                style={{
-                  color: active ? primaryColor : "#374151",
-                }}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="text-xs">{item.name}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="md:hidden h-20" />
+      {!hideBottomNav && (
+        <>
+          <div
+            className="md:hidden fixed bottom-0 left-0 right-0 z-[55] border-t bg-white"
+            style={{ borderColor: "#e5e7eb" }}
+          >
+            <div className="flex items-center justify-around px-2 py-2">
+              {[
+                ...navigation,
+                { name: "Profile", href: "/guest/profile", icon: User },
+              ].map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg min-w-[64px]"
+                    style={{
+                      color: active ? primaryColor : "#374151",
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-xs">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+          <div className="md:hidden h-20" />
+        </>
+      )}
     </>
   );
 };

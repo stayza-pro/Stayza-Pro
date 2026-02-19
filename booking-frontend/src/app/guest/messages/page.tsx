@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -19,6 +19,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { messageService, type Conversation, type Message } from "@/services";
+import { socketService } from "@/services/socket";
 import { MessageAttachment } from "@/components/messaging/MessageAttachment";
 import toast from "react-hot-toast";
 
@@ -63,7 +64,11 @@ function MessagesContent() {
 
   useEffect(() => {
     if (authChecked && !isLoading && !isAuthenticated) {
-      router.push("/guest/login?returnTo=/guest/messages");
+      const currentPath =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/guest/messages";
+      router.push(`/guest/login?returnTo=${encodeURIComponent(currentPath)}`);
     }
   }, [authChecked, isLoading, isAuthenticated, router]);
 
@@ -118,34 +123,7 @@ function MessagesContent() {
     conversations,
   ]);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchConversations();
-    }
-  }, [isAuthenticated, user]);
-
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages();
-    }
-  }, [selectedConversation]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
-    return () => {
-      if (recordedVoiceUrl) {
-        URL.revokeObjectURL(recordedVoiceUrl);
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [recordedVoiceUrl]);
-
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
@@ -159,9 +137,9 @@ function MessagesContent() {
     } finally {
       setIsLoadingConversations(false);
     }
-  };
+  }, []);
 
-  const resolveConversationContext = () => {
+  const resolveConversationContext = useCallback(() => {
     if (!selectedConversation) return null;
 
     const selectedConv = conversations.find(
@@ -209,9 +187,15 @@ function MessagesContent() {
     }
 
     return null;
-  };
+  }, [
+    selectedConversation,
+    conversations,
+    bookingIdParam,
+    propertyIdParam,
+    hostIdParam,
+  ]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!selectedConversation) return;
 
     try {
@@ -241,7 +225,7 @@ function MessagesContent() {
             context.conversation.bookingId,
             context.conversation.otherUser?.id,
           );
-          fetchConversations();
+          void fetchConversations();
         }
       }
     } catch (error: any) {
@@ -253,7 +237,81 @@ function MessagesContent() {
     } finally {
       setIsLoadingMessages(false);
     }
-  };
+  }, [selectedConversation, resolveConversationContext, fetchConversations]);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      void fetchConversations();
+    }
+  }, [isAuthenticated, user, fetchConversations]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      void fetchMessages();
+    }
+  }, [selectedConversation, fetchMessages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (recordedVoiceUrl) {
+        URL.revokeObjectURL(recordedVoiceUrl);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [recordedVoiceUrl]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
+    socketService.connect(
+      localStorage.getItem("accessToken") || "",
+      user.id,
+      user.role,
+    );
+
+    const unsubscribeMessageUpdated = socketService.onMessageUpdated(() => {
+      void fetchConversations();
+      if (selectedConversation) {
+        void fetchMessages();
+      }
+    });
+
+    return () => {
+      unsubscribeMessageUpdated();
+    };
+  }, [isAuthenticated, user, fetchConversations, fetchMessages, selectedConversation]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
+    const conversationsInterval = window.setInterval(() => {
+      void fetchConversations();
+    }, 15_000);
+
+    return () => window.clearInterval(conversationsInterval);
+  }, [isAuthenticated, user, fetchConversations]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || !selectedConversation) {
+      return;
+    }
+
+    const activeConversationInterval = window.setInterval(() => {
+      void fetchMessages();
+    }, 5_000);
+
+    return () => window.clearInterval(activeConversationInterval);
+  }, [isAuthenticated, user, selectedConversation, fetchMessages]);
 
   const handleSendMessage = async () => {
     if (

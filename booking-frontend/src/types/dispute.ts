@@ -1,9 +1,8 @@
 export type DisputeStatus =
   | "OPEN"
-  | "PENDING_REALTOR_RESPONSE"
-  | "PENDING_GUEST_RESPONSE"
-  | "RESOLVED"
-  | "CLOSED";
+  | "AWAITING_RESPONSE"
+  | "ESCALATED"
+  | "RESOLVED";
 
 export type DisputeIssueType =
   | "PROPERTY_CONDITION"
@@ -45,7 +44,10 @@ export interface Dispute {
   // Relations
   booking?: {
     id: string;
-    propertyTitle: string;
+    propertyTitle?: string;
+    property?: {
+      title?: string;
+    };
     checkInDate: string;
     checkOutDate: string;
   };
@@ -71,13 +73,13 @@ export interface CreateDisputeDto {
 }
 
 export interface RespondToDisputeDto {
-  message: string;
-  attachments?: string[];
+  responseAction: "ACCEPT" | "REJECT_ESCALATE";
+  responseNotes?: string;
 }
 
 export interface DisputeStats {
-  totalDisputes: number;
-  openDisputes: number;
-  resolvedDisputes: number;
+  total: number;
+  open: number;
   pendingResponse: number;
+  resolved: number;
 }

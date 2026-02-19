@@ -11,6 +11,7 @@ import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService } from "@/services";
 import { useQuery } from "react-query";
 import type { Booking } from "@/types";
+import { normalizeImageUrl } from "@/utils/imageUrl";
 
 type BookingTab = "upcoming" | "completed" | "cancelled";
 
@@ -57,13 +58,21 @@ export default function GuestBookingsPage() {
 
   React.useEffect(() => {
     if (authChecked && !authLoading && !isAuthenticated) {
-      router.push("/guest/login?returnTo=/guest/bookings");
+      const returnTo =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/guest/bookings";
+      router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [authChecked, authLoading, isAuthenticated, router]);
 
   React.useEffect(() => {
     if (authChecked && !authLoading && user && user.role !== "GUEST") {
-      router.push("/guest/login?returnTo=/guest/bookings");
+      const returnTo =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/guest/bookings";
+      router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [authChecked, authLoading, user, router]);
 
@@ -71,7 +80,11 @@ export default function GuestBookingsPage() {
     const status = (error as { response?: { status?: number } } | null)
       ?.response?.status;
     if (status === 401) {
-      router.push("/guest/login?returnTo=/guest/bookings");
+      const returnTo =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/guest/bookings";
+      router.push(`/guest/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [error, router]);
 
@@ -108,6 +121,84 @@ export default function GuestBookingsPage() {
       hour: "numeric",
       minute: "2-digit",
     });
+
+  const formatScheduledTime = (value?: string | null) => {
+    if (!value) return "";
+
+    const timeMatch = value.match(/^(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
+        return date.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        });
+      }
+    }
+
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return formatTime(parsed);
+    }
+
+    return value;
+  };
+
+  const getBookingTimeLabel = (booking: Booking) => {
+    const stayStatus = booking.stayStatus;
+    const checkedInOrOut =
+      stayStatus === "CHECKED_IN" || stayStatus === "CHECKED_OUT";
+
+    if (checkedInOrOut && booking.checkInTime) {
+      return formatTime(booking.checkInTime);
+    }
+
+    const scheduledPropertyTime = booking.property?.checkInTime;
+    if (scheduledPropertyTime) {
+      return formatScheduledTime(scheduledPropertyTime);
+    }
+
+    return "Not scheduled yet";
+  };
+
+  const toDateParam = (value: Date | string) => {
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return value.slice(0, 10);
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return "";
+    }
+    return parsed.toISOString().slice(0, 10);
+  };
+
+  const getBookingImageUrl = (booking: Booking) => {
+    const firstImage =
+      (booking.property?.images as Array<
+        | string
+        | { url?: string | null; imageUrl?: string | null; src?: string | null }
+      >)?.[0] ?? null;
+    return normalizeImageUrl(firstImage);
+  };
+
+  const getBookAgainUrl = (booking: Booking) => {
+    const params = new URLSearchParams({
+      sourceBookingId: booking.id,
+      checkIn: toDateParam(booking.checkInDate),
+      checkOut: toDateParam(booking.checkOutDate),
+      guests: String(Math.max(1, Number(booking.totalGuests || 1))),
+      firstName: user?.firstName || booking.guest?.firstName || "",
+      lastName: user?.lastName || booking.guest?.lastName || "",
+      email: user?.email || booking.guest?.email || "",
+      phone: user?.phone || "",
+      specialRequests: booking.specialRequests || "",
+    });
+
+    return `/booking/${booking.propertyId}/checkout?${params.toString()}`;
+  };
 
   const getStatusColor = (status: Booking["status"]) => {
     if (status === "ACTIVE") return accentColor || "#D97706";
@@ -232,9 +323,9 @@ export default function GuestBookingsPage() {
                 >
                   <div className="flex flex-col md:flex-row">
                     <div className="md:w-80 aspect-[4/3] md:aspect-auto relative overflow-hidden">
-                      {booking.property?.images?.[0]?.url ? (
+                      {getBookingImageUrl(booking) ? (
                         <img
-                          src={booking.property.images[0].url}
+                          src={getBookingImageUrl(booking)}
                           alt={booking.property?.title || "Property"}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
@@ -306,9 +397,7 @@ export default function GuestBookingsPage() {
                                   Time
                                 </div>
                                 <div className="font-medium text-gray-900">
-                                  {booking.checkInTime
-                                    ? formatTime(booking.checkInTime)
-                                    : "TBD"}
+                                  {getBookingTimeLabel(booking)}
                                 </div>
                               </div>
                             </div>
@@ -337,13 +426,19 @@ export default function GuestBookingsPage() {
                             </Button>
                           </Link>
 
-                          {booking.status === "ACTIVE" && (
-                            <Button
-                              variant="outline"
-                              className="flex-1 min-w-[200px] h-11 rounded-xl font-medium"
+                          {(booking.status === "ACTIVE" ||
+                            booking.status === "PENDING") && (
+                            <Link
+                              href={getBookAgainUrl(booking)}
+                              className="flex-1 min-w-[200px]"
                             >
-                              Reschedule
-                            </Button>
+                              <Button
+                                variant="outline"
+                                className="w-full h-11 rounded-xl font-medium"
+                              >
+                                Book Again
+                              </Button>
+                            </Link>
                           )}
                         </div>
                       </div>

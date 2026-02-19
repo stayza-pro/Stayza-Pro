@@ -97,13 +97,13 @@ router.get(
 
 /**
  * @swagger
- * /api/disputes/{id}/respond:
+ * /api/disputes/{id}/message:
  *   post:
- *     summary: Respond to a dispute (Guest or Realtor)
+ *     summary: Send a dispute conversation message (Guest or Realtor)
  *     tags: [Disputes]
  */
 router.post(
-  "/:id/respond",
+  "/:id/message",
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;

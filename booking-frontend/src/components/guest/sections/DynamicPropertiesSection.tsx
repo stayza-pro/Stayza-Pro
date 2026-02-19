@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { apiClient } from "@/services/api";
 import { Property } from "@/types";
 import { formatPrice as formatNaira } from "@/utils/currency";
+import { normalizeImageUrl } from "@/utils/imageUrl";
 
 interface DynamicPropertiesSectionProps {
   primaryColor: string; // 60% - Main backgrounds and dominant elements
@@ -11,16 +12,6 @@ interface DynamicPropertiesSectionProps {
   accentColor: string; // 10% - CTAs, buttons, highlights
   realtorId: string;
 }
-
-// Helper function to get image URL
-const getImageUrl = (
-  image: string | { url?: string | null } | null | undefined,
-): string => {
-  if (typeof image === "string") {
-    return image;
-  }
-  return image?.url || "";
-};
 
 const toPropertyArray = (payload: unknown): Property[] => {
   if (Array.isArray(payload)) {
@@ -451,7 +442,13 @@ export const DynamicPropertiesSection: React.FC<
                     {property.images && property.images.length > 0 ? (
                       <img
                         src={
-                          getImageUrl(property.images[0]) ||
+                          normalizeImageUrl(
+                            property.images[0] as
+                              | string
+                              | { url?: string | null }
+                              | null
+                              | undefined,
+                          ) ||
                           "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80"
                         }
                         alt={property.title}

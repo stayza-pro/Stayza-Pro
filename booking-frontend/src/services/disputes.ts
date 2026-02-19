@@ -1,258 +1,245 @@
 import apiClient from "./api";
-import axios from "axios";
 import {
-  Dispute,
   CreateDisputeDto,
-  RespondToDisputeDto,
+  Dispute,
   DisputeStats,
+  RespondToDisputeDto,
 } from "@/types/dispute";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5050/api";
+type DisputeResponseAction = "ACCEPT" | "REJECT_ESCALATE";
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("accessToken");
-  return {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-};
-
-// Legacy interfaces (keeping for backwards compatibility)
-export interface OpenDisputeRequest {
+type LegacyOpenDisputeRequest = {
   bookingId: string;
   disputeType: "USER_DISPUTE" | "REALTOR_DISPUTE";
   initialMessage: string;
-  evidence: string[]; // Array of photo/video URLs
-}
-
-export interface SendMessageRequest {
-  message: string;
-  attachments?: string[];
-}
-
-export interface ProposeSettlementRequest {
-  amount: number;
-  message?: string;
-}
-
-export interface AdminResolveRequest {
-  decision: "FAVOR_GUEST" | "FAVOR_REALTOR" | "SPLIT";
-  amount?: number;
-  notes: string;
-}
-
-/**
- * Open a new dispute for a booking
- */
-export const openDispute = async (
-  data: OpenDisputeRequest
-): Promise<Dispute> => {
-  const response = await apiClient.post<{
-    success: boolean;
-    data: Dispute;
-  }>("/disputes/open", data);
-
-  return response.data.data;
+  evidence: string[];
 };
 
-/**
- * Get dispute details by ID
- */
-export const getDisputeById = async (disputeId: string): Promise<Dispute> => {
-  const response = await apiClient.get<{
-    success: boolean;
-    data: Dispute;
-  }>(`/disputes/${disputeId}`);
+type ApiDisputePayload =
+  | Dispute
+  | {
+      dispute?: unknown;
+      disputes?: unknown[];
+      data?: unknown;
+      message?: string;
+    };
 
-  return response.data.data;
+const toDisputeMessageArray = (value: unknown): Dispute["messages"] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item: any, index) => ({
+    id: item?.id || `${index}`,
+    disputeId: item?.disputeId || "",
+    senderId: item?.senderId || "",
+    senderType: item?.senderType === "REALTOR" ? "REALTOR" : "GUEST",
+    message: typeof item?.message === "string" ? item.message : "",
+    attachments: Array.isArray(item?.attachments) ? item.attachments : [],
+    createdAt:
+      typeof item?.createdAt === "string"
+        ? item.createdAt
+        : new Date().toISOString(),
+  }));
 };
 
-/**
- * Get all disputes for a booking
- */
-export const getDisputesByBooking = async (
-  bookingId: string
-): Promise<Dispute[]> => {
-  const response = await apiClient.get<{
-    success: boolean;
-    data: Dispute[];
-  }>(`/disputes/booking/${bookingId}`);
+const normalizeDispute = (input: any): Dispute => {
+  const bookingPropertyTitle =
+    input?.booking?.propertyTitle ||
+    input?.booking?.property?.title ||
+    "Property";
 
-  return response.data.data;
+  const bookingProperty =
+    input?.booking?.property && typeof input.booking.property === "object"
+      ? input.booking.property
+      : bookingPropertyTitle
+        ? { title: bookingPropertyTitle }
+        : undefined;
+
+  return {
+    id: input?.id || "",
+    bookingId: input?.bookingId || input?.booking?.id || "",
+    guestId: input?.guestId || input?.openedBy || "",
+    realtorId: input?.realtorId || "",
+    propertyId: input?.propertyId || input?.booking?.propertyId || "",
+    issueType: input?.issueType || "OTHER",
+    subject: input?.subject || "Dispute",
+    description: input?.description || "",
+    status: input?.status || "OPEN",
+    guestArgumentCount: Number(input?.guestArgumentCount || 0),
+    realtorArgumentCount: Number(input?.realtorArgumentCount || 0),
+    messages: toDisputeMessageArray(input?.messages),
+    resolution:
+      typeof input?.resolution === "string" ? input.resolution : undefined,
+    resolvedAt:
+      typeof input?.resolvedAt === "string" ? input.resolvedAt : undefined,
+    createdAt: input?.createdAt || new Date().toISOString(),
+    updatedAt: input?.updatedAt || new Date().toISOString(),
+    booking: input?.booking
+      ? {
+          id: input.booking.id || input.bookingId || "",
+          propertyTitle: bookingPropertyTitle,
+          property: bookingProperty,
+          checkInDate: input.booking.checkInDate || "",
+          checkOutDate: input.booking.checkOutDate || "",
+        }
+      : undefined,
+    guest: input?.guest,
+    realtor: input?.realtor,
+  };
 };
 
-/**
- * Get all open disputes (admin only)
- */
-export const getAllOpenDisputes = async (): Promise<Dispute[]> => {
-  const response = await apiClient.get<{
-    success: boolean;
-    data: Dispute[];
-  }>("/disputes/admin/all");
-
-  return response.data.data;
+const extractDispute = (payload: ApiDisputePayload): Dispute => {
+  const value =
+    (payload as any)?.dispute ||
+    (payload as any)?.data?.dispute ||
+    (payload as any)?.data ||
+    payload;
+  return normalizeDispute(value);
 };
 
-/**
- * Send a message in a dispute
- */
-export const sendDisputeMessage = async (
-  disputeId: string,
-  data: SendMessageRequest
-): Promise<void> => {
-  await apiClient.post(`/disputes/${disputeId}/messages`, data);
+const extractDisputes = (payload: ApiDisputePayload): Dispute[] => {
+  const maybeArray =
+    (payload as any)?.disputes ||
+    (payload as any)?.data?.disputes ||
+    (payload as any)?.data ||
+    payload;
+
+  const list = Array.isArray(maybeArray) ? maybeArray : maybeArray ? [maybeArray] : [];
+  return list.map(normalizeDispute);
 };
 
-/**
- * Upload evidence to a dispute
- */
-export const uploadDisputeEvidence = async (
-  disputeId: string,
-  evidenceUrls: string[]
-): Promise<void> => {
-  await apiClient.post(`/disputes/${disputeId}/evidence`, {
-    evidence: evidenceUrls,
-  });
+const extractStats = (payload: unknown): DisputeStats => {
+  const value = (payload as any)?.data || payload || {};
+  return {
+    total: Number((value as any).total || 0),
+    open: Number((value as any).open || 0),
+    pendingResponse: Number((value as any).pendingResponse || 0),
+    resolved: Number((value as any).resolved || 0),
+  };
 };
-
-/**
- * Agree to a settlement amount
- */
-export const agreeToSettlement = async (
-  disputeId: string,
-  data: ProposeSettlementRequest
-): Promise<void> => {
-  await apiClient.post(`/disputes/${disputeId}/agree`, data);
-};
-
-/**
- * Escalate dispute to admin
- */
-export const escalateDispute = async (
-  disputeId: string,
-  reason: string
-): Promise<void> => {
-  await apiClient.post(`/disputes/${disputeId}/escalate`, { reason });
-};
-
-/**
- * Admin resolves a dispute
- */
-export const resolveDispute = async (
-  disputeId: string,
-  resolution: AdminResolveRequest
-): Promise<void> => {
-  await apiClient.post(`/disputes/${disputeId}/resolve`, resolution);
-};
-
-// Rename existing functions to avoid conflicts
-const getDisputeByIdLegacy = getDisputeById;
 
 export const disputeService = {
-  // Legacy methods
-  openDispute,
-  getDisputeById: getDisputeByIdLegacy,
-  uploadDisputeEvidence,
-  agreeToSettlement,
-  escalateDispute,
-  resolveDispute,
-
-  // New methods
-  createDispute: async (data: CreateDisputeDto): Promise<Dispute> => {
-    const response = await axios.post(`${API_URL}/disputes`, data, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
+  openDispute: async (data: LegacyOpenDisputeRequest): Promise<Dispute> => {
+    const response = await apiClient.post<ApiDisputePayload>("/disputes/open", data);
+    return extractDispute(response as any);
   },
 
-  getMyDisputesNew: async (): Promise<Dispute[]> => {
-    const response = await axios.get(`${API_URL}/disputes/my-disputes`, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
+  createDispute: async (data: CreateDisputeDto): Promise<Dispute> => {
+    const response = await apiClient.post<ApiDisputePayload>("/disputes", data);
+    return extractDispute(response as any);
+  },
+
+  getDisputeById: async (disputeId: string): Promise<Dispute> => {
+    const response = await apiClient.get<ApiDisputePayload>(`/disputes/${disputeId}`);
+    return extractDispute(response as any);
+  },
+
+  getDisputesByBooking: async (bookingId: string): Promise<Dispute[]> => {
+    const response = await apiClient.get<ApiDisputePayload>(
+      `/disputes/booking/${bookingId}`,
+    );
+    return extractDisputes(response as any);
   },
 
   getDisputeByBooking: async (bookingId: string): Promise<Dispute | null> => {
     try {
-      const response = await axios.get(
-        `${API_URL}/disputes/booking/${bookingId}`,
-        {
-          headers: getAuthHeaders(),
-        }
-      );
-      return response.data;
+      const disputes = await disputeService.getDisputesByBooking(bookingId);
+      return disputes[0] || null;
     } catch (error: any) {
-      if (error.response?.status === 404) {
+      if (error?.response?.status === 404) {
         return null;
       }
       throw error;
     }
   },
 
+  sendDisputeMessage: async (disputeId: string, message: string): Promise<Dispute> => {
+    const response = await apiClient.post<ApiDisputePayload>(
+      `/disputes/${disputeId}/message`,
+      { message },
+    );
+    return extractDispute(response as any);
+  },
+
   respondToDispute: async (
     disputeId: string,
-    data: RespondToDisputeDto
+    data: RespondToDisputeDto,
   ): Promise<Dispute> => {
-    const response = await axios.post(
-      `${API_URL}/disputes/${disputeId}/respond`,
+    const response = await apiClient.post<ApiDisputePayload>(
+      `/disputes/${disputeId}/respond`,
       data,
-      { headers: getAuthHeaders() }
     );
-    return response.data;
+    return extractDispute(response as any);
+  },
+
+  respondToDisputeAction: async (
+    disputeId: string,
+    responseAction: DisputeResponseAction,
+    responseNotes?: string,
+  ): Promise<Dispute> => {
+    return disputeService.respondToDispute(disputeId, {
+      responseAction,
+      responseNotes,
+    });
+  },
+
+  acceptDispute: async (disputeId: string, resolution: string): Promise<Dispute> => {
+    try {
+      return await disputeService.respondToDisputeAction(
+        disputeId,
+        "ACCEPT",
+        resolution,
+      );
+    } catch (error) {
+      const fallback = await apiClient.post<ApiDisputePayload>(
+        `/disputes/${disputeId}/accept`,
+        { resolution },
+      );
+      return extractDispute(fallback as any);
+    }
+  },
+
+  rejectAndEscalateDispute: async (
+    disputeId: string,
+    notes?: string,
+  ): Promise<Dispute> => {
+    return disputeService.respondToDisputeAction(
+      disputeId,
+      "REJECT_ESCALATE",
+      notes,
+    );
   },
 
   getRealtorDisputes: async (status?: string): Promise<Dispute[]> => {
-    const params = status ? { status } : {};
-    const response = await axios.get(`${API_URL}/disputes/realtor/disputes`, {
-      headers: getAuthHeaders(),
-      params,
-    });
-    return response.data;
+    const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+    const response = await apiClient.get<ApiDisputePayload>(
+      `/disputes/realtor/disputes${suffix}`,
+    );
+    return extractDisputes(response as any);
   },
 
   getRealtorDisputeStats: async (): Promise<DisputeStats> => {
-    const response = await axios.get(`${API_URL}/disputes/realtor/stats`, {
-      headers: getAuthHeaders(),
-    });
-    return response.data;
-  },
-
-  acceptDispute: async (
-    disputeId: string,
-    resolution: string
-  ): Promise<Dispute> => {
-    const response = await axios.post(
-      `${API_URL}/disputes/${disputeId}/accept`,
-      { resolution },
-      { headers: getAuthHeaders() }
-    );
-    return response.data;
-  },
-
-  closeDispute: async (disputeId: string): Promise<Dispute> => {
-    const response = await axios.post(
-      `${API_URL}/disputes/${disputeId}/close`,
-      {},
-      { headers: getAuthHeaders() }
-    );
-    return response.data;
+    const response = await apiClient.get<unknown>("/disputes/realtor/stats");
+    return extractStats(response);
   },
 
   uploadDisputeAttachment: async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await axios.post(
-      `${API_URL}/disputes/upload-attachment`,
+    const response = await apiClient.post<{ url: string }>(
+      "/disputes/upload-attachment",
       formData,
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           "Content-Type": "multipart/form-data",
         },
-      }
+      },
     );
-    return response.data.url;
+
+    const payload = (response as any)?.data || response;
+    return String(payload?.url || "");
   },
 };
 

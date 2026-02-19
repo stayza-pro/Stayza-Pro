@@ -14,6 +14,15 @@ const resolveSocketBaseUrl = (): string => {
 
 export const SOCKET_BASE_URL = resolveSocketBaseUrl();
 
+export interface MessageUpdatedEvent {
+  messageId: string;
+  bookingId?: string | null;
+  propertyId?: string | null;
+  senderId: string;
+  recipientId: string;
+  emittedAt: string;
+}
+
 export class SocketService {
   private socket: Socket | null = null;
   private isConnected = false;
@@ -26,6 +35,8 @@ export class SocketService {
     notification: NotificationSocketData,
   ) => void)[] = [];
   private onUnreadCountCallbacks: ((count: number) => void)[] = [];
+  private onMessageUpdatedCallbacks: ((payload: MessageUpdatedEvent) => void)[] =
+    [];
   private onConnectionCallbacks: (() => void)[] = [];
   private onDisconnectionCallbacks: (() => void)[] = [];
 
@@ -115,6 +126,10 @@ export class SocketService {
 
     this.socket.on("unread_count", (count: number) => {
       this.onUnreadCountCallbacks.forEach((callback) => callback(count));
+    });
+
+    this.socket.on("message:updated", (payload: MessageUpdatedEvent) => {
+      this.onMessageUpdatedCallbacks.forEach((callback) => callback(payload));
     });
 
     this.socket.on(
@@ -212,6 +227,19 @@ export class SocketService {
       const index = this.onUnreadCountCallbacks.indexOf(callback);
       if (index > -1) {
         this.onUnreadCountCallbacks.splice(index, 1);
+      }
+    };
+  }
+
+  onMessageUpdated(
+    callback: (payload: MessageUpdatedEvent) => void,
+  ): () => void {
+    this.onMessageUpdatedCallbacks.push(callback);
+
+    return () => {
+      const index = this.onMessageUpdatedCallbacks.indexOf(callback);
+      if (index > -1) {
+        this.onMessageUpdatedCallbacks.splice(index, 1);
       }
     };
   }

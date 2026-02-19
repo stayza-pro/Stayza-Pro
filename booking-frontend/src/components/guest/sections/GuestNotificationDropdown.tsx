@@ -161,7 +161,7 @@ export function GuestNotificationDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[360px] max-w-[90vw] bg-white rounded-xl shadow-xl border border-gray-200 z-[70] overflow-hidden">
+        <div className="fixed left-3 right-3 top-[calc(env(safe-area-inset-top)+64px)] z-[80] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl md:absolute md:left-auto md:right-0 md:top-full md:mt-2 md:w-[360px] md:max-w-[90vw]">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
             <h4 className="font-semibold text-gray-900">Notifications</h4>
             {hasUnread && (
@@ -176,7 +176,7 @@ export function GuestNotificationDropdown({
             )}
           </div>
 
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[70vh] overflow-y-auto md:max-h-80">
             {isLoading ? (
               <div className="p-4 text-sm text-gray-500">Loading...</div>
             ) : notifications.length === 0 ? (

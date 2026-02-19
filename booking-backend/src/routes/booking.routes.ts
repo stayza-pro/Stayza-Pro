@@ -842,6 +842,8 @@ router.get(
               address: true,
               city: true,
               country: true,
+              checkInTime: true,
+              checkOutTime: true,
               realtor: {
                 select: {
                   id: true,
@@ -1924,172 +1926,12 @@ router.post(
   "/:id/modify",
   authenticate,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
-    const { newCheckInDate, newCheckOutDate, newGuestCount, reason } = req.body;
-    const userId = req.user!.id;
-
-    // Fetch booking
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        property: {
-          include: {
-            realtor: {
-              select: {
-                userId: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!booking) {
-      throw new AppError("Booking not found", 404);
-    }
-
-    // Check if user is authorized (guest or realtor)
-    if (booking.guestId !== userId && booking.property.realtor.userId !== userId) {
-      throw new AppError("Not authorized to modify this booking", 403);
-    }
-
-    // Cannot modify within 48 hours of check-in
-    const now = new Date();
-    const hoursUntilCheckIn =
-      (new Date(booking.checkInDate).getTime() - now.getTime()) /
-      (1000 * 60 * 60);
-
-    if (hoursUntilCheckIn < 48) {
-      throw new AppError(
-        "Cannot modify booking within 48 hours of check-in",
-        400
-      );
-    }
-
-    if (!newCheckOutDate) {
-      throw new AppError(
-        "Only checkout-date reduction is allowed. Provide newCheckOutDate.",
-        400
-      );
-    }
-
-    if (newCheckInDate) {
-      const incomingCheckIn = new Date(newCheckInDate);
-      if (Number.isNaN(incomingCheckIn.getTime())) {
-        throw new AppError("Invalid new check-in date", 400);
-      }
-
-      const sameCheckInDate =
-        incomingCheckIn.toISOString().split("T")[0] ===
-        new Date(booking.checkInDate).toISOString().split("T")[0];
-
-      if (!sameCheckInDate) {
-        throw new AppError(
-          "Check-in date cannot be changed. You can only reduce checkout date.",
-          400
-        );
-      }
-    }
-
-    if (newGuestCount !== undefined && newGuestCount !== booking.totalGuests) {
-      throw new AppError(
-        "Guest-count modification is disabled. Only date reduction is allowed.",
-        400
-      );
-    }
-
-    const currentCheckIn = new Date(booking.checkInDate);
-    const currentCheckOut = new Date(booking.checkOutDate);
-    const proposedCheckOut = new Date(newCheckOutDate);
-
-    if (Number.isNaN(proposedCheckOut.getTime())) {
-      throw new AppError("Invalid new check-out date", 400);
-    }
-
-    if (proposedCheckOut <= currentCheckIn) {
-      throw new AppError("Check-out must be after check-in", 400);
-    }
-
-    if (proposedCheckOut >= currentCheckOut) {
-      throw new AppError(
-        "Stay extension is disabled. To stay longer, create a new booking.",
-        400
-      );
-    }
-
-    const oldNights = Math.ceil(
-      (currentCheckOut.getTime() - currentCheckIn.getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-    const newNights = Math.ceil(
-      (proposedCheckOut.getTime() - currentCheckIn.getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-    const nightsDifference = newNights - oldNights;
-    const priceDifference = nightsDifference * Number(booking.property.pricePerNight);
-
-    // Create notification for the other party
-    const recipientId =
-      userId === booking.guestId
-        ? booking.property.realtor.userId
-        : booking.guestId;
-
-    await prisma.notification.create({
-      data: {
-        userId: recipientId,
-        type: "BOOKING_REMINDER",
-        title: "Booking Modification Request",
-        message: `Checkout-date reduction requested for booking #${booking.id.slice(
-          -6
-        )}: ${reason || "No reason provided"}`,
-        bookingId: id,
-        priority: "high",
-        isRead: false,
-        data: {
-          bookingId: id,
-          requestedBy: userId,
-          newCheckInDate: booking.checkInDate,
-          newCheckOutDate: proposedCheckOut,
-          newGuestCount: booking.totalGuests,
-          priceDifference,
-        },
-      },
-    });
-
-    // Log modification request
-    await prisma.auditLog.create({
-      data: {
-        action: "BOOKING_MODIFICATION_REQUESTED",
-        userId,
-        entityId: id,
-        entityType: "Booking",
-        details: {
-          oldCheckIn: booking.checkInDate,
-          oldCheckOut: booking.checkOutDate,
-          oldGuestCount: booking.totalGuests,
-          newCheckInDate: booking.checkInDate,
-          newCheckOutDate: proposedCheckOut,
-          newGuestCount: booking.totalGuests,
-          reason,
-          priceDifference,
-        },
-      },
-    });
-
-    logger.info("Booking modification requested", {
-      bookingId: id,
-      requestedBy: userId,
-      priceDifference,
-    });
-
-    return res.json({
-      success: true,
+    return res.status(410).json({
+      success: false,
       message:
-        "Date-reduction request submitted. The other party will be notified.",
-      data: {
-        priceDifference,
-        requiresPayment: false,
-        refundAmount: Math.abs(Math.min(priceDifference, 0)),
+        "Booking modification is no longer available. Use Book Again to rebook with new dates.",
+      error: {
+        code: "BOOKING_MODIFICATION_DISABLED",
       },
     });
   })
@@ -2128,102 +1970,12 @@ router.get(
   "/:id/modification-options",
   authenticate,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
-    const { newCheckIn, newCheckOut } = req.query;
-    const userId = req.user!.id;
-
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        property: {
-          include: {
-            realtor: {
-              select: {
-                userId: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!booking) {
-      throw new AppError("Booking not found", 404);
-    }
-
-    if (booking.guestId !== userId && booking.property.realtor.userId !== userId) {
-      throw new AppError("Not authorized", 403);
-    }
-
-    if (!newCheckOut) {
-      throw new AppError(
-        "Only checkout-date reduction is allowed. Provide newCheckOut.",
-        400
-      );
-    }
-
-    if (newCheckIn) {
-      const incomingCheckIn = new Date(newCheckIn as string);
-      if (Number.isNaN(incomingCheckIn.getTime())) {
-        throw new AppError("Invalid newCheckIn date", 400);
-      }
-
-      const sameCheckInDate =
-        incomingCheckIn.toISOString().split("T")[0] ===
-        new Date(booking.checkInDate).toISOString().split("T")[0];
-
-      if (!sameCheckInDate) {
-        throw new AppError(
-          "Check-in date cannot be changed. You can only reduce checkout date.",
-          400
-        );
-      }
-    }
-
-    const currentCheckIn = new Date(booking.checkInDate);
-    const currentCheckOut = new Date(booking.checkOutDate);
-    const proposedCheckOut = new Date(newCheckOut as string);
-
-    if (Number.isNaN(proposedCheckOut.getTime())) {
-      throw new AppError("Invalid newCheckOut date", 400);
-    }
-
-    if (proposedCheckOut <= currentCheckIn) {
-      throw new AppError("Check-out must be after check-in", 400);
-    }
-
-    if (proposedCheckOut >= currentCheckOut) {
-      throw new AppError(
-        "Stay extension is disabled. To stay longer, create a new booking.",
-        400
-      );
-    }
-
-    const oldNights = Math.ceil(
-      (currentCheckOut.getTime() - currentCheckIn.getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-    const newNights = Math.ceil(
-      (proposedCheckOut.getTime() - currentCheckIn.getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-
-    const pricePerNight = Number(booking.property.pricePerNight);
-    const oldSubtotal = oldNights * pricePerNight;
-    const newSubtotal = newNights * pricePerNight;
-    const difference = newSubtotal - oldSubtotal;
-
-    return res.json({
-      success: true,
-      data: {
-        oldNights,
-        newNights,
-        pricePerNight,
-        oldSubtotal,
-        newSubtotal,
-        difference,
-        requiresPayment: false,
-        refundAmount: Math.abs(Math.min(difference, 0)),
+    return res.status(410).json({
+      success: false,
+      message:
+        "Booking modification options are no longer available. Use Book Again to rebook with new dates.",
+      error: {
+        code: "BOOKING_MODIFICATION_DISABLED",
       },
     });
   })

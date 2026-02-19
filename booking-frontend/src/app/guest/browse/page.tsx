@@ -22,6 +22,7 @@ import { favoritesService } from "@/services";
 import { Button, Input, Select, Skeleton } from "@/components/ui";
 import type { PropertyFilters } from "@/types";
 import { formatPrice as formatNaira } from "@/utils/currency";
+import { normalizeImageUrl } from "@/utils/imageUrl";
 
 function SmoothPropertyImage({
   src,
@@ -288,7 +289,18 @@ export default function BrowsePropertiesPage() {
               {properties.map((property) => {
                 const fallbackImage =
                   "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80";
-                const imageUrl = property.images?.[0]?.url || fallbackImage;
+                const imageUrl =
+                  normalizeImageUrl(
+                    property.images?.[0] as
+                      | string
+                      | {
+                          url?: string | null;
+                          imageUrl?: string | null;
+                          src?: string | null;
+                        }
+                      | null
+                      | undefined,
+                  ) || fallbackImage;
 
                 const propertyType = property.type
                   ? property.type.toLowerCase().replace(/_/g, " ")

@@ -151,13 +151,41 @@ export const propertyService = {
     startDate: string,
     endDate: string
   ): Promise<{ available: boolean; unavailableDates: string[] }> => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const monthDiff =
+      Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())
+        ? 12
+        : Math.min(
+            12,
+            Math.max(
+              1,
+              (end.getFullYear() - start.getFullYear()) * 12 +
+                (end.getMonth() - start.getMonth()) +
+                1
+            )
+          );
+
     const response = await apiClient.get<{
-      available: boolean;
-      unavailableDates: string[];
+      propertyId?: string;
+      propertyName?: string;
+      calendar?: Array<{ date: string; available: boolean }>;
     }>(
-      `/properties/${propertyId}/availability?startDate=${startDate}&endDate=${endDate}`
+      `/bookings/properties/${propertyId}/calendar?format=json&months=${monthDiff}`
     );
-    return response.data;
+
+    const calendar =
+      ((response as unknown as { data?: { calendar?: Array<{ date: string; available: boolean }> } })
+        .data?.calendar as Array<{ date: string; available: boolean }> | undefined) || [];
+
+    const unavailableDates = calendar
+      .filter((day) => day?.available === false && typeof day.date === "string")
+      .map((day) => day.date);
+
+    return {
+      available: unavailableDates.length === 0,
+      unavailableDates,
+    };
   },
 
   // Set property unavailable dates (hosts only)

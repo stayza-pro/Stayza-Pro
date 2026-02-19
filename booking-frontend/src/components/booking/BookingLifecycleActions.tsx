@@ -6,7 +6,6 @@ import { toast } from "react-hot-toast";
 import { Booking } from "@/types";
 import {
   BookingDisputeWindows,
-  BookingModificationOptions,
   DepositDisputeCategory,
   RoomFeeDisputeCategory,
   bookingService,
@@ -50,26 +49,12 @@ const REALTOR_DISPUTE_CATEGORY_OPTIONS: {
   { value: "OTHER_DEPOSIT_CLAIM", label: "Other deposit claim" },
 ];
 
-const formatNaira = (amount: number) =>
-  new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 0,
-  }).format(Number.isFinite(amount) ? amount : 0);
-
 const isBlockedDatesBooking = (specialRequests?: string) => {
   if (!specialRequests) return false;
   return (
     specialRequests.includes("[SYSTEM_BLOCKED_DATES]") ||
     specialRequests.includes("SYSTEM:BLOCKED_DATES")
   );
-};
-
-const toInputDate = (value?: string | Date) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().split("T")[0];
 };
 
 const toLagosDateKey = (value?: string | Date) => {
@@ -95,9 +80,9 @@ const isSameDateInLagos = (valueA?: string | Date, valueB?: string | Date) => {
 };
 
 const formatDeadline = (value?: string) => {
-  if (!value) return "N/A";
+  if (!value) return "";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
+  if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString();
 };
 
@@ -106,14 +91,8 @@ export function BookingLifecycleActions({
   role,
   onRefresh,
 }: BookingLifecycleActionsProps) {
-  const [newCheckOutDate, setNewCheckOutDate] = React.useState(
-    toInputDate(booking.checkOutDate),
-  );
-  const [modifyReason, setModifyReason] = React.useState("");
   const [loadingAction, setLoadingAction] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [modificationPreview, setModificationPreview] =
-    React.useState<BookingModificationOptions | null>(null);
   const [disputeWindows, setDisputeWindows] =
     React.useState<BookingDisputeWindows | null>(null);
   const [showDisputeForm, setShowDisputeForm] = React.useState(false);
@@ -128,15 +107,9 @@ export function BookingLifecycleActions({
   const isBlockedBooking = isBlockedDatesBooking(booking.specialRequests);
 
   React.useEffect(() => {
-    setNewCheckOutDate(toInputDate(booking.checkOutDate));
     setClaimedAmount(Number(booking.securityDeposit || 0));
-    setModificationPreview(null);
     setError(null);
-  }, [booking.id, booking.checkOutDate, booking.securityDeposit]);
-
-  const canModify =
-    !isBlockedBooking &&
-    (booking.status === "PENDING" || booking.status === "ACTIVE");
+  }, [booking.id, booking.securityDeposit]);
 
   const checkInBaseReady =
     !isBlockedBooking &&
@@ -163,6 +136,38 @@ export function BookingLifecycleActions({
       : disputeWindows?.realtorDisputeWindow;
   const canOpenDispute = Boolean(activeWindow?.canOpen);
   const disputeAlreadyOpened = Boolean(activeWindow?.opened);
+
+  const hasCheckedIn =
+    booking.stayStatus === "CHECKED_IN" || booking.stayStatus === "CHECKED_OUT";
+  const hasCheckedOut = booking.stayStatus === "CHECKED_OUT";
+
+  const guestDeadlineText = React.useMemo(() => {
+    const window = disputeWindows?.guestDisputeWindow;
+    if (window?.deadline) {
+      const formatted = formatDeadline(window.deadline);
+      return `${formatted} (${window.expired ? "Expired" : "Open"})`;
+    }
+
+    if (!hasCheckedIn) {
+      return "Available after check-in confirmation";
+    }
+
+    return "Window unavailable";
+  }, [disputeWindows?.guestDisputeWindow, hasCheckedIn]);
+
+  const realtorDeadlineText = React.useMemo(() => {
+    const window = disputeWindows?.realtorDisputeWindow;
+    if (window?.deadline) {
+      const formatted = formatDeadline(window.deadline);
+      return `${formatted} (${window.expired ? "Expired" : "Open"})`;
+    }
+
+    if (!hasCheckedOut) {
+      return "Available after checkout";
+    }
+
+    return "Window unavailable";
+  }, [disputeWindows?.realtorDisputeWindow, hasCheckedOut]);
 
   const refreshParent = React.useCallback(async () => {
     if (!onRefresh) return;
@@ -204,37 +209,6 @@ export function BookingLifecycleActions({
     } finally {
       setLoadingAction(null);
     }
-  };
-
-  const handlePreviewReduction = async () => {
-    await runAction(
-      "preview-modification",
-      async () => {
-        const currentCheckIn = toInputDate(booking.checkInDate);
-        if (!currentCheckIn || !newCheckOutDate) {
-          throw new Error("Select the reduced check-out date.");
-        }
-
-        const preview = await bookingService.getModificationOptions(
-          booking.id,
-          currentCheckIn,
-          newCheckOutDate,
-        );
-        setModificationPreview(preview);
-      },
-      { refreshAfterSuccess: false },
-    );
-  };
-
-  const handleReduceStay = async () => {
-    await runAction("modify-booking", async () => {
-      await bookingService.modifyBooking(booking.id, {
-        newCheckInDate: toInputDate(booking.checkInDate),
-        newCheckOutDate,
-        reason: modifyReason.trim() || undefined,
-      });
-      toast.success("Date-reduction request submitted.");
-    });
   };
 
   const handleCheckIn = async () => {
@@ -341,76 +315,6 @@ export function BookingLifecycleActions({
           </div>
         )}
 
-        {canModify && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-900">Reduce Stay</h4>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <label className="text-sm text-gray-600">
-                Check-in (fixed)
-                <input
-                  type="date"
-                  value={toInputDate(booking.checkInDate)}
-                  disabled
-                  className="mt-1 block w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500"
-                />
-              </label>
-              <label className="text-sm text-gray-600">
-                New Check-out
-                <input
-                  type="date"
-                  value={newCheckOutDate}
-                  onChange={(event) => setNewCheckOutDate(event.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-                />
-              </label>
-            </div>
-
-            <label className="text-sm text-gray-600 block">
-              Reason (optional)
-              <textarea
-                rows={2}
-                value={modifyReason}
-                onChange={(event) => setModifyReason(event.target.value)}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
-              />
-            </label>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => void handlePreviewReduction()}
-                loading={loadingAction === "preview-modification"}
-                variant="secondary"
-                size="sm"
-              >
-                Preview Refund
-              </Button>
-              <Button
-                onClick={() => void handleReduceStay()}
-                loading={loadingAction === "modify-booking"}
-                size="sm"
-              >
-                Submit Date Reduction
-              </Button>
-            </div>
-
-            {modificationPreview && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                <p>Old subtotal: {formatNaira(modificationPreview.oldSubtotal)}</p>
-                <p>New subtotal: {formatNaira(modificationPreview.newSubtotal)}</p>
-                <p>Difference: {formatNaira(modificationPreview.difference)}</p>
-                <p>
-                  Estimated refund:{" "}
-                  {formatNaira(Math.max(modificationPreview.refundAmount, 0))}
-                </p>
-              </div>
-            )}
-
-            <p className="text-xs text-gray-500">
-              Stay extension is disabled. To stay longer, create a new booking.
-            </p>
-          </div>
-        )}
-
         {disputeWindows && (
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
@@ -421,7 +325,7 @@ export function BookingLifecycleActions({
               <div className="rounded-lg border border-gray-200 p-3">
                 <p className="font-medium text-gray-800 mb-1">Guest Window</p>
                 <p className="text-gray-600">
-                  Deadline: {formatDeadline(disputeWindows.guestDisputeWindow?.deadline)}
+                  Deadline: {guestDeadlineText}
                 </p>
                 <p className="text-gray-600">
                   Can open: {disputeWindows.guestDisputeWindow?.canOpen ? "Yes" : "No"}
@@ -430,7 +334,7 @@ export function BookingLifecycleActions({
               <div className="rounded-lg border border-gray-200 p-3">
                 <p className="font-medium text-gray-800 mb-1">Realtor Window</p>
                 <p className="text-gray-600">
-                  Deadline: {formatDeadline(disputeWindows.realtorDisputeWindow?.deadline)}
+                  Deadline: {realtorDeadlineText}
                 </p>
                 <p className="text-gray-600">
                   Can open: {disputeWindows.realtorDisputeWindow?.canOpen ? "Yes" : "No"}

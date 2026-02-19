@@ -24,6 +24,7 @@ import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService, favoritesService } from "@/services";
 import toast from "react-hot-toast";
 import { formatPrice as formatNaira } from "@/utils/currency";
+import { normalizeImageUrl } from "@/utils/imageUrl";
 
 const toDateKey = (value: Date): string => {
   const year = value.getFullYear();
@@ -63,7 +64,11 @@ export default function GuestPropertyDetailsPage() {
     };
   } | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
-  const minCheckInDate = useMemo(() => toDateKey(new Date()), []);
+  const minCheckInDate = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return toDateKey(tomorrow);
+  }, []);
   const availabilityRangeEnd = useMemo(() => {
     const rangeEnd = new Date();
     rangeEnd.setFullYear(rangeEnd.getFullYear() + 1);
@@ -96,7 +101,17 @@ export default function GuestPropertyDetailsPage() {
 
   const images = useMemo(
     () =>
-      property?.images?.map((image) => image.url).filter(Boolean) || [
+      property?.images
+        ?.map((image) =>
+          normalizeImageUrl(
+            image as
+              | string
+              | { url?: string | null; imageUrl?: string | null; src?: string | null }
+              | null
+              | undefined,
+          ),
+        )
+        .filter(Boolean) || [
         "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&auto=format&fit=crop&q=80",
       ],
     [property?.images],
@@ -157,6 +172,11 @@ export default function GuestPropertyDetailsPage() {
         return;
       }
 
+      if (checkInDate < minCheckInDate) {
+        setBookingCalculation(null);
+        return;
+      }
+
       try {
         setIsCalculating(true);
         const calculation = await bookingService.calculateBookingTotal(
@@ -174,7 +194,7 @@ export default function GuestPropertyDetailsPage() {
     };
 
     void calculateTotals();
-  }, [property?.id, checkInDate, checkOutDate, guests, totalNights]);
+  }, [property?.id, checkInDate, checkOutDate, guests, totalNights, minCheckInDate]);
 
   const handleCheckInChange = (value: string) => {
     setCheckInDate(value);
@@ -283,6 +303,11 @@ export default function GuestPropertyDetailsPage() {
 
     if (totalNights <= 0) {
       toast.error("Check-out date must be after check-in date");
+      return;
+    }
+
+    if (checkInDate < minCheckInDate) {
+      toast.error("Check-in date must be at least tomorrow");
       return;
     }
 

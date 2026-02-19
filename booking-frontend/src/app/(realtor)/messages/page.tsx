@@ -16,6 +16,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { MessageBubble } from "@/components/messaging/MessageBubble";
 import { messageService, type Conversation, type Message } from "@/services";
+import { socketService } from "@/services/socket";
 import toast from "react-hot-toast";
 
 export default function RealtorMessagesPage() {
@@ -52,15 +53,13 @@ export default function RealtorMessagesPage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/realtor/login");
+      const currentPath =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/realtor/messages";
+      router.push(`/realtor/login?returnTo=${encodeURIComponent(currentPath)}`);
     }
   }, [isLoading, isAuthenticated, router]);
-
-  useEffect(() => {
-    if (user) {
-      fetchConversations();
-    }
-  }, [user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -70,7 +69,7 @@ export default function RealtorMessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       setIsLoadingConversations(true);
       const response = await messageService.getConversations();
@@ -81,7 +80,13 @@ export default function RealtorMessagesPage() {
     } finally {
       setIsLoadingConversations(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      void fetchConversations();
+    }
+  }, [user, fetchConversations]);
 
   const fetchMessages = useCallback(async () => {
     if (!selectedConversation) return;
@@ -135,6 +140,59 @@ export default function RealtorMessagesPage() {
       void fetchMessages();
     }
   }, [selectedConversation, fetchMessages]);
+
+  useEffect(() => {
+    if (!user || !isAuthenticated) {
+      return;
+    }
+
+    socketService.connect(
+      localStorage.getItem("accessToken") || "",
+      user.id,
+      user.role,
+    );
+
+    const unsubscribeMessageUpdated = socketService.onMessageUpdated(() => {
+      void fetchConversations();
+      if (selectedConversation) {
+        void fetchMessages();
+      }
+    });
+
+    return () => {
+      unsubscribeMessageUpdated();
+    };
+  }, [
+    user,
+    isAuthenticated,
+    selectedConversation,
+    fetchMessages,
+    fetchConversations,
+  ]);
+
+  useEffect(() => {
+    if (!user || !isAuthenticated) {
+      return;
+    }
+
+    const conversationsInterval = window.setInterval(() => {
+      void fetchConversations();
+    }, 15_000);
+
+    return () => window.clearInterval(conversationsInterval);
+  }, [user, isAuthenticated, fetchConversations]);
+
+  useEffect(() => {
+    if (!user || !isAuthenticated || !selectedConversation) {
+      return;
+    }
+
+    const activeConversationInterval = window.setInterval(() => {
+      void fetchMessages();
+    }, 5_000);
+
+    return () => window.clearInterval(activeConversationInterval);
+  }, [user, isAuthenticated, selectedConversation, fetchMessages]);
 
   const handleSendMessage = async () => {
     if (

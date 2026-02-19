@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/services/api";
 import { useCurrentUser } from "./useCurrentUser";
 import { getRealtorSubdomain } from "@/utils/subdomain";
@@ -41,233 +41,247 @@ const fallbackBranding: RealtorBranding = {
 };
 
 const BRANDING_CACHE_TTL_MS = 5 * 60 * 1000;
+const RETRY_DELAYS_MS = [0, 1200, 3000];
 const inMemoryBrandingCache = new Map<
   string,
   { data: RealtorBranding; cachedAt: number }
 >();
 
-/**
- * Custom hook to fetch fresh realtor branding data
- * Falls back to localStorage data if API call fails
- */
-export function useRealtorBranding() {
-  const { user } = useCurrentUser();
-  const getInitialBranding = (): RealtorBranding => {
-    if (typeof window === "undefined") {
-      return fallbackBranding;
-    }
+const mapApiBranding = (data: APIRealtorBranding): RealtorBranding => ({
+  id: data.id,
+  businessName: data.businessName,
+  tagline: data.tagline,
+  primaryColor: data.colors.primary,
+  secondaryColor: data.colors.secondary,
+  accentColor: data.colors.accent,
+  logoUrl: data.logo,
+  description: data.description,
+});
 
-    try {
-      const subdomain = getRealtorSubdomain() || "main";
-      const cached = localStorage.getItem(`realtor-branding:${subdomain}`);
-      if (cached) {
-        return JSON.parse(cached) as RealtorBranding;
-      }
-    } catch {}
+const getFreshCachedBranding = (cacheKey: string) => {
+  const cached = inMemoryBrandingCache.get(cacheKey);
+  if (!cached) return null;
+  return Date.now() - cached.cachedAt < BRANDING_CACHE_TTL_MS ? cached.data : null;
+};
 
-    return fallbackBranding;
-  };
+const setCachedBranding = (cacheKey: string, branding: RealtorBranding) => {
+  inMemoryBrandingCache.set(cacheKey, {
+    data: branding,
+    cachedAt: Date.now(),
+  });
+};
 
-  const [realtorBranding, setRealtorBranding] =
-    useState<RealtorBranding | null>(getInitialBranding());
-  const [isLoading, setIsLoading] = useState(true);
+const getStorageKey = (subdomain: string) => `realtor-branding:${subdomain}`;
 
-  const mapApiBranding = (data: APIRealtorBranding): RealtorBranding => ({
-    id: data.id,
-    businessName: data.businessName,
-    tagline: data.tagline,
-    primaryColor: data.colors.primary,
-    secondaryColor: data.colors.secondary,
-    accentColor: data.colors.accent,
-    logoUrl: data.logo,
-    description: data.description,
+const readLocalStorageBranding = (subdomain: string): RealtorBranding | null => {
+  try {
+    const cached = localStorage.getItem(getStorageKey(subdomain));
+    if (!cached) return null;
+    return JSON.parse(cached) as RealtorBranding;
+  } catch {
+    return null;
+  }
+};
+
+const writeLocalStorageBranding = (subdomain: string, branding: RealtorBranding) => {
+  try {
+    localStorage.setItem(getStorageKey(subdomain), JSON.stringify(branding));
+  } catch {
+    // Best effort only.
+  }
+};
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
   });
 
+const fetchWithRetry = async <T>(request: () => Promise<T>): Promise<T> => {
+  let lastError: unknown;
+  for (const delay of RETRY_DELAYS_MS) {
+    if (delay > 0) {
+      await sleep(delay);
+    }
+    try {
+      return await request();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+};
+
+export function useRealtorBranding() {
+  const { user } = useCurrentUser();
+  const [realtorBranding, setRealtorBranding] =
+    useState<RealtorBranding>(fallbackBranding);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasHydrated, setHasHydrated] = useState(false);
+
   useEffect(() => {
-    const fetchRealtorBranding = async () => {
-      // Only run on client side to avoid hydration issues
-      if (typeof window === "undefined") {
-        setIsLoading(false);
-        return;
+    setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated || typeof window === "undefined") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateBranding = async () => {
+      const subdomain = getRealtorSubdomain();
+      const subdomainCacheKey = subdomain ? `subdomain:${subdomain}` : null;
+      const userCacheKey = user?.id ? `user:${user.id}` : null;
+
+      const applyBranding = (branding: RealtorBranding, cacheKey?: string | null) => {
+        if (cancelled) return;
+        setRealtorBranding(branding);
+        if (cacheKey) {
+          setCachedBranding(cacheKey, branding);
+        }
+        if (subdomain) {
+          writeLocalStorageBranding(subdomain, branding);
+        }
+      };
+
+      let hasImmediateBranding = false;
+
+      if (subdomain && subdomainCacheKey) {
+        const memoryCached = getFreshCachedBranding(subdomainCacheKey);
+        if (memoryCached) {
+          applyBranding(memoryCached, subdomainCacheKey);
+          hasImmediateBranding = true;
+        } else {
+          const localCached = readLocalStorageBranding(subdomain);
+          if (localCached) {
+            applyBranding(localCached, subdomainCacheKey);
+            hasImmediateBranding = true;
+          }
+        }
       }
 
-      setIsLoading(true);
-
-      // Try to get subdomain first (same as guest-landing page)
-      const subdomain = getRealtorSubdomain();
-
-      if (subdomain) {
-        const cacheKey = `subdomain:${subdomain}`;
-        const cached = inMemoryBrandingCache.get(cacheKey);
-        if (cached && Date.now() - cached.cachedAt < BRANDING_CACHE_TTL_MS) {
-          setRealtorBranding(cached.data);
-          setIsLoading(false);
-          return;
+      if (!hasImmediateBranding && userCacheKey) {
+        const userCached = getFreshCachedBranding(userCacheKey);
+        if (userCached) {
+          applyBranding(userCached, userCacheKey);
+          hasImmediateBranding = true;
         }
+      }
 
-        try {
-          // Use the same endpoint as guest-landing page
-          const response = await apiClient.get<APIRealtorBranding>(
-            `/branding/subdomain/${subdomain}`,
+      if (hasImmediateBranding) {
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
+      }
+
+      try {
+        if (subdomain) {
+          const response = await fetchWithRetry(() =>
+            apiClient.get<APIRealtorBranding>(`/branding/subdomain/${subdomain}`),
           );
 
           if (response.data) {
-            const mappedBranding = mapApiBranding(response.data);
-            setRealtorBranding(mappedBranding);
-            inMemoryBrandingCache.set(cacheKey, {
-              data: mappedBranding,
-              cachedAt: Date.now(),
-            });
-            try {
-              localStorage.setItem(
-                `realtor-branding:${subdomain}`,
-                JSON.stringify(mappedBranding),
-              );
-            } catch {}
-          } else {
-            setRealtorBranding(fallbackBranding);
-          }
-        } catch (error) {
-          // Subdomain lookup failed; try authenticated or referral fallback
-          await tryFetchByRealtorContext();
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        // No subdomain, try authenticated or referral fallback
-        await tryFetchByRealtorContext();
-      }
-    };
-
-    const tryFetchByRealtorContext = async () => {
-      if (user?.role === "REALTOR") {
-        const cacheKey = `user:${user.id}`;
-        const cached = inMemoryBrandingCache.get(cacheKey);
-        if (cached && Date.now() - cached.cachedAt < BRANDING_CACHE_TTL_MS) {
-          setRealtorBranding(cached.data);
-          setIsLoading(false);
-          return;
-        }
-
-        try {
-          const response =
-            await apiClient.get<APIRealtorBranding>("/branding/me");
-          if (response.data) {
-            const mappedBranding = mapApiBranding(response.data);
-            setRealtorBranding(mappedBranding);
-            inMemoryBrandingCache.set(cacheKey, {
-              data: mappedBranding,
-              cachedAt: Date.now(),
-            });
+            const mapped = mapApiBranding(response.data);
+            applyBranding(mapped, `subdomain:${subdomain}`);
+            setIsLoading(false);
             return;
           }
-        } catch (error) {}
-      }
+        }
 
-      if (user?.referredByRealtor) {
-        setRealtorBranding({
-          id: user.referredByRealtor.id,
-          businessName: user.referredByRealtor.businessName,
-          tagline: user.referredByRealtor.tagline,
-          primaryColor: user.referredByRealtor.primaryColor,
-          secondaryColor: user.referredByRealtor.secondaryColor,
-          accentColor: user.referredByRealtor.accentColor,
-          logoUrl: user.referredByRealtor.logoUrl,
-          description: user.referredByRealtor.description,
-        });
-      }
+        if (user?.role === "REALTOR" && userCacheKey) {
+          const response = await fetchWithRetry(() =>
+            apiClient.get<APIRealtorBranding>("/branding/me"),
+          );
 
-      if (!user?.referredByRealtor) {
-        setRealtorBranding(fallbackBranding);
-      }
+          if (response.data) {
+            const mapped = mapApiBranding(response.data);
+            applyBranding(mapped, userCacheKey);
+            setIsLoading(false);
+            return;
+          }
+        }
 
-      setIsLoading(false);
+        if (user?.referredByRealtor) {
+          applyBranding(
+            {
+              id: user.referredByRealtor.id,
+              businessName: user.referredByRealtor.businessName,
+              tagline: user.referredByRealtor.tagline,
+              primaryColor: user.referredByRealtor.primaryColor,
+              secondaryColor: user.referredByRealtor.secondaryColor,
+              accentColor: user.referredByRealtor.accentColor,
+              logoUrl: user.referredByRealtor.logoUrl,
+              description: user.referredByRealtor.description,
+            },
+            userCacheKey,
+          );
+        } else if (!hasImmediateBranding) {
+          applyBranding(fallbackBranding, subdomainCacheKey || userCacheKey);
+        }
+      } catch {
+        if (!hasImmediateBranding && user?.referredByRealtor) {
+          applyBranding(
+            {
+              id: user.referredByRealtor.id,
+              businessName: user.referredByRealtor.businessName,
+              tagline: user.referredByRealtor.tagline,
+              primaryColor: user.referredByRealtor.primaryColor,
+              secondaryColor: user.referredByRealtor.secondaryColor,
+              accentColor: user.referredByRealtor.accentColor,
+              logoUrl: user.referredByRealtor.logoUrl,
+              description: user.referredByRealtor.description,
+            },
+            userCacheKey,
+          );
+        } else if (!hasImmediateBranding) {
+          applyBranding(fallbackBranding, subdomainCacheKey || userCacheKey);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
     };
 
-    // Only fetch if we have user data or if we're on the client
-    if (typeof window !== "undefined") {
-      fetchRealtorBranding(); // Always fetch, don't wait for user
-    }
-  }, [user]);
+    void hydrateBranding();
 
-  // Helper function to get brand color with fallback
-  const getBrandColor = () => {
-    return (
-      realtorBranding?.primaryColor ||
-      user?.referredByRealtor?.primaryColor ||
-      fallbackBranding.primaryColor
-    );
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated, user]);
 
-  // Helper function to get realtor name with fallback
-  const getRealtorName = () => {
-    return (
-      realtorBranding?.businessName ||
-      user?.referredByRealtor?.businessName ||
-      "Stayza Pro"
-    );
-  };
-
-  // Helper function to get logo URL with fallback
-  const getLogoUrl = () => {
-    return realtorBranding?.logoUrl || user?.referredByRealtor?.logoUrl;
-  };
-
-  // Helper function to get tagline with fallback
-  const getTagline = () => {
-    return (
-      realtorBranding?.tagline ||
-      user?.referredByRealtor?.tagline ||
-      "Premium short-let properties"
-    );
-  };
-
-  // Helper function to get realtor ID
-  const getRealtorId = () => {
-    return realtorBranding?.id || null;
-  };
-
-  // Helper function to get description with fallback
-  const getDescription = () => {
-    return (
-      realtorBranding?.description || user?.referredByRealtor?.description || ""
-    );
-  };
-
-  // Helper function to get secondary color with fallback
-  const getSecondaryColor = () => {
-    return (
-      realtorBranding?.secondaryColor ||
-      user?.referredByRealtor?.secondaryColor ||
-      "#059669" // Default green
-    );
-  };
-
-  // Helper function to get accent color with fallback
-  const getAccentColor = () => {
-    return (
-      realtorBranding?.accentColor ||
-      user?.referredByRealtor?.accentColor ||
-      "#D97706" // Default orange
-    );
-  };
-
-  const result = {
-    realtorBranding,
-    isLoading,
-    realtorId: getRealtorId(),
-    brandColor: getBrandColor(),
-    secondaryColor: getSecondaryColor(),
-    accentColor: getAccentColor(),
-    realtorName: getRealtorName(),
-    logoUrl: getLogoUrl(),
-    tagline: getTagline(),
-    description: getDescription(),
-  };
-
-  // Debug logging
-  if (!isLoading) {
-  }
+  const result = useMemo(
+    () => ({
+      realtorBranding,
+      isLoading,
+      realtorId: realtorBranding.id || null,
+      brandColor:
+        realtorBranding.primaryColor ||
+        user?.referredByRealtor?.primaryColor ||
+        fallbackBranding.primaryColor,
+      secondaryColor:
+        realtorBranding.secondaryColor ||
+        user?.referredByRealtor?.secondaryColor ||
+        "#059669",
+      accentColor:
+        realtorBranding.accentColor ||
+        user?.referredByRealtor?.accentColor ||
+        "#D97706",
+      realtorName:
+        realtorBranding.businessName ||
+        user?.referredByRealtor?.businessName ||
+        fallbackBranding.businessName,
+      logoUrl: realtorBranding.logoUrl || user?.referredByRealtor?.logoUrl,
+      tagline:
+        realtorBranding.tagline ||
+        user?.referredByRealtor?.tagline ||
+        "Premium short-let properties",
+      description:
+        realtorBranding.description || user?.referredByRealtor?.description || "",
+    }),
+    [isLoading, realtorBranding, user?.referredByRealtor],
+  );
 
   return result;
 }

@@ -202,6 +202,11 @@ export class NotificationService {
     this.io.to(`user:${userId}`).emit("notification", notification);
   }
 
+  // Emit non-notification real-time events to a specific user room
+  public emitToUserRoom(userId: string, event: string, payload: unknown): void {
+    this.io.to(`user:${userId}`).emit(event, payload);
+  }
+
   // Send notification to all realtors
   public async sendToRealtors(notification: NotificationData): Promise<void> {
     // Get all realtor IDs

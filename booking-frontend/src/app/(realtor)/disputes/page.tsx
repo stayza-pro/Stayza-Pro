@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/context/AuthContext";
 import { useAlert } from "@/context/AlertContext";
 import { useBranding } from "@/hooks/useBranding";
 import { disputeService } from "@/services/disputes";
@@ -15,7 +14,6 @@ import {
   CheckCircle,
   XCircle,
   Send,
-  Paperclip,
   X,
   Filter,
   Eye,
@@ -25,8 +23,82 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
+type RealtorActionType = "ACCEPT" | "REJECT_ESCALATE";
+
+const DISPUTE_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "all", label: "All Disputes" },
+  { value: "OPEN", label: "Open" },
+  { value: "AWAITING_RESPONSE", label: "Awaiting Response" },
+  { value: "ESCALATED", label: "Escalated" },
+  { value: "RESOLVED", label: "Resolved" },
+];
+
+const canReplyToDispute = (dispute: Dispute) => {
+  return (
+    (dispute.status === "OPEN" || dispute.status === "AWAITING_RESPONSE") &&
+    dispute.realtorArgumentCount < 2
+  );
+};
+
+const canTakeActionOnDispute = (dispute: Dispute) => {
+  return dispute.status === "OPEN" || dispute.status === "AWAITING_RESPONSE";
+};
+
+const getIssueTypeLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    PROPERTY_CONDITION: "Property Condition",
+    CLEANLINESS: "Cleanliness Issue",
+    AMENITIES_MISSING: "Missing Amenities",
+    SAFETY_CONCERNS: "Safety Concerns",
+    BOOKING_ISSUES: "Booking Issues",
+    PAYMENT_DISPUTE: "Payment Dispute",
+    OTHER: "Other",
+  };
+  return labels[type] || type;
+};
+
+const getBookingTitle = (dispute: Dispute) => {
+  return (
+    dispute.booking?.propertyTitle ||
+    dispute.booking?.property?.title ||
+    "Property"
+  );
+};
+
+const getStatusBadge = (status: string) => {
+  const configs: Record<string, { color: string; bg: string; icon: any }> = {
+    OPEN: { color: "text-blue-700", bg: "bg-blue-100", icon: AlertCircle },
+    AWAITING_RESPONSE: {
+      color: "text-orange-700",
+      bg: "bg-orange-100",
+      icon: Clock,
+    },
+    ESCALATED: {
+      color: "text-red-700",
+      bg: "bg-red-100",
+      icon: XCircle,
+    },
+    RESOLVED: {
+      color: "text-green-700",
+      bg: "bg-green-100",
+      icon: CheckCircle,
+    },
+  };
+
+  const config = configs[status] || configs.OPEN;
+  const Icon = config.icon;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.color}`}
+    >
+      <Icon className="w-3 h-3" />
+      {status.replace(/_/g, " ")}
+    </span>
+  );
+};
+
 export default function RealtorDisputesPage() {
-  const { user } = useAuth();
   const { showSuccess, showError } = useAlert();
   const { branding } = useBranding();
 
@@ -38,18 +110,14 @@ export default function RealtorDisputesPage() {
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [responseMessage, setResponseMessage] = useState("");
   const [isResponding, setIsResponding] = useState(false);
-  const [showAcceptModal, setShowAcceptModal] = useState(false);
-  const [resolution, setResolution] = useState("");
-  const [isAccepting, setIsAccepting] = useState(false);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [actionType, setActionType] = useState<RealtorActionType>("ACCEPT");
+  const [actionNotes, setActionNotes] = useState("");
+  const [isActioning, setIsActioning] = useState(false);
 
   const brandColor = branding?.primaryColor || "#3B82F6";
 
-  useEffect(() => {
-    fetchDisputes();
-    fetchStats();
-  }, [statusFilter]);
-
-  const fetchDisputes = async () => {
+  const fetchDisputes = React.useCallback(async () => {
     try {
       setLoading(true);
       const filterStatus = statusFilter === "all" ? undefined : statusFilter;
@@ -60,22 +128,33 @@ export default function RealtorDisputesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError, statusFilter]);
 
-  const fetchStats = async () => {
+  const fetchStats = React.useCallback(async () => {
     try {
       const data = await disputeService.getRealtorDisputeStats();
       setStats(data);
-    } catch (error) {}
-  };
+    } catch {
+      // Non-blocking stats failure
+    }
+  }, []);
 
-  const handleViewDispute = (dispute: Dispute) => {
-    setSelectedDispute(dispute);
-  };
+  useEffect(() => {
+    void fetchDisputes();
+    void fetchStats();
+  }, [fetchDisputes, fetchStats]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void fetchDisputes();
+      void fetchStats();
+    }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [fetchDisputes, fetchStats]);
 
   const handleRespondClick = (dispute: Dispute) => {
-    if (dispute.realtorArgumentCount >= 2) {
-      showError("You have reached the maximum number of responses (2)");
+    if (!canReplyToDispute(dispute)) {
+      showError("This dispute cannot accept additional conversation messages.");
       return;
     }
     setSelectedDispute(dispute);
@@ -90,10 +169,11 @@ export default function RealtorDisputesPage() {
 
     try {
       setIsResponding(true);
-      await disputeService.respondToDispute(selectedDispute.id, {
-        message: responseMessage.trim(),
-      });
-      showSuccess("Response submitted successfully");
+      await disputeService.sendDisputeMessage(
+        selectedDispute.id,
+        responseMessage.trim(),
+      );
+      showSuccess("Message sent successfully");
       setShowResponseModal(false);
       setResponseMessage("");
       setSelectedDispute(null);
@@ -106,74 +186,56 @@ export default function RealtorDisputesPage() {
     }
   };
 
-  const handleAcceptDispute = async () => {
-    if (!selectedDispute || !resolution.trim()) {
-      showError("Please enter a resolution message");
+  const openActionModal = (dispute: Dispute, action: RealtorActionType) => {
+    if (!canTakeActionOnDispute(dispute)) {
+      showError("This dispute is no longer actionable.");
+      return;
+    }
+    setSelectedDispute(dispute);
+    setActionType(action);
+    setActionNotes("");
+    setShowActionModal(true);
+  };
+
+  const handleSubmitAction = async () => {
+    if (!selectedDispute) {
+      showError("No dispute selected");
+      return;
+    }
+
+    if (actionType === "ACCEPT" && !actionNotes.trim()) {
+      showError("Please enter resolution notes before accepting");
       return;
     }
 
     try {
-      setIsAccepting(true);
-      await disputeService.acceptDispute(selectedDispute.id, resolution.trim());
-      showSuccess("Dispute accepted and resolved");
-      setShowAcceptModal(false);
-      setResolution("");
+      setIsActioning(true);
+      await disputeService.respondToDisputeAction(
+        selectedDispute.id,
+        actionType,
+        actionNotes.trim() || undefined,
+      );
+      showSuccess(
+        actionType === "ACCEPT"
+          ? "Dispute accepted and resolved."
+          : "Dispute rejected and escalated.",
+      );
+      setShowActionModal(false);
       setSelectedDispute(null);
+      setActionNotes("");
       await fetchDisputes();
       await fetchStats();
     } catch (error: any) {
       showError(serviceUtils.extractErrorMessage(error));
     } finally {
-      setIsAccepting(false);
+      setIsActioning(false);
     }
   };
 
-  const getIssueTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      PROPERTY_CONDITION: "Property Condition",
-      CLEANLINESS: "Cleanliness Issue",
-      AMENITIES_MISSING: "Missing Amenities",
-      SAFETY_CONCERNS: "Safety Concerns",
-      BOOKING_ISSUES: "Booking Issues",
-      PAYMENT_DISPUTE: "Payment Dispute",
-      OTHER: "Other",
-    };
-    return labels[type] || type;
-  };
-
-  const getStatusBadge = (status: string) => {
-    const configs: Record<string, { color: string; bg: string; icon: any }> = {
-      OPEN: { color: "text-blue-700", bg: "bg-blue-100", icon: AlertCircle },
-      PENDING_REALTOR_RESPONSE: {
-        color: "text-orange-700",
-        bg: "bg-orange-100",
-        icon: Clock,
-      },
-      PENDING_GUEST_RESPONSE: {
-        color: "text-purple-700",
-        bg: "bg-purple-100",
-        icon: MessageSquare,
-      },
-      RESOLVED: {
-        color: "text-green-700",
-        bg: "bg-green-100",
-        icon: CheckCircle,
-      },
-      CLOSED: { color: "text-gray-700", bg: "bg-gray-100", icon: XCircle },
-    };
-
-    const config = configs[status] || configs.OPEN;
-    const Icon = config.icon;
-
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.color}`}
-      >
-        <Icon className="w-3 h-3" />
-        {status.replace(/_/g, " ")}
-      </span>
-    );
-  };
+  const selectedTitle = useMemo(
+    () => (selectedDispute ? getBookingTitle(selectedDispute) : "Property"),
+    [selectedDispute],
+  );
 
   if (loading) {
     return (
@@ -185,7 +247,6 @@ export default function RealtorDisputesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
           <AlertCircle className="w-8 h-8" style={{ color: brandColor }} />
@@ -194,7 +255,6 @@ export default function RealtorDisputesPage() {
         <p className="text-gray-600">Manage guest disputes and concerns</p>
       </div>
 
-      {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <motion.div
@@ -205,9 +265,7 @@ export default function RealtorDisputesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Disputes</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.totalDisputes}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               </div>
               <AlertCircle className="w-8 h-8 text-blue-500" />
             </div>
@@ -221,12 +279,10 @@ export default function RealtorDisputesPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Open Disputes</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {stats.openDisputes}
-                </p>
+                <p className="text-sm text-gray-600">Open</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.open}</p>
               </div>
-              <Clock className="w-8 h-8 text-orange-500" />
+              <Clock className="w-8 h-8 text-blue-500" />
             </div>
           </motion.div>
 
@@ -238,12 +294,12 @@ export default function RealtorDisputesPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Pending Your Response</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-sm text-gray-600">Pending Response</p>
+                <p className="text-2xl font-bold text-orange-600">
                   {stats.pendingResponse}
                 </p>
               </div>
-              <MessageSquare className="w-8 h-8 text-red-500" />
+              <MessageSquare className="w-8 h-8 text-orange-500" />
             </div>
           </motion.div>
 
@@ -257,7 +313,7 @@ export default function RealtorDisputesPage() {
               <div>
                 <p className="text-sm text-gray-600">Resolved</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {stats.resolvedDisputes}
+                  {stats.resolved}
                 </p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-500" />
@@ -266,7 +322,6 @@ export default function RealtorDisputesPage() {
         </div>
       )}
 
-      {/* Filter */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex items-center gap-4">
           <Filter className="w-5 h-5 text-gray-400" />
@@ -275,21 +330,15 @@ export default function RealtorDisputesPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
           >
-            <option value="all">All Disputes</option>
-            <option value="OPEN">Open</option>
-            <option value="PENDING_REALTOR_RESPONSE">
-              Pending My Response
-            </option>
-            <option value="PENDING_GUEST_RESPONSE">
-              Pending Guest Response
-            </option>
-            <option value="RESOLVED">Resolved</option>
-            <option value="CLOSED">Closed</option>
+            {DISPUTE_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
 
-      {/* Disputes List */}
       <div className="bg-white rounded-lg shadow">
         {disputes.length === 0 ? (
           <div className="text-center py-12">
@@ -330,7 +379,7 @@ export default function RealtorDisputesPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <FileText className="w-4 h-4" />
-                        <span>Booking: {dispute.booking?.propertyTitle}</span>
+                        <span>Booking: {getBookingTitle(dispute)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <MessageSquare className="w-4 h-4" />
@@ -347,48 +396,49 @@ export default function RealtorDisputesPage() {
                     </div>
 
                     <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
-                      <span>
-                        Guest arguments: {dispute.guestArgumentCount}/2
-                      </span>
+                      <span>Guest arguments: {dispute.guestArgumentCount}/2</span>
                       <span>•</span>
-                      <span>
-                        Your arguments: {dispute.realtorArgumentCount}/2
-                      </span>
+                      <span>Your arguments: {dispute.realtorArgumentCount}/2</span>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 min-w-[160px]">
                     <button
-                      onClick={() => handleViewDispute(dispute)}
+                      onClick={() => setSelectedDispute(dispute)}
                       className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm"
                     >
                       <Eye className="w-4 h-4" />
                       View
                     </button>
 
-                    {dispute.status === "PENDING_REALTOR_RESPONSE" &&
-                      dispute.realtorArgumentCount < 2 && (
-                        <button
-                          onClick={() => handleRespondClick(dispute)}
-                          style={{ backgroundColor: brandColor }}
-                          className="px-4 py-2 text-white rounded-lg hover:opacity-90 flex items-center gap-2 text-sm"
-                        >
-                          <Send className="w-4 h-4" />
-                          Respond
-                        </button>
-                      )}
-
-                    {dispute.status === "OPEN" && (
+                    {canReplyToDispute(dispute) && (
                       <button
-                        onClick={() => {
-                          setSelectedDispute(dispute);
-                          setShowAcceptModal(true);
-                        }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
+                        onClick={() => handleRespondClick(dispute)}
+                        style={{ backgroundColor: brandColor }}
+                        className="px-4 py-2 text-white rounded-lg hover:opacity-90 flex items-center gap-2 text-sm"
                       >
-                        <CheckCircle className="w-4 h-4" />
-                        Accept
+                        <Send className="w-4 h-4" />
+                        Message
                       </button>
+                    )}
+
+                    {canTakeActionOnDispute(dispute) && (
+                      <>
+                        <button
+                          onClick={() => openActionModal(dispute, "ACCEPT")}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() =>
+                            openActionModal(dispute, "REJECT_ESCALATE")
+                          }
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                        >
+                          Reject & Escalate
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -398,9 +448,8 @@ export default function RealtorDisputesPage() {
         )}
       </div>
 
-      {/* View Dispute Modal */}
       <AnimatePresence>
-        {selectedDispute && !showResponseModal && !showAcceptModal && (
+        {selectedDispute && !showResponseModal && !showActionModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -420,75 +469,65 @@ export default function RealtorDisputesPage() {
                 </button>
               </div>
 
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                <div className="space-y-6">
-                  {/* Dispute Info */}
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">
-                      {selectedDispute.subject}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      {selectedDispute.description}
-                    </p>
-                    <div className="flex items-center gap-3 text-sm">
-                      {getStatusBadge(selectedDispute.status)}
-                      <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">
-                        {getIssueTypeLabel(selectedDispute.issueType)}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] space-y-6">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    {selectedDispute.subject}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    {selectedDispute.description}
+                  </p>
+                  <div className="flex items-center gap-3 text-sm">
+                    {getStatusBadge(selectedDispute.status)}
+                    <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">
+                      {getIssueTypeLabel(selectedDispute.issueType)}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    Conversation
+                  </h4>
+                  <div className="space-y-4">
+                    {selectedDispute.messages?.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`p-4 rounded-lg ${
+                          message.senderType === "REALTOR"
+                            ? "bg-blue-50 ml-8"
+                            : "bg-gray-100 mr-8"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {message.senderType === "REALTOR" ? "You" : "Guest"}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatDistanceToNow(new Date(message.createdAt), {
+                              addSuffix: true,
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700">{message.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-gray-600">Guest Arguments:</span>
+                      <span className="ml-2 font-semibold">
+                        {selectedDispute.guestArgumentCount}/2
                       </span>
                     </div>
-                  </div>
-
-                  {/* Messages */}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      Conversation
-                    </h4>
-                    <div className="space-y-4">
-                      {selectedDispute.messages?.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`p-4 rounded-lg ${
-                            message.senderType === "REALTOR"
-                              ? "bg-blue-50 ml-8"
-                              : "bg-gray-100 mr-8"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-900">
-                              {message.senderType === "REALTOR"
-                                ? "You"
-                                : "Guest"}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {formatDistanceToNow(
-                                new Date(message.createdAt),
-                                { addSuffix: true },
-                              )}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-700">
-                            {message.message}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Argument Counts */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Guest Arguments:</span>
-                        <span className="ml-2 font-semibold">
-                          {selectedDispute.guestArgumentCount}/2
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Your Arguments:</span>
-                        <span className="ml-2 font-semibold">
-                          {selectedDispute.realtorArgumentCount}/2
-                        </span>
-                      </div>
+                    <div>
+                      <span className="text-gray-600">Your Arguments:</span>
+                      <span className="ml-2 font-semibold">
+                        {selectedDispute.realtorArgumentCount}/2
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -498,7 +537,6 @@ export default function RealtorDisputesPage() {
         )}
       </AnimatePresence>
 
-      {/* Response Modal */}
       <AnimatePresence>
         {showResponseModal && selectedDispute && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -510,7 +548,7 @@ export default function RealtorDisputesPage() {
             >
               <div className="p-6 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">
-                  Respond to Dispute
+                  Send Response Message
                 </h2>
                 <button
                   onClick={() => {
@@ -524,18 +562,13 @@ export default function RealtorDisputesPage() {
               </div>
 
               <div className="p-6">
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-2">
-                    Responding to:{" "}
-                    <span className="font-semibold">
-                      {selectedDispute.subject}
-                    </span>
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    You have {2 - selectedDispute.realtorArgumentCount}{" "}
-                    response(s) remaining
-                  </p>
-                </div>
+                <p className="text-sm text-gray-600 mb-2">
+                  Booking: <span className="font-semibold">{selectedTitle}</span>
+                </p>
+                <p className="text-xs text-gray-500 mb-4">
+                  You have {2 - selectedDispute.realtorArgumentCount} response(s)
+                  remaining
+                </p>
 
                 <textarea
                   value={responseMessage}
@@ -563,12 +596,12 @@ export default function RealtorDisputesPage() {
                     {isResponding ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Submitting...
+                        Sending...
                       </>
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        Submit Response
+                        Send Message
                       </>
                     )}
                   </button>
@@ -579,9 +612,8 @@ export default function RealtorDisputesPage() {
         )}
       </AnimatePresence>
 
-      {/* Accept Modal */}
       <AnimatePresence>
-        {showAcceptModal && selectedDispute && (
+        {showActionModal && selectedDispute && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -591,12 +623,12 @@ export default function RealtorDisputesPage() {
             >
               <div className="p-6 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">
-                  Accept Dispute
+                  {actionType === "ACCEPT" ? "Accept Dispute" : "Reject & Escalate"}
                 </h2>
                 <button
                   onClick={() => {
-                    setShowAcceptModal(false);
-                    setResolution("");
+                    setShowActionModal(false);
+                    setActionNotes("");
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -605,53 +637,62 @@ export default function RealtorDisputesPage() {
               </div>
 
               <div className="p-6">
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-2">
-                    You are accepting responsibility for:{" "}
-                    <span className="font-semibold">
-                      {selectedDispute.subject}
-                    </span>
-                  </p>
-                  <p className="text-sm text-yellow-600 bg-yellow-50 p-3 rounded-lg">
-                    By accepting this dispute, you acknowledge the issue and
-                    agree to resolve it according to your resolution plan.
-                  </p>
-                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Booking: <span className="font-semibold">{selectedTitle}</span>
+                </p>
 
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Resolution Plan <span className="text-red-500">*</span>
+                  {actionType === "ACCEPT"
+                    ? "Resolution Notes"
+                    : "Escalation Notes (Optional)"}
                 </label>
                 <textarea
-                  value={resolution}
-                  onChange={(e) => setResolution(e.target.value)}
-                  placeholder="Describe how you will resolve this issue..."
-                  className="w-full min-h-[150px] px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  value={actionNotes}
+                  onChange={(e) => setActionNotes(e.target.value)}
+                  placeholder={
+                    actionType === "ACCEPT"
+                      ? "Describe how this dispute is resolved..."
+                      : "Add notes for admin escalation..."
+                  }
+                  className="w-full min-h-[150px] px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
 
                 <div className="mt-6 flex justify-end gap-3">
                   <button
                     onClick={() => {
-                      setShowAcceptModal(false);
-                      setResolution("");
+                      setShowActionModal(false);
+                      setActionNotes("");
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAcceptDispute}
-                    disabled={isAccepting || !resolution.trim()}
-                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    onClick={handleSubmitAction}
+                    disabled={
+                      isActioning ||
+                      (actionType === "ACCEPT" && !actionNotes.trim())
+                    }
+                    className={`px-6 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                      actionType === "ACCEPT"
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "bg-red-600 hover:bg-red-700"
+                    }`}
                   >
-                    {isAccepting ? (
+                    {isActioning ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Accepting...
+                        Submitting...
+                      </>
+                    ) : actionType === "ACCEPT" ? (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        Accept
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="w-4 h-4" />
-                        Accept & Resolve
+                        <XCircle className="w-4 h-4" />
+                        Reject & Escalate
                       </>
                     )}
                   </button>
