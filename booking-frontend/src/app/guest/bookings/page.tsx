@@ -186,10 +186,16 @@ export default function GuestBookingsPage() {
 
   const getBookingImageUrl = (booking: Booking) => {
     const firstImage =
-      (booking.property?.images as Array<
-        | string
-        | { url?: string | null; imageUrl?: string | null; src?: string | null }
-      >)?.[0] ?? null;
+      (
+        booking.property?.images as Array<
+          | string
+          | {
+              url?: string | null;
+              imageUrl?: string | null;
+              src?: string | null;
+            }
+        >
+      )?.[0] ?? null;
     return normalizeImageUrl(firstImage);
   };
 

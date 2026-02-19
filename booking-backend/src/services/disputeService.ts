@@ -56,7 +56,7 @@ const getMaxRefundPercent = (category: DisputeCategory): number => {
 const clampRate = (value: number): number => Math.min(Math.max(value, 0), 1);
 
 const toNumericOrNull = (
-  value: Prisma.Decimal | number | null | undefined
+  value: Prisma.Decimal | number | null | undefined,
 ): number | null => {
   if (value === null || value === undefined) {
     return null;
@@ -69,7 +69,7 @@ const toNumericOrNull = (
 
 const deriveRateFromAmounts = (
   platformAmount: Prisma.Decimal | number | null | undefined,
-  roomFeeAmount: Prisma.Decimal | number | null | undefined
+  roomFeeAmount: Prisma.Decimal | number | null | undefined,
 ): number | null => {
   const platform = toNumericOrNull(platformAmount);
   const roomFee = toNumericOrNull(roomFeeAmount);
@@ -103,11 +103,11 @@ const getEffectiveCommissionRate = (params: {
   const paymentDerived =
     deriveRateFromAmounts(
       params.payment?.roomFeeSplitPlatformAmount,
-      params.payment?.roomFeeAmount
+      params.payment?.roomFeeAmount,
     ) ??
     deriveRateFromAmounts(
       params.payment?.platformFeeAmount,
-      params.payment?.roomFeeAmount
+      params.payment?.roomFeeAmount,
     );
   if (paymentDerived !== null) {
     return paymentDerived;
@@ -115,14 +115,14 @@ const getEffectiveCommissionRate = (params: {
 
   const bookingDerived = deriveRateFromAmounts(
     params.booking?.platformFee,
-    params.booking?.roomFee
+    params.booking?.roomFee,
   );
   if (bookingDerived !== null) {
     return bookingDerived;
   }
 
   throw new Error(
-    "Missing commission snapshot for dispute resolution. Backfill booking/payment commissionEffectiveRate."
+    "Missing commission snapshot for dispute resolution. Backfill booking/payment commissionEffectiveRate.",
   );
 };
 
@@ -132,7 +132,7 @@ const getEffectiveCommissionRate = (params: {
 const calculateRoomFeeDisputeAmounts = (
   roomFeeAmount: number,
   maxRefundPercent: number,
-  effectiveCommissionRate: number
+  effectiveCommissionRate: number,
 ): {
   guestRefundAmount: number;
   realtorPayoutAmount: number;
@@ -174,7 +174,7 @@ const calculateRoomFeeDisputeAmounts = (
  */
 const calculateDepositDisputeAmounts = (
   depositAmount: number,
-  claimedAmount: number
+  claimedAmount: number,
 ): {
   guestRefundAmount: number;
   realtorPayoutAmount: number;
@@ -191,9 +191,7 @@ const calculateDepositDisputeAmounts = (
 const mapIssueTypeToCategory = (issueType: string): DisputeCategory => {
   const normalized = issueType.trim().toUpperCase();
 
-  if (
-    Object.values(DisputeCategory).includes(normalized as DisputeCategory)
-  ) {
+  if (Object.values(DisputeCategory).includes(normalized as DisputeCategory)) {
     return normalized as DisputeCategory;
   }
 
@@ -235,7 +233,7 @@ export const openRoomFeeDispute = async (
   guestId: string,
   category: DisputeCategory,
   writeup: string,
-  attachments?: string[]
+  attachments?: string[],
 ) => {
   // Validate booking
   const booking = await prisma.booking.findUnique({
@@ -315,7 +313,7 @@ export const openRoomFeeDispute = async (
   const amounts = calculateRoomFeeDisputeAmounts(
     roomFeeAmount,
     maxRefundPercent,
-    effectiveCommissionRate
+    effectiveCommissionRate,
   );
 
   // Create dispute
@@ -381,7 +379,7 @@ export const openDepositDispute = async (
   category: DisputeCategory,
   claimedAmount: number,
   writeup: string,
-  attachments?: string[]
+  attachments?: string[],
 ) => {
   // Validate booking
   const booking = await prisma.booking.findUnique({
@@ -452,7 +450,7 @@ export const openDepositDispute = async (
 
   const amounts = calculateDepositDisputeAmounts(
     depositAmount,
-    cappedClaimedAmount
+    cappedClaimedAmount,
   );
 
   // Get realtor user ID
@@ -526,7 +524,7 @@ export const respondToDispute = async (
   disputeId: string,
   responderId: string,
   responseAction: DisputeResponseAction,
-  responseNotes?: string
+  responseNotes?: string,
 ) => {
   const dispute = await prisma.dispute.findUnique({
     where: { id: disputeId },
@@ -599,7 +597,7 @@ export const adminResolveDispute = async (
   disputeId: string,
   adminId: string,
   decision: AdminDisputeDecision,
-  adminNotes: string
+  adminNotes: string,
 ) => {
   const dispute = await prisma.dispute.findUnique({
     where: { id: disputeId },
@@ -629,7 +627,7 @@ export const adminResolveDispute = async (
       decision === AdminDisputeDecision.FULL_REFUND
     ) {
       throw new Error(
-        "Cannot grant full refund - max refund is 30% for this category"
+        "Cannot grant full refund - max refund is 30% for this category",
       );
     }
   }
@@ -639,7 +637,7 @@ export const adminResolveDispute = async (
     disputeId,
     decision,
     adminNotes,
-    adminId
+    adminId,
   );
 };
 
@@ -650,7 +648,7 @@ const executeDisputeResolution = async (
   disputeId: string,
   adminDecision: AdminDisputeDecision | null,
   notes: string | undefined,
-  adminId?: string
+  adminId?: string,
 ) => {
   const dispute = await prisma.dispute.findUnique({
     where: { id: disputeId },
@@ -697,7 +695,7 @@ const executeDisputeResolution = async (
       const amounts = calculateRoomFeeDisputeAmounts(
         roomFee,
         100,
-        effectiveCommissionRate
+        effectiveCommissionRate,
       );
       guestRefundAmount = amounts.guestRefundAmount;
       realtorPayoutAmount = amounts.realtorPayoutAmount;
@@ -709,7 +707,7 @@ const executeDisputeResolution = async (
       const amounts = calculateRoomFeeDisputeAmounts(
         roomFee,
         30,
-        effectiveCommissionRate
+        effectiveCommissionRate,
       );
       guestRefundAmount = amounts.guestRefundAmount;
       realtorPayoutAmount = amounts.realtorPayoutAmount;
@@ -721,7 +719,7 @@ const executeDisputeResolution = async (
       const amounts = calculateRoomFeeDisputeAmounts(
         roomFee,
         0,
-        effectiveCommissionRate
+        effectiveCommissionRate,
       );
       guestRefundAmount = amounts.guestRefundAmount;
       realtorPayoutAmount = amounts.realtorPayoutAmount;
@@ -831,27 +829,27 @@ const executeDisputeResolution = async (
         // Credit realtor wallet (60% of room fee)
         const realtorWallet = await walletService.getOrCreateWallet(
           WalletOwnerType.REALTOR,
-          booking.property.realtorId
+          booking.property.realtorId,
         );
         await walletService.creditWallet(
           realtorWallet.id,
           realtorPayoutAmount,
           WalletTransactionSource.ROOM_FEE,
           booking.id,
-          { disputeId, partialRefund: true }
+          { disputeId, partialRefund: true },
         );
 
         // Credit platform wallet (10% of room fee)
         const platformWallet = await walletService.getOrCreateWallet(
           WalletOwnerType.PLATFORM,
-          "platform"
+          "platform",
         );
         await walletService.creditWallet(
           platformWallet.id,
           platformFeeAmount,
           WalletTransactionSource.ROOM_FEE,
           booking.id,
-          { disputeId, partialRefund: true }
+          { disputeId, partialRefund: true },
         );
 
         // Update escrow - room fee released, deposit still held
@@ -883,27 +881,27 @@ const executeDisputeResolution = async (
         // Credit realtor wallet
         const realtorWallet = await walletService.getOrCreateWallet(
           WalletOwnerType.REALTOR,
-          booking.property.realtorId
+          booking.property.realtorId,
         );
         await walletService.creditWallet(
           realtorWallet.id,
           realtorPayoutAmount,
           WalletTransactionSource.ROOM_FEE,
           booking.id,
-          { disputeId, noRefund: true }
+          { disputeId, noRefund: true },
         );
 
         // Credit platform wallet
         const platformWallet = await walletService.getOrCreateWallet(
           WalletOwnerType.PLATFORM,
-          "platform"
+          "platform",
         );
         await walletService.creditWallet(
           platformWallet.id,
           platformFeeAmount,
           WalletTransactionSource.ROOM_FEE,
           booking.id,
-          { disputeId, noRefund: true }
+          { disputeId, noRefund: true },
         );
 
         // Update escrow
@@ -937,14 +935,14 @@ const executeDisputeResolution = async (
         // Credit realtor wallet with claimed deposit amount
         const realtorWallet = await walletService.getOrCreateWallet(
           WalletOwnerType.REALTOR,
-          booking.property.realtorId
+          booking.property.realtorId,
         );
         await walletService.creditWallet(
           realtorWallet.id,
           realtorPayoutAmount,
           WalletTransactionSource.ROOM_FEE, // Use ROOM_FEE source for deposit forfeit
           booking.id,
-          { disputeId, depositClaim: true }
+          { disputeId, depositClaim: true },
         );
       }
 
@@ -1062,7 +1060,7 @@ export const autoReleaseDepositIfNoDispute = async (bookingId: string) => {
     await escrowService.returnSecurityDeposit(
       bookingId,
       booking.payment.id,
-      booking.guestId
+      booking.guestId,
     );
 
     logger.info("Security deposit auto-released to guest (no dispute)", {
@@ -1155,7 +1153,7 @@ export const createNewDispute = async (
   guestId: string,
   issueType: string,
   subject: string,
-  description: string
+  description: string,
 ) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -1194,7 +1192,7 @@ export const createNewDispute = async (
     Number(booking.securityDeposit || 0) <= 0
   ) {
     throw new Error(
-      "Security deposit disputes are unavailable for bookings without a deposit"
+      "Security deposit disputes are unavailable for bookings without a deposit",
     );
   }
 
@@ -1332,7 +1330,7 @@ export const respondToNewDispute = async (
   disputeId: string,
   userId: string,
   userRole: string,
-  message: string
+  message: string,
 ) => {
   const dispute = await prisma.dispute.findUnique({
     where: { id: disputeId },
@@ -1452,7 +1450,7 @@ export const respondToNewDispute = async (
  */
 export const getRealtorDisputes = async (
   realtorUserId: string,
-  status?: string
+  status?: string,
 ) => {
   try {
     // First get realtor record
@@ -1466,7 +1464,7 @@ export const getRealtorDisputes = async (
     }
 
     logger.info(
-      `Fetching disputes for realtor: ${realtor.id}, status: ${status}`
+      `Fetching disputes for realtor: ${realtor.id}, status: ${status}`,
     );
 
     const whereClause: any = {
@@ -1569,10 +1567,10 @@ export const getRealtorDisputeStats = async (realtorUserId: string) => {
     const total = disputes.length;
     const open = disputes.filter((d) => d.status === DisputeStatus.OPEN).length;
     const pendingResponse = disputes.filter(
-      (d) => d.status === DisputeStatus.AWAITING_RESPONSE
+      (d) => d.status === DisputeStatus.AWAITING_RESPONSE,
     ).length;
     const resolved = disputes.filter(
-      (d) => d.status === DisputeStatus.RESOLVED
+      (d) => d.status === DisputeStatus.RESOLVED,
     ).length;
 
     return {
@@ -1593,7 +1591,7 @@ export const getRealtorDisputeStats = async (realtorUserId: string) => {
 export const acceptDispute = async (
   disputeId: string,
   realtorUserId: string,
-  resolution: string
+  resolution: string,
 ) => {
   const dispute = await prisma.dispute.findUnique({
     where: { id: disputeId },

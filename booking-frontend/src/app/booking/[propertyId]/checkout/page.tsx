@@ -61,9 +61,13 @@ export default function BookingCheckoutPage() {
   const propertyId = params.propertyId as string;
 
   const { user, isLoading: userLoading } = useCurrentUser();
-  const { data: property, isLoading: propertyLoading } = useProperty(propertyId);
-  const { brandColor: primaryColor, secondaryColor, accentColor } =
-    useRealtorBranding();
+  const { data: property, isLoading: propertyLoading } =
+    useProperty(propertyId);
+  const {
+    brandColor: primaryColor,
+    secondaryColor,
+    accentColor,
+  } = useRealtorBranding();
 
   const sourceBookingId = searchParams.get("sourceBookingId") || "";
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -131,7 +135,8 @@ export default function BookingCheckoutPage() {
   const fallbackServiceFee = Number(
     (property as unknown as { serviceFee?: number })?.serviceFee || 0,
   );
-  const fallbackPreTax = baseSubtotal + fallbackCleaningFee + fallbackServiceFee;
+  const fallbackPreTax =
+    baseSubtotal + fallbackCleaningFee + fallbackServiceFee;
   const fallbackTaxes = fallbackPreTax * 0.1;
   const fallbackTotal = fallbackPreTax + fallbackTaxes;
 
@@ -226,7 +231,15 @@ export default function BookingCheckoutPage() {
     };
 
     void fetchBookingCalculation();
-  }, [propertyId, checkIn, checkOut, guests, nights, minNights, minCheckInDate]);
+  }, [
+    propertyId,
+    checkIn,
+    checkOut,
+    guests,
+    nights,
+    minNights,
+    minCheckInDate,
+  ]);
 
   const canContinueStepOne = () => {
     return !validateDates() && guests >= 1 && guests <= maxGuests;
@@ -235,10 +248,10 @@ export default function BookingCheckoutPage() {
   const canInitializePayment = () => {
     return Boolean(
       canContinueStepOne() &&
-        guestInfo.firstName.trim() &&
-        guestInfo.lastName.trim() &&
-        guestInfo.email.trim() &&
-        guestInfo.phone.trim(),
+      guestInfo.firstName.trim() &&
+      guestInfo.lastName.trim() &&
+      guestInfo.email.trim() &&
+      guestInfo.phone.trim(),
     );
   };
 
@@ -254,7 +267,11 @@ export default function BookingCheckoutPage() {
     }
   };
 
-  const goToFailedCallback = (bookingId?: string, reason?: string, reference?: string) => {
+  const goToFailedCallback = (
+    bookingId?: string,
+    reason?: string,
+    reference?: string,
+  ) => {
     const query = new URLSearchParams();
     if (bookingId) query.set("bookingId", bookingId);
     if (reason) query.set("reason", reason);
@@ -306,7 +323,9 @@ export default function BookingCheckoutPage() {
       const paystack = (window as unknown as { PaystackPop?: PaystackPopup })
         .PaystackPop;
       if (!paystack) {
-        throw new Error("Payment system not loaded. Please refresh and try again.");
+        throw new Error(
+          "Payment system not loaded. Please refresh and try again.",
+        );
       }
 
       const initResponse = await paymentService.initializePaystackPayment({
@@ -419,7 +438,10 @@ export default function BookingCheckoutPage() {
   if (userLoading || propertyLoading || !property) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+        <GuestHeader
+          currentPage="browse"
+          searchPlaceholder="Search location..."
+        />
         <div className="max-w-[1200px] mx-auto px-6 py-12 animate-pulse space-y-6">
           <div className="h-10 w-56 bg-gray-200 rounded" />
           <div className="h-80 bg-gray-200 rounded-2xl" />
@@ -438,7 +460,10 @@ export default function BookingCheckoutPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+      <GuestHeader
+        currentPage="browse"
+        searchPlaceholder="Search location..."
+      />
 
       <div className="max-w-[1200px] mx-auto px-6 py-12">
         <Link
@@ -453,7 +478,9 @@ export default function BookingCheckoutPage() {
           <h1 className="font-semibold mb-2 text-[40px] text-gray-900">
             Complete Your Booking
           </h1>
-          <p className="text-gray-600">Enter your dates, guests, and information to proceed to payment.</p>
+          <p className="text-gray-600">
+            Enter your dates, guests, and information to proceed to payment.
+          </p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -465,7 +492,8 @@ export default function BookingCheckoutPage() {
                     Select Your Dates &amp; Guests
                   </h2>
                   <p className="text-gray-600">
-                    Earliest check-in is tomorrow. Minimum stay: {minNights} nights.
+                    Earliest check-in is tomorrow. Minimum stay: {minNights}{" "}
+                    nights.
                   </p>
                 </div>
 
@@ -491,13 +519,20 @@ export default function BookingCheckoutPage() {
 
                 {checkIn && checkOut && (
                   <div className="p-4 rounded-xl flex items-center gap-3 bg-slate-50">
-                    <Info className="w-5 h-5" style={{ color: secondaryColor || primaryColor }} />
+                    <Info
+                      className="w-5 h-5"
+                      style={{ color: secondaryColor || primaryColor }}
+                    />
                     <div>
                       <div className="font-semibold text-gray-900">
-                        {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}
+                        {nights > 0
+                          ? `${nights} night${nights === 1 ? "" : "s"}`
+                          : "Select valid dates"}
                       </div>
                       {errors.date ? (
-                        <div className="text-sm text-red-500">{errors.date}</div>
+                        <div className="text-sm text-red-500">
+                          {errors.date}
+                        </div>
                       ) : (
                         <div className="text-sm text-gray-600">
                           Check-in cannot be today.
@@ -512,7 +547,10 @@ export default function BookingCheckoutPage() {
                   <Select
                     value={guests.toString()}
                     onChange={(value) => setGuests(parseInt(value, 10))}
-                    options={Array.from({ length: maxGuests }, (_, i) => i + 1).map((num) => ({
+                    options={Array.from(
+                      { length: maxGuests },
+                      (_, i) => i + 1,
+                    ).map((num) => ({
                       value: num.toString(),
                       label: `${num} ${num === 1 ? "Guest" : "Guests"}`,
                     }))}
@@ -525,8 +563,12 @@ export default function BookingCheckoutPage() {
                     Your Information
                   </h2>
                   {sourceBookingId ? (
-                    <p className="text-sm mt-2" style={{ color: secondaryColor || primaryColor }}>
-                      Book Again mode: after successful payment, your previous booking will be replaced automatically.
+                    <p
+                      className="text-sm mt-2"
+                      style={{ color: secondaryColor || primaryColor }}
+                    >
+                      Book Again mode: after successful payment, your previous
+                      booking will be replaced automatically.
                     </p>
                   ) : null}
                 </div>
@@ -538,7 +580,10 @@ export default function BookingCheckoutPage() {
                       required
                       value={guestInfo.firstName}
                       onChange={(e) =>
-                        setGuestInfo((prev) => ({ ...prev, firstName: e.target.value }))
+                        setGuestInfo((prev) => ({
+                          ...prev,
+                          firstName: e.target.value,
+                        }))
                       }
                       className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     />
@@ -549,7 +594,10 @@ export default function BookingCheckoutPage() {
                       required
                       value={guestInfo.lastName}
                       onChange={(e) =>
-                        setGuestInfo((prev) => ({ ...prev, lastName: e.target.value }))
+                        setGuestInfo((prev) => ({
+                          ...prev,
+                          lastName: e.target.value,
+                        }))
                       }
                       className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     />
@@ -563,7 +611,10 @@ export default function BookingCheckoutPage() {
                     required
                     value={guestInfo.email}
                     onChange={(e) =>
-                      setGuestInfo((prev) => ({ ...prev, email: e.target.value }))
+                      setGuestInfo((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
                     }
                     className="h-12 rounded-xl bg-gray-50 border-gray-200"
                   />
@@ -576,18 +627,26 @@ export default function BookingCheckoutPage() {
                     required
                     value={guestInfo.phone}
                     onChange={(e) =>
-                      setGuestInfo((prev) => ({ ...prev, phone: e.target.value }))
+                      setGuestInfo((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
                     }
                     className="h-12 rounded-xl bg-gray-50 border-gray-200"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-gray-900">Special Requests (Optional)</label>
+                  <label className="text-gray-900">
+                    Special Requests (Optional)
+                  </label>
                   <textarea
                     value={guestInfo.specialRequests}
                     onChange={(e) =>
-                      setGuestInfo((prev) => ({ ...prev, specialRequests: e.target.value }))
+                      setGuestInfo((prev) => ({
+                        ...prev,
+                        specialRequests: e.target.value,
+                      }))
                     }
                     rows={4}
                     className="w-full px-4 py-3 rounded-xl border resize-none bg-gray-50 border-gray-200 text-gray-900"
@@ -596,20 +655,26 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div className="p-4 rounded-xl border bg-gray-50 border-gray-200">
-                  <div className="text-sm font-semibold mb-1 text-gray-900">Payment Method</div>
+                  <div className="text-sm font-semibold mb-1 text-gray-900">
+                    Payment Method
+                  </div>
                   <div className="text-sm text-gray-600">
-                    Paystack inline popup (Card, Bank Transfer, USSD, Mobile Money)
+                    Paystack inline popup (Card, Bank Transfer, USSD, Mobile
+                    Money)
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100">
                   <Lock className="w-5 h-5" style={{ color: primaryColor }} />
                   <div className="text-sm text-gray-700">
-                    Your payment information is encrypted with industry-standard SSL.
+                    Your payment information is encrypted with industry-standard
+                    SSL.
                   </div>
                 </div>
 
-                {errors.submit ? <p className="text-sm text-red-500">{errors.submit}</p> : null}
+                {errors.submit ? (
+                  <p className="text-sm text-red-500">{errors.submit}</p>
+                ) : null}
 
                 <Button
                   type="submit"
@@ -627,13 +692,21 @@ export default function BookingCheckoutPage() {
 
           <div>
             <div className="p-6 rounded-2xl border sticky top-6 bg-white border-gray-200">
-              <h3 className="font-semibold mb-4 text-[18px] text-gray-900">Booking Summary</h3>
+              <h3 className="font-semibold mb-4 text-[18px] text-gray-900">
+                Booking Summary
+              </h3>
 
               <div className="aspect-video rounded-xl overflow-hidden mb-4">
-                <img src={propertyImage} alt={property.title} className="w-full h-full object-cover" />
+                <img
+                  src={propertyImage}
+                  alt={property.title}
+                  className="w-full h-full object-cover"
+                />
               </div>
 
-              <h4 className="font-semibold mb-1 text-gray-900">{property.title}</h4>
+              <h4 className="font-semibold mb-1 text-gray-900">
+                {property.title}
+              </h4>
               <p className="text-sm mb-6 text-gray-600">
                 {property.city}
                 {property.state ? `, ${property.state}` : ""}
@@ -662,7 +735,9 @@ export default function BookingCheckoutPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Nights:</span>
-                  <span className="font-medium text-gray-900">{Math.max(0, nights)}</span>
+                  <span className="font-medium text-gray-900">
+                    {Math.max(0, nights)}
+                  </span>
                 </div>
               </div>
 
@@ -687,7 +762,9 @@ export default function BookingCheckoutPage() {
                   <span>Total</span>
                   <span>{formatPrice(total)}</span>
                 </div>
-                <div className="text-xs text-gray-500">Currency: {currency}</div>
+                <div className="text-xs text-gray-500">
+                  Currency: {currency}
+                </div>
               </div>
             </div>
           </div>

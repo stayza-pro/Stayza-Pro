@@ -52,7 +52,9 @@ function OTPVerificationContent() {
         const stored = sessionStorage.getItem("auth_return_to") || "";
         const sanitized = sanitizeReturnTo(stored);
         if (sanitized !== "/guest-landing") return sanitized;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     return "/guest-landing";
   })();
@@ -244,7 +246,11 @@ function OTPVerificationContent() {
 
         // Redirect to intended destination
         if (typeof window !== "undefined") {
-          try { sessionStorage.removeItem("auth_return_to"); } catch { /* ignore */ }
+          try {
+            sessionStorage.removeItem("auth_return_to");
+          } catch {
+            /* ignore */
+          }
         }
         router.push(returnTo);
       }

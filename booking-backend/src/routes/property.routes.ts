@@ -22,7 +22,7 @@ const router = express.Router();
 const MAX_PROPERTY_IMAGES = 8;
 
 const normalizeCustomAmenities = (
-  customAmenities: unknown
+  customAmenities: unknown,
 ): string[] | undefined => {
   if (!Array.isArray(customAmenities)) {
     return undefined;
@@ -37,7 +37,7 @@ const normalizeCustomAmenities = (
 };
 
 const sanitizePublicProperty = <T extends Record<string, unknown>>(
-  property: T
+  property: T,
 ): T & {
   sensitiveDetailsUnlocked: false;
   serviceFee: null;
@@ -381,7 +381,7 @@ router.get(
     };
 
     res.json(response);
-  })
+  }),
 );
 
 /**
@@ -423,7 +423,10 @@ router.get(
   "/:id/availability",
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
-    const monthsNum = Math.min(parseInt((req.query.months as string) || "12") || 12, 12);
+    const monthsNum = Math.min(
+      parseInt((req.query.months as string) || "12") || 12,
+      12,
+    );
 
     const property = await prisma.property.findUnique({
       where: { id },
@@ -556,7 +559,7 @@ router.get(
       message: "Property retrieved successfully",
       data: propertyWithRating,
     });
-  })
+  }),
 );
 
 /**
@@ -640,7 +643,7 @@ router.post(
 
     const realtorId = req.realtor?.id || req.user!.id;
     const normalizedCustomAmenities = normalizeCustomAmenities(
-      value.customAmenities
+      value.customAmenities,
     );
 
     const property = await prisma.property.create({
@@ -667,7 +670,7 @@ router.post(
       message: "Property created successfully",
       data: property,
     });
-  })
+  }),
 );
 
 /**
@@ -742,7 +745,7 @@ router.put(
     }
 
     const normalizedCustomAmenities = normalizeCustomAmenities(
-      value.customAmenities
+      value.customAmenities,
     );
 
     const property = await prisma.property.update({
@@ -767,7 +770,7 @@ router.put(
       message: "Property updated successfully",
       data: property,
     });
-  })
+  }),
 );
 
 /**
@@ -820,7 +823,7 @@ router.patch(
     if (!status || !validStatuses.includes(status)) {
       throw new AppError(
         `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
-        400
+        400,
       );
     }
 
@@ -858,9 +861,9 @@ router.patch(
       if (errors.length > 0) {
         throw new AppError(
           `Cannot activate property. Please complete the following: ${errors.join(
-            ", "
+            ", ",
           )}`,
-          400
+          400,
         );
       }
     }
@@ -887,7 +890,7 @@ router.patch(
       message: `Property ${status.toLowerCase()} successfully`,
       data: property,
     });
-  })
+  }),
 );
 
 /**
@@ -961,14 +964,14 @@ router.post(
     if (property.images.length + files.length > MAX_PROPERTY_IMAGES) {
       throw new AppError(
         `You can only have up to ${MAX_PROPERTY_IMAGES} images per property`,
-        400
+        400,
       );
     }
 
     const buffers = files.map((file) => file.buffer);
     const uploads = await uploadMultipleImages(
       buffers,
-      `properties/${property.realtor.slug || property.realtorId}`
+      `properties/${property.realtor.slug || property.realtorId}`,
     );
 
     const startingOrder = property.images.length;
@@ -991,7 +994,7 @@ router.post(
       message: "Images uploaded successfully",
       data: { images: updatedImages },
     });
-  })
+  }),
 );
 
 /**
@@ -1061,8 +1064,8 @@ router.delete(
         prisma.propertyImage.update({
           where: { id: img.id },
           data: { order: index },
-        })
-      )
+        }),
+      ),
     );
 
     const refreshed = await prisma.propertyImage.findMany({
@@ -1075,7 +1078,7 @@ router.delete(
       message: "Image deleted successfully",
       data: { images: refreshed },
     });
-  })
+  }),
 );
 
 /**
@@ -1163,8 +1166,8 @@ router.put(
         prisma.propertyImage.update({
           where: { id: imageId },
           data: { order: index },
-        })
-      )
+        }),
+      ),
     );
 
     const reordered = await prisma.propertyImage.findMany({
@@ -1177,7 +1180,7 @@ router.put(
       message: "Images reordered successfully",
       data: { images: reordered },
     });
-  })
+  }),
 );
 
 /**
@@ -1244,7 +1247,7 @@ router.delete(
       success: true,
       message: "Property deleted successfully",
     });
-  })
+  }),
 );
 
 /**
@@ -1342,7 +1345,10 @@ router.get(
       const checkInDate = new Date(checkIn);
       const checkOutDate = new Date(checkOut);
 
-      if (Number.isNaN(checkInDate.getTime()) || Number.isNaN(checkOutDate.getTime())) {
+      if (
+        Number.isNaN(checkInDate.getTime()) ||
+        Number.isNaN(checkOutDate.getTime())
+      ) {
         throw new AppError("Invalid check-in or check-out date", 400);
       }
 
@@ -1441,7 +1447,7 @@ router.get(
         property.reviews && property.reviews.length > 0
           ? property.reviews.reduce(
               (sum: number, review: { rating: number }) => sum + review.rating,
-              0
+              0,
             ) / property.reviews.length
           : 0;
 
@@ -1465,7 +1471,7 @@ router.get(
     });
 
     return;
-  })
+  }),
 );
 
 export default router;

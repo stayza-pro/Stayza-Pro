@@ -1,6 +1,13 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -287,7 +294,13 @@ function MessagesContent() {
     return () => {
       unsubscribeMessageUpdated();
     };
-  }, [isAuthenticated, user, fetchConversations, fetchMessages, selectedConversation]);
+  }, [
+    isAuthenticated,
+    user,
+    fetchConversations,
+    fetchMessages,
+    selectedConversation,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -486,7 +499,10 @@ function MessagesContent() {
   // Deduplicate conversations so each person appears only once.
   // Keep the entry with the most recent message and sum unread counts.
   const dedupedConversations = useMemo(() => {
-    const grouped = new Map<string, (typeof conversations)[number] & { unreadCount: number }>();
+    const grouped = new Map<
+      string,
+      (typeof conversations)[number] & { unreadCount: number }
+    >();
     for (const conv of filteredConversations) {
       const uid = conv.otherUser.id;
       const existing = grouped.get(uid);

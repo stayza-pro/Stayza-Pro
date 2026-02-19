@@ -123,7 +123,10 @@ export function BookingLifecycleActions({
     booking.stayStatus !== "CHECKED_IN" &&
     booking.stayStatus !== "CHECKED_OUT";
 
-  const canGuestCheckInToday = isSameDateInLagos(new Date(), booking.checkInDate);
+  const canGuestCheckInToday = isSameDateInLagos(
+    new Date(),
+    booking.checkInDate,
+  );
   const canRealtorCheckIn = hasReachedDateInLagos(booking.checkInDate);
 
   const canCheckIn =
@@ -269,7 +272,9 @@ export function BookingLifecycleActions({
   return (
     <Card className="p-6 rounded-2xl border border-gray-200 bg-white">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Lifecycle Actions</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Lifecycle Actions
+        </h3>
         <button
           type="button"
           onClick={() => void loadDisputeWindows()}
@@ -290,7 +295,9 @@ export function BookingLifecycleActions({
       <div className="grid gap-6">
         {(canCheckIn || canCheckOut) && (
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-900">Stay Progress</h4>
+            <h4 className="text-sm font-semibold text-gray-900">
+              Stay Progress
+            </h4>
             <div className="flex flex-wrap gap-2">
               {canCheckIn && (
                 <Button
@@ -330,20 +337,18 @@ export function BookingLifecycleActions({
             <div className="grid sm:grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border border-gray-200 p-3">
                 <p className="font-medium text-gray-800 mb-1">Guest Window</p>
+                <p className="text-gray-600">Deadline: {guestDeadlineText}</p>
                 <p className="text-gray-600">
-                  Deadline: {guestDeadlineText}
-                </p>
-                <p className="text-gray-600">
-                  Can open: {disputeWindows.guestDisputeWindow?.canOpen ? "Yes" : "No"}
+                  Can open:{" "}
+                  {disputeWindows.guestDisputeWindow?.canOpen ? "Yes" : "No"}
                 </p>
               </div>
               <div className="rounded-lg border border-gray-200 p-3">
                 <p className="font-medium text-gray-800 mb-1">Realtor Window</p>
+                <p className="text-gray-600">Deadline: {realtorDeadlineText}</p>
                 <p className="text-gray-600">
-                  Deadline: {realtorDeadlineText}
-                </p>
-                <p className="text-gray-600">
-                  Can open: {disputeWindows.realtorDisputeWindow?.canOpen ? "Yes" : "No"}
+                  Can open:{" "}
+                  {disputeWindows.realtorDisputeWindow?.canOpen ? "Yes" : "No"}
                 </p>
               </div>
             </div>
@@ -432,7 +437,9 @@ export function BookingLifecycleActions({
                       <textarea
                         rows={3}
                         value={disputeWriteup}
-                        onChange={(event) => setDisputeWriteup(event.target.value)}
+                        onChange={(event) =>
+                          setDisputeWriteup(event.target.value)
+                        }
                         placeholder="Describe the issue in detail..."
                         className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
                       />
