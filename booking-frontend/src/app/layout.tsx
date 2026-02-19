@@ -45,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.className}>
       <head>
         {/* Preconnect to external domains for faster resource loading */}
         <link rel="preconnect" href="https://images.unsplash.com" />

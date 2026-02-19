@@ -263,10 +263,14 @@ export default function BrowsePropertiesPage() {
 
           <div className="mt-4">
             <p className="text-gray-600">
-              <span className="font-semibold text-gray-900">
-                {properties.length} properties
-              </span>{" "}
-              available in your search
+              {!isLoading && (
+                <>
+                  <span className="font-semibold text-gray-900">
+                    {properties.length} properties
+                  </span>{" "}
+                  available in your search
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -432,18 +436,22 @@ export default function BrowsePropertiesPage() {
             </div>
 
             <div className="text-center mt-12">
-              <Button
-                variant="outline"
-                size="lg"
-                className="px-8 h-12 rounded-xl font-medium"
-                style={{
-                  borderColor: neutralLight,
-                  color: neutralDark,
-                }}
-              >
-                Load More Properties
-                <ChevronDown className="w-5 h-5 ml-2" />
-              </Button>
+              {properties.length >= 30 && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="px-8 h-12 rounded-xl font-medium"
+                  style={{
+                    borderColor: neutralLight,
+                    color: neutralDark,
+                  }}
+                  disabled
+                  title="Load more coming soon"
+                >
+                  Load More Properties
+                  <ChevronDown className="w-5 h-5 ml-2" />
+                </Button>
+              )}
             </div>
           </>
         ) : (

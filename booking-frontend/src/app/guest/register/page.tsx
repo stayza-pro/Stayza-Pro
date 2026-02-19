@@ -95,6 +95,11 @@ function GuestRegisterContent() {
       return false;
     }
 
+    if (!/^[+]?[\d\s\-()]{7,15}$/.test(data.phone.trim())) {
+      toast.error("Please enter a valid phone number");
+      return false;
+    }
+
     if (!data.agreedToTerms) {
       toast.error("Please agree to the Terms and Privacy Policy");
       return false;
@@ -134,7 +139,7 @@ function GuestRegisterContent() {
         throw new Error(result?.message || "Registration failed");
       }
 
-      if (result?.data?.otp) {
+      if (result?.data?.otp && process.env.NODE_ENV === "development") {
         toast.success(`Dev Mode OTP: ${result.data.otp}`, { duration: 9000 });
       } else {
         toast.success(result?.message || "Verification code sent!");

@@ -11,7 +11,6 @@ import {
   Download,
   Check,
 } from "lucide-react";
-import Image from "next/image";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections";
 import { Card, Button } from "@/components/ui";
@@ -40,13 +39,6 @@ export default function BookingConfirmationPage() {
       : Array.isArray(params.id)
       ? params.id[0]
       : "";
-
-  // Debug logging
-  React.useEffect(() => {
-    
-    
-    
-  }, [params, bookingId]);
 
   // Get realtor branding
   const {

@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
+import { AdminPageLayout } from "@/components/admin/AdminPageLayout";
 import { toast } from "react-hot-toast";
 
 interface WaitlistEntry {
@@ -80,6 +81,7 @@ export default function AdminWaitlistPage() {
   }
 
   return (
+    <AdminPageLayout>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
@@ -259,5 +261,6 @@ export default function AdminWaitlistPage() {
         </div>
       </div>
     </div>
+    </AdminPageLayout>
   );
 }

@@ -28,6 +28,8 @@ import {
   AlertCircle,
   MessageCircle,
   QrCode,
+  Menu,
+  X,
 } from "lucide-react";
 
 const verifiedRealtorSubdomains = new Set<string>();
@@ -83,6 +85,7 @@ export default function RealtorLayout({
   const [mounted, setMounted] = useState(false);
   const [currentYear, setCurrentYear] = useState<number | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isTenantValid, setIsTenantValid] = useState<boolean | null>(null);
   const [tenantInfo, setTenantInfo] = useState<
     ReturnType<typeof getSubdomainInfo>
@@ -331,8 +334,20 @@ export default function RealtorLayout({
     >
       <BrandProvider brand={brandConfig}>
         <div className="flex h-screen bg-white overflow-hidden">
-          {/* Left Sidebar - Clean, Flat Design */}
-          <div className="w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col">
+          {/* Mobile sidebar overlay backdrop */}
+          {isSidebarOpen && (
+            <div
+              className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          )}
+
+          {/* Left Sidebar */}
+          <div
+            className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col transform transition-transform duration-200 ease-in-out
+              lg:relative lg:translate-x-0
+              ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+          >
             {/* Logo & Brand */}
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center space-x-3">
@@ -373,6 +388,7 @@ export default function RealtorLayout({
                     key={item.id}
                     href={item.href}
                     prefetch
+                    onClick={() => setIsSidebarOpen(false)}
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-colors ${
                       isActive
                         ? "font-medium text-white"
@@ -423,11 +439,21 @@ export default function RealtorLayout({
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
             {/* Top Bar with Notification Bell */}
-            <div className="flex items-center justify-end px-8 py-4 bg-white border-b border-gray-200">
-              <NotificationBell
-                iconColor={brandColors.primary}
-                viewAllHref="/notifications"
-              />
+            <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-gray-200">
+              {/* Hamburger – mobile only */}
+              <button
+                className="lg:hidden p-2 rounded-xl text-gray-600 hover:bg-gray-100"
+                onClick={() => setIsSidebarOpen(true)}
+                aria-label="Open navigation menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div className="ml-auto">
+                <NotificationBell
+                  iconColor={brandColors.primary}
+                  viewAllHref="/notifications"
+                />
+              </div>
             </div>
 
             <main className="flex-1 overflow-y-auto p-8">

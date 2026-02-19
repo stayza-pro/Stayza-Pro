@@ -73,17 +73,24 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             <img
               src={imageUrl}
               alt={property.title}
-              crossOrigin="anonymous"
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                if (e.currentTarget.nextElementSibling) {
+                  (e.currentTarget.nextElementSibling as HTMLElement).style.display = "flex";
+                }
+              }}
             />
-          ) : (
-            <div
-              className="w-full h-full flex items-center justify-center text-4xl"
-              style={{ backgroundColor: `${effectivePrimaryColor}22` }}
-            >
-              No image
-            </div>
-          )}
+          ) : null}
+          <div
+            className="w-full h-full flex items-center justify-center text-4xl"
+            style={{
+              display: hasValidImageUrl ? "none" : "flex",
+              backgroundColor: `${effectivePrimaryColor}22`,
+            }}
+          >
+            No image
+          </div>
 
           {property.type ? (
             <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm bg-black/65 text-white capitalize">

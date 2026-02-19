@@ -33,11 +33,11 @@ export function GuestHeader({
   // Prevent hydration mismatch by showing loading state during initial render
   if (isLoading) {
     return (
-      <nav className="sticky top-0 z-50 backdrop-blur-lg border-b border-white/20 bg-gray-600">
+      <nav className="sticky top-0 z-50 backdrop-blur-lg border-b border-gray-100 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="animate-pulse">
-              <div className="h-6 bg-white/20 rounded w-32"></div>
+              <div className="h-6 bg-gray-200 rounded w-32"></div>
             </div>
           </div>
         </div>

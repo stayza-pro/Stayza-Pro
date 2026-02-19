@@ -80,7 +80,7 @@ function GuestLoginContent() {
         throw new Error(result?.message || "Failed to send verification code");
       }
 
-      if (result?.data?.otp) {
+      if (result?.data?.otp && process.env.NODE_ENV === "development") {
         toast.success(`Dev Mode OTP: ${result.data.otp}`, { duration: 9000 });
       } else {
         toast.success(result?.message || "Verification code sent!");

@@ -335,16 +335,39 @@ export default function GuestPropertyDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
+        <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-pulse space-y-4 w-80">
+              <div className="h-8 bg-gray-200 rounded-xl w-3/4 mx-auto" />
+              <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
+              <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error || !property) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Property not found
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
+        <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <h2 className="text-2xl font-semibold text-gray-900">Property not found</h2>
+            <p className="text-gray-500">This property may have been removed or the link is incorrect.</p>
+            <Link
+              href="/guest/browse"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium"
+              style={{ backgroundColor: "#1a56db" }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Browse
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -368,6 +391,7 @@ export default function GuestPropertyDetailsPage() {
 
         <button
           onClick={prevImage}
+          aria-label="Previous image"
           className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center"
           style={{ backgroundColor: "rgba(255, 255, 255, 0.9)" }}
         >
@@ -375,6 +399,7 @@ export default function GuestPropertyDetailsPage() {
         </button>
         <button
           onClick={nextImage}
+          aria-label="Next image"
           className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center"
           style={{ backgroundColor: "rgba(255, 255, 255, 0.9)" }}
         >
@@ -404,7 +429,7 @@ export default function GuestPropertyDetailsPage() {
             <div>
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h1 className="font-semibold mb-3 text-[36px] text-gray-900">
+                  <h1 className="font-semibold mb-3 text-4xl text-gray-900 break-words">
                     {title}
                   </h1>
                   <div className="flex items-center gap-2 mb-2">
@@ -443,6 +468,7 @@ export default function GuestPropertyDetailsPage() {
                   style={{ color: primaryColor }}
                 >
                   {formatPrice(property.pricePerNight)}
+                  <span className="text-base font-normal text-gray-500 ml-1">/ night</span>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">

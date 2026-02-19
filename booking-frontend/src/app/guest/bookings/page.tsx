@@ -216,8 +216,8 @@ export default function GuestBookingsPage() {
   };
 
   const getStatusColor = (status: Booking["status"]) => {
-    if (status === "ACTIVE") return accentColor || "#D97706";
-    if (status === "PENDING") return secondaryColor || "#059669";
+    if (status === "ACTIVE") return secondaryColor || "#059669";
+    if (status === "PENDING") return accentColor || "#D97706";
     if (status === "COMPLETED") return "#6b7280";
     if (status === "CANCELLED") return "#ef4444";
     return "#6b7280";
@@ -245,7 +245,7 @@ export default function GuestBookingsPage() {
       >
         <Calendar className="w-10 h-10" style={{ color: primaryColor }} />
       </div>
-      <h3 className="font-semibold mb-2 text-[24px] text-gray-900">
+      <h3 className="font-semibold mb-2 text-2xl text-gray-900">
         No {activeTab} bookings
       </h3>
       <p className="mb-8 max-w-md mx-auto text-gray-600">{message}</p>
@@ -362,7 +362,7 @@ export default function GuestBookingsPage() {
                       <div className="flex flex-col h-full justify-between">
                         <div className="space-y-4">
                           <div>
-                            <h3 className="font-semibold mb-2 text-[20px] text-gray-900">
+                            <h3 className="font-semibold mb-2 text-xl text-gray-900">
                               {booking.property?.title || "Property"}
                             </h3>
                             <div className="flex items-center gap-2">

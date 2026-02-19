@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Info, Lock } from "lucide-react";
@@ -149,7 +149,7 @@ export default function BookingCheckoutPage() {
 
   const formatPrice = (amount: number) => formatNaira(amount);
 
-  const validateDates = (): string | null => {
+  const validateDates = useCallback((): string | null => {
     if (!checkIn || !checkOut) {
       return "Please select both check-in and check-out dates.";
     }
@@ -163,7 +163,7 @@ export default function BookingCheckoutPage() {
       return `Minimum stay is ${minNights} night${minNights === 1 ? "" : "s"}.`;
     }
     return null;
-  };
+  }, [checkIn, checkOut, minCheckInDate, nights, minNights]);
 
   useEffect(() => {
     if (!user) return;
@@ -239,6 +239,7 @@ export default function BookingCheckoutPage() {
     nights,
     minNights,
     minCheckInDate,
+    validateDates,
   ]);
 
   const canContinueStepOne = () => {
@@ -488,7 +489,7 @@ export default function BookingCheckoutPage() {
             <form onSubmit={handleSubmit}>
               <div className="p-8 rounded-2xl border space-y-8 bg-white border-gray-200">
                 <div>
-                  <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
+                  <h2 className="font-semibold mb-2 text-2xl text-gray-900">
                     Select Your Dates &amp; Guests
                   </h2>
                   <p className="text-gray-600">
@@ -543,8 +544,9 @@ export default function BookingCheckoutPage() {
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-gray-900">Number of Guests</label>
+                  <label htmlFor="guest-count" className="text-gray-900">Number of Guests</label>
                   <Select
+                    id="guest-count"
                     value={guests.toString()}
                     onChange={(value) => setGuests(parseInt(value, 10))}
                     options={Array.from(
@@ -559,7 +561,7 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div className="border-t border-gray-200 pt-6">
-                  <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
+                  <h2 className="font-semibold mb-2 text-2xl text-gray-900">
                     Your Information
                   </h2>
                   {sourceBookingId ? (
@@ -575,8 +577,9 @@ export default function BookingCheckoutPage() {
 
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-gray-900">First Name</label>
+                    <label htmlFor="first-name" className="text-gray-900">First Name</label>
                     <Input
+                      id="first-name"
                       required
                       value={guestInfo.firstName}
                       onChange={(e) =>
@@ -589,8 +592,9 @@ export default function BookingCheckoutPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-gray-900">Last Name</label>
+                    <label htmlFor="last-name" className="text-gray-900">Last Name</label>
                     <Input
+                      id="last-name"
                       required
                       value={guestInfo.lastName}
                       onChange={(e) =>
@@ -605,8 +609,9 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-gray-900">Email</label>
+                  <label htmlFor="guest-email" className="text-gray-900">Email</label>
                   <Input
+                    id="guest-email"
                     type="email"
                     required
                     value={guestInfo.email}
@@ -621,8 +626,9 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-gray-900">Phone</label>
+                  <label htmlFor="guest-phone" className="text-gray-900">Phone</label>
                   <Input
+                    id="guest-phone"
                     type="tel"
                     required
                     value={guestInfo.phone}
@@ -637,10 +643,11 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-gray-900">
+                  <label htmlFor="special-requests" className="text-gray-900">
                     Special Requests (Optional)
                   </label>
                   <textarea
+                    id="special-requests"
                     value={guestInfo.specialRequests}
                     onChange={(e) =>
                       setGuestInfo((prev) => ({

@@ -33,7 +33,10 @@ export const GuestNavbar: React.FC<GuestNavbarProps> = ({
   const pathname = usePathname();
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
-  const hideBottomNav = pathname.startsWith("/guest/messages");
+  const hideBottomNav =
+    pathname.startsWith("/guest/messages") ||
+    pathname.startsWith("/booking/") ||
+    pathname.startsWith("/guest/browse/");
 
   const navigation = useMemo(
     () => [

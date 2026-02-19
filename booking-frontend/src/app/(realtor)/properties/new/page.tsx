@@ -913,6 +913,9 @@ export default function AddPropertyPage() {
                 inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-emerald-50/45"
                 iconClassName="text-emerald-600"
               />
+              <p className="col-span-full text-xs text-amber-600 mt-1">
+                Note: Check-in / check-out times are not yet saved by the backend and will be added in a future update.
+              </p>
             </div>
 
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 shadow-sm">

@@ -139,7 +139,7 @@ export default function RealtorBookingsPage() {
             color: "#F59E0B",
           },
           {
-            label: "ACTIVE",
+            label: "Active",
             value: bookings.filter((b) => b.status === "ACTIVE").length,
             icon: CheckCircle,
             color: "#10B981",
