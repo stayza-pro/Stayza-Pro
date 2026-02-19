@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -483,6 +483,32 @@ function MessagesContent() {
     return fullName.includes(query) || propertyName.includes(query);
   });
 
+  // Deduplicate conversations so each person appears only once.
+  // Keep the entry with the most recent message and sum unread counts.
+  const dedupedConversations = useMemo(() => {
+    const grouped = new Map<string, (typeof conversations)[number] & { unreadCount: number }>();
+    for (const conv of filteredConversations) {
+      const uid = conv.otherUser.id;
+      const existing = grouped.get(uid);
+      if (!existing) {
+        grouped.set(uid, { ...conv, unreadCount: conv.unreadCount || 0 });
+      } else {
+        const existingTime = existing.lastMessage?.createdAt
+          ? new Date(existing.lastMessage.createdAt).getTime()
+          : 0;
+        const convTime = conv.lastMessage?.createdAt
+          ? new Date(conv.lastMessage.createdAt).getTime()
+          : 0;
+        const latest = convTime > existingTime ? conv : existing;
+        grouped.set(uid, {
+          ...latest,
+          unreadCount: (existing.unreadCount || 0) + (conv.unreadCount || 0),
+        });
+      }
+    }
+    return Array.from(grouped.values());
+  }, [filteredConversations]);
+
   const selectedConversationData = conversations.find(
     (c) =>
       c.id === selectedConversation ||
@@ -547,8 +573,8 @@ function MessagesContent() {
                     Loading conversations...
                   </p>
                 </div>
-              ) : filteredConversations.length > 0 ? (
-                filteredConversations.map((conversation) => {
+              ) : dedupedConversations.length > 0 ? (
+                dedupedConversations.map((conversation) => {
                   const conversationId =
                     conversation.id ||
                     conversation.propertyId ||

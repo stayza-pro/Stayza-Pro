@@ -548,8 +548,11 @@ export const respondToDispute = async (
     throw new Error("Dispute not found");
   }
 
-  if (dispute.status !== DisputeStatus.AWAITING_RESPONSE) {
-    throw new Error("Dispute is not awaiting response");
+  if (
+    dispute.status !== DisputeStatus.AWAITING_RESPONSE &&
+    dispute.status !== DisputeStatus.OPEN
+  ) {
+    throw new Error("Dispute is not open for response");
   }
 
   // Validate responder is the counterparty

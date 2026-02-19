@@ -161,7 +161,16 @@ export default function GuestBookingsPage() {
       return formatScheduledTime(scheduledPropertyTime);
     }
 
-    return "Not scheduled yet";
+    // Fall back to showing the check-in date when no specific time is set
+    if (booking.checkInDate) {
+      return new Date(booking.checkInDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+
+    return "To be confirmed";
   };
 
   const toDateParam = (value: Date | string) => {

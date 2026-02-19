@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Info, Lock } from "lucide-react";
+import { ArrowLeft, Info, Lock } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
 import { toast } from "react-hot-toast";
 import { AnimatedDateInput, Button, Input, Select } from "@/components/ui";
@@ -66,7 +66,6 @@ export default function BookingCheckoutPage() {
     useRealtorBranding();
 
   const sourceBookingId = searchParams.get("sourceBookingId") || "";
-  const [step, setStep] = useState<1 | 2>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [createdBooking, setCreatedBooking] = useState<{
@@ -403,22 +402,17 @@ export default function BookingCheckoutPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (step === 1) {
-      const dateError = validateDates();
-      if (dateError) {
-        setErrors((prev) => ({ ...prev, date: dateError }));
-        toast.error(dateError);
-        return;
-      }
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.date;
-        return next;
-      });
-      setStep(2);
+    const dateError = validateDates();
+    if (dateError) {
+      setErrors((prev) => ({ ...prev, date: dateError }));
+      toast.error(dateError);
       return;
     }
-
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.date;
+      return next;
+    });
     await handleInitializePayment();
   };
 
@@ -456,239 +450,178 @@ export default function BookingCheckoutPage() {
         </Link>
 
         <div className="mb-12">
-          <h1 className="font-semibold mb-4 text-[40px] text-gray-900">
+          <h1 className="font-semibold mb-2 text-[40px] text-gray-900">
             Complete Your Booking
           </h1>
-
-          <div className="flex items-center gap-4 mb-4">
-            {[1, 2].map((currentStep) => (
-              <div key={currentStep} className="flex-1 flex items-center gap-2">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all"
-                  style={{
-                    backgroundColor:
-                      step >= currentStep ? primaryColor : "#e5e7eb",
-                    color: step >= currentStep ? "#ffffff" : "#6b7280",
-                  }}
-                >
-                  {step > currentStep ? <CheckCircle2 className="w-6 h-6" /> : currentStep}
-                </div>
-                {currentStep < 2 && (
-                  <div
-                    className="flex-1 h-1 rounded-full"
-                    style={{
-                      backgroundColor: step > currentStep ? primaryColor : "#e5e7eb",
-                    }}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-4 text-sm">
-            <span style={{ color: step === 1 ? primaryColor : "#6b7280" }}>
-              Date & Guests
-            </span>
-            <span style={{ color: step === 2 ? primaryColor : "#6b7280" }}>
-              Your Information & Payment
-            </span>
-          </div>
+          <p className="text-gray-600">Enter your dates, guests, and information to proceed to payment.</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit}>
-              {step === 1 && (
-                <div className="p-8 rounded-2xl border space-y-8 bg-white border-gray-200">
-                  <div>
-                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
-                      Select Your Dates
-                    </h2>
-                    <p className="text-gray-600">
-                      Earliest check-in is tomorrow. Minimum stay: {minNights} nights.
-                    </p>
-                  </div>
+              <div className="p-8 rounded-2xl border space-y-8 bg-white border-gray-200">
+                <div>
+                  <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
+                    Select Your Dates &amp; Guests
+                  </h2>
+                  <p className="text-gray-600">
+                    Earliest check-in is tomorrow. Minimum stay: {minNights} nights.
+                  </p>
+                </div>
 
-                  <div className="grid sm:grid-cols-2 gap-6">
-                    <AnimatedDateInput
-                      label="Check-in Date"
-                      value={checkIn}
-                      min={minCheckInDate}
-                      onChange={setCheckIn}
-                      inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
-                      iconClassName="text-slate-500"
-                    />
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <AnimatedDateInput
+                    label="Check-in Date"
+                    value={checkIn}
+                    min={minCheckInDate}
+                    onChange={setCheckIn}
+                    inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
+                    iconClassName="text-slate-500"
+                  />
 
-                    <AnimatedDateInput
-                      label="Check-out Date"
-                      value={checkOut}
-                      min={minCheckOutDate}
-                      onChange={setCheckOut}
-                      inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
-                      iconClassName="text-slate-500"
-                    />
-                  </div>
+                  <AnimatedDateInput
+                    label="Check-out Date"
+                    value={checkOut}
+                    min={minCheckOutDate}
+                    onChange={setCheckOut}
+                    inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
+                    iconClassName="text-slate-500"
+                  />
+                </div>
 
-                  {checkIn && checkOut && (
-                    <div className="p-4 rounded-xl flex items-center gap-3 bg-slate-50">
-                      <Info className="w-5 h-5" style={{ color: secondaryColor || primaryColor }} />
-                      <div>
-                        <div className="font-semibold text-gray-900">
-                          {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}
-                        </div>
-                        {errors.date ? (
-                          <div className="text-sm text-red-500">{errors.date}</div>
-                        ) : (
-                          <div className="text-sm text-gray-600">
-                            Check-in cannot be today.
-                          </div>
-                        )}
+                {checkIn && checkOut && (
+                  <div className="p-4 rounded-xl flex items-center gap-3 bg-slate-50">
+                    <Info className="w-5 h-5" style={{ color: secondaryColor || primaryColor }} />
+                    <div>
+                      <div className="font-semibold text-gray-900">
+                        {nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}` : "Select valid dates"}
                       </div>
+                      {errors.date ? (
+                        <div className="text-sm text-red-500">{errors.date}</div>
+                      ) : (
+                        <div className="text-sm text-gray-600">
+                          Check-in cannot be today.
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="text-gray-900">Number of Guests</label>
-                    <Select
-                      value={guests.toString()}
-                      onChange={(value) => setGuests(parseInt(value, 10))}
-                      options={Array.from({ length: maxGuests }, (_, i) => i + 1).map((num) => ({
-                        value: num.toString(),
-                        label: `${num} ${num === 1 ? "Guest" : "Guests"}`,
-                      }))}
-                      className="h-14 rounded-xl border border-gray-200 bg-gray-50 text-gray-900"
-                    />
                   </div>
+                )}
 
-                  <Button
-                    type="submit"
-                    disabled={!canContinueStepOne()}
-                    className="w-full h-14 rounded-xl font-semibold text-base text-white"
-                    style={{ backgroundColor: accentColor || primaryColor }}
-                  >
-                    Continue to Information & Payment
-                  </Button>
+                <div className="space-y-2">
+                  <label className="text-gray-900">Number of Guests</label>
+                  <Select
+                    value={guests.toString()}
+                    onChange={(value) => setGuests(parseInt(value, 10))}
+                    options={Array.from({ length: maxGuests }, (_, i) => i + 1).map((num) => ({
+                      value: num.toString(),
+                      label: `${num} ${num === 1 ? "Guest" : "Guests"}`,
+                    }))}
+                    className="h-14 rounded-xl border border-gray-200 bg-gray-50 text-gray-900"
+                  />
                 </div>
-              )}
 
-              {step === 2 && (
-                <div className="p-8 rounded-2xl border space-y-6 bg-white border-gray-200">
-                  <div>
-                    <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
-                      Your Information & Payment
-                    </h2>
-                    <p className="text-gray-600">
-                      Confirm guest details and initialize secure payment.
+                <div className="border-t border-gray-200 pt-6">
+                  <h2 className="font-semibold mb-2 text-[24px] text-gray-900">
+                    Your Information
+                  </h2>
+                  {sourceBookingId ? (
+                    <p className="text-sm mt-2" style={{ color: secondaryColor || primaryColor }}>
+                      Book Again mode: after successful payment, your previous booking will be replaced automatically.
                     </p>
-                    {sourceBookingId ? (
-                      <p className="text-sm mt-2" style={{ color: secondaryColor || primaryColor }}>
-                        Book Again mode: after successful payment, your previous booking will be replaced automatically.
-                      </p>
-                    ) : null}
-                  </div>
+                  ) : null}
+                </div>
 
-                  <div className="grid sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-gray-900">First Name</label>
-                      <Input
-                        required
-                        value={guestInfo.firstName}
-                        onChange={(e) =>
-                          setGuestInfo((prev) => ({ ...prev, firstName: e.target.value }))
-                        }
-                        className="h-12 rounded-xl bg-gray-50 border-gray-200"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-gray-900">Last Name</label>
-                      <Input
-                        required
-                        value={guestInfo.lastName}
-                        onChange={(e) =>
-                          setGuestInfo((prev) => ({ ...prev, lastName: e.target.value }))
-                        }
-                        className="h-12 rounded-xl bg-gray-50 border-gray-200"
-                      />
-                    </div>
-                  </div>
-
+                <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-gray-900">Email</label>
+                    <label className="text-gray-900">First Name</label>
                     <Input
-                      type="email"
                       required
-                      value={guestInfo.email}
+                      value={guestInfo.firstName}
                       onChange={(e) =>
-                        setGuestInfo((prev) => ({ ...prev, email: e.target.value }))
+                        setGuestInfo((prev) => ({ ...prev, firstName: e.target.value }))
                       }
                       className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <label className="text-gray-900">Phone</label>
+                    <label className="text-gray-900">Last Name</label>
                     <Input
-                      type="tel"
                       required
-                      value={guestInfo.phone}
+                      value={guestInfo.lastName}
                       onChange={(e) =>
-                        setGuestInfo((prev) => ({ ...prev, phone: e.target.value }))
+                        setGuestInfo((prev) => ({ ...prev, lastName: e.target.value }))
                       }
                       className="h-12 rounded-xl bg-gray-50 border-gray-200"
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-gray-900">Special Requests (Optional)</label>
-                    <textarea
-                      value={guestInfo.specialRequests}
-                      onChange={(e) =>
-                        setGuestInfo((prev) => ({ ...prev, specialRequests: e.target.value }))
-                      }
-                      rows={4}
-                      className="w-full px-4 py-3 rounded-xl border resize-none bg-gray-50 border-gray-200 text-gray-900"
-                      placeholder="Early check-in, late check-out, etc."
-                    />
-                  </div>
-
-                  <div className="p-4 rounded-xl border bg-gray-50 border-gray-200">
-                    <div className="text-sm font-semibold mb-1 text-gray-900">Payment Method</div>
-                    <div className="text-sm text-gray-600">
-                      Paystack inline popup (Card, Bank Transfer, USSD, Mobile Money)
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100">
-                    <Lock className="w-5 h-5" style={{ color: primaryColor }} />
-                    <div className="text-sm text-gray-700">
-                      Your payment information is encrypted with industry-standard SSL.
-                    </div>
-                  </div>
-
-                  {errors.submit ? <p className="text-sm text-red-500">{errors.submit}</p> : null}
-
-                  <div className="flex gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setStep(1)}
-                      className="flex-1 h-14 rounded-xl font-semibold"
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={!canInitializePayment() || isSubmitting}
-                      className="flex-1 h-14 rounded-xl font-semibold text-white"
-                      style={{ backgroundColor: accentColor || primaryColor }}
-                    >
-                      {isSubmitting
-                        ? "Initializing..."
-                        : `Initialize Payment (${formatPrice(total)})`}
-                    </Button>
                   </div>
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <label className="text-gray-900">Email</label>
+                  <Input
+                    type="email"
+                    required
+                    value={guestInfo.email}
+                    onChange={(e) =>
+                      setGuestInfo((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                    className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-gray-900">Phone</label>
+                  <Input
+                    type="tel"
+                    required
+                    value={guestInfo.phone}
+                    onChange={(e) =>
+                      setGuestInfo((prev) => ({ ...prev, phone: e.target.value }))
+                    }
+                    className="h-12 rounded-xl bg-gray-50 border-gray-200"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-gray-900">Special Requests (Optional)</label>
+                  <textarea
+                    value={guestInfo.specialRequests}
+                    onChange={(e) =>
+                      setGuestInfo((prev) => ({ ...prev, specialRequests: e.target.value }))
+                    }
+                    rows={4}
+                    className="w-full px-4 py-3 rounded-xl border resize-none bg-gray-50 border-gray-200 text-gray-900"
+                    placeholder="Early check-in, late check-out, etc."
+                  />
+                </div>
+
+                <div className="p-4 rounded-xl border bg-gray-50 border-gray-200">
+                  <div className="text-sm font-semibold mb-1 text-gray-900">Payment Method</div>
+                  <div className="text-sm text-gray-600">
+                    Paystack inline popup (Card, Bank Transfer, USSD, Mobile Money)
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100">
+                  <Lock className="w-5 h-5" style={{ color: primaryColor }} />
+                  <div className="text-sm text-gray-700">
+                    Your payment information is encrypted with industry-standard SSL.
+                  </div>
+                </div>
+
+                {errors.submit ? <p className="text-sm text-red-500">{errors.submit}</p> : null}
+
+                <Button
+                  type="submit"
+                  disabled={!canInitializePayment() || isSubmitting}
+                  className="w-full h-14 rounded-xl font-semibold text-base text-white"
+                  style={{ backgroundColor: accentColor || primaryColor }}
+                >
+                  {isSubmitting
+                    ? "Initializing..."
+                    : `Proceed to Payment (${formatPrice(total)})`}
+                </Button>
+              </div>
             </form>
           </div>
 

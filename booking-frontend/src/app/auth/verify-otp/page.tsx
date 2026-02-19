@@ -43,7 +43,19 @@ function OTPVerificationContent() {
     return value;
   };
 
-  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
+  const returnTo = (() => {
+    const fromParam = sanitizeReturnTo(searchParams.get("returnTo"));
+    if (fromParam !== "/guest-landing") return fromParam;
+    // Fall back to sessionStorage backup set by login/register pages
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("auth_return_to") || "";
+        const sanitized = sanitizeReturnTo(stored);
+        if (sanitized !== "/guest-landing") return sanitized;
+      } catch { /* ignore */ }
+    }
+    return "/guest-landing";
+  })();
   const encodedReturnTo = encodeURIComponent(returnTo);
   const realtorId = searchParams.get("realtorId");
   const referralSource = searchParams.get("referralSource");
@@ -231,6 +243,9 @@ function OTPVerificationContent() {
         }
 
         // Redirect to intended destination
+        if (typeof window !== "undefined") {
+          try { sessionStorage.removeItem("auth_return_to"); } catch { /* ignore */ }
+        }
         router.push(returnTo);
       }
     } catch (error: unknown) {

@@ -92,6 +92,11 @@ function GuestLoginContent() {
         returnTo: safeReturnTo,
       });
 
+      // Persist returnTo in sessionStorage as a backup in case the URL param is lost
+      if (typeof window !== "undefined") {
+        try { sessionStorage.setItem("auth_return_to", safeReturnTo); } catch { /* ignore */ }
+      }
+
       router.push(`/auth/verify-otp?${otpParams.toString()}`);
     } catch (error: unknown) {
       const message =

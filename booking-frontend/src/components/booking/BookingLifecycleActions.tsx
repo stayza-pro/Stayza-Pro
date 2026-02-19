@@ -79,11 +79,17 @@ const isSameDateInLagos = (valueA?: string | Date, valueB?: string | Date) => {
   return Boolean(dateA && dateB && dateA === dateB);
 };
 
-const formatDeadline = (value?: string) => {
-  if (!value) return "";
+const formatDeadline = (value?: string | Date) => {
+  if (!value) return "Not set";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString();
+  if (Number.isNaN(date.getTime())) return "Invalid date";
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 };
 
 export function BookingLifecycleActions({

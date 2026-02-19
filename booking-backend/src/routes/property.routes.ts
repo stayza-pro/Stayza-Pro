@@ -397,20 +397,102 @@ router.get(
  *         required: true
  *         schema:
  *           type: string
+/**
+ * @swagger
+ * /api/properties/{id}/availability:
+ *   get:
+ *     summary: Get property availability calendar (compatibility endpoint)
+ *     description: Returns unavailable dates for the property for the next 12 months.
+ *     tags: [Properties]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: months
+ *         schema:
+ *           type: integer
+ *         description: Number of months to look ahead (max 12)
+ *     responses:
+ *       200:
+ *         description: Availability retrieved successfully
+ */
+router.get(
+  "/:id/availability",
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const monthsNum = Math.min(parseInt((req.query.months as string) || "12") || 12, 12);
+
+    const property = await prisma.property.findUnique({
+      where: { id },
+      select: { id: true, title: true },
+    });
+
+    if (!property) {
+      throw new AppError("Property not found", 404);
+    }
+
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + monthsNum);
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        propertyId: id,
+        status: { in: ["ACTIVE"] },
+        checkOutDate: { gte: startDate },
+        checkInDate: { lte: endDate },
+      },
+      select: {
+        checkInDate: true,
+        checkOutDate: true,
+      },
+    });
+
+    // Build a list of unavailable dates
+    const unavailableDates: string[] = [];
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      const dateStr = current.toISOString().split("T")[0];
+      const isBooked = bookings.some((b) => {
+        const ci = new Date(b.checkInDate);
+        const co = new Date(b.checkOutDate);
+        return current >= ci && current < co;
+      });
+      if (isBooked) {
+        unavailableDates.push(dateStr);
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        propertyId: id,
+        available: unavailableDates.length === 0,
+        unavailableDates,
+      },
+    });
+  }),
+);
+
+/**
+ * @swagger
+ * /api/properties/{id}:
+ *   get:
+ *     summary: Get a specific property
+ *     tags: [Properties]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: Property retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   $ref: '#/components/schemas/Property'
  *       404:
  *         description: Property not found
  */
