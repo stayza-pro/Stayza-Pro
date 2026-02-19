@@ -261,7 +261,7 @@ export default function AddPropertyPage() {
 
   const updateFormData = <K extends keyof PropertyFormData>(
     field: K,
-    value: PropertyFormData[K]
+    value: PropertyFormData[K],
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -338,7 +338,7 @@ export default function AddPropertyPage() {
       case "details":
         if (!formData.title || !formData.description || !formData.type) {
           toast.error(
-            "Please fill in all required fields (Title, Description, Type)"
+            "Please fill in all required fields (Title, Description, Type)",
           );
           return false;
         }
@@ -445,7 +445,7 @@ export default function AddPropertyPage() {
 
       // Create property
       const property = await propertyService.createProperty(
-        propertyData as PropertyFormData
+        propertyData as PropertyFormData,
       );
 
       // Upload images if any
@@ -479,8 +479,8 @@ export default function AddPropertyPage() {
                       isCompleted
                         ? "bg-green-500 text-white"
                         : isActive
-                        ? "text-white shadow-lg ring-4 ring-opacity-30"
-                        : "bg-gray-200 text-gray-500"
+                          ? "text-white shadow-lg ring-4 ring-opacity-30"
+                          : "bg-gray-200 text-gray-500"
                     }`}
                     style={
                       isActive ? { backgroundColor: brandColors.primary } : {}
@@ -633,7 +633,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "bedrooms",
-                      value === "" ? 0 : parseInt(value, 10) || 0
+                      value === "" ? 0 : parseInt(value, 10) || 0,
                     );
                   }}
                   onBlur={(e) => {
@@ -659,7 +659,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "bathrooms",
-                      value === "" ? 0 : parseInt(value, 10) || 0
+                      value === "" ? 0 : parseInt(value, 10) || 0,
                     );
                   }}
                   onBlur={(e) => {
@@ -685,7 +685,7 @@ export default function AddPropertyPage() {
                     const value = e.target.value;
                     updateFormData(
                       "maxGuests",
-                      value === "" ? 0 : parseInt(value, 10) || 0
+                      value === "" ? 0 : parseInt(value, 10) || 0,
                     );
                   }}
                   onBlur={(e) => {
@@ -807,7 +807,7 @@ export default function AddPropertyPage() {
                   onChange={(e) =>
                     updateFormData(
                       "pricePerNight",
-                      parseFloat(e.target.value) ?? 0
+                      parseFloat(e.target.value) ?? 0,
                     )
                   }
                   placeholder="150.00"
@@ -817,8 +817,7 @@ export default function AddPropertyPage() {
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Set a competitive price based on your property&apos;s features
-                and
-                location
+                and location
               </p>
             </div>
 
@@ -854,7 +853,7 @@ export default function AddPropertyPage() {
                           "cleaningFee",
                           e.target.value
                             ? parseFloat(e.target.value)
-                            : undefined
+                            : undefined,
                         )
                       }
                       placeholder="0.00"
@@ -884,7 +883,7 @@ export default function AddPropertyPage() {
                           "securityDeposit",
                           e.target.value
                             ? parseFloat(e.target.value)
-                            : undefined
+                            : undefined,
                         )
                       }
                       placeholder="0.00"
@@ -914,7 +913,8 @@ export default function AddPropertyPage() {
                 iconClassName="text-emerald-600"
               />
               <p className="col-span-full text-xs text-amber-600 mt-1">
-                Note: Check-in / check-out times are not yet saved by the backend and will be added in a future update.
+                Note: Check-in / check-out times are not yet saved by the
+                backend and will be added in a future update.
               </p>
             </div>
 
@@ -938,7 +938,7 @@ export default function AddPropertyPage() {
       case "amenities":
         // Group amenities by category
         const categories = Array.from(
-          new Set(AMENITIES_OPTIONS.map((a) => a.category))
+          new Set(AMENITIES_OPTIONS.map((a) => a.category)),
         );
 
         return (
@@ -954,7 +954,7 @@ export default function AddPropertyPage() {
 
               {categories.map((category) => {
                 const categoryAmenities = AMENITIES_OPTIONS.filter(
-                  (a) => a.category === category
+                  (a) => a.category === category,
                 );
 
                 return (
@@ -970,7 +970,7 @@ export default function AddPropertyPage() {
                       {categoryAmenities.map((amenity) => {
                         const AmenityIcon = amenity.icon;
                         const isSelected = formData.amenities?.includes(
-                          amenity.value
+                          amenity.value,
                         );
 
                         return (
@@ -1093,8 +1093,8 @@ export default function AddPropertyPage() {
                             updateFormData(
                               "customAmenities",
                               formData.customAmenities!.filter(
-                                (_, i) => i !== index
-                              )
+                                (_, i) => i !== index,
+                              ),
                             );
                           }}
                           className="hover:opacity-70 transition-opacity"
@@ -1474,5 +1474,3 @@ export default function AddPropertyPage() {
     </div>
   );
 }
-
-

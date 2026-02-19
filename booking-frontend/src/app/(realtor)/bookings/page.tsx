@@ -26,17 +26,11 @@ export default function RealtorBookingsPage() {
   const { branding } = useBranding();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<BookingStatus | "all">(
-    "all"
+    "all",
   );
   const [currentPage, setCurrentPage] = useState(1);
 
-  const {
-    bookings,
-    total,
-    totalPages,
-    isLoading,
-    error,
-  } = useBookingsData({
+  const { bookings, total, totalPages, isLoading, error } = useBookingsData({
     page: currentPage,
     limit: 10,
     status: (statusFilter !== "all" ? statusFilter : "ALL") as
@@ -234,7 +228,7 @@ export default function RealtorBookingsPage() {
                     booking.guest?.lastName
                       ?.toLowerCase()
                       .includes(searchQuery.toLowerCase())
-                  : true
+                  : true,
               )
               .map((booking) => {
                 const status =
@@ -284,12 +278,12 @@ export default function RealtorBookingsPage() {
                               <p className="font-medium text-gray-900">
                                 {format(
                                   new Date(booking.checkInDate),
-                                  "MMM dd"
+                                  "MMM dd",
                                 )}{" "}
                                 -{" "}
                                 {format(
                                   new Date(booking.checkOutDate),
-                                  "MMM dd"
+                                  "MMM dd",
                                 )}
                               </p>
                             </div>
@@ -404,5 +398,3 @@ export default function RealtorBookingsPage() {
     </div>
   );
 }
-
-

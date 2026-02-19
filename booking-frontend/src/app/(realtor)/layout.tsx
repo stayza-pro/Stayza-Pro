@@ -106,7 +106,6 @@ export default function RealtorLayout({
       // Redirect to realtor login on main domain
       window.location.href = buildMainDomainUrl("/realtor/login");
     } catch (error) {
-      
       // Still redirect even if logout fails
       window.location.href = buildMainDomainUrl("/realtor/login");
     }
@@ -328,10 +327,7 @@ export default function RealtorLayout({
 
   // Apply ProtectedRoute for protected pages with sidebar layout
   return (
-    <ProtectedRouteWrapper
-      requiredRole="REALTOR"
-      redirectTo="/realtor/login"
-    >
+    <ProtectedRouteWrapper requiredRole="REALTOR" redirectTo="/realtor/login">
       <BrandProvider brand={brandConfig}>
         <div className="flex h-screen bg-white overflow-hidden">
           {/* Mobile sidebar overlay backdrop */}
@@ -427,7 +423,9 @@ export default function RealtorLayout({
               <div className="text-center">
                 <p className="text-xs text-gray-400">
                   Powered by{" "}
-                  <span className="font-semibold text-gray-600">Stayza Pro</span>
+                  <span className="font-semibold text-gray-600">
+                    Stayza Pro
+                  </span>
                 </p>
                 <p className="text-xs text-gray-300 mt-1">
                   v1.0.0 - {currentYear ?? "----"}

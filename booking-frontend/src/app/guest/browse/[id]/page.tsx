@@ -82,8 +82,8 @@ export default function GuestPropertyDetailsPage() {
   const unavailableDateSet = useMemo(
     () =>
       new Set(
-        (availabilityData?.unavailableDates || []).filter((value): value is string =>
-          Boolean(value),
+        (availabilityData?.unavailableDates || []).filter(
+          (value): value is string => Boolean(value),
         ),
       ),
     [availabilityData?.unavailableDates],
@@ -106,7 +106,11 @@ export default function GuestPropertyDetailsPage() {
           normalizeImageUrl(
             image as
               | string
-              | { url?: string | null; imageUrl?: string | null; src?: string | null }
+              | {
+                  url?: string | null;
+                  imageUrl?: string | null;
+                  src?: string | null;
+                }
               | null
               | undefined,
           ),
@@ -194,7 +198,14 @@ export default function GuestPropertyDetailsPage() {
     };
 
     void calculateTotals();
-  }, [property?.id, checkInDate, checkOutDate, guests, totalNights, minCheckInDate]);
+  }, [
+    property?.id,
+    checkInDate,
+    checkOutDate,
+    guests,
+    totalNights,
+    minCheckInDate,
+  ]);
 
   const handleCheckInChange = (value: string) => {
     setCheckInDate(value);
@@ -222,7 +233,6 @@ export default function GuestPropertyDetailsPage() {
     ) {
       setCheckOutDate(suggestedCheckOut);
     }
-
   };
 
   useEffect(() => {
@@ -335,8 +345,14 @@ export default function GuestPropertyDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
-        <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+      <div
+        className="min-h-screen flex flex-col"
+        style={{ backgroundColor: "#f8fafc" }}
+      >
+        <GuestHeader
+          currentPage="browse"
+          searchPlaceholder="Search location..."
+        />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-pulse space-y-4 w-80">
@@ -352,12 +368,22 @@ export default function GuestPropertyDetailsPage() {
 
   if (error || !property) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f8fafc" }}>
-        <GuestHeader currentPage="browse" searchPlaceholder="Search location..." />
+      <div
+        className="min-h-screen flex flex-col"
+        style={{ backgroundColor: "#f8fafc" }}
+      >
+        <GuestHeader
+          currentPage="browse"
+          searchPlaceholder="Search location..."
+        />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-900">Property not found</h2>
-            <p className="text-gray-500">This property may have been removed or the link is incorrect.</p>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              Property not found
+            </h2>
+            <p className="text-gray-500">
+              This property may have been removed or the link is incorrect.
+            </p>
             <Link
               href="/guest/browse"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium"
@@ -468,7 +494,9 @@ export default function GuestPropertyDetailsPage() {
                   style={{ color: primaryColor }}
                 >
                   {formatPrice(property.pricePerNight)}
-                  <span className="text-base font-normal text-gray-500 ml-1">/ night</span>
+                  <span className="text-base font-normal text-gray-500 ml-1">
+                    / night
+                  </span>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">

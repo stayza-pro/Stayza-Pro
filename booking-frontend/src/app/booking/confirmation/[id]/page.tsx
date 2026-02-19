@@ -37,8 +37,8 @@ export default function BookingConfirmationPage() {
     typeof params.id === "string"
       ? params.id
       : Array.isArray(params.id)
-      ? params.id[0]
-      : "";
+        ? params.id[0]
+        : "";
 
   // Get realtor branding
   const {
@@ -116,7 +116,7 @@ export default function BookingConfirmationPage() {
         ? formatPaymentStatus(booking.paymentStatus)
         : "Unknown";
       toast.error(
-        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`,
       );
       return;
     }
@@ -417,14 +417,14 @@ export default function BookingConfirmationPage() {
                   <span>
                     {formatPrice(
                       booking.property?.pricePerNight || 0,
-                      booking.currency
+                      booking.currency,
                     )}{" "}
                     x {nights} nights
                   </span>
                   <span className="font-medium">
                     {formatPrice(
                       (booking.property?.pricePerNight || 0) * nights,
-                      booking.currency
+                      booking.currency,
                     )}
                   </span>
                 </div>
@@ -457,8 +457,8 @@ export default function BookingConfirmationPage() {
                       {booking.payment?.method === "PAYSTACK"
                         ? "Paystack"
                         : booking.payment?.method === "FLUTTERWAVE"
-                        ? "Flutterwave"
-                        : booking.payment?.method || "Card Payment"}
+                          ? "Flutterwave"
+                          : booking.payment?.method || "Card Payment"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">

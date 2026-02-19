@@ -24,7 +24,8 @@ import { toast } from "react-hot-toast";
 
 export default function SystemHealthPage() {
   const [webhookLookupInput, setWebhookLookupInput] = React.useState("");
-  const [webhookLookupBookingId, setWebhookLookupBookingId] = React.useState("");
+  const [webhookLookupBookingId, setWebhookLookupBookingId] =
+    React.useState("");
 
   const {
     data: jobLocks = [],
@@ -46,7 +47,10 @@ export default function SystemHealthPage() {
     isLoading: isWebhookTimelineLoading,
     error: webhookTimelineError,
     refetch: refetchWebhookTimeline,
-  } = useWebhookDeliveryStatus(webhookLookupBookingId, Boolean(webhookLookupBookingId));
+  } = useWebhookDeliveryStatus(
+    webhookLookupBookingId,
+    Boolean(webhookLookupBookingId),
+  );
   const forceReleaseMutation = useForceReleaseJobLock();
 
   const webhookTimeline = React.useMemo(() => {
@@ -68,8 +72,8 @@ export default function SystemHealthPage() {
   const hasSystemDataIssue = Boolean(jobLocksError || systemHealthError);
   const hasEmailQueueIssue = Boolean(
     emailWorkerError ||
-      (emailWorkerHealth?.queue.failed ?? 0) > 0 ||
-      (emailWorkerHealth?.queue.stuckProcessing ?? 0) > 0,
+    (emailWorkerHealth?.queue.failed ?? 0) > 0 ||
+    (emailWorkerHealth?.queue.stuckProcessing ?? 0) > 0,
   );
 
   const systemStatusLabel = hasSystemDataIssue ? "Degraded" : "Operational";
@@ -122,334 +126,343 @@ export default function SystemHealthPage() {
 
   return (
     <AdminPageLayout>
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Activity className="w-6 h-6 text-blue-600" />
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Activity className="w-6 h-6 text-blue-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                System Health Monitor
+              </h1>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              System Health Monitor
-            </h1>
-          </div>
-          <p className="text-gray-600">
-            Real-time monitoring of escrow system operations, webhooks, retries,
-            and job locks
-          </p>
-        </div>
-
-        {/* Quick Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">
-                  System Status
-                </p>
-                <p className={`text-2xl font-bold ${systemStatusTextClass}`}>
-                  {systemStatusLabel}
-                </p>
-              </div>
-              <div className={`p-3 rounded-lg ${systemStatusBgClass}`}>
-                <Server className={`w-6 h-6 ${systemStatusIconClass}`} />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">
-                  Escrow Protection
-                </p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {systemHealthStats ? "Active" : "Loading"}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Shield className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">
-                  Auto-refresh
-                </p>
-                <p className="text-2xl font-bold text-purple-600">10s / 15s</p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Activity className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Main Dashboard */}
-        <SystemHealthDashboard
-          isLoading={isLoadingDashboard}
-          jobLocks={jobLocks}
-          webhookStats={
-            systemHealthStats
-              ? {
-                  ...systemHealthStats.webhooks,
-                  byProvider: {
-                    paystack: systemHealthStats.webhooks.byProvider.paystack,
-                    flutterwave: 0,
-                  },
-                }
-              : undefined
-          }
-          retryStats={
-            systemHealthStats
-              ? {
-                  totalRetries: systemHealthStats.retries.totalRetries,
-                  successRate: systemHealthStats.retries.successRate,
-                  averageAttempts: systemHealthStats.retries.averageRetries,
-                  criticalFailures: systemHealthStats.retries.maxRetriesReached,
-                }
-              : undefined
-          }
-          transferStats={
-            systemHealthStats
-              ? {
-                  pending: systemHealthStats.transfers.pending,
-                  confirmed: systemHealthStats.transfers.confirmed,
-                  failed: systemHealthStats.transfers.failed,
-                  reversed: systemHealthStats.transfers.reversed,
-                }
-              : undefined
-          }
-          webhookLookupBookingId={webhookLookupInput}
-          onWebhookLookupBookingIdChange={setWebhookLookupInput}
-          onRefreshWebhookTimeline={handleFetchWebhookTimeline}
-          webhookTimeline={webhookTimeline as any}
-          webhookLookupError={webhookTimelineError?.message || null}
-          isWebhookTimelineLoading={isWebhookTimelineLoading}
-          onForceReleaseLock={handleForceReleaseLock}
-          forceReleasingLockId={
-            forceReleaseMutation.isLoading
-              ? ((forceReleaseMutation.variables as string | undefined) || null)
-              : null
-          }
-        />
-
-        <Card className="p-6 mt-8">
-          <div className="flex items-start justify-between gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Mail className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Email Worker & Queue
-                </h2>
-              </div>
-              <p className="text-sm text-gray-600">
-                Visibility into verification/welcome email delivery without
-                Postman.
-              </p>
-            </div>
-            <div
-              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                hasEmailQueueIssue
-                  ? "bg-red-100 text-red-700"
-                  : "bg-green-100 text-green-700"
-              }`}
-            >
-              {hasEmailQueueIssue ? "Needs Attention" : "Healthy"}
-            </div>
+            <p className="text-gray-600">
+              Real-time monitoring of escrow system operations, webhooks,
+              retries, and job locks
+            </p>
           </div>
 
-          {isLoadingEmailHealth ? (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              Loading email worker metrics...
-            </div>
-          ) : emailWorkerError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {emailWorkerError.message ||
-                "Failed to load email worker health data."}
-            </div>
-          ) : emailWorkerHealth ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <div className="rounded-lg border border-gray-200 p-3">
-                  <p className="text-xs text-gray-500">Pending</p>
-                  <p className="text-xl font-semibold text-gray-900">
-                    {emailWorkerHealth.queue.pending}
+          {/* Quick Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">
+                    System Status
+                  </p>
+                  <p className={`text-2xl font-bold ${systemStatusTextClass}`}>
+                    {systemStatusLabel}
                   </p>
                 </div>
-                <div className="rounded-lg border border-gray-200 p-3">
-                  <p className="text-xs text-gray-500">Processing</p>
-                  <p className="text-xl font-semibold text-gray-900">
-                    {emailWorkerHealth.queue.processing}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 p-3">
-                  <p className="text-xs text-gray-500">Stuck</p>
-                  <p className="text-xl font-semibold text-orange-600">
-                    {emailWorkerHealth.queue.stuckProcessing}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 p-3">
-                  <p className="text-xs text-gray-500">Failed</p>
-                  <p className="text-xl font-semibold text-red-600">
-                    {emailWorkerHealth.queue.failed}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-gray-200 p-3">
-                  <p className="text-xs text-gray-500">Sent</p>
-                  <p className="text-xl font-semibold text-green-600">
-                    {emailWorkerHealth.queue.sent}
-                  </p>
+                <div className={`p-3 rounded-lg ${systemStatusBgClass}`}>
+                  <Server className={`w-6 h-6 ${systemStatusIconClass}`} />
                 </div>
               </div>
+            </Card>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <p className="text-sm font-medium text-gray-900 mb-2">
-                    Worker Config
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">
+                    Escrow Protection
                   </p>
-                  <div className="space-y-1 text-sm text-gray-700">
-                    <p>
-                      Enabled:{" "}
-                      <span className="font-medium">
-                        {emailWorkerHealth.worker.enabled ? "Yes" : "No"}
-                      </span>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {systemHealthStats ? "Active" : "Loading"}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Shield className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">
+                    Auto-refresh
+                  </p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    10s / 15s
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Activity className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Main Dashboard */}
+          <SystemHealthDashboard
+            isLoading={isLoadingDashboard}
+            jobLocks={jobLocks}
+            webhookStats={
+              systemHealthStats
+                ? {
+                    ...systemHealthStats.webhooks,
+                    byProvider: {
+                      paystack: systemHealthStats.webhooks.byProvider.paystack,
+                      flutterwave: 0,
+                    },
+                  }
+                : undefined
+            }
+            retryStats={
+              systemHealthStats
+                ? {
+                    totalRetries: systemHealthStats.retries.totalRetries,
+                    successRate: systemHealthStats.retries.successRate,
+                    averageAttempts: systemHealthStats.retries.averageRetries,
+                    criticalFailures:
+                      systemHealthStats.retries.maxRetriesReached,
+                  }
+                : undefined
+            }
+            transferStats={
+              systemHealthStats
+                ? {
+                    pending: systemHealthStats.transfers.pending,
+                    confirmed: systemHealthStats.transfers.confirmed,
+                    failed: systemHealthStats.transfers.failed,
+                    reversed: systemHealthStats.transfers.reversed,
+                  }
+                : undefined
+            }
+            webhookLookupBookingId={webhookLookupInput}
+            onWebhookLookupBookingIdChange={setWebhookLookupInput}
+            onRefreshWebhookTimeline={handleFetchWebhookTimeline}
+            webhookTimeline={webhookTimeline as any}
+            webhookLookupError={webhookTimelineError?.message || null}
+            isWebhookTimelineLoading={isWebhookTimelineLoading}
+            onForceReleaseLock={handleForceReleaseLock}
+            forceReleasingLockId={
+              forceReleaseMutation.isLoading
+                ? (forceReleaseMutation.variables as string | undefined) || null
+                : null
+            }
+          />
+
+          <Card className="p-6 mt-8">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Email Worker & Queue
+                  </h2>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Visibility into verification/welcome email delivery without
+                  Postman.
+                </p>
+              </div>
+              <div
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  hasEmailQueueIssue
+                    ? "bg-red-100 text-red-700"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                {hasEmailQueueIssue ? "Needs Attention" : "Healthy"}
+              </div>
+            </div>
+
+            {isLoadingEmailHealth ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Loading email worker metrics...
+              </div>
+            ) : emailWorkerError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {emailWorkerError.message ||
+                  "Failed to load email worker health data."}
+              </div>
+            ) : emailWorkerHealth ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div className="rounded-lg border border-gray-200 p-3">
+                    <p className="text-xs text-gray-500">Pending</p>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {emailWorkerHealth.queue.pending}
                     </p>
-                    <p>
-                      Interval:{" "}
-                      <span className="font-medium">
-                        {emailWorkerHealth.worker.intervalMs}ms
-                      </span>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 p-3">
+                    <p className="text-xs text-gray-500">Processing</p>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {emailWorkerHealth.queue.processing}
                     </p>
-                    <p>
-                      Batch size:{" "}
-                      <span className="font-medium">
-                        {emailWorkerHealth.worker.batchSize}
-                      </span>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 p-3">
+                    <p className="text-xs text-gray-500">Stuck</p>
+                    <p className="text-xl font-semibold text-orange-600">
+                      {emailWorkerHealth.queue.stuckProcessing}
                     </p>
-                    <p>
-                      Max retries:{" "}
-                      <span className="font-medium">
-                        {emailWorkerHealth.worker.maxRetries}
-                      </span>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 p-3">
+                    <p className="text-xs text-gray-500">Failed</p>
+                    <p className="text-xl font-semibold text-red-600">
+                      {emailWorkerHealth.queue.failed}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 p-3">
+                    <p className="text-xs text-gray-500">Sent</p>
+                    <p className="text-xl font-semibold text-green-600">
+                      {emailWorkerHealth.queue.sent}
                     </p>
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <p className="text-sm font-medium text-gray-900 mb-2">
-                    Latest Sent
-                  </p>
-                  {emailWorkerHealth.latestSentJob ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <p className="text-sm font-medium text-gray-900 mb-2">
+                      Worker Config
+                    </p>
                     <div className="space-y-1 text-sm text-gray-700">
-                      <p className="truncate">
-                        To: {emailWorkerHealth.latestSentJob.to.join(", ")}
-                      </p>
                       <p>
-                        Provider:{" "}
+                        Enabled:{" "}
                         <span className="font-medium">
-                          {emailWorkerHealth.latestSentJob.provider || "N/A"}
+                          {emailWorkerHealth.worker.enabled ? "Yes" : "No"}
                         </span>
                       </p>
                       <p>
-                        Sent:{" "}
+                        Interval:{" "}
                         <span className="font-medium">
-                          {emailWorkerHealth.latestSentJob.sentAt
-                            ? formatRelative(emailWorkerHealth.latestSentJob.sentAt)
-                            : "N/A"}
+                          {emailWorkerHealth.worker.intervalMs}ms
+                        </span>
+                      </p>
+                      <p>
+                        Batch size:{" "}
+                        <span className="font-medium">
+                          {emailWorkerHealth.worker.batchSize}
+                        </span>
+                      </p>
+                      <p>
+                        Max retries:{" "}
+                        <span className="font-medium">
+                          {emailWorkerHealth.worker.maxRetries}
                         </span>
                       </p>
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      No sent emails recorded yet.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {emailWorkerHealth.nextPendingJobs.length > 0 && (
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <p className="text-sm font-medium text-gray-900 mb-2">
-                    Next Pending Jobs
-                  </p>
-                  <div className="space-y-2">
-                    {emailWorkerHealth.nextPendingJobs
-                      .slice(0, 3)
-                      .map((job) => (
-                        <div
-                          key={job.id}
-                          className="flex items-center justify-between text-sm text-gray-700"
-                        >
-                          <span className="truncate pr-3">
-                            {job.to.join(", ")}
-                          </span>
-                          <span className="text-gray-500 whitespace-nowrap">
-                            attempt {job.attempts}/{job.maxAttempts}
-                          </span>
-                        </div>
-                      ))}
                   </div>
-                </div>
-              )}
 
-              {emailWorkerHealth.recentFailedJobs.length > 0 && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-4 h-4 text-red-600" />
-                    <p className="text-sm font-medium text-red-900">
-                      Recent Failed Jobs
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <p className="text-sm font-medium text-gray-900 mb-2">
+                      Latest Sent
                     </p>
-                  </div>
-                  <div className="space-y-2 text-sm text-red-800">
-                    {emailWorkerHealth.recentFailedJobs.slice(0, 3).map((job) => (
-                      <div key={job.id}>
-                        <p className="font-medium truncate">{job.to.join(", ")}</p>
-                        <p className="text-xs text-red-700">
-                          {job.lastError || "Unknown delivery error"}
+                    {emailWorkerHealth.latestSentJob ? (
+                      <div className="space-y-1 text-sm text-gray-700">
+                        <p className="truncate">
+                          To: {emailWorkerHealth.latestSentJob.to.join(", ")}
+                        </p>
+                        <p>
+                          Provider:{" "}
+                          <span className="font-medium">
+                            {emailWorkerHealth.latestSentJob.provider || "N/A"}
+                          </span>
+                        </p>
+                        <p>
+                          Sent:{" "}
+                          <span className="font-medium">
+                            {emailWorkerHealth.latestSentJob.sentAt
+                              ? formatRelative(
+                                  emailWorkerHealth.latestSentJob.sentAt,
+                                )
+                              : "N/A"}
+                          </span>
                         </p>
                       </div>
-                    ))}
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No sent emails recorded yet.
+                      </p>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-sm text-gray-500">
-              Email worker health data is currently unavailable.
-            </div>
-          )}
-        </Card>
 
-        {/* Footer Info */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Shield className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-blue-900 mb-1">
-                About System Health Monitoring
-              </h3>
-              <p className="text-sm text-blue-800">
-                This dashboard provides real-time insights into the escrow
-                system's operational health. It monitors webhook delivery rates,
-                payment retry success rates, transfer confirmations, and active
-                job locks. Data refreshes automatically every 10 seconds to
-                ensure you have the latest information. If you notice any stuck
-                job locks, you can force-release them directly from this
-                interface.
-              </p>
+                {emailWorkerHealth.nextPendingJobs.length > 0 && (
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <p className="text-sm font-medium text-gray-900 mb-2">
+                      Next Pending Jobs
+                    </p>
+                    <div className="space-y-2">
+                      {emailWorkerHealth.nextPendingJobs
+                        .slice(0, 3)
+                        .map((job) => (
+                          <div
+                            key={job.id}
+                            className="flex items-center justify-between text-sm text-gray-700"
+                          >
+                            <span className="truncate pr-3">
+                              {job.to.join(", ")}
+                            </span>
+                            <span className="text-gray-500 whitespace-nowrap">
+                              attempt {job.attempts}/{job.maxAttempts}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {emailWorkerHealth.recentFailedJobs.length > 0 && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600" />
+                      <p className="text-sm font-medium text-red-900">
+                        Recent Failed Jobs
+                      </p>
+                    </div>
+                    <div className="space-y-2 text-sm text-red-800">
+                      {emailWorkerHealth.recentFailedJobs
+                        .slice(0, 3)
+                        .map((job) => (
+                          <div key={job.id}>
+                            <p className="font-medium truncate">
+                              {job.to.join(", ")}
+                            </p>
+                            <p className="text-xs text-red-700">
+                              {job.lastError || "Unknown delivery error"}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">
+                Email worker health data is currently unavailable.
+              </div>
+            )}
+          </Card>
+
+          {/* Footer Info */}
+          <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Shield className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-900 mb-1">
+                  About System Health Monitoring
+                </h3>
+                <p className="text-sm text-blue-800">
+                  This dashboard provides real-time insights into the escrow
+                  system's operational health. It monitors webhook delivery
+                  rates, payment retry success rates, transfer confirmations,
+                  and active job locks. Data refreshes automatically every 10
+                  seconds to ensure you have the latest information. If you
+                  notice any stuck job locks, you can force-release them
+                  directly from this interface.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </AdminPageLayout>
   );
 }

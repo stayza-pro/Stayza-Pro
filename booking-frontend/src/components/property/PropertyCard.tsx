@@ -77,7 +77,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
               onError={(e) => {
                 e.currentTarget.style.display = "none";
                 if (e.currentTarget.nextElementSibling) {
-                  (e.currentTarget.nextElementSibling as HTMLElement).style.display = "flex";
+                  (
+                    e.currentTarget.nextElementSibling as HTMLElement
+                  ).style.display = "flex";
                 }
               }}
             />

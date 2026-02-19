@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
@@ -303,7 +302,7 @@
   background: #ffffff;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
   overflow: hidden;
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .stayza-datepicker .react-datepicker__triangle {
@@ -401,7 +400,7 @@
   border-color: #334155;
   border-style: solid;
   border-width: 2px 2px 0 0;
-  content: "";
+  content: '';
   display: block;
   height: 8px;
   position: absolute;
@@ -413,7 +412,9 @@
   right: 42px;
 }
 
-.stayza-datepicker .react-datepicker__navigation--previous .react-datepicker__navigation-icon::before {
+.stayza-datepicker
+  .react-datepicker__navigation--previous
+  .react-datepicker__navigation-icon::before {
   transform: rotate(-135deg);
   left: 10px;
 }
@@ -422,7 +423,9 @@
   right: 12px;
 }
 
-.stayza-datepicker .react-datepicker__navigation--next .react-datepicker__navigation-icon::before {
+.stayza-datepicker
+  .react-datepicker__navigation--next
+  .react-datepicker__navigation-icon::before {
   transform: rotate(45deg);
   right: 10px;
 }

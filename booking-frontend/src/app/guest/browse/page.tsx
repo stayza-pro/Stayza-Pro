@@ -140,7 +140,11 @@ export default function BrowsePropertiesPage() {
 
   useEffect(() => {
     const loadFavoriteStates = async () => {
-      if (!isAuthenticated || user?.role !== "GUEST" || properties.length === 0) {
+      if (
+        !isAuthenticated ||
+        user?.role !== "GUEST" ||
+        properties.length === 0
+      ) {
         setLikedProperties(new Set());
         return;
       }
@@ -485,4 +489,3 @@ export default function BrowsePropertiesPage() {
     </div>
   );
 }
-

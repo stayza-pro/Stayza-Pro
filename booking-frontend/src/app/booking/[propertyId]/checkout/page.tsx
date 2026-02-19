@@ -544,7 +544,9 @@ export default function BookingCheckoutPage() {
                 )}
 
                 <div className="space-y-2">
-                  <label htmlFor="guest-count" className="text-gray-900">Number of Guests</label>
+                  <label htmlFor="guest-count" className="text-gray-900">
+                    Number of Guests
+                  </label>
                   <Select
                     id="guest-count"
                     value={guests.toString()}
@@ -577,7 +579,9 @@ export default function BookingCheckoutPage() {
 
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label htmlFor="first-name" className="text-gray-900">First Name</label>
+                    <label htmlFor="first-name" className="text-gray-900">
+                      First Name
+                    </label>
                     <Input
                       id="first-name"
                       required
@@ -592,7 +596,9 @@ export default function BookingCheckoutPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="last-name" className="text-gray-900">Last Name</label>
+                    <label htmlFor="last-name" className="text-gray-900">
+                      Last Name
+                    </label>
                     <Input
                       id="last-name"
                       required
@@ -609,7 +615,9 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="guest-email" className="text-gray-900">Email</label>
+                  <label htmlFor="guest-email" className="text-gray-900">
+                    Email
+                  </label>
                   <Input
                     id="guest-email"
                     type="email"
@@ -626,7 +634,9 @@ export default function BookingCheckoutPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="guest-phone" className="text-gray-900">Phone</label>
+                  <label htmlFor="guest-phone" className="text-gray-900">
+                    Phone
+                  </label>
                   <Input
                     id="guest-phone"
                     type="tel"
