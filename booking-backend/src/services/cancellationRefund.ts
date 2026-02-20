@@ -4,6 +4,7 @@ import { Booking, RefundTier, EscrowEventType } from "@prisma/client";
 import { refundPolicyService, RefundCalculation } from "./refundPolicy";
 import { logger } from "@/utils/logger";
 import { NotificationService } from "./notificationService";
+import { processRefund } from "./paystack";
 
 export interface CancellationRefundResult {
   success: boolean;
@@ -109,6 +110,33 @@ export async function processAutomaticCancellationRefund(
       },
     });
 
+    // Initiate actual Paystack refund if customer is owed money
+    let paystackRefundId: string | undefined;
+    let paystackRefundError: string | undefined;
+
+    if (refundCalc.totalCustomerRefund > 0 && booking.payment?.reference) {
+      try {
+        const paystackResult = await processRefund(
+          booking.payment.reference,
+          refundCalc.totalCustomerRefund
+        );
+        paystackRefundId = paystackResult?.id?.toString();
+        logger.info("Paystack refund initiated", {
+          bookingId,
+          paystackRefundId,
+          amount: refundCalc.totalCustomerRefund,
+        });
+      } catch (error) {
+        paystackRefundError =
+          error instanceof Error ? error.message : "Unknown Paystack error";
+        logger.error("Paystack refund failed - proceeding with DB records", {
+          error: paystackRefundError,
+          bookingId,
+          amount: refundCalc.totalCustomerRefund,
+        });
+      }
+    }
+
     // Create escrow events for fund distribution
     const escrowEvents = [];
 
@@ -210,6 +238,11 @@ export async function processAutomaticCancellationRefund(
         platformCommission: refundCalc.totalPlatformPortion,
         roomFeeReleasedAt: new Date(),
         depositReleasedAt: new Date(),
+        metadata: {
+          paystackRefundId: paystackRefundId ?? null,
+          paystackRefundError: paystackRefundError ?? null,
+          paystackRefundInitiatedAt: new Date().toISOString(),
+        },
       },
     });
 
@@ -223,20 +256,10 @@ export async function processAutomaticCancellationRefund(
         userId: booking.property.realtor.user.id,
         type: "PAYMENT_COMPLETED",
         title: "Booking Cancelled",
-        message: `Booking cancelled (${refundCalc.tier} tier). ${
-          refundCalc.totalRealtorPortion > 0
-            ? `You receive ${
-                booking.currency
-              } ${refundCalc.totalRealtorPortion.toFixed(2)} (${
-                refundCalc.tier === RefundTier.EARLY
-                  ? "7%"
-                  : refundCalc.tier === RefundTier.MEDIUM
-                  ? "20%"
-                  : "80%"
-              } of room fee). Cleaning fee already released.`
+        message: `Booking cancelled. ${refundCalc.totalRealtorPortion > 0
+            ? `You receive ${booking.currency} ${refundCalc.totalRealtorPortion.toFixed(2)} (7% of room fee). Cleaning fee already released.`
             : `Cleaning fee already released to you.`
-        }`,
-        bookingId,
+        }`,        bookingId,
         data: {
           refundTier: refundCalc.tier,
           realtorPortion: refundCalc.realtorRoomPortion,
@@ -254,12 +277,7 @@ export async function processAutomaticCancellationRefund(
         userId: booking.guestId,
         type: "PAYMENT_COMPLETED",
         title: "Cancellation Refund Processed",
-        message: `Your booking cancellation refund of ${
-          booking.currency
-        } ${refundCalc.totalCustomerRefund.toFixed(2)} has been processed${
-          refundCalc.tier === RefundTier.LATE ? " (security deposit only)" : ""
-        }`,
-        bookingId,
+        message: `Your booking cancellation refund of ${booking.currency} ${refundCalc.totalCustomerRefund.toFixed(2)} has been processed (90% room fee + full security deposit).`,        bookingId,
         data: {
           refundTier: refundCalc.tier,
           totalRefund: refundCalc.totalCustomerRefund,

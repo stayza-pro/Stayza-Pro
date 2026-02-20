@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Info, Lock } from "lucide-react";
@@ -8,7 +8,7 @@ import { differenceInDays, format } from "date-fns";
 import { toast } from "react-hot-toast";
 import { AnimatedDateInput, Button, Input, Select } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
-import { useProperty } from "@/hooks/useProperties";
+import { useProperty, usePropertyAvailability } from "@/hooks/useProperties";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { bookingService, paymentService } from "@/services";
@@ -78,6 +78,9 @@ export default function BookingCheckoutPage() {
     currency: string;
   } | null>(null);
 
+  // Ref to track whether Paystack callback fired (prevents onClose from false-failing)
+  const paymentCallbackFired = useRef(false);
+
   const [checkIn, setCheckIn] = useState(searchParams.get("checkIn") || "");
   const [checkOut, setCheckOut] = useState(searchParams.get("checkOut") || "");
   const [guests, setGuests] = useState<number>(
@@ -96,6 +99,7 @@ export default function BookingCheckoutPage() {
     subtotal: number;
     serviceFee: number;
     cleaningFee: number;
+    securityDeposit: number;
     taxes: number;
     total: number;
     currency: string;
@@ -112,6 +116,34 @@ export default function BookingCheckoutPage() {
     nextDay.setDate(nextDay.getDate() + 1);
     return toDateKey(nextDay);
   }, [checkIn, minCheckInDate]);
+
+  // Availability: load blocked/booked dates for this property
+  const availabilityRangeEnd = useMemo(() => {
+    const rangeEnd = new Date();
+    rangeEnd.setFullYear(rangeEnd.getFullYear() + 1);
+    return toDateKey(rangeEnd);
+  }, []);
+
+  const { data: availabilityData } = usePropertyAvailability(
+    propertyId,
+    minCheckInDate,
+    availabilityRangeEnd,
+  );
+
+  const unavailableDateSet = useMemo(
+    () =>
+      new Set(
+        (availabilityData?.unavailableDates || []).filter(
+          (v): v is string => Boolean(v),
+        ),
+      ),
+    [availabilityData?.unavailableDates],
+  );
+
+  const unavailableDateList = useMemo(
+    () => Array.from(unavailableDateSet),
+    [unavailableDateSet],
+  );
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
@@ -145,7 +177,10 @@ export default function BookingCheckoutPage() {
   const cleaningFee = bookingCalculation?.cleaningFee ?? fallbackCleaningFee;
   const serviceFee = bookingCalculation?.serviceFee ?? fallbackServiceFee;
   const taxes = bookingCalculation?.taxes ?? fallbackTaxes;
-  const total = bookingCalculation?.total ?? fallbackTotal;
+  const securityDeposit = bookingCalculation?.securityDeposit ?? Number(
+    (property as unknown as { securityDeposit?: number })?.securityDeposit || 0,
+  );
+  const total = bookingCalculation?.total ?? (fallbackTotal + securityDeposit);
 
   const formatPrice = (amount: number) => formatNaira(amount);
 
@@ -162,8 +197,14 @@ export default function BookingCheckoutPage() {
     if (nights < minNights) {
       return `Minimum stay is ${minNights} night${minNights === 1 ? "" : "s"}.`;
     }
+    if (unavailableDateSet.has(checkIn)) {
+      return "The selected check-in date is already booked. Please choose another date.";
+    }
+    if (unavailableDateSet.has(checkOut)) {
+      return "The selected check-out date is already booked. Please choose another date.";
+    }
     return null;
-  }, [checkIn, checkOut, minCheckInDate, nights, minNights]);
+  }, [checkIn, checkOut, minCheckInDate, nights, minNights, unavailableDateSet]);
 
   useEffect(() => {
     if (!user) return;
@@ -230,7 +271,11 @@ export default function BookingCheckoutPage() {
       }
     };
 
-    void fetchBookingCalculation();
+    // Debounce: wait 400ms after last change before calling the API
+    const timer = setTimeout(() => {
+      void fetchBookingCalculation();
+    }, 400);
+    return () => clearTimeout(timer);
   }, [
     propertyId,
     checkIn,
@@ -293,6 +338,8 @@ export default function BookingCheckoutPage() {
       return;
     }
 
+    // Reset callback flag for this new payment attempt
+    paymentCallbackFired.current = false;
     setErrors({});
     setIsSubmitting(true);
 
@@ -362,6 +409,8 @@ export default function BookingCheckoutPage() {
           sourceBookingId: sourceBookingId || undefined,
         },
         callback: async (response: { reference?: string; trxref?: string }) => {
+          // Mark that the payment callback was triggered — prevents onClose from false-failing
+          paymentCallbackFired.current = true;
           const reference = response.reference || response.trxref;
           if (!reference) {
             goToFailedCallback(bookingId, "missing_reference");
@@ -402,6 +451,8 @@ export default function BookingCheckoutPage() {
           }
         },
         onClose: () => {
+          // Only redirect to failed if the payment callback was NOT already handled
+          if (paymentCallbackFired.current) return;
           toast("Payment cancelled");
           goToFailedCallback(bookingId, "cancelled");
         },
@@ -503,6 +554,7 @@ export default function BookingCheckoutPage() {
                     label="Check-in Date"
                     value={checkIn}
                     min={minCheckInDate}
+                    unavailableDates={unavailableDateList}
                     onChange={setCheckIn}
                     inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
                     iconClassName="text-slate-500"
@@ -512,6 +564,7 @@ export default function BookingCheckoutPage() {
                     label="Check-out Date"
                     value={checkOut}
                     min={minCheckOutDate}
+                    unavailableDates={unavailableDateList}
                     onChange={setCheckOut}
                     inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
                     iconClassName="text-slate-500"
@@ -775,6 +828,12 @@ export default function BookingCheckoutPage() {
                   <span>Taxes</span>
                   <span>{formatPrice(taxes)}</span>
                 </div>
+                {securityDeposit > 0 && (
+                  <div className="flex justify-between text-gray-700">
+                    <span>Security deposit</span>
+                    <span>{formatPrice(securityDeposit)}</span>
+                  </div>
+                )}
                 <div className="pt-3 border-t border-gray-200 flex justify-between text-base font-semibold text-gray-900">
                   <span>Total</span>
                   <span>{formatPrice(total)}</span>

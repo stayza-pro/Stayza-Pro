@@ -315,8 +315,8 @@ export const getPayoutStatusColor = (
 export const REFUND_TIER_SPLITS: Record<RefundTier, [number, number, number]> =
   {
     EARLY: [90, 7, 3], // 24+ hours before check-in
-    MEDIUM: [70, 20, 10], // 12-24 hours before check-in
-    LATE: [0, 80, 20], // 0-12 hours before check-in
+    MEDIUM: [90, 7, 3], // mapped to EARLY (legacy - not used)
+    LATE: [0, 0, 0], // under 24h - not allowed
     NONE: [0, 0, 0], // After check-in - no cancellation allowed
   };
 
@@ -324,10 +324,8 @@ export const REFUND_TIER_SPLITS: Record<RefundTier, [number, number, number]> =
  * Calculate refund tier based on hours until check-in
  */
 export const calculateRefundTier = (hoursUntilCheckIn: number): RefundTier => {
-  if (hoursUntilCheckIn < 0) return "NONE";
-  if (hoursUntilCheckIn < 12) return "LATE";
-  if (hoursUntilCheckIn < 24) return "MEDIUM";
-  return "EARLY";
+  if (hoursUntilCheckIn >= 24) return "EARLY";
+  return "NONE";
 };
 
 /**
@@ -391,8 +389,8 @@ export const calculateRefundAmounts = (
 export const formatRefundTier = (tier: RefundTier): string => {
   const tierMap: Record<RefundTier, string> = {
     EARLY: "Early Cancellation (90% room fee refund)",
-    MEDIUM: "Medium Cancellation (70% room fee refund)",
-    LATE: "Late Cancellation (security deposit only)",
+    MEDIUM: "Early Cancellation (90% room fee refund)",
+    LATE: "Cancellation Not Allowed (within 24h of check-in)",
     NONE: "No Cancellation Allowed",
   };
   return tierMap[tier] || tier;
@@ -406,8 +404,8 @@ export const getRefundTierDescription = (tier: RefundTier): string => {
     EARLY:
       "Cancelled 24+ hours before check-in. You'll receive 90% of room fee + 100% security deposit.",
     MEDIUM:
-      "Cancelled 12-24 hours before check-in. You'll receive 70% of room fee + 100% security deposit.",
-    LATE: "Cancelled 0-12 hours before check-in. You'll only receive security deposit back (no room fee refund).",
+      "Cancelled 24+ hours before check-in. You'll receive 90% of room fee + 100% security deposit.",
+    LATE: "Cancellation not allowed within 24 hours of check-in.",
     NONE: "Booking already started. Cancellation not available.",
   };
   return descMap[tier] || "";
@@ -419,8 +417,8 @@ export const getRefundTierDescription = (tier: RefundTier): string => {
 export const getCustomerRefundSummary = (tier: RefundTier): string => {
   const summaryMap: Record<RefundTier, string> = {
     EARLY: "90% of room fee + full security deposit",
-    MEDIUM: "70% of room fee + full security deposit",
-    LATE: "Full security deposit only (no room fee refund)",
+    MEDIUM: "90% of room fee + full security deposit",
+    LATE: "No refund (cancellation not allowed within 24h)",
     NONE: "No refund available",
   };
   return summaryMap[tier] || "";

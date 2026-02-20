@@ -31,51 +31,12 @@ interface CalculateRefundParams {
   now?: Date;
 }
 
-// Refund tier thresholds (hours before check-in)
-const EARLY_HOURS = 24; // 24+ hours
-const MEDIUM_HOURS = 12; // 12-24 hours
-const LATE_HOURS = 0; // 0-12 hours
+// Refund tier threshold (hours before check-in)
+const EARLY_HOURS = 24; // 24+ hours required for cancellation
 
-// Refund tier splits: [customer %, realtor %, platform %]
+// Refund tier split: customer 90%, realtor 7%, platform 3%
 const TIER_SPLITS = {
   EARLY: { customer: 0.9, realtor: 0.07, platform: 0.03 },
-  MEDIUM: { customer: 0.7, realtor: 0.2, platform: 0.1 },
-  LATE: { customer: 0.0, realtor: 0.8, platform: 0.2 },
-};
-
-const clampRate = (value: number): number => Math.min(Math.max(value, 0), 1);
-
-const resolveNoRefundSplit = (booking: Booking) => {
-  const roomFee = Number(booking.roomFee);
-  if (roomFee <= 0) {
-    return { customer: 0, realtor: 0, platform: 0 };
-  }
-
-  const directRate =
-    booking.commissionEffectiveRate !== null
-      ? Number(booking.commissionEffectiveRate)
-      : null;
-  if (directRate !== null && Number.isFinite(directRate)) {
-    const platformRate = clampRate(directRate);
-    return {
-      customer: 0,
-      realtor: 1 - platformRate,
-      platform: platformRate,
-    };
-  }
-
-  const platformFee = Number(booking.platformFee ?? 0);
-  if (platformFee > 0) {
-    const platformRate = clampRate(platformFee / roomFee);
-    return {
-      customer: 0,
-      realtor: 1 - platformRate,
-      platform: platformRate,
-    };
-  }
-
-  // Legacy data without snapshots: avoid hidden hardcoded defaults.
-  return { customer: 0, realtor: 1, platform: 0 };
 };
 
 /**
@@ -100,23 +61,15 @@ export function calculateCancellationRefund({
     reason = `Early cancellation (${hoursUntilCheckIn.toFixed(
       1
     )}h before check-in)`;
-  } else if (hoursUntilCheckIn >= MEDIUM_HOURS) {
-    tier = RefundTier.MEDIUM;
-    reason = `Medium cancellation (${hoursUntilCheckIn.toFixed(
-      1
-    )}h before check-in)`;
-  } else if (hoursUntilCheckIn >= LATE_HOURS) {
-    tier = RefundTier.LATE;
-    reason = `Late cancellation (${hoursUntilCheckIn.toFixed(
-      1
-    )}h before check-in)`;
   } else {
     tier = RefundTier.NONE;
-    reason = `Cancellation after check-in time`;
+    reason = `Cancellation within 24h of check-in - not allowed`;
   }
 
   const split =
-    tier === RefundTier.NONE ? resolveNoRefundSplit(booking) : TIER_SPLITS[tier];
+    tier === RefundTier.EARLY
+      ? TIER_SPLITS.EARLY
+      : { customer: 0, realtor: 0, platform: 0 };
 
   // Extract fee components
   const roomFee = Number(booking.roomFee);

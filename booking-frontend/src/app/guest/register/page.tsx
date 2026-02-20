@@ -139,11 +139,7 @@ function GuestRegisterContent() {
         throw new Error(result?.message || "Registration failed");
       }
 
-      if (result?.data?.otp && process.env.NODE_ENV === "development") {
-        toast.success(`Dev Mode OTP: ${result.data.otp}`, { duration: 9000 });
-      } else {
-        toast.success(result?.message || "Verification code sent!");
-      }
+      toast.success(result?.message || "Verification code sent!");
 
       const otpParams = new URLSearchParams({
         email: data.email,

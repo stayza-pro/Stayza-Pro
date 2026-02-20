@@ -34,6 +34,15 @@ export default function GuestBookingDetailsPage() {
 
   const [authChecked, setAuthChecked] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    canCancel: boolean;
+    refundInfo?: {
+      totals?: { customerRefund?: number };
+      currency?: string;
+      warning?: string | null;
+    };
+  } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const { user, isAuthenticated, isLoading } = useCurrentUser();
   const {
@@ -221,8 +230,26 @@ export default function GuestBookingDetailsPage() {
     if (!booking) {
       return false;
     }
-    return booking.status === "PENDING" || booking.status === "ACTIVE";
+    const isActiveOrPending =
+      booking.status === "PENDING" || booking.status === "ACTIVE";
+    const hoursUntilCheckIn =
+      (new Date(booking.checkInDate).getTime() - Date.now()) / 3_600_000;
+    return isActiveOrPending && hoursUntilCheckIn >= 24;
   }, [booking]);
+
+  const handleCancelClick = React.useCallback(async () => {
+    if (!bookingId) return;
+    setPreviewLoading(true);
+    try {
+      const preview = await bookingService.previewCancellation(bookingId);
+      setPreviewData(preview);
+    } catch {
+      setPreviewData(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+    setShowCancelDialog(true);
+  }, [bookingId]);
 
   const handleLifecycleRefresh = React.useCallback(async () => {
     await refetchBooking();
@@ -366,7 +393,7 @@ export default function GuestBookingDetailsPage() {
           <div className="lg:col-span-2 space-y-6">
             <Card className="p-8 rounded-2xl border bg-white border-gray-200">
               <h2 className="font-semibold mb-6 text-[24px] text-gray-900">
-                Appointment Details
+                Booking Details
               </h2>
 
               <div className="grid sm:grid-cols-2 gap-6">
@@ -384,6 +411,9 @@ export default function GuestBookingDetailsPage() {
                     <div className="text-sm mb-1 text-gray-500">Date</div>
                     <div className="font-semibold text-[18px] text-gray-900">
                       {formatDate(booking.checkInDate)}
+                    </div>
+                    <div className="text-sm mt-1 text-gray-500">
+                      to {formatDate(booking.checkOutDate)}
                     </div>
                   </div>
                 </div>
@@ -404,7 +434,7 @@ export default function GuestBookingDetailsPage() {
                       {timeLabel}
                     </div>
                     <div className="text-sm mt-1 text-gray-500">
-                      Duration based on stay period
+                      Check-in time
                     </div>
                   </div>
                 </div>
@@ -492,10 +522,11 @@ export default function GuestBookingDetailsPage() {
                 <Button
                   variant="outline"
                   className="sm:col-span-2 h-12 rounded-xl font-medium border-red-500 text-red-600 hover:text-red-700"
-                  onClick={() => setShowCancelDialog(true)}
+                  onClick={handleCancelClick}
+                  disabled={previewLoading}
                 >
                   <XCircle className="w-5 h-5 mr-2" />
-                  Cancel Booking
+                  {previewLoading ? "Loading..." : "Cancel Booking"}
                 </Button>
               ) : null}
             </div>
@@ -508,7 +539,11 @@ export default function GuestBookingDetailsPage() {
           onConfirm={() => cancelBookingMutation.mutate()}
           type="confirm"
           title="Cancel This Booking?"
-          message={`Are you sure you want to cancel your viewing appointment for ${booking.property?.title || "this property"}? This action cannot be undone.`}
+          message={`Are you sure you want to cancel your booking for ${booking.property?.title || "this property"}? ${
+            previewData?.refundInfo?.totals?.customerRefund != null
+              ? `You will receive a refund of ${previewData.refundInfo.currency || booking.currency || ""} ${previewData.refundInfo.totals.customerRefund.toLocaleString("en-NG", { minimumFractionDigits: 2 })} (90% room fee + full security deposit). `
+              : ""
+          }This action cannot be undone.`}
           confirmText="Yes, Cancel Booking"
           cancelText="Keep Booking"
           showCancel

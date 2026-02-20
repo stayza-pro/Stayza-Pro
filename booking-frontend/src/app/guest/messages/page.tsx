@@ -138,8 +138,11 @@ function MessagesContent() {
         ? response.data
         : [];
       setConversations(conversationsData);
-    } catch {
-      toast.error("Failed to load conversations");
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status !== 429) {
+        toast.error("Failed to load conversations");
+      }
       setConversations([]);
     } finally {
       setIsLoadingConversations(false);
@@ -235,10 +238,11 @@ function MessagesContent() {
           void fetchConversations();
         }
       }
-    } catch (error: any) {
-      if (error?.response?.status === 404) {
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
         setMessages([]);
-      } else {
+      } else if (status !== 429) {
         toast.error("Failed to load messages");
       }
     } finally {
@@ -309,7 +313,7 @@ function MessagesContent() {
 
     const conversationsInterval = window.setInterval(() => {
       void fetchConversations();
-    }, 15_000);
+    }, 60_000);
 
     return () => window.clearInterval(conversationsInterval);
   }, [isAuthenticated, user, fetchConversations]);
@@ -321,7 +325,7 @@ function MessagesContent() {
 
     const activeConversationInterval = window.setInterval(() => {
       void fetchMessages();
-    }, 5_000);
+    }, 15_000);
 
     return () => window.clearInterval(activeConversationInterval);
   }, [isAuthenticated, user, selectedConversation, fetchMessages]);

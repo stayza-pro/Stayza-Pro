@@ -1460,25 +1460,11 @@ router.get(
       booking,
     });
 
-    let tierPercentages = { customer: 0, realtor: 0, platform: 0 };
+    let tierPercentages = { customer: 90, realtor: 7, platform: 3 };
     let warning = null;
 
-    switch (refundCalc.tier) {
-      case "EARLY":
-        tierPercentages = { customer: 90, realtor: 7, platform: 3 };
-        break;
-      case "MEDIUM":
-        tierPercentages = { customer: 70, realtor: 20, platform: 10 };
-        break;
-      case "LATE":
-        tierPercentages = { customer: 0, realtor: 80, platform: 20 };
-        warning =
-          "⚠️ Late cancellation: You will only receive your security deposit back. Room fee will not be refunded.";
-        break;
-      case "NONE":
-        tierPercentages = { customer: 0, realtor: 0, platform: 0 };
-        warning = "❌ Cannot cancel after check-in time.";
-        break;
+    if (refundCalc.tier !== "EARLY") {
+      warning = "❌ Cancellation not allowed within 24 hours of check-in.";
     }
 
     const refundInfo = {

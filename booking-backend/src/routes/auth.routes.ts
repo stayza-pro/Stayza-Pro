@@ -1280,6 +1280,18 @@ router.post(
             slug: true,
           },
         },
+        referredByRealtor: {
+          select: {
+            id: true,
+            businessName: true,
+            tagline: true,
+            logoUrl: true,
+            primaryColor: true,
+            secondaryColor: true,
+            accentColor: true,
+            description: true,
+          },
+        },
       },
     });
 
@@ -1313,6 +1325,9 @@ router.post(
           phone: user.phone,
           role: user.role,
           isEmailVerified: user.isEmailVerified,
+          referralSource: user.referralSource,
+          referredByRealtorId: user.referredByRealtorId,
+          referredByRealtor: user.referredByRealtor,
           realtor: user.realtor,
         },
         accessToken,
@@ -1367,6 +1382,18 @@ router.post(
             slug: true,
           },
         },
+        referredByRealtor: {
+          select: {
+            id: true,
+            businessName: true,
+            tagline: true,
+            logoUrl: true,
+            primaryColor: true,
+            secondaryColor: true,
+            accentColor: true,
+            description: true,
+          },
+        },
       },
     });
 
@@ -1419,8 +1446,12 @@ router.post(
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.fullName,
+          phone: user.phone,
           role: user.role,
           isEmailVerified: user.isEmailVerified,
+          referralSource: user.referralSource,
+          referredByRealtorId: user.referredByRealtorId,
+          referredByRealtor: user.referredByRealtor,
           realtor: user.realtor,
         },
         accessToken,

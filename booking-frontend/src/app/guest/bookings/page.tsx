@@ -291,7 +291,7 @@ export default function GuestBookingsPage() {
             My Bookings
           </h1>
           <p className="text-lg text-gray-600">
-            Manage your property viewing appointments
+            Manage your property bookings
           </p>
         </div>
 
@@ -393,6 +393,9 @@ export default function GuestBookingsPage() {
                                 </div>
                                 <div className="font-medium text-gray-900">
                                   {formatDate(booking.checkInDate)}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  to {formatDate(booking.checkOutDate)}
                                 </div>
                               </div>
                             </div>
