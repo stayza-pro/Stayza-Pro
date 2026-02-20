@@ -246,7 +246,9 @@ export default function GuestBookingDetailsPage() {
 
   const canCompletePayment = useMemo(() => {
     if (!booking) return false;
-    return booking.paymentStatus === "INITIATED" && booking.status === "PENDING";
+    return (
+      booking.paymentStatus === "INITIATED" && booking.status === "PENDING"
+    );
   }, [booking]);
 
   const handleCancelClick = React.useCallback(async () => {

@@ -75,11 +75,8 @@ export default function GuestPropertyDetailsPage() {
     rangeEnd.setFullYear(rangeEnd.getFullYear() + 1);
     return toDateKey(rangeEnd);
   }, []);
-  const { data: availabilityData, isLoading: availabilityLoading } = usePropertyAvailability(
-    propertyId,
-    minCheckInDate,
-    availabilityRangeEnd,
-  );
+  const { data: availabilityData, isLoading: availabilityLoading } =
+    usePropertyAvailability(propertyId, minCheckInDate, availabilityRangeEnd);
   const unavailableDateSet = useMemo(
     () =>
       new Set(
