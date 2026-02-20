@@ -115,7 +115,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
 };
 
-const normalizePagination = (raw: unknown): NormalizedPagination | undefined => {
+const normalizePagination = (
+  raw: unknown,
+): NormalizedPagination | undefined => {
   if (!isRecord(raw)) {
     return undefined;
   }
@@ -133,19 +135,19 @@ const normalizePagination = (raw: unknown): NormalizedPagination | undefined => 
       typeof raw.hasNext === "boolean"
         ? raw.hasNext
         : typeof raw.hasNextPage === "boolean"
-        ? raw.hasNextPage
-        : currentPage < totalPages,
+          ? raw.hasNextPage
+          : currentPage < totalPages,
     hasPrev:
       typeof raw.hasPrev === "boolean"
         ? raw.hasPrev
         : typeof raw.hasPrevPage === "boolean"
-        ? raw.hasPrevPage
-        : currentPage > 1,
+          ? raw.hasPrevPage
+          : currentPage > 1,
   };
 };
 
 const normalizePaymentsList = (
-  payload: unknown
+  payload: unknown,
 ): { data: Payment[]; pagination?: NormalizedPagination } => {
   if (Array.isArray(payload)) {
     return { data: payload as Payment[] };
@@ -173,9 +175,8 @@ const normalizePaymentsList = (
 export const paymentService = {
   // Initialize Paystack split payment for a booking
   initializePaystackPayment: async (
-    data: PaystackInitializationRequest
+    data: PaystackInitializationRequest,
   ): Promise<PaystackInitializationResponse> => {
-    
     const response = await apiClient.post<{
       success: boolean;
       message: string;
@@ -187,18 +188,12 @@ export const paymentService = {
       };
     }>("/payments/initialize-paystack", data);
 
-    
-    
-    
-
     if (!response || !response.data) {
-      
       throw new Error("Invalid response from payment API");
     }
 
     // Check if data is nested or at top level
     const responseData = response.data.data || response.data;
-    
 
     if (!responseData) {
       throw new Error("Invalid response payload from payment API");
@@ -220,7 +215,7 @@ export const paymentService = {
 
   // Verify Paystack payment manually (fallback if webhook missed)
   verifyPaystackPayment: async (
-    data: PaystackVerificationRequest
+    data: PaystackVerificationRequest,
   ): Promise<PaystackVerificationResponse> => {
     // apiClient unwraps the backend response automatically
     // Backend: {success, message, data: {payment, booking}}
@@ -230,9 +225,6 @@ export const paymentService = {
       message: string;
       data?: PaymentVerificationData;
     }>("/payments/verify-paystack", data);
-
-    
-    
 
     const payload = (response.data || response) as PaymentVerificationEnvelope;
 
@@ -247,7 +239,7 @@ export const paymentService = {
   // Verify payment by booking ID
   // Use this when you have the bookingId but not the payment reference
   verifyPaymentByBooking: async (
-    data: VerifyByBookingRequest
+    data: VerifyByBookingRequest,
   ): Promise<VerifyByBookingResponse> => {
     // apiClient returns res.data which contains { success, message, data }
     const response = await apiClient.post<{
@@ -267,9 +259,9 @@ export const paymentService = {
   },
 
   getSavedMethods: async (): Promise<SavedPaymentMethod[]> => {
-    const response = await apiClient.get<{ savedMethods?: SavedPaymentMethod[] }>(
-      "/payments/saved-methods"
-    );
+    const response = await apiClient.get<{
+      savedMethods?: SavedPaymentMethod[];
+    }>("/payments/saved-methods");
 
     const payload =
       (response?.data as { savedMethods?: SavedPaymentMethod[] } | undefined) ||
@@ -279,7 +271,7 @@ export const paymentService = {
   },
 
   payWithSavedMethod: async (
-    data: SavedMethodPaymentRequest
+    data: SavedMethodPaymentRequest,
   ): Promise<SavedMethodPaymentResponse> => {
     const response = await apiClient.post<{
       success: boolean;
@@ -292,10 +284,7 @@ export const paymentService = {
       : undefined;
 
     return {
-      success:
-        response.success ??
-        nestedPayload?.success ??
-        false,
+      success: response.success ?? nestedPayload?.success ?? false,
       message:
         response.message ||
         nestedPayload?.message ||
@@ -309,7 +298,7 @@ export const paymentService = {
     try {
       await apiClient.post<unknown, CheckoutEventPayload>(
         "/payments/checkout-event",
-        payload
+        payload,
       );
     } catch {
       // Intentionally silent - analytics should never block booking flow.
@@ -372,11 +361,11 @@ export const paymentService = {
   // Request a refund for a payment
   requestRefund: async (
     paymentId: string,
-    payload?: { amount?: number; reason?: string }
+    payload?: { amount?: number; reason?: string },
   ): Promise<Payment> => {
     const response = await apiClient.post<Payment>(
       `/payments/${paymentId}/refund`,
-      payload
+      payload,
     );
     return response.data;
   },
@@ -393,7 +382,7 @@ export const paymentService = {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     if (!res.ok) {

@@ -647,9 +647,11 @@ export default function GuestPropertyDetailsPage() {
                 {(property.checkInTime || property.checkOutTime) && (
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     <Clock className="w-3 h-3 flex-shrink-0" />
-                    {property.checkInTime && `Check-in from ${property.checkInTime}`}
+                    {property.checkInTime &&
+                      `Check-in from ${property.checkInTime}`}
                     {property.checkInTime && property.checkOutTime && " · "}
-                    {property.checkOutTime && `Check-out by ${property.checkOutTime}`}
+                    {property.checkOutTime &&
+                      `Check-out by ${property.checkOutTime}`}
                   </p>
                 )}
 

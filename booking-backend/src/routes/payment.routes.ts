@@ -8,9 +8,7 @@ import {
 import { prisma } from "@/config/database";
 import { AuthenticatedRequest } from "@/types";
 import { paystackService } from "@/services/paystack";
-import {
-  sendEmail,
-} from "@/services/email";
+import { sendEmail } from "@/services/email";
 import { ReceiptGenerator } from "@/services/receiptGenerator";
 import {
   dedupeSavedPaymentMethods,
@@ -54,7 +52,7 @@ const CHECKOUT_EVENT_TYPE_SET = new Set<string>(CHECKOUT_EVENT_TYPES);
 
 const extractCheckoutEventName = (
   action: string,
-  details: unknown
+  details: unknown,
 ): CheckoutEventType | null => {
   if (typeof details === "object" && details !== null) {
     const payload = details as { event?: unknown };
@@ -76,7 +74,7 @@ const extractCheckoutEventName = (
 
 const extractCheckoutBookingKey = (
   entityId: string,
-  details: unknown
+  details: unknown,
 ): string | null => {
   if (typeof details === "object" && details !== null) {
     const payload = details as {
@@ -160,14 +158,16 @@ router.get(
 
     // Redirect to frontend success page with reference
     const meta = (payment.metadata as Record<string, unknown> | null) ?? {};
-    const callbackOrigin = typeof meta.originUrl === 'string' ? meta.originUrl : null;
-    const frontendUrl = callbackOrigin || config.FRONTEND_URL || "http://localhost:3000";
+    const callbackOrigin =
+      typeof meta.originUrl === "string" ? meta.originUrl : null;
+    const frontendUrl =
+      callbackOrigin || config.FRONTEND_URL || "http://localhost:3000";
     const successUrl = `${frontendUrl}/booking/payment/success?reference=${
       payment.reference
     }&provider=${payment.method.toLowerCase()}`;
 
     return res.redirect(successUrl);
-  })
+  }),
 );
 
 /**
@@ -426,7 +426,10 @@ router.post(
         });
       }
 
-      const payload = await initializeWithReference(existingPayment.id, reference)
+      const payload = await initializeWithReference(
+        existingPayment.id,
+        reference,
+      )
         .then((result) => result)
         .catch(() => ({
           authorizationUrl: undefined as string | undefined,
@@ -492,7 +495,7 @@ router.post(
           ? new Prisma.Decimal(
               (
                 Number(booking.roomFee) * Number(booking.commissionBaseRate)
-              ).toFixed(2)
+              ).toFixed(2),
             )
           : null,
         serviceFeeStayzaAmount: booking.serviceFeeStayza,
@@ -513,7 +516,7 @@ router.post(
         paymentStatus: payment.status,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -584,9 +587,8 @@ router.post(
       });
     }
 
-    const verificationResult = await paystackService.verifyPaystackTransaction(
-      reference
-    );
+    const verificationResult =
+      await paystackService.verifyPaystackTransaction(reference);
     const txData = verificationResult.data || {};
     const isApiSuccess = verificationResult.status === true;
     const isTransactionSuccess = txData.status === "success";
@@ -623,9 +625,9 @@ router.post(
 
       throw new AppError(
         `Payment amount mismatch: expected NGN ${Number(
-          payment.amount
+          payment.amount,
         ).toLocaleString()}, got NGN ${(actualAmount / 100).toLocaleString()}`,
-        400
+        400,
       );
     }
 
@@ -665,7 +667,7 @@ router.post(
         `Payment verification failed: ${
           verificationResult.message || txData.status || "Unknown error"
         }`,
-        400
+        400,
       );
     }
 
@@ -685,7 +687,7 @@ router.post(
         booking: finalized.booking,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -764,12 +766,12 @@ router.post(
     if (payment.method !== PaymentMethod.PAYSTACK) {
       throw new AppError(
         `Unsupported payment provider: ${payment.method}`,
-        400
+        400,
       );
     }
 
     const verificationResult = await paystackService.verifyPaystackTransaction(
-      payment.reference!
+      payment.reference!,
     );
     const txData = verificationResult.data || {};
     const isApiSuccess = verificationResult.status === true;
@@ -806,7 +808,7 @@ router.post(
         `Payment verification failed: ${
           verificationResult.message || txData.status
         }`,
-        400
+        400,
       );
     }
 
@@ -823,7 +825,7 @@ router.post(
         : "Payment verified successfully",
       data: { payment: finalized.payment, booking: finalized.booking },
     });
-  })
+  }),
 );
 
 /**
@@ -918,28 +920,22 @@ router.get(
         },
       },
     });
-  })
+  }),
 );
 
 router.post(
   "/checkout-event",
   optionalAuthenticate,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const {
-      event,
-      bookingId,
-      paymentId,
-      propertyId,
-      sessionId,
-      context,
-    } = req.body as {
-      event?: string;
-      bookingId?: string;
-      paymentId?: string;
-      propertyId?: string;
-      sessionId?: string;
-      context?: Record<string, unknown>;
-    };
+    const { event, bookingId, paymentId, propertyId, sessionId, context } =
+      req.body as {
+        event?: string;
+        bookingId?: string;
+        paymentId?: string;
+        propertyId?: string;
+        sessionId?: string;
+        context?: Record<string, unknown>;
+      };
 
     const normalizedEvent = (event || "").trim().toUpperCase();
     if (!CHECKOUT_EVENT_TYPE_SET.has(normalizedEvent)) {
@@ -977,7 +973,7 @@ router.post(
       success: true,
       message: "Checkout event tracked",
     });
-  })
+  }),
 );
 
 router.get(
@@ -1081,7 +1077,7 @@ router.get(
     for (const eventLog of checkoutEvents) {
       const eventName = extractCheckoutEventName(
         eventLog.action,
-        eventLog.details
+        eventLog.details,
       );
       if (!eventName) {
         continue;
@@ -1089,7 +1085,7 @@ router.get(
 
       const eventKey = extractCheckoutBookingKey(
         eventLog.entityId,
-        eventLog.details
+        eventLog.details,
       );
       if (!eventKey) {
         continue;
@@ -1128,30 +1124,30 @@ router.get(
 
     const startedCheckouts = Math.max(
       startedCheckoutPayments,
-      funnel.checkoutPageViewed
+      funnel.checkoutPageViewed,
     );
     const abandonedCheckouts = Math.max(
       abandonedCheckoutPayments,
-      funnel.checkoutSubmitFailed
+      funnel.checkoutSubmitFailed,
     );
 
     const completedCounts = new Map<string, number>();
     for (const booking of completedBookings) {
       completedCounts.set(
         booking.guestId,
-        (completedCounts.get(booking.guestId) || 0) + 1
+        (completedCounts.get(booking.guestId) || 0) + 1,
       );
     }
 
     const repeatGuestIds = new Set(
       Array.from(completedCounts.entries())
         .filter(([, count]) => count >= 2)
-        .map(([guestId]) => guestId)
+        .map(([guestId]) => guestId),
     );
 
     const activeRecentGuestIds = new Set(recentBookings.map((b) => b.guestId));
     const repeatGuestsDroppedOff = Array.from(repeatGuestIds).filter(
-      (guestId) => !activeRecentGuestIds.has(guestId)
+      (guestId) => !activeRecentGuestIds.has(guestId),
     ).length;
 
     const conversionRate =
@@ -1169,7 +1165,7 @@ router.get(
               ((funnel.checkoutPageViewed - funnel.paymentPageViewed) /
                 funnel.checkoutPageViewed) *
               100
-            ).toFixed(2)
+            ).toFixed(2),
           )
         : 0;
     const paymentToSuccessDropOffRate =
@@ -1179,7 +1175,7 @@ router.get(
               ((funnel.paymentInitiated - funnel.paymentSucceeded) /
                 funnel.paymentInitiated) *
               100
-            ).toFixed(2)
+            ).toFixed(2),
           )
         : 0;
 
@@ -1199,7 +1195,7 @@ router.get(
         funnel,
       },
     });
-  })
+  }),
 );
 
 router.get(
@@ -1234,7 +1230,7 @@ router.get(
         savedMethods,
       },
     });
-  })
+  }),
 );
 
 router.post(
@@ -1299,7 +1295,7 @@ router.post(
     ) {
       throw new AppError(
         "This booking already has an active payment process",
-        400
+        400,
       );
     }
 
@@ -1326,7 +1322,7 @@ router.post(
     if (!authorization.authorizationCode || !authorization.reusable) {
       throw new AppError(
         "Selected payment method is not reusable. Please pay with Paystack.",
-        400
+        400,
       );
     }
 
@@ -1358,7 +1354,7 @@ router.post(
             ? new Prisma.Decimal(
                 (
                   Number(booking.roomFee) * Number(booking.commissionBaseRate)
-                ).toFixed(2)
+                ).toFixed(2),
               )
             : null,
           serviceFeeStayzaAmount: booking.serviceFeeStayza,
@@ -1435,7 +1431,7 @@ router.post(
           chargeData?.gateway_response ||
           "Could not complete payment"
         }`,
-        400
+        400,
       );
     }
     const finalized = await finalizePaystackPayment({
@@ -1471,7 +1467,7 @@ router.post(
         booking: finalized.booking,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1577,13 +1573,13 @@ router.get(
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="receipt-${payment.reference}.pdf"`
+      `attachment; filename="receipt-${payment.reference}.pdf"`,
     );
 
     // Pipe PDF to response
     doc.pipe(res);
     doc.end();
-  })
+  }),
 );
 
 /**
@@ -1665,7 +1661,7 @@ router.get(
       success: true,
       data: { payment },
     });
-  })
+  }),
 );
 
 /**
@@ -1737,7 +1733,7 @@ router.post(
       message: "Payment record created",
       data: { payment },
     });
-  })
+  }),
 );
 
 /**
@@ -1774,7 +1770,7 @@ router.post(
         processRefund: "POST /api/refunds/:id/process",
       },
     });
-  })
+  }),
 );
 
 export default router;

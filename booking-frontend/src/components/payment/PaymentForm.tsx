@@ -79,7 +79,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     try {
       const response = await paymentService.initializePaystackPayment({
         bookingId: bookingData.bookingId,
-        originUrl: typeof window !== 'undefined' ? window.location.origin : '',
+        originUrl: typeof window !== "undefined" ? window.location.origin : "",
       });
 
       if (!response.authorizationUrl) {
@@ -98,7 +98,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             paymentId: response.paymentId,
             bookingId: bookingData.bookingId,
             reference: response.reference,
-          })
+          }),
         );
 
         window.location.href = response.authorizationUrl;
@@ -131,13 +131,15 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
 
           <div className="flex justify-between">
             <span className="text-gray-600">
-              {formatDate(bookingData.checkIn)} - {formatDate(bookingData.checkOut)}
+              {formatDate(bookingData.checkIn)} -{" "}
+              {formatDate(bookingData.checkOut)}
             </span>
           </div>
 
           <div className="flex justify-between">
             <span className="text-gray-600">
-              {nights} {nights === 1 ? "night" : "nights"} • {bookingData.guests}{" "}
+              {nights} {nights === 1 ? "night" : "nights"} •{" "}
+              {bookingData.guests}{" "}
               {bookingData.guests === 1 ? "guest" : "guests"}
             </span>
           </div>

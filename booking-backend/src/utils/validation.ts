@@ -93,7 +93,7 @@ export const createPropertySchema = Joi.object({
       "STUDIO",
       "LOFT",
       "TOWNHOUSE",
-      "OTHER"
+      "OTHER",
     )
     .required(),
   pricePerNight: Joi.number().positive().required(),
@@ -112,8 +112,8 @@ export const createPropertySchema = Joi.object({
   serviceFee: Joi.number().positive().optional(),
   cleaningFee: Joi.number().positive().optional(),
   securityDeposit: Joi.number().positive().optional(),
-  checkInTime: Joi.string().allow('', null).optional(),
-  checkOutTime: Joi.string().allow('', null).optional(),
+  checkInTime: Joi.string().allow("", null).optional(),
+  checkOutTime: Joi.string().allow("", null).optional(),
 });
 
 export const updatePropertySchema = Joi.object({
@@ -128,7 +128,7 @@ export const updatePropertySchema = Joi.object({
       "STUDIO",
       "LOFT",
       "TOWNHOUSE",
-      "OTHER"
+      "OTHER",
     )
     .optional(),
   pricePerNight: Joi.number().positive().optional(),
@@ -148,8 +148,8 @@ export const updatePropertySchema = Joi.object({
   cleaningFee: Joi.number().positive().optional(),
   securityDeposit: Joi.number().positive().optional(),
   isActive: Joi.boolean().optional(),
-  checkInTime: Joi.string().allow('', null).optional(),
-  checkOutTime: Joi.string().allow('', null).optional(),
+  checkInTime: Joi.string().allow("", null).optional(),
+  checkOutTime: Joi.string().allow("", null).optional(),
 });
 
 // Booking validation schemas

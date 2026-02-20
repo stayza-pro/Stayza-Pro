@@ -51,7 +51,7 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<Payment["status"] | null>(
-    null
+    null,
   );
   const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null);
   const [reference, setReference] = useState<string | null>(null);
@@ -69,13 +69,10 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
     setPaymentError(null);
 
     try {
-      
       const response = await paymentService.initializePaystackPayment({
         bookingId,
-        originUrl: typeof window !== 'undefined' ? window.location.origin : '',
+        originUrl: typeof window !== "undefined" ? window.location.origin : "",
       });
-
-      
 
       if (response.paymentStatus && response.paymentStatus !== "INITIATED") {
         setPaymentStatus(response.paymentStatus);
@@ -90,9 +87,8 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
       }
 
       if (!response.authorizationUrl || !response.reference) {
-        
         throw new Error(
-          "Unable to start Paystack payment. Please contact support."
+          "Unable to start Paystack payment. Please contact support.",
         );
       }
 
@@ -101,7 +97,7 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
         paymentId: response.paymentId,
         bookingId,
       };
-      
+
       localStorage.setItem("paystackPaymentMeta", JSON.stringify(paymentMeta));
 
       setAuthorizationUrl(response.authorizationUrl);
@@ -115,11 +111,10 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
         });
       }
 
-      
       window.location.href = response.authorizationUrl;
     } catch (error: unknown) {
       const message = serviceUtils.extractErrorMessage(error);
-      
+
       setPaymentError(message);
       onError(message);
     } finally {

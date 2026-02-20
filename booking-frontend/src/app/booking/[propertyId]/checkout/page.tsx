@@ -426,7 +426,7 @@ export default function BookingCheckoutPage() {
 
       const initResponse = await paymentService.initializePaystackPayment({
         bookingId,
-        originUrl: typeof window !== 'undefined' ? window.location.origin : '',
+        originUrl: typeof window !== "undefined" ? window.location.origin : "",
       });
       if (!initResponse.reference) {
         throw new Error("Unable to initialize Paystack payment reference.");
