@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, ChevronDown, Clock } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import DatePicker from "react-datepicker";
 import { format, isValid, parse } from "date-fns";
 import { cn } from "@/utils/cn";
@@ -281,12 +281,41 @@ export const AnimatedDateInput = ({
         onCalendarClose={() => setIsFocused(false)}
         dateFormat="MMM d, yyyy"
         placeholderText="mm/dd/yyyy"
-        nextMonthButtonLabel=""
-        previousMonthButtonLabel=""
-        nextMonthAriaLabel="Next month"
-        previousMonthAriaLabel="Previous month"
         disabled={disabled}
         required={required}
+        renderCustomHeader={({
+          date,
+          decreaseMonth,
+          increaseMonth,
+          prevMonthButtonDisabled,
+          nextMonthButtonDisabled,
+        }) => (
+          <div className="stayza-cal-header">
+            <button
+              type="button"
+              onClick={decreaseMonth}
+              disabled={prevMonthButtonDisabled}
+              aria-label="Previous month"
+              className="stayza-cal-nav-btn"
+            >
+              <ChevronLeft strokeWidth={2.2} />
+            </button>
+
+            <span className="stayza-cal-month-label">
+              {format(date, "MMMM yyyy")}
+            </span>
+
+            <button
+              type="button"
+              onClick={increaseMonth}
+              disabled={nextMonthButtonDisabled}
+              aria-label="Next month"
+              className="stayza-cal-nav-btn"
+            >
+              <ChevronRight strokeWidth={2.2} />
+            </button>
+          </div>
+        )}
         className={cn(
           "relative z-20 h-12 w-full cursor-pointer bg-transparent pl-12 pr-12 text-gray-900 outline-none transition-colors duration-200",
           disabled ? "cursor-not-allowed opacity-60" : "",

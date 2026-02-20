@@ -287,180 +287,293 @@
   }
 }
 
-/* Custom date picker dropdown styles used by AnimatedDateInput */
+/* ============================================================
+   Stayza DatePicker — Premium Redesign
+   react-datepicker + custom CSS design system
+   ============================================================ */
 
-/* Portal root rendered at document.body by react-datepicker's portalId.
-   Do NOT add position/transform here – Popper.js calculates offsets
-   against document.body, adding positioning breaks those calculations. */
+/* Portal root (appended to body by portalId) */
 #datepicker-portal {
   z-index: 9999;
 }
 
+/* Popper wrapper */
 .stayza-datepicker-popper {
   z-index: 9999 !important;
+  padding-top: 6px !important;
+  filter: drop-shadow(0 16px 40px rgba(15, 23, 42, 0.14))
+          drop-shadow(0 4px 12px rgba(15, 23, 42, 0.08));
 }
 
-/* Strip the default react-datepicker visible border/shadow so our custom class
-   takes full visual control */
+/* Kill default lib border/shadow so our custom class owns visuals */
 .stayza-datepicker-popper .react-datepicker {
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
-  font-family: 'Inter', system-ui, sans-serif;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* ── Calendar shell ─────────────────────────────────────────── */
 .stayza-datepicker {
-  position: relative;
   display: inline-block;
   width: 100%;
-  min-width: 300px;
-  border: 1px solid #e5e7eb !important;
-  border-radius: 16px !important;
-  background: #ffffff !important;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18) !important;
+  min-width: 312px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
   overflow: hidden;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 .stayza-datepicker .react-datepicker__triangle {
   display: none;
 }
 
-.stayza-datepicker .react-datepicker__header {
-  background: linear-gradient(135deg, #f8fafc, #eef2ff);
-  border-bottom: 1px solid #e5e7eb;
-  padding-top: 12px;
-}
-
 .stayza-datepicker .react-datepicker__month-container {
-  float: left;
+  float: none;
+  width: 100%;
 }
 
-.stayza-datepicker .react-datepicker__day-names,
-.stayza-datepicker .react-datepicker__week {
-  white-space: nowrap;
+/* ── Custom rendered header ──────────────────────────────────── */
+.stayza-datepicker .react-datepicker__header {
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 0;
+  border-radius: 0;
 }
 
-.stayza-datepicker .react-datepicker__current-month {
+/* flex row: [←]  March 2026  [→] */
+.stayza-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px 14px;
+  gap: 8px;
+}
+
+.stayza-cal-month-label {
+  flex: 1;
+  text-align: center;
   color: #0f172a;
   font-size: 15px;
   font-weight: 700;
-  text-align: left;
-  margin: 0 56px 8px 12px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-.stayza-datepicker .react-datepicker__day-name {
-  color: #475569;
-  font-size: 12px;
-  font-weight: 600;
-  width: 2rem;
-  line-height: 2rem;
-  display: inline-block;
-  text-align: center;
-}
-
-.stayza-datepicker .react-datepicker__month {
-  margin: 10px;
-}
-
-.stayza-datepicker .react-datepicker__day {
-  width: 2rem;
-  line-height: 2rem;
-  margin: 0.2rem;
-  border-radius: 8px;
-  color: #1f2937;
-  transition: all 0.2s ease;
-  display: inline-block;
-  text-align: center;
-}
-
-.stayza-datepicker .react-datepicker__day:hover {
-  background-color: #dbeafe;
-}
-
-.stayza-datepicker .react-datepicker__day--disabled,
-.stayza-datepicker .react-datepicker__day--blocked {
-  color: #9ca3af !important;
-  background: transparent !important;
-  cursor: not-allowed;
-  pointer-events: none;
-  opacity: 0.55;
-}
-
-.stayza-datepicker .react-datepicker__day--selected,
-.stayza-datepicker .react-datepicker__day--keyboard-selected {
-  background-color: #2563eb !important;
-  color: #ffffff !important;
-  font-weight: 700;
-}
-
-.stayza-datepicker .react-datepicker__day--today {
-  border: 1px solid #93c5fd;
-  font-weight: 700;
-}
-
-.stayza-datepicker .react-datepicker__navigation {
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
+/* Nav buttons rendered via renderCustomHeader (Lucide icons) */
+.stayza-cal-nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
-  overflow: visible;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #475569;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease,
+    transform 0.12s ease,
+    box-shadow 0.14s ease;
+  padding: 0;
+  outline: none;
 }
 
-.stayza-datepicker .react-datepicker__navigation:hover {
-  background-color: #e2e8f0;
+.stayza-cal-nav-btn svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
 }
 
-.stayza-datepicker .react-datepicker__navigation-icon {
+.stayza-cal-nav-btn:hover:not(:disabled) {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
+  color: #4f46e5;
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.18);
+}
+
+.stayza-cal-nav-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.stayza-cal-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Keep built-in nav rules but hide them — renderCustomHeader replaces them */
+.stayza-datepicker .react-datepicker__navigation {
+  display: none;
+}
+
+/* Month + year title — hidden since renderCustomHeader owns it */
+.stayza-datepicker .react-datepicker__current-month {
+  display: none;
+}
+
+/* ── Weekday label row ──────────────────────────────────────── */
+.stayza-datepicker .react-datepicker__day-names {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin: 0;
+  padding: 0 2px 10px;
+  white-space: nowrap;
+}
+
+.stayza-datepicker .react-datepicker__day-name {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 100%;
+  height: 28px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* ── Month grid ─────────────────────────────────────────────── */
+.stayza-datepicker .react-datepicker__month {
+  margin: 0;
+  padding: 10px 12px 16px;
+}
+
+.stayza-datepicker .react-datepicker__week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  white-space: nowrap;
+}
+
+/* ── Day cell base ──────────────────────────────────────────── */
+.stayza-datepicker .react-datepicker__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 38px;
+  margin: 2px auto;
+  border-radius: 10px;
+  color: #1e293b;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
   position: relative;
-  top: auto;
-  font-size: 0;
+  transition:
+    background-color 0.14s ease,
+    color 0.14s ease,
+    transform 0.12s ease,
+    box-shadow 0.14s ease;
+  -webkit-font-smoothing: antialiased;
+  outline: none;
 }
 
-.stayza-datepicker .react-datepicker__navigation-icon::before {
-  border-color: #334155 !important;
-  border-style: solid !important;
-  border-width: 2px 2px 0 0 !important;
-  content: '' !important;
-  display: block !important;
-  height: 8px !important;
-  width: 8px !important;
-  position: relative !important;
-  top: 0 !important;
+/* Hover — lift + soft blue tint */
+.stayza-datepicker .react-datepicker__day:not(.react-datepicker__day--disabled):not(.react-datepicker__day--blocked):hover {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.14);
+  z-index: 1;
 }
 
-.stayza-datepicker .react-datepicker__navigation--previous {
-  left: auto;
-  right: 42px;
+/* ── Today ──────────────────────────────────────────────────── */
+.stayza-datepicker .react-datepicker__day--today {
+  color: #2563eb;
+  font-weight: 700;
+  background-color: #eff6ff;
+  border-radius: 10px;
 }
 
-.stayza-datepicker
-  .react-datepicker__navigation--previous
-  .react-datepicker__navigation-icon::before {
-  transform: rotate(-135deg) !important;
-  left: 2px;
+/* Today dot indicator */
+.stayza-datepicker .react-datepicker__day--today::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #2563eb;
 }
 
-.stayza-datepicker .react-datepicker__navigation--next {
-  right: 8px;
+/* ── Selected ───────────────────────────────────────────────── */
+.stayza-datepicker .react-datepicker__day--selected {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+  transform: scale(1.06);
+  z-index: 2;
 }
 
-.stayza-datepicker
-  .react-datepicker__navigation--next
-  .react-datepicker__navigation-icon::before {
-  transform: rotate(45deg) !important;
-  right: 2px;
+.stayza-datepicker .react-datepicker__day--selected::after {
+  display: none;
+}
+
+/* Keyboard-focused (non-selected) */
+.stayza-datepicker .react-datepicker__day--keyboard-selected {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  font-weight: 600 !important;
+  box-shadow: inset 0 0 0 2px #93c5fd !important;
+}
+
+.stayza-datepicker .react-datepicker__day--keyboard-selected::after {
+  display: none;
+}
+
+/* ── Outside-month days ─────────────────────────────────────── */
+.stayza-datepicker .react-datepicker__day--outside-month {
+  color: #cbd5e1;
+  pointer-events: none;
+}
+
+/* ── Disabled / Blocked ─────────────────────────────────────── */
+.stayza-datepicker .react-datepicker__day--disabled,
+.stayza-datepicker .react-datepicker__day--blocked {
+  color: #cbd5e1 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+  cursor: not-allowed;
+  pointer-events: none;
+  font-weight: 400;
+  text-decoration: line-through;
+  text-decoration-color: #d1d5db;
+  opacity: 0.7;
+}
+
+.stayza-datepicker .react-datepicker__day--disabled::after,
+.stayza-datepicker .react-datepicker__day--blocked::after {
+  display: none;
+}
+
+/* ── Mobile tweaks (< 380px) ────────────────────────────────── */
+@media (max-width: 380px) {
+  .stayza-datepicker {
+    min-width: 280px;
+  }
+
+  .stayza-datepicker .react-datepicker__day {
+    font-size: 12px;
+    max-width: 34px;
+  }
+
+  .stayza-datepicker .react-datepicker__month {
+    padding: 8px 8px 12px;
+  }
 }
