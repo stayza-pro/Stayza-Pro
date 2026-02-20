@@ -290,9 +290,7 @@ export default function GuestBookingsPage() {
           <h1 className="font-semibold mb-3 text-gray-900 text-[clamp(32px,4vw,48px)]">
             My Bookings
           </h1>
-          <p className="text-lg text-gray-600">
-            Manage your property bookings
-          </p>
+          <p className="text-lg text-gray-600">Manage your property bookings</p>
         </div>
 
         <div

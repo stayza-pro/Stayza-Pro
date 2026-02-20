@@ -88,7 +88,7 @@ const getStaleUnpaidBookingFilter = (): Prisma.BookingWhereInput => {
 
 const getMonthlyConfirmedRoomFeeVolume = async (
   realtorId: string,
-  db: Pick<typeof prisma, "booking"> = prisma
+  db: Pick<typeof prisma, "booking"> = prisma,
 ): Promise<number> => {
   const { start, end } = getCurrentLagosMonthBounds();
 
@@ -101,7 +101,11 @@ const getMonthlyConfirmedRoomFeeVolume = async (
         realtorId,
       },
       status: {
-        in: [BookingStatus.ACTIVE, BookingStatus.COMPLETED, BookingStatus.DISPUTED],
+        in: [
+          BookingStatus.ACTIVE,
+          BookingStatus.COMPLETED,
+          BookingStatus.DISPUTED,
+        ],
       },
       payment: {
         status: {
@@ -238,7 +242,7 @@ router.post(
     if (!propertyId || !checkInDate || !checkOutDate) {
       throw new AppError(
         "Property ID, check-in date, and check-out date are required",
-        400
+        400,
       );
     }
 
@@ -270,11 +274,11 @@ router.post(
     }
 
     const nights = Math.ceil(
-      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
+      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
     );
     const financeConfig = await loadFinanceConfig();
     const monthlyVolume = await getMonthlyConfirmedRoomFeeVolume(
-      property.realtorId
+      property.realtorId,
     );
     const quote = quoteBooking(
       {
@@ -287,7 +291,7 @@ router.post(
         monthlyVolume,
         paystackMode: "LOCAL",
       },
-      financeConfig
+      financeConfig,
     );
 
     res.json({
@@ -333,7 +337,7 @@ router.post(
         },
       },
     });
-  })
+  }),
 );
 
 /**
@@ -456,7 +460,7 @@ router.get(
           unavailableDates.length > 0 ? unavailableDates : undefined,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -543,7 +547,7 @@ router.post(
     if (totalGuests > property.maxGuests) {
       throw new AppError(
         `Property can accommodate maximum ${property.maxGuests} guests`,
-        400
+        400,
       );
     }
 
@@ -610,7 +614,7 @@ router.post(
       }
 
       const nights = Math.ceil(
-        (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
+        (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       const pricePerNight = Number(property.pricePerNight);
@@ -623,7 +627,7 @@ router.post(
         : 0;
       const monthlyVolume = await getMonthlyConfirmedRoomFeeVolume(
         property.realtor.id,
-        tx
+        tx,
       );
       const quote = quoteBooking(
         {
@@ -634,7 +638,7 @@ router.post(
           monthlyVolume,
           paystackMode: "LOCAL",
         },
-        financeConfig
+        financeConfig,
       );
       const totalPrice = quote.totalPayable;
 
@@ -660,18 +664,20 @@ router.post(
           serviceFee: new Prisma.Decimal(quote.serviceFee),
           platformFee: new Prisma.Decimal(quote.platformFee),
           commissionBaseRate: new Prisma.Decimal(
-            quote.commissionSnapshot.baseRate
+            quote.commissionSnapshot.baseRate,
           ),
           commissionVolumeReductionRate: new Prisma.Decimal(
-            quote.commissionSnapshot.volumeReductionRate
+            quote.commissionSnapshot.volumeReductionRate,
           ),
           commissionEffectiveRate: new Prisma.Decimal(
-            quote.commissionSnapshot.effectiveRate
+            quote.commissionSnapshot.effectiveRate,
           ),
           monthlyVolumeAtPricing: new Prisma.Decimal(monthlyVolume),
-          serviceFeeStayza: new Prisma.Decimal(quote.serviceFeeBreakdown.stayza),
+          serviceFeeStayza: new Prisma.Decimal(
+            quote.serviceFeeBreakdown.stayza,
+          ),
           serviceFeeProcessing: new Prisma.Decimal(
-            quote.serviceFeeBreakdown.processing
+            quote.serviceFeeBreakdown.processing,
           ),
           processingFeeMode: quote.serviceFeeBreakdown.processingMode,
           guestId: req.user!.id,
@@ -734,7 +740,7 @@ router.post(
     } catch (notificationError) {
       logger.error(
         "Failed to send booking creation notifications:",
-        notificationError
+        notificationError,
       );
     }
 
@@ -757,7 +763,7 @@ router.post(
         req,
       })
       .catch(() => {});
-  })
+  }),
 );
 
 /**
@@ -870,7 +876,7 @@ router.get(
     ]);
 
     const bookingsWithAccessControl = bookings.map((booking) =>
-      applyGuestBookingAccessControl(booking as Record<string, unknown>, true)
+      applyGuestBookingAccessControl(booking as Record<string, unknown>, true),
     );
 
     res.json({
@@ -884,7 +890,7 @@ router.get(
         pages: Math.ceil(total / limitNum),
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1019,7 +1025,7 @@ router.get(
         pages: Math.ceil(total / limitNum),
       },
     });
-  })
+  }),
 );
 
 router.get(
@@ -1080,7 +1086,7 @@ router.get(
 
     const paymentVerified = isBookingPaymentConfirmed(
       booking.payment?.status ?? null,
-      booking.paymentStatus ?? null
+      booking.paymentStatus ?? null,
     );
 
     return res.json({
@@ -1109,7 +1115,7 @@ router.get(
         },
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1199,7 +1205,7 @@ router.get(
     const isGuestOwner = isOwner && req.user!.role === "GUEST";
     const bookingWithAccessControl = applyGuestBookingAccessControl(
       booking as Record<string, unknown>,
-      isGuestOwner
+      isGuestOwner,
     );
 
     res.json({
@@ -1207,7 +1213,7 @@ router.get(
       message: "Booking retrieved successfully",
       data: bookingWithAccessControl,
     });
-  })
+  }),
 );
 
 /**
@@ -1254,7 +1260,7 @@ router.put(
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     throw new AppError(
       "Manual booking status updates are disabled. Booking state is now managed automatically by payment, check-in/check-out, and dispute workflows.",
-      410
+      410,
     );
     const { id } = req.params;
     const { status } = req.body;
@@ -1293,16 +1299,16 @@ router.put(
     if (status === BookingStatus.ACTIVE && !isAdmin) {
       const paymentConfirmed = isBookingPaymentConfirmed(
         booking.payment?.status ?? null,
-        booking.paymentStatus ?? null
+        booking.paymentStatus ?? null,
       );
       const isBlockedDatesBooking = isBlockedDatesSpecialRequest(
-        booking.specialRequests
+        booking.specialRequests,
       );
 
       if (!paymentConfirmed && !isBlockedDatesBooking) {
         throw new AppError(
           "Booking can only be activated after successful payment verification",
-          400
+          400,
         );
       }
     }
@@ -1335,13 +1341,13 @@ router.put(
         notification = notificationHelpers.bookingConfirmed(
           updatedBooking.guestId,
           updatedBooking.id,
-          updatedBooking.property.title
+          updatedBooking.property.title,
         );
       } else if (status === BookingStatus.CANCELLED) {
         notification = notificationHelpers.bookingCancelled(
           updatedBooking.guestId,
           updatedBooking.id,
-          updatedBooking.property.title
+          updatedBooking.property.title,
         );
       } else if (status === BookingStatus.COMPLETED) {
         notification = {
@@ -1360,7 +1366,7 @@ router.put(
     } catch (notificationError) {
       logger.error(
         "Failed to send booking status update notifications:",
-        notificationError
+        notificationError,
       );
     }
 
@@ -1378,7 +1384,7 @@ router.put(
         req,
       })
       .catch(() => {});
-  })
+  }),
 );
 
 /**
@@ -1441,7 +1447,7 @@ router.get(
     if (!isGuest) {
       throw new AppError(
         "Only the booking guest can preview cancellation for this booking",
-        403
+        403,
       );
     }
 
@@ -1523,7 +1529,7 @@ router.get(
         paymentStatus: booking.payment?.status,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1566,7 +1572,6 @@ router.put(
     const { id } = req.params;
     const { reason } = req.body;
 
-    
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: {
@@ -1605,17 +1610,14 @@ router.put(
     const isOwner = booking.guestId === req.user!.id;
 
     if (!isOwner) {
-      throw new AppError(
-        "Only the booking guest can cancel this booking",
-        403
-      );
+      throw new AppError("Only the booking guest can cancel this booking", 403);
     }
 
     const cancellationCheck = await canCancelBooking(id);
     if (!cancellationCheck.canCancel) {
       throw new AppError(
         cancellationCheck.reason || "Booking cannot be cancelled at this time",
-        400
+        400,
       );
     }
 
@@ -1625,35 +1627,31 @@ router.put(
       {
         userId: req.user!.id,
         reason: reason || "Booking cancelled by user",
-      }
+      },
     );
 
     if (!transitionResult.success) {
       throw new AppError(
         transitionResult.error || "Failed to cancel booking",
-        400
+        400,
       );
     }
 
-    let refundInfo:
-      | {
-          amount?: number;
-          eligible?: boolean;
-          totalCustomerRefund?: number;
-          totalRealtorPortion?: number;
-          tier?: string;
-          [key: string]: unknown;
-        }
-      | null = null;
+    let refundInfo: {
+      amount?: number;
+      eligible?: boolean;
+      totalCustomerRefund?: number;
+      totalRealtorPortion?: number;
+      tier?: string;
+      [key: string]: unknown;
+    } | null = null;
 
-    
     // Process automatic cancellation refund based on tier
     if (
       booking.payment?.status === PaymentStatus.HELD ||
       booking.payment?.status === PaymentStatus.PARTIALLY_RELEASED ||
       booking.payment?.status === PaymentStatus.SETTLED
     ) {
-      
       try {
         const refundResult = await processAutomaticCancellationRefund(id);
 
@@ -1682,15 +1680,14 @@ router.put(
             notificationsSent: refundResult.notificationsSent,
             message: calc.reason,
           };
-
-                  } else {
-                    refundInfo = {
+        } else {
+          refundInfo = {
             eligible: false,
             error: refundResult.error || "Refund processing failed",
           };
         }
       } catch (refundError) {
-                logger.error("Refund processing failed:", refundError);
+        logger.error("Refund processing failed:", refundError);
         refundInfo = {
           eligible: false,
           error: "Refund processing failed - please contact support",
@@ -1708,7 +1705,7 @@ router.put(
         booking.guest.email,
         booking,
         booking.property,
-        refundInfo?.amount
+        refundInfo?.amount,
       );
     } catch (emailError) {
       logger.error("Failed to send cancellation email:", emailError);
@@ -1720,7 +1717,7 @@ router.put(
       const guestNotification = notificationHelpers.bookingCancelled(
         booking.guestId,
         booking.id,
-        booking.property.title
+        booking.property.title,
       );
       await notificationService.createAndSendNotification(guestNotification);
 
@@ -1746,7 +1743,7 @@ router.put(
     } catch (notificationError) {
       logger.error(
         "Failed to send cancellation notifications:",
-        notificationError
+        notificationError,
       );
     }
 
@@ -1764,7 +1761,7 @@ router.put(
         },
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1832,7 +1829,7 @@ router.get(
     if (!isAuthorized) {
       throw new AppError(
         "You do not have permission to view this booking escrow events",
-        403
+        403,
       );
     }
 
@@ -1866,7 +1863,7 @@ router.get(
       success: true,
       data: events,
     });
-  })
+  }),
 );
 
 /**
@@ -1920,7 +1917,7 @@ router.post(
         code: "BOOKING_MODIFICATION_DISABLED",
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1964,7 +1961,7 @@ router.get(
         code: "BOOKING_MODIFICATION_DISABLED",
       },
     });
-  })
+  }),
 );
 
 /**
@@ -2063,7 +2060,7 @@ router.post(
     if (booking.status !== BookingStatus.ACTIVE) {
       throw new AppError(
         "Can only extend confirmed or checked-in bookings",
-        400
+        400,
       );
     }
 
@@ -2072,7 +2069,10 @@ router.post(
     }
 
     if (booking.payment.method !== PaymentMethod.PAYSTACK) {
-      throw new AppError("Only Paystack extensions are currently supported", 400);
+      throw new AppError(
+        "Only Paystack extensions are currently supported",
+        400,
+      );
     }
 
     if (
@@ -2081,7 +2081,7 @@ router.post(
     ) {
       throw new AppError(
         "Booking extension is only available while payment is held in escrow",
-        400
+        400,
       );
     }
 
@@ -2113,7 +2113,7 @@ router.post(
     if (conflicts.length > 0) {
       throw new AppError(
         "Cannot extend: Property is booked for the requested dates",
-        400
+        400,
       );
     }
 
@@ -2124,19 +2124,19 @@ router.post(
       additionalRoomFee,
       "LOCAL",
       financeConfig,
-      "QUOTED"
+      "QUOTED",
     );
     const additionalServiceFee = Number(serviceFeeBreakdown.total.toFixed(2));
     const effectiveRate = Number(
       booking.commissionEffectiveRate ??
         booking.payment?.commissionEffectiveRate ??
-        0.1
+        0.1,
     );
     const additionalPlatformFee = Number(
-      (additionalRoomFee * effectiveRate).toFixed(2)
+      (additionalRoomFee * effectiveRate).toFixed(2),
     );
     const totalAdditionalCost = Number(
-      (additionalRoomFee + additionalServiceFee).toFixed(2)
+      (additionalRoomFee + additionalServiceFee).toFixed(2),
     );
 
     const paymentMetadata =
@@ -2168,7 +2168,7 @@ router.post(
     if (!authorizationCode || typeof authorizationCode !== "string") {
       throw new AppError(
         "Unable to charge extension automatically for this booking",
-        400
+        400,
       );
     }
 
@@ -2193,9 +2193,11 @@ router.post(
     if (!paymentSuccessful) {
       throw new AppError(
         `Extension payment failed: ${
-          chargeResult?.message || chargeData?.gateway_response || "unknown error"
+          chargeResult?.message ||
+          chargeData?.gateway_response ||
+          "unknown error"
         }`,
-        400
+        400,
       );
     }
 
@@ -2213,11 +2215,10 @@ router.post(
       providerId: chargeData?.id?.toString?.() || null,
     };
 
-    const existingExtensionCharges: Array<Record<string, unknown>> = Array.isArray(
-      paymentMetadata.extensionCharges
-    )
-      ? (paymentMetadata.extensionCharges as Array<Record<string, unknown>>)
-      : [];
+    const existingExtensionCharges: Array<Record<string, unknown>> =
+      Array.isArray(paymentMetadata.extensionCharges)
+        ? (paymentMetadata.extensionCharges as Array<Record<string, unknown>>)
+        : [];
 
     const updatedBooking = await prisma.$transaction(async (tx) => {
       const bookingUpdate = await tx.booking.update({
@@ -2235,15 +2236,14 @@ router.post(
           },
           serviceFeeStayza: new Prisma.Decimal(
             (
-              Number(booking.serviceFeeStayza || 0) +
-              serviceFeeBreakdown.stayza
-            ).toFixed(2)
+              Number(booking.serviceFeeStayza || 0) + serviceFeeBreakdown.stayza
+            ).toFixed(2),
           ),
           serviceFeeProcessing: new Prisma.Decimal(
             (
               Number(booking.serviceFeeProcessing || 0) +
               serviceFeeBreakdown.processing
-            ).toFixed(2)
+            ).toFixed(2),
           ),
           processingFeeMode: serviceFeeBreakdown.processingMode,
           platformFee: {
@@ -2268,13 +2268,13 @@ router.post(
             (
               Number(booking.payment!.serviceFeeStayzaAmount || 0) +
               serviceFeeBreakdown.stayza
-            ).toFixed(2)
+            ).toFixed(2),
           ),
           serviceFeeProcessingQuotedAmount: new Prisma.Decimal(
             (
               Number(booking.payment!.serviceFeeProcessingQuotedAmount || 0) +
               serviceFeeBreakdown.processing
-            ).toFixed(2)
+            ).toFixed(2),
           ),
           processingFeeModeQuoted: serviceFeeBreakdown.processingMode,
           platformFeeAmount: {
@@ -2282,7 +2282,10 @@ router.post(
           },
           metadata: {
             ...paymentMetadata,
-            extensionCharges: [...existingExtensionCharges, extensionChargeEntry],
+            extensionCharges: [
+              ...existingExtensionCharges,
+              extensionChargeEntry,
+            ],
             lastExtensionCharge: extensionChargeEntry,
           } as Prisma.InputJsonValue,
         },
@@ -2334,7 +2337,7 @@ router.post(
             toParty: "PLATFORM_WALLET",
             transactionReference: extensionReference,
             notes: `Service fee of ${additionalServiceFee.toFixed(
-              2
+              2,
             )} collected immediately for extension (${serviceFeeBreakdown.processingMode})`,
             triggeredBy: userId,
             providerResponse: chargeData,
@@ -2361,7 +2364,7 @@ router.post(
             toParty: "ESCROW",
             transactionReference: extensionReference,
             notes: `Additional room fee of ${additionalRoomFee.toFixed(
-              2
+              2,
             )} held in escrow for extension`,
             triggeredBy: userId,
             providerResponse: chargeData,
@@ -2379,7 +2382,7 @@ router.post(
         type: "BOOKING_CONFIRMED",
         title: "Booking Extended",
         message: `Guest extended booking #${booking.id.slice(
-          -6
+          -6,
         )} by ${parsedAdditionalNights} night(s)`,
         bookingId: id,
         priority: "normal",
@@ -2429,7 +2432,7 @@ router.post(
         booking: updatedBooking,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -2525,7 +2528,7 @@ router.get(
           `DTEND:${checkOut.toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
           `SUMMARY:Booked`,
           `STATUS:${booking.status === "ACTIVE" ? "ACTIVE" : "TENTATIVE"}`,
-          "END:VEVENT"
+          "END:VEVENT",
         );
       });
 
@@ -2534,7 +2537,7 @@ router.get(
       res.setHeader("Content-Type", "text/calendar");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${propertyId}-calendar.ics"`
+        `attachment; filename="${propertyId}-calendar.ics"`,
       );
       return res.send(ical.join("\r\n"));
     }
@@ -2573,7 +2576,7 @@ router.get(
         calendar,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -2686,7 +2689,7 @@ router.post(
     if (conflicts.length > 0) {
       throw new AppError(
         "Cannot block dates: There are existing bookings during this period",
-        400
+        400,
       );
     }
 
@@ -2746,7 +2749,7 @@ router.post(
         blockedBooking,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -2796,7 +2799,7 @@ router.post(
     } else {
       throw new AppError(
         "Unauthorized to confirm check-in for this booking",
-        403
+        403,
       );
     }
 
@@ -2804,7 +2807,7 @@ router.post(
     const result = await checkinService.default.confirmCheckIn(
       bookingId,
       confirmationType,
-      userId
+      userId,
     );
 
     logger.info("Check-in confirmed", {
@@ -2825,7 +2828,7 @@ router.post(
         disputeWindowDuration: "1 hour",
       },
     });
-  })
+  }),
 );
 
 /**
@@ -2869,7 +2872,7 @@ router.post(
     if (booking.stayStatus !== "CHECKED_IN") {
       throw new AppError(
         `Cannot checkout. Must be checked in first. Current stayStatus: ${booking.stayStatus}`,
-        400
+        400,
       );
     }
 
@@ -2953,7 +2956,7 @@ router.post(
         depositAmount: booking.securityDeposit,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -3020,7 +3023,7 @@ router.get(
         realtorDisputeWindow,
       },
     });
-  })
+  }),
 );
 
 export default router;

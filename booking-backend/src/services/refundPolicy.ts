@@ -59,7 +59,7 @@ export function calculateCancellationRefund({
   if (hoursUntilCheckIn >= EARLY_HOURS) {
     tier = RefundTier.EARLY;
     reason = `Early cancellation (${hoursUntilCheckIn.toFixed(
-      1
+      1,
     )}h before check-in)`;
   } else {
     tier = RefundTier.NONE;

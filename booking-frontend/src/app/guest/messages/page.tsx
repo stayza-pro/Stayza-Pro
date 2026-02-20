@@ -139,7 +139,8 @@ function MessagesContent() {
         : [];
       setConversations(conversationsData);
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
       if (status !== 429) {
         toast.error("Failed to load conversations");
       }
@@ -239,7 +240,8 @@ function MessagesContent() {
         }
       }
     } catch (error: unknown) {
-      const status = (error as { response?: { status?: number } })?.response?.status;
+      const status = (error as { response?: { status?: number } })?.response
+        ?.status;
       if (status === 404) {
         setMessages([]);
       } else if (status !== 429) {

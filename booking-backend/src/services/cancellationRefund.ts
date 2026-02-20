@@ -22,7 +22,7 @@ export interface CancellationRefundResult {
  * - Notifies realtor and admin
  */
 export async function processAutomaticCancellationRefund(
-  bookingId: string
+  bookingId: string,
 ): Promise<CancellationRefundResult> {
   try {
     // Fetch booking with all necessary relations
@@ -62,7 +62,7 @@ export async function processAutomaticCancellationRefund(
         {
           bookingId,
           paymentStatus: booking.payment.status,
-        }
+        },
       );
 
       return {
@@ -118,7 +118,7 @@ export async function processAutomaticCancellationRefund(
       try {
         const paystackResult = await processRefund(
           booking.payment.reference,
-          refundCalc.totalCustomerRefund
+          refundCalc.totalCustomerRefund,
         );
         paystackRefundId = paystackResult?.id?.toString();
         logger.info("Paystack refund initiated", {
@@ -154,13 +154,13 @@ export async function processAutomaticCancellationRefund(
             notes: `Cancellation refund: ${
               refundCalc.tier
             } tier - ${refundCalc.customerRoomRefund.toFixed(
-              2
+              2,
             )} room fee + ${refundCalc.securityDepositRefund.toFixed(
-              2
+              2,
             )} security deposit`,
             triggeredBy: "SYSTEM",
           },
-        })
+        }),
       );
     } else {
       // Even if no room fee refund, security deposit still goes back
@@ -176,7 +176,7 @@ export async function processAutomaticCancellationRefund(
             notes: `Security deposit refund (${refundCalc.tier} tier cancellation)`,
             triggeredBy: "SYSTEM",
           },
-        })
+        }),
       );
     }
 
@@ -194,11 +194,11 @@ export async function processAutomaticCancellationRefund(
             notes: `Cancellation payout: ${
               refundCalc.tier
             } tier - ${refundCalc.realtorRoomPortion.toFixed(
-              2
+              2,
             )} room fee (cleaning fee already released)`,
             triggeredBy: "SYSTEM",
           },
-        })
+        }),
       );
     }
 
@@ -216,11 +216,11 @@ export async function processAutomaticCancellationRefund(
             notes: `Cancellation collection: ${
               refundCalc.tier
             } tier - ${refundCalc.platformRoomPortion.toFixed(
-              2
+              2,
             )} room fee (service fee already released)`,
             triggeredBy: "SYSTEM",
           },
-        })
+        }),
       );
     }
 
@@ -256,10 +256,12 @@ export async function processAutomaticCancellationRefund(
         userId: booking.property.realtor.user.id,
         type: "PAYMENT_COMPLETED",
         title: "Booking Cancelled",
-        message: `Booking cancelled. ${refundCalc.totalRealtorPortion > 0
+        message: `Booking cancelled. ${
+          refundCalc.totalRealtorPortion > 0
             ? `You receive ${booking.currency} ${refundCalc.totalRealtorPortion.toFixed(2)} (7% of room fee). Cleaning fee already released.`
             : `Cleaning fee already released to you.`
-        }`,        bookingId,
+        }`,
+        bookingId,
         data: {
           refundTier: refundCalc.tier,
           realtorPortion: refundCalc.realtorRoomPortion,
@@ -277,7 +279,8 @@ export async function processAutomaticCancellationRefund(
         userId: booking.guestId,
         type: "PAYMENT_COMPLETED",
         title: "Cancellation Refund Processed",
-        message: `Your booking cancellation refund of ${booking.currency} ${refundCalc.totalCustomerRefund.toFixed(2)} has been processed (90% room fee + full security deposit).`,        bookingId,
+        message: `Your booking cancellation refund of ${booking.currency} ${refundCalc.totalCustomerRefund.toFixed(2)} has been processed (90% room fee + full security deposit).`,
+        bookingId,
         data: {
           refundTier: refundCalc.tier,
           totalRefund: refundCalc.totalCustomerRefund,

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Info, Lock } from "lucide-react";
@@ -133,8 +139,8 @@ export default function BookingCheckoutPage() {
   const unavailableDateSet = useMemo(
     () =>
       new Set(
-        (availabilityData?.unavailableDates || []).filter(
-          (v): v is string => Boolean(v),
+        (availabilityData?.unavailableDates || []).filter((v): v is string =>
+          Boolean(v),
         ),
       ),
     [availabilityData?.unavailableDates],
@@ -177,10 +183,13 @@ export default function BookingCheckoutPage() {
   const cleaningFee = bookingCalculation?.cleaningFee ?? fallbackCleaningFee;
   const serviceFee = bookingCalculation?.serviceFee ?? fallbackServiceFee;
   const taxes = bookingCalculation?.taxes ?? fallbackTaxes;
-  const securityDeposit = bookingCalculation?.securityDeposit ?? Number(
-    (property as unknown as { securityDeposit?: number })?.securityDeposit || 0,
-  );
-  const total = bookingCalculation?.total ?? (fallbackTotal + securityDeposit);
+  const securityDeposit =
+    bookingCalculation?.securityDeposit ??
+    Number(
+      (property as unknown as { securityDeposit?: number })?.securityDeposit ||
+        0,
+    );
+  const total = bookingCalculation?.total ?? fallbackTotal + securityDeposit;
 
   const formatPrice = (amount: number) => formatNaira(amount);
 
@@ -204,7 +213,14 @@ export default function BookingCheckoutPage() {
       return "The selected check-out date is already booked. Please choose another date.";
     }
     return null;
-  }, [checkIn, checkOut, minCheckInDate, nights, minNights, unavailableDateSet]);
+  }, [
+    checkIn,
+    checkOut,
+    minCheckInDate,
+    nights,
+    minNights,
+    unavailableDateSet,
+  ]);
 
   useEffect(() => {
     if (!user) return;

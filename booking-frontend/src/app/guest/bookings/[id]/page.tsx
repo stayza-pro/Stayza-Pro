@@ -201,10 +201,16 @@ export default function GuestBookingDetailsPage() {
 
   const heroImageUrl = useMemo(() => {
     const firstImage =
-      (booking?.property?.images as Array<
-        | string
-        | { url?: string | null; imageUrl?: string | null; src?: string | null }
-      >)?.[0] ?? null;
+      (
+        booking?.property?.images as Array<
+          | string
+          | {
+              url?: string | null;
+              imageUrl?: string | null;
+              src?: string | null;
+            }
+        >
+      )?.[0] ?? null;
     return normalizeImageUrl(firstImage);
   }, [booking?.property?.images]);
 
@@ -475,10 +481,10 @@ export default function GuestBookingDetailsPage() {
                 </div>
               </div>
 
-            {booking.specialRequests ? (
-              <div
-                className="mt-6 p-4 rounded-xl"
-                style={{ backgroundColor: secondarySurface }}
+              {booking.specialRequests ? (
+                <div
+                  className="mt-6 p-4 rounded-xl"
+                  style={{ backgroundColor: secondarySurface }}
                 >
                   <div className="text-sm font-semibold mb-2 text-gray-900">
                     Important Notes

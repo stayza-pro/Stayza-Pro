@@ -7,10 +7,10 @@ export class BookingStatusConflictError extends Error {
   constructor(
     public bookingId: string,
     public expected: BookingStatus,
-    public actual?: BookingStatus
+    public actual?: BookingStatus,
   ) {
     super(
-      `Booking ${bookingId} status conflict. Expected ${expected} got ${actual}`
+      `Booking ${bookingId} status conflict. Expected ${expected} got ${actual}`,
     );
   }
 }
@@ -19,12 +19,12 @@ export class InvalidStatusTransitionError extends Error {
   constructor(
     public from: BookingStatus,
     public to: BookingStatus,
-    public reason?: string
+    public reason?: string,
   ) {
     super(
       `Invalid booking status transition from ${from} to ${to}${
         reason ? `: ${reason}` : ""
-      }`
+      }`,
     );
   }
 }
@@ -83,7 +83,7 @@ export function isTransitionAllowed(
     paymentStatus?: string;
     checkInDate?: Date;
     currentDate?: Date;
-  }
+  },
 ): { allowed: boolean; reason?: string } {
   // Check if transition exists in state machine
   const allowedTransitions = BOOKING_STATUS_TRANSITIONS[from];
@@ -138,7 +138,7 @@ export async function transitionBookingStatus(
     reason?: string;
     extraData?: Record<string, any>;
     skipValidation?: boolean;
-  } = {}
+  } = {},
 ) {
   // Get current booking to validate context
   const booking = await prisma.booking.findUnique({
@@ -158,7 +158,7 @@ export async function transitionBookingStatus(
     throw new BookingStatusConflictError(
       bookingId,
       from,
-      booking.status as BookingStatus
+      booking.status as BookingStatus,
     );
   }
 
@@ -195,7 +195,7 @@ export async function transitionBookingStatus(
     throw new BookingStatusConflictError(
       bookingId,
       from,
-      current?.status as BookingStatus | undefined
+      current?.status as BookingStatus | undefined,
     );
   }
 
@@ -245,7 +245,7 @@ export async function safeTransitionBookingStatus(
     reason?: string;
     extraData?: Record<string, any>;
     skipValidation?: boolean;
-  } = {}
+  } = {},
 ): Promise<{ success: boolean; booking?: any; error?: string }> {
   try {
     // Get current status
@@ -291,7 +291,7 @@ export async function safeTransitionBookingStatus(
  */
 export async function assertBookingStatus(
   bookingId: string,
-  allowed: BookingStatus[]
+  allowed: BookingStatus[],
 ) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) throw new Error("Booking not found");
@@ -299,7 +299,7 @@ export async function assertBookingStatus(
     throw new BookingStatusConflictError(
       bookingId,
       allowed[0],
-      booking.status as BookingStatus
+      booking.status as BookingStatus,
     );
   }
   return booking;
@@ -309,7 +309,7 @@ export async function assertBookingStatus(
  * Get all possible next states for a given booking status
  */
 export function getNextAllowedStatuses(
-  currentStatus: BookingStatus
+  currentStatus: BookingStatus,
 ): BookingStatus[] {
   return BOOKING_STATUS_TRANSITIONS[currentStatus] || [];
 }
@@ -318,7 +318,7 @@ export function getNextAllowedStatuses(
  * Check if a booking can be cancelled based on current status and business rules
  */
 export async function canCancelBooking(
-  bookingId: string
+  bookingId: string,
 ): Promise<{ canCancel: boolean; reason?: string; refundEligible?: boolean }> {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -377,7 +377,7 @@ export async function batchUpdateBookingStatus(
     adminId: string;
     reason: string;
     skipValidation?: boolean;
-  }
+  },
 ): Promise<{
   successful: string[];
   failed: Array<{ bookingId: string; error: string }>;

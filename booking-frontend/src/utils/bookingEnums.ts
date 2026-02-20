@@ -21,7 +21,10 @@ import {
  * Valid state transitions for BookingStatus
  * Based on backend state machine in bookingStatus.ts
  */
-export const BOOKING_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+export const BOOKING_STATUS_TRANSITIONS: Record<
+  BookingStatus,
+  BookingStatus[]
+> = {
   PENDING: ["ACTIVE", "CANCELLED"],
   ACTIVE: ["DISPUTED", "COMPLETED", "CANCELLED"],
   DISPUTED: ["COMPLETED", "CANCELLED"],
@@ -34,7 +37,7 @@ export const BOOKING_STATUS_TRANSITIONS: Record<BookingStatus, BookingStatus[]> 
  */
 export const isValidBookingStatusTransition = (
   from: BookingStatus,
-  to: BookingStatus
+  to: BookingStatus,
 ): boolean => {
   return BOOKING_STATUS_TRANSITIONS[from]?.includes(to) ?? false;
 };
@@ -58,7 +61,7 @@ export const canCancelBooking = (status: BookingStatus): boolean => {
  */
 export const formatBookingStatus = (
   status: BookingStatus,
-  stayStatus?: StayStatus
+  stayStatus?: StayStatus,
 ): string => {
   if (status === "ACTIVE") {
     if (stayStatus === "CHECKED_IN") return "Checked In";
@@ -80,7 +83,7 @@ export const formatBookingStatus = (
  */
 export const getBookingStatusColor = (
   status: BookingStatus,
-  stayStatus?: StayStatus
+  stayStatus?: StayStatus,
 ): {
   bg: string;
   text: string;
@@ -103,7 +106,10 @@ export const getBookingStatusColor = (
     }
   }
 
-  const colorMap: Record<BookingStatus, { bg: string; text: string; border: string }> = {
+  const colorMap: Record<
+    BookingStatus,
+    { bg: string; text: string; border: string }
+  > = {
     PENDING: {
       bg: "bg-yellow-50",
       text: "text-yellow-700",
@@ -160,9 +166,7 @@ export const isPaymentCompleted = (status: PaymentStatus): boolean => {
 /**
  * Check if a receipt is available for the payment status
  */
-export const canDownloadReceipt = (
-  status?: PaymentStatus | null
-): boolean => {
+export const canDownloadReceipt = (status?: PaymentStatus | null): boolean => {
   if (!status) return false;
   return ["HELD", "PARTIALLY_RELEASED", "SETTLED"].includes(status);
 };
@@ -193,7 +197,7 @@ export const formatPaymentStatus = (status: PaymentStatus): string => {
  * Get color class for payment status badge
  */
 export const getPaymentStatusColor = (
-  status: PaymentStatus
+  status: PaymentStatus,
 ): {
   bg: string;
   text: string;
@@ -261,7 +265,7 @@ export const formatPayoutStatus = (status: PayoutStatus): string => {
  * Get color class for payout status badge
  */
 export const getPayoutStatusColor = (
-  status: PayoutStatus
+  status: PayoutStatus,
 ): {
   bg: string;
   text: string;
@@ -339,7 +343,7 @@ export const calculateRefundAmounts = (
   securityDeposit: number,
   serviceFee: number,
   cleaningFee: number,
-  tier: RefundTier
+  tier: RefundTier,
 ): {
   customerRefund: number;
   realtorPayout: number;
@@ -434,7 +438,7 @@ export const getCustomerRefundSummary = (tier: RefundTier): string => {
 export const getBookingStatusSummary = (
   bookingStatus: BookingStatus,
   paymentStatus: PaymentStatus,
-  stayStatus?: StayStatus
+  stayStatus?: StayStatus,
 ): {
   label: string;
   description: string;
@@ -508,7 +512,7 @@ export const isBookingActive = (
   bookingStatus: BookingStatus,
   stayStatus: StayStatus | undefined,
   checkInDate: Date,
-  checkOutDate: Date
+  checkOutDate: Date,
 ): boolean => {
   const now = new Date();
   return (
@@ -522,7 +526,7 @@ export const isBookingActive = (
  */
 export const canModifyBooking = (
   bookingStatus: BookingStatus,
-  checkInDate: Date
+  checkInDate: Date,
 ): boolean => {
   const now = new Date();
   const hoursUntilCheckIn =

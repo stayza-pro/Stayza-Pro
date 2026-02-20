@@ -57,7 +57,9 @@ async function cleanupExpiredPendingRegistrations() {
 }
 
 const normalizeEmail = (value: unknown): string =>
-  String(value ?? "").trim().toLowerCase();
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
 
 /**
  * @swagger
@@ -366,12 +368,14 @@ router.post(
       const checkEmailPath = `/realtor/check-email?email=${encodeURIComponent(
         user.email,
       )}`;
-      loginRedirectUrl = buildMainDomainUrl(
-        checkEmailPath,
+      loginRedirectUrl = buildMainDomainUrl(checkEmailPath, req.headers.host);
+    } else if (user.role === "ADMIN") {
+      dashboardUrl = getDashboardUrl(
+        "admin",
+        undefined,
+        false,
         req.headers.host,
       );
-    } else if (user.role === "ADMIN") {
-      dashboardUrl = getDashboardUrl("admin", undefined, false, req.headers.host);
       loginRedirectUrl = dashboardUrl;
     } else {
       loginRedirectUrl = buildMainDomainUrl("/", req.headers.host);
@@ -1804,4 +1808,3 @@ router.delete(
 );
 
 export default router;
-
