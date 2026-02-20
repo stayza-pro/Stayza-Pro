@@ -27,16 +27,36 @@ interface NotificationProviderProps {
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const { user, token } = useAuth();
   const { toasts, removeToast, error, info } = useToast();
+  // Persist shown notification IDs in sessionStorage so toasts don't re-fire on page refresh.
+  // On mount, seed the Set from any IDs already recorded this session.
   const shownNotificationIdsRef = useRef<Set<string>>(new Set());
 
-  // Clear shown notification IDs every 5 minutes to prevent memory leak
   useEffect(() => {
-    const interval = setInterval(() => {
-      shownNotificationIdsRef.current.clear();
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
+    try {
+      const stored = sessionStorage.getItem("shownNotificationIds");
+      if (stored) {
+        const parsed: string[] = JSON.parse(stored);
+        parsed.forEach((id) => shownNotificationIdsRef.current.add(id));
+      }
+    } catch {
+      // sessionStorage unavailable — proceed without persistence
+    }
   }, []);
+
+  const trackShownId = (id: string) => {
+    shownNotificationIdsRef.current.add(id);
+    try {
+      const stored = sessionStorage.getItem("shownNotificationIds");
+      const existing: string[] = stored ? JSON.parse(stored) : [];
+      if (!existing.includes(id)) {
+        // Keep at most 200 IDs to avoid unbounded growth
+        const updated = [id, ...existing].slice(0, 200);
+        sessionStorage.setItem("shownNotificationIds", JSON.stringify(updated));
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   // Initialize socket connection and handle real-time notifications
   useEffect(() => {
@@ -52,7 +72,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
           return;
         }
 
-        shownNotificationIdsRef.current.add(notification.id);
+        trackShownId(notification.id);
         const duration = getNotificationDuration(notification.priority);
 
         switch (notification.priority) {

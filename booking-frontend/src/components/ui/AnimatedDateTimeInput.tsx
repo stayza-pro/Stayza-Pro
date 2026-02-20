@@ -26,7 +26,8 @@ interface BaseAnimatedInputProps {
 
 type Meridiem = "AM" | "PM";
 
-const toTwoDigits = (value: number): string => value.toString().padStart(2, "0");
+const toTwoDigits = (value: number): string =>
+  value.toString().padStart(2, "0");
 
 const parseDateValue = (value: string): Date | null => {
   if (!value) return null;
@@ -48,9 +49,12 @@ const normalizeDate = (value: Date): Date => {
   return normalized;
 };
 
-const toDateKey = (value: Date): string => format(normalizeDate(value), "yyyy-MM-dd");
+const toDateKey = (value: Date): string =>
+  format(normalizeDate(value), "yyyy-MM-dd");
 
-const parseTimeValue = (value: string): {
+const parseTimeValue = (
+  value: string,
+): {
   hour12: number;
   minute: number;
   meridiem: Meridiem;
@@ -68,7 +72,8 @@ const parseTimeValue = (value: string): {
     return { hour12: 2, minute: 0, meridiem: "PM" };
   }
 
-  const safeMinute = Number.isFinite(minute) && minute >= 0 && minute <= 59 ? minute : 0;
+  const safeMinute =
+    Number.isFinite(minute) && minute >= 0 && minute <= 59 ? minute : 0;
   const meridiem: Meridiem = hour24 >= 12 ? "PM" : "AM";
 
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
@@ -117,13 +122,17 @@ const AnimatedInputShell = ({
     transition={{ duration: 0.28, ease: "easeOut" }}
     className={cn("space-y-2", className)}
   >
-    <label className={cn("text-sm font-medium text-gray-900", labelClassName)}>{label}</label>
+    <label className={cn("text-sm font-medium text-gray-900", labelClassName)}>
+      {label}
+    </label>
 
     <motion.div
       whileHover={disabled ? undefined : { y: -1, scale: 1.01 }}
       transition={{ type: "spring", stiffness: 320, damping: 24 }}
       animate={{
-        borderColor: isFocused ? "rgba(59, 130, 246, 0.55)" : "rgba(229, 231, 235, 1)",
+        borderColor: isFocused
+          ? "rgba(59, 130, 246, 0.55)"
+          : "rgba(229, 231, 235, 1)",
         boxShadow: isFocused
           ? "0 10px 26px rgba(37, 99, 235, 0.20), 0 0 0 3px rgba(59, 130, 246, 0.18)"
           : "0 6px 18px rgba(15, 23, 42, 0.05)",
@@ -204,9 +213,7 @@ export const AnimatedDateInput = ({
 
     (unavailableDates || []).forEach((item) => {
       const date =
-        item instanceof Date
-          ? item
-          : parseFlexibleDateValue(String(item));
+        item instanceof Date ? item : parseFlexibleDateValue(String(item));
 
       if (date) {
         keys.add(toDateKey(date));
@@ -259,7 +266,9 @@ export const AnimatedDateInput = ({
     >
       <DatePicker
         selected={selectedDate}
-        onChange={(date: Date | null) => onChange(date ? format(date, "yyyy-MM-dd") : "")}
+        onChange={(date: Date | null) =>
+          onChange(date ? format(date, "yyyy-MM-dd") : "")
+        }
         minDate={effectiveMinDate || undefined}
         maxDate={maxDate || undefined}
         filterDate={isDateSelectable}
@@ -286,7 +295,7 @@ export const AnimatedDateInput = ({
         wrapperClassName="block w-full"
         calendarClassName="stayza-datepicker"
         popperClassName="stayza-datepicker-popper"
-        popperPlacement="bottom-start"
+        popperPlacement="auto"
       />
     </AnimatedInputShell>
   );
@@ -335,8 +344,14 @@ export const AnimatedTimeInput = ({
     };
   }, []);
 
-  const hours = useMemo(() => Array.from({ length: 12 }, (_, index) => index + 1), []);
-  const minutes = useMemo(() => Array.from({ length: 60 }, (_, index) => index), []);
+  const hours = useMemo(
+    () => Array.from({ length: 12 }, (_, index) => index + 1),
+    [],
+  );
+  const minutes = useMemo(
+    () => Array.from({ length: 60 }, (_, index) => index),
+    [],
+  );
 
   const updateTime = (
     nextHour12: number = hour12,
@@ -347,7 +362,9 @@ export const AnimatedTimeInput = ({
     onChange(`${toTwoDigits(hour24)}:${toTwoDigits(nextMinute)}`);
   };
 
-  const displayValue = value ? `${toTwoDigits(hour12)}:${toTwoDigits(minute)} ${meridiem}` : "Select time";
+  const displayValue = value
+    ? `${toTwoDigits(hour12)}:${toTwoDigits(minute)} ${meridiem}`
+    : "Select time";
 
   return (
     <div ref={containerRef} className="relative">
@@ -389,7 +406,9 @@ export const AnimatedTimeInput = ({
           >
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Hour</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Hour
+                </div>
                 <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
                   {hours.map((h) => (
                     <button
@@ -410,7 +429,9 @@ export const AnimatedTimeInput = ({
               </div>
 
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Minute</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Minute
+                </div>
                 <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
                   {minutes.map((m) => (
                     <button
@@ -431,7 +452,9 @@ export const AnimatedTimeInput = ({
               </div>
 
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Period</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Period
+                </div>
                 <div className="space-y-1">
                   {(["AM", "PM"] as const).map((period) => (
                     <button

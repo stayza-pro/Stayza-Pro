@@ -87,6 +87,12 @@ export default function BookingCheckoutPage() {
   // Ref to track whether Paystack callback fired (prevents onClose from false-failing)
   const paymentCallbackFired = useRef(false);
 
+  // Capture the original URL-param dates (from Book Again) so we can validate
+  // them once availability data loads — without causing dependency-loop issues.
+  const initialCheckInRef = useRef(searchParams.get("checkIn") || "");
+  const initialCheckOutRef = useRef(searchParams.get("checkOut") || "");
+  const datesValidatedRef = useRef(false);
+
   const [checkIn, setCheckIn] = useState(searchParams.get("checkIn") || "");
   const [checkOut, setCheckOut] = useState(searchParams.get("checkOut") || "");
   const [guests, setGuests] = useState<number>(
@@ -150,6 +156,32 @@ export default function BookingCheckoutPage() {
     () => Array.from(unavailableDateSet),
     [unavailableDateSet],
   );
+
+  // Once availability data arrives, validate any pre-filled dates (Book Again flow).
+  // If they're in the past or now unavailable, clear them and warn the user.
+  useEffect(() => {
+    if (datesValidatedRef.current) return;
+    if (!availabilityData) return;
+    const initCI = initialCheckInRef.current;
+    if (!initCI) return; // no pre-filled dates — nothing to check
+    datesValidatedRef.current = true;
+
+    const inPast = initCI < minCheckInDate;
+    const ciBlocked = unavailableDateSet.has(initCI);
+    const coBlocked = initialCheckOutRef.current
+      ? unavailableDateSet.has(initialCheckOutRef.current)
+      : false;
+
+    if (inPast || ciBlocked || coBlocked) {
+      setCheckIn("");
+      setCheckOut("");
+      toast.error(
+        inPast
+          ? "Those dates have already passed — please select new dates."
+          : "Those dates are no longer available — please select new dates.",
+      );
+    }
+  }, [availabilityData, unavailableDateSet, minCheckInDate]);
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
