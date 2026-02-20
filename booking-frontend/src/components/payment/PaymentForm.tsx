@@ -79,6 +79,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     try {
       const response = await paymentService.initializePaystackPayment({
         bookingId: bookingData.bookingId,
+        originUrl: typeof window !== 'undefined' ? window.location.origin : '',
       });
 
       if (!response.authorizationUrl) {

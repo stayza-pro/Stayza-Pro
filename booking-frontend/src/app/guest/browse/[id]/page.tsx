@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Star,
+  Clock,
 } from "lucide-react";
 import { AnimatedDateInput, Button } from "@/components/ui";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
@@ -642,6 +643,15 @@ export default function GuestPropertyDetailsPage() {
                   inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-blue-50/50"
                   iconClassName="text-blue-500"
                 />
+
+                {(property.checkInTime || property.checkOutTime) && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3 flex-shrink-0" />
+                    {property.checkInTime && `Check-in from ${property.checkInTime}`}
+                    {property.checkInTime && property.checkOutTime && " · "}
+                    {property.checkOutTime && `Check-out by ${property.checkOutTime}`}
+                  </p>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-900">

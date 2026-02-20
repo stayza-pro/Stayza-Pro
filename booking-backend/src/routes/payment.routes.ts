@@ -159,7 +159,9 @@ router.get(
     }
 
     // Redirect to frontend success page with reference
-    const frontendUrl = config.FRONTEND_URL || "http://localhost:3000";
+    const meta = (payment.metadata as Record<string, unknown> | null) ?? {};
+    const callbackOrigin = typeof meta.originUrl === 'string' ? meta.originUrl : null;
+    const frontendUrl = callbackOrigin || config.FRONTEND_URL || "http://localhost:3000";
     const successUrl = `${frontendUrl}/booking/payment/success?reference=${
       payment.reference
     }&provider=${payment.method.toLowerCase()}`;
@@ -332,7 +334,7 @@ router.post(
   "/initialize-paystack",
   authenticate,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const { bookingId } = req.body;
+    const { bookingId, originUrl } = req.body;
     const userId = req.user!.id;
 
     if (!bookingId) {
@@ -383,6 +385,7 @@ router.post(
             paymentId,
             guestId: booking.guestId,
             propertyId: booking.propertyId,
+            ...(originUrl ? { originUrl } : {}),
           },
         });
 
@@ -448,6 +451,7 @@ router.post(
             ...existingMetadata,
             lastInitializationAt: new Date().toISOString(),
             retryCount: Number(existingMetadata.retryCount || 0) + 1,
+            ...(originUrl ? { originUrl } : {}),
           },
         },
       });
@@ -495,6 +499,7 @@ router.post(
         serviceFeeProcessingQuotedAmount: booking.serviceFeeProcessing,
         serviceFeeProcessingVarianceAmount: new Prisma.Decimal(0),
         processingFeeModeQuoted: booking.processingFeeMode,
+        ...(originUrl ? { metadata: { originUrl } } : {}),
       },
     });
 

@@ -266,6 +266,7 @@ export default function PaymentPage() {
       // Call backend API to initialize payment
       const response = await paymentService.initializePaystackPayment({
         bookingId: currentBooking.id,
+        originUrl: typeof window !== 'undefined' ? window.location.origin : '',
       });
 
       if (!response.reference) {

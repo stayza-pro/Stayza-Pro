@@ -72,6 +72,7 @@ export const PaystackCheckout: React.FC<PaystackCheckoutProps> = ({
       
       const response = await paymentService.initializePaystackPayment({
         bookingId,
+        originUrl: typeof window !== 'undefined' ? window.location.origin : '',
       });
 
       

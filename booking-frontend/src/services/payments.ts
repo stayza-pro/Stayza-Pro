@@ -4,6 +4,7 @@ import { Booking, Payment } from "../types";
 
 export interface PaystackInitializationRequest {
   bookingId: string;
+  originUrl?: string;
 }
 
 export interface PaystackInitializationResponse {
