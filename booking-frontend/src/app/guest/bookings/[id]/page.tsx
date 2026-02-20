@@ -435,13 +435,21 @@ export default function GuestBookingDetailsPage() {
                     />
                   </div>
                   <div>
-                    <div className="text-sm mb-1 text-gray-500">Time</div>
+                    <div className="text-sm mb-1 text-gray-500">Times</div>
                     <div className="font-semibold text-[18px] text-gray-900">
                       {timeLabel}
                     </div>
                     <div className="text-sm mt-1 text-gray-500">
                       Check-in time
                     </div>
+                    {booking.property?.checkOutTime && (
+                      <div className="text-sm mt-2 text-gray-500">
+                        Check-out by{" "}
+                        <span className="font-medium text-gray-900">
+                          {booking.property.checkOutTime}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

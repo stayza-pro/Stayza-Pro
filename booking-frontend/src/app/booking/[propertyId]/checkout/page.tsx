@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Info, Lock } from "lucide-react";
+import { ArrowLeft, Clock, Info, Lock } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
 import { toast } from "react-hot-toast";
 import { AnimatedDateInput, Button, Input, Select } from "@/components/ui";
@@ -848,6 +848,19 @@ export default function BookingCheckoutPage() {
                     </span>
                   </div>
                 ) : null}
+                {(property?.checkInTime || property?.checkOutTime) && (
+                  <div className="flex justify-between text-sm">
+                    <span className="flex items-center gap-1 text-gray-500">
+                      <Clock className="w-3.5 h-3.5" />
+                      Times:
+                    </span>
+                    <span className="font-medium text-gray-900 text-right">
+                      {property.checkInTime && `From ${property.checkInTime}`}
+                      {property.checkInTime && property.checkOutTime && " · "}
+                      {property.checkOutTime && `Until ${property.checkOutTime}`}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Guests:</span>
                   <span className="font-medium text-gray-900">{guests}</span>

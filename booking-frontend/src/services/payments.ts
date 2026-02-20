@@ -217,22 +217,17 @@ export const paymentService = {
   verifyPaystackPayment: async (
     data: PaystackVerificationRequest,
   ): Promise<PaystackVerificationResponse> => {
-    // apiClient unwraps the backend response automatically
-    // Backend: {success, message, data: {payment, booking}}
-    // apiClient returns: {success, message, data: {payment, booking}}
+    // apiClient returns { success, message, data: { payment, booking } }
     const response = await apiClient.post<{
-      success: boolean;
-      message: string;
-      data?: PaymentVerificationData;
+      payment?: PaymentVerificationData["payment"];
+      booking?: PaymentVerificationData["booking"];
     }>("/payments/verify-paystack", data);
 
-    const payload = (response.data || response) as PaymentVerificationEnvelope;
-
     return {
-      success: payload.success ?? false,
-      message: payload.message || "Payment verification completed",
-      payment: payload.data?.payment,
-      booking: payload.data?.booking,
+      success: response.success ?? false,
+      message: response.message || "Payment verification completed",
+      payment: response.data?.payment,
+      booking: response.data?.booking,
     };
   },
 
@@ -241,20 +236,17 @@ export const paymentService = {
   verifyPaymentByBooking: async (
     data: VerifyByBookingRequest,
   ): Promise<VerifyByBookingResponse> => {
-    // apiClient returns res.data which contains { success, message, data }
+    // apiClient returns { success, message, data: { payment, booking } }
     const response = await apiClient.post<{
-      success: boolean;
-      message: string;
-      data?: PaymentVerificationData;
+      payment?: PaymentVerificationData["payment"];
+      booking?: PaymentVerificationData["booking"];
     }>("/payments/verify-by-booking", data);
 
-    const payload = (response.data || response) as PaymentVerificationEnvelope;
-
     return {
-      success: payload.success ?? false,
-      message: payload.message || "Payment verification completed",
-      payment: payload.data?.payment,
-      booking: payload.data?.booking,
+      success: response.success ?? false,
+      message: response.message || "Payment verification completed",
+      payment: response.data?.payment,
+      booking: response.data?.booking,
     };
   },
 

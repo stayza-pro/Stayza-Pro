@@ -11,6 +11,7 @@ import {
   Lock,
   MapPin,
   Calendar,
+  Clock,
   Users,
   AlertCircle,
   Check,
@@ -121,6 +122,7 @@ export default function PaymentPage() {
   const [loadingSavedMethods, setLoadingSavedMethods] = useState(false);
   const hasAutoPayTriggeredRef = useRef(false);
   const hasTrackedPaymentViewRef = useRef(false);
+  const paymentCallbackFired = useRef(false);
 
   // Load Paystack script
   useEffect(() => {
@@ -307,10 +309,12 @@ export default function PaymentPage() {
           ],
         },
         onClose: function () {
+          if (paymentCallbackFired.current) return;
           setPaymentStatus("ready");
           setError("Payment was cancelled. Please try again when ready.");
         },
         callback: function (paystackResponse: PaystackCallbackResponse) {
+          paymentCallbackFired.current = true;
           // Handle verification in a separate async call
           const verifyAndRedirect = async () => {
             setPaymentStatus("processing");
@@ -402,6 +406,7 @@ export default function PaymentPage() {
         bookingId: currentBooking.id,
         propertyId: currentBooking.propertyId,
       });
+      paymentCallbackFired.current = false;
       handler.openIframe();
     } catch (error: unknown) {
       setPaymentStatus("failed");
@@ -826,6 +831,12 @@ export default function PaymentPage() {
                           <p className="font-semibold text-gray-900">
                             {formatDate(booking.checkInDate)}
                           </p>
+                          {booking.property?.checkInTime && (
+                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                              <Clock className="w-3 h-3" />
+                              From {booking.property.checkInTime}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-start">
@@ -837,6 +848,12 @@ export default function PaymentPage() {
                           <p className="font-semibold text-gray-900">
                             {formatDate(booking.checkOutDate)}
                           </p>
+                          {booking.property?.checkOutTime && (
+                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                              <Clock className="w-3 h-3" />
+                              By {booking.property.checkOutTime}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
