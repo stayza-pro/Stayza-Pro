@@ -302,7 +302,7 @@
   z-index: 9999 !important;
   padding-top: 6px !important;
   filter: drop-shadow(0 16px 40px rgba(15, 23, 42, 0.14))
-          drop-shadow(0 4px 12px rgba(15, 23, 42, 0.08));
+    drop-shadow(0 4px 12px rgba(15, 23, 42, 0.08));
 }
 
 /* Kill default lib border/shadow so our custom class owns visuals */
@@ -376,12 +376,8 @@
   border-radius: 8px;
   cursor: pointer;
   color: #475569;
-  transition:
-    background-color 0.14s ease,
-    border-color 0.14s ease,
-    color 0.14s ease,
-    transform 0.12s ease,
-    box-shadow 0.14s ease;
+  transition: background-color 0.14s ease, border-color 0.14s ease,
+    color 0.14s ease, transform 0.12s ease, box-shadow 0.14s ease;
   padding: 0;
   outline: none;
 }
@@ -470,17 +466,15 @@
   line-height: 1;
   cursor: pointer;
   position: relative;
-  transition:
-    background-color 0.14s ease,
-    color 0.14s ease,
-    transform 0.12s ease,
-    box-shadow 0.14s ease;
+  transition: background-color 0.14s ease, color 0.14s ease,
+    transform 0.12s ease, box-shadow 0.14s ease;
   -webkit-font-smoothing: antialiased;
   outline: none;
 }
 
 /* Hover — lift + soft blue tint */
-.stayza-datepicker .react-datepicker__day:not(.react-datepicker__day--disabled):not(.react-datepicker__day--blocked):hover {
+.stayza-datepicker
+  .react-datepicker__day:not(.react-datepicker__day--disabled):not(.react-datepicker__day--blocked):hover {
   background-color: #eff6ff;
   color: #1d4ed8;
   transform: scale(1.08);
