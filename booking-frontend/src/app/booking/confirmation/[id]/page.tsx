@@ -30,6 +30,7 @@ import {
   BookingStatusCard,
 } from "@/components/booking";
 import { canDownloadReceipt, formatPaymentStatus } from "@/utils/bookingEnums";
+import { formatPropertyTime } from "@/utils/formatters";
 import { toast } from "react-hot-toast";
 
 export default function BookingConfirmationPage() {
@@ -327,7 +328,7 @@ export default function BookingConfirmationPage() {
                   {booking.property?.checkInTime && (
                     <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {booking.property.checkInTime}
+                      From {formatPropertyTime(booking.property.checkInTime)}
                     </p>
                   )}
                 </div>
@@ -354,7 +355,7 @@ export default function BookingConfirmationPage() {
                   {booking.property?.checkOutTime && (
                     <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {booking.property.checkOutTime}
+                      By {formatPropertyTime(booking.property.checkOutTime)}
                     </p>
                   )}
                 </div>

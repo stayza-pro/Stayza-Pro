@@ -26,6 +26,7 @@ import { bookingService, favoritesService } from "@/services";
 import toast from "react-hot-toast";
 import { formatPrice as formatNaira } from "@/utils/currency";
 import { normalizeImageUrl } from "@/utils/imageUrl";
+import { formatPropertyTime } from "@/utils/formatters";
 
 const toDateKey = (value: Date): string => {
   const year = value.getFullYear();
@@ -647,10 +648,10 @@ export default function GuestPropertyDetailsPage() {
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     <Clock className="w-3 h-3 flex-shrink-0" />
                     {property.checkInTime &&
-                      `Check-in from ${property.checkInTime}`}
+                      `Check-in from ${formatPropertyTime(property.checkInTime)}`}
                     {property.checkInTime && property.checkOutTime && " · "}
                     {property.checkOutTime &&
-                      `Check-out by ${property.checkOutTime}`}
+                      `Check-out by ${formatPropertyTime(property.checkOutTime)}`}
                   </p>
                 )}
 
