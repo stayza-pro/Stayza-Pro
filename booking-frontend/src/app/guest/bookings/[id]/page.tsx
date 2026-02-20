@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
+  CreditCard,
   MapPin,
   Download,
   XCircle,
@@ -243,6 +244,11 @@ export default function GuestBookingDetailsPage() {
     return isActiveOrPending && hoursUntilCheckIn >= 24;
   }, [booking]);
 
+  const canCompletePayment = useMemo(() => {
+    if (!booking) return false;
+    return booking.paymentStatus === "INITIATED" && booking.status === "PENDING";
+  }, [booking]);
+
   const handleCancelClick = React.useCallback(async () => {
     if (!bookingId) return;
     setPreviewLoading(true);
@@ -435,21 +441,34 @@ export default function GuestBookingDetailsPage() {
                     />
                   </div>
                   <div>
-                    <div className="text-sm mb-1 text-gray-500">Times</div>
+                    <div className="text-sm mb-1 text-gray-500">
+                      Check-in Time
+                    </div>
                     <div className="font-semibold text-[18px] text-gray-900">
                       {timeLabel}
                     </div>
-                    <div className="text-sm mt-1 text-gray-500">
-                      Check-in time
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: primaryPale }}
+                  >
+                    <Clock
+                      className="w-6 h-6"
+                      style={{ color: primaryColor }}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-sm mb-1 text-gray-500">
+                      Check-out Time
                     </div>
-                    {booking.property?.checkOutTime && (
-                      <div className="text-sm mt-2 text-gray-500">
-                        Check-out by{" "}
-                        <span className="font-medium text-gray-900">
-                          {booking.property.checkOutTime}
-                        </span>
-                      </div>
-                    )}
+                    <div className="font-semibold text-[18px] text-gray-900">
+                      {booking.checkOutTime
+                        ? formatTime(booking.checkOutTime)
+                        : formatScheduledTime(booking.property?.checkOutTime)}
+                    </div>
                   </div>
                 </div>
 
@@ -507,6 +526,21 @@ export default function GuestBookingDetailsPage() {
               role="GUEST"
               onRefresh={handleLifecycleRefresh}
             />
+
+            {canCompletePayment && (
+              <Button
+                className="w-full h-12 rounded-xl font-semibold text-white mb-4"
+                style={{ backgroundColor: accentColor || primaryColor }}
+                onClick={() =>
+                  router.push(
+                    `/booking/${booking.propertyId}/payment?bookingId=${booking.id}`,
+                  )
+                }
+              >
+                <CreditCard className="w-5 h-5 mr-2" />
+                Complete Payment
+              </Button>
+            )}
 
             <div className="grid sm:grid-cols-2 gap-4">
               <Button

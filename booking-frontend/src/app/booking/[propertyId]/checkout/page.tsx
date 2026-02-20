@@ -136,7 +136,7 @@ export default function BookingCheckoutPage() {
     return toDateKey(rangeEnd);
   }, []);
 
-  const { data: availabilityData } = usePropertyAvailability(
+  const { data: availabilityData, isLoading: availabilityLoading } = usePropertyAvailability(
     propertyId,
     minCheckInDate,
     availabilityRangeEnd,
@@ -604,6 +604,7 @@ export default function BookingCheckoutPage() {
                     value={checkIn}
                     min={minCheckInDate}
                     unavailableDates={unavailableDateList}
+                    disabled={availabilityLoading}
                     onChange={setCheckIn}
                     inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
                     iconClassName="text-slate-500"
@@ -614,6 +615,7 @@ export default function BookingCheckoutPage() {
                     value={checkOut}
                     min={minCheckOutDate}
                     unavailableDates={unavailableDateList}
+                    disabled={availabilityLoading}
                     onChange={setCheckOut}
                     inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-slate-50"
                     iconClassName="text-slate-500"

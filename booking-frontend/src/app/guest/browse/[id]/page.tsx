@@ -75,7 +75,7 @@ export default function GuestPropertyDetailsPage() {
     rangeEnd.setFullYear(rangeEnd.getFullYear() + 1);
     return toDateKey(rangeEnd);
   }, []);
-  const { data: availabilityData } = usePropertyAvailability(
+  const { data: availabilityData, isLoading: availabilityLoading } = usePropertyAvailability(
     propertyId,
     minCheckInDate,
     availabilityRangeEnd,
@@ -628,6 +628,7 @@ export default function GuestPropertyDetailsPage() {
                   min={minCheckInDate}
                   disablePastDates
                   unavailableDates={unavailableDateList}
+                  disabled={availabilityLoading}
                   onChange={handleCheckInChange}
                   inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-blue-50/50"
                   iconClassName="text-blue-500"
@@ -639,6 +640,7 @@ export default function GuestPropertyDetailsPage() {
                   min={minimumCheckOutDate}
                   disablePastDates
                   unavailableDates={unavailableDateList}
+                  disabled={availabilityLoading}
                   onChange={setCheckOutDate}
                   inputWrapperClassName="border-gray-300 bg-gradient-to-br from-white to-blue-50/50"
                   iconClassName="text-blue-500"
