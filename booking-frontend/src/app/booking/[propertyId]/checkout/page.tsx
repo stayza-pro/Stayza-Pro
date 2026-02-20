@@ -857,7 +857,8 @@ export default function BookingCheckoutPage() {
                     <span className="font-medium text-gray-900 text-right">
                       {property.checkInTime && `From ${property.checkInTime}`}
                       {property.checkInTime && property.checkOutTime && " · "}
-                      {property.checkOutTime && `Until ${property.checkOutTime}`}
+                      {property.checkOutTime &&
+                        `Until ${property.checkOutTime}`}
                     </span>
                   </div>
                 )}
