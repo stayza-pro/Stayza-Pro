@@ -11,10 +11,14 @@ import {
   Home,
   Download,
   Check,
+  Clock,
+  Moon,
+  CreditCard,
+  ArrowRight,
 } from "lucide-react";
 import { GuestHeader } from "@/components/guest/sections/GuestHeader";
 import { Footer } from "@/components/guest/sections";
-import { Card, Button } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRealtorBranding } from "@/hooks/useRealtorBranding";
 import { useQuery } from "react-query";
@@ -33,7 +37,6 @@ export default function BookingConfirmationPage() {
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useCurrentUser();
 
-  // Safely extract bookingId from params
   const bookingId =
     typeof params.id === "string"
       ? params.id
@@ -41,7 +44,6 @@ export default function BookingConfirmationPage() {
         ? params.id[0]
         : "";
 
-  // Get realtor branding
   const {
     brandColor,
     secondaryColor,
@@ -52,19 +54,16 @@ export default function BookingConfirmationPage() {
     description,
   } = useRealtorBranding();
 
-  // Redirect if not authenticated (wait for auth to finish loading)
+  const primary = brandColor || "#2563eb";
+  const secondary = secondaryColor || "#16a34a";
+
   React.useEffect(() => {
     if (!isAuthLoading && !user) {
       router.push(`/guest/login?redirect=/booking/confirmation/${bookingId}`);
     }
   }, [user, isAuthLoading, router, bookingId]);
 
-  // Fetch booking details (force fresh data after payment)
-  const {
-    data: booking,
-    isLoading,
-    refetch,
-  } = useQuery({
+  const { data: booking, isLoading } = useQuery({
     queryKey: ["booking", bookingId],
     queryFn: () => {
       if (!bookingId || typeof bookingId !== "string") {
@@ -74,28 +73,26 @@ export default function BookingConfirmationPage() {
     },
     enabled:
       !isAuthLoading && !!user && !!bookingId && typeof bookingId === "string",
-    staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache
-    refetchOnMount: true, // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when window regains focus
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
-  const formatDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString("en-US", {
+  const formatDate = (date: Date | string) =>
+    new Date(date).toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-  };
 
-  const formatPrice = (price: number, currency: string = "NGN") => {
-    return new Intl.NumberFormat("en-NG", {
+  const formatPrice = (price: number, currency: string = "NGN") =>
+    new Intl.NumberFormat("en-NG", {
       style: "currency",
-      currency: currency,
+      currency,
       minimumFractionDigits: 0,
     }).format(price);
-  };
 
   const calculateNights = () => {
     if (!booking) return 0;
@@ -106,22 +103,19 @@ export default function BookingConfirmationPage() {
 
   const handleDownloadConfirmation = () => {
     const paymentId = booking?.payment?.id;
-
     if (!paymentId) {
       toast.error("No receipt available yet.");
       return;
     }
-
     if (!canDownloadReceipt(booking?.paymentStatus)) {
-      const paymentStatusLabel = booking?.paymentStatus
+      const label = booking?.paymentStatus
         ? formatPaymentStatus(booking.paymentStatus)
         : "Unknown";
       toast.error(
-        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`,
+        `Receipt available once payment is released. Current status: ${label}.`,
       );
       return;
     }
-
     paymentService
       .downloadReceipt(paymentId)
       .then((blob) => {
@@ -139,6 +133,14 @@ export default function BookingConfirmationPage() {
       });
   };
 
+  const footerProps = {
+    realtorName,
+    tagline,
+    logo: logoUrl,
+    description,
+    primaryColor: primary,
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -146,18 +148,13 @@ export default function BookingConfirmationPage() {
           currentPage="profile"
           searchPlaceholder="Search location..."
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="animate-pulse space-y-6">
-            <div className="h-64 bg-gray-200 rounded-lg"></div>
+            <div className="h-16 bg-gray-200 rounded-2xl max-w-md mx-auto" />
+            <div className="h-64 bg-gray-200 rounded-2xl" />
           </div>
         </div>
-        <Footer
-          realtorName={realtorName}
-          tagline={tagline}
-          logo={logoUrl}
-          description={description}
-          primaryColor={brandColor}
-        />
+        <Footer {...footerProps} />
       </div>
     );
   }
@@ -169,31 +166,36 @@ export default function BookingConfirmationPage() {
           currentPage="profile"
           searchPlaceholder="Search location..."
         />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <Card className="p-4 sm:p-8 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Booking Not Found
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-500 mb-6">
               The booking you're looking for doesn't exist.
             </p>
-            <Button onClick={() => router.push("/guest/bookings")}>
+            <Button
+              onClick={() => router.push("/guest/bookings")}
+              className="h-11 rounded-xl font-semibold"
+              style={{ backgroundColor: primary }}
+            >
               View My Bookings
             </Button>
-          </Card>
+          </div>
         </div>
-        <Footer
-          realtorName={realtorName}
-          tagline={tagline}
-          logo={logoUrl}
-          description={description}
-          primaryColor={brandColor}
-        />
+        <Footer {...footerProps} />
       </div>
     );
   }
 
   const nights = calculateNights();
+  const pricePerNight = booking.property?.pricePerNight ?? 0;
+  const roomFee = pricePerNight * nights;
+  const cleaningFee = (booking as any).cleaningFee ?? null;
+  const serviceFee = (booking as any).serviceFee ?? null;
+  const securityDeposit = (booking as any).securityDeposit ?? null;
+
+  const steps = ["Guest Details", "Payment", "Confirmation"];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -203,82 +205,55 @@ export default function BookingConfirmationPage() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Progress Indicator */}
+        {/* ── Progress stepper ── */}
         <div className="mb-8">
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-            <div className="flex items-center">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
-                style={{ backgroundColor: brandColor }}
-              >
-                <Check className="h-6 w-6" />
-              </div>
-              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
-                Guest Details
-              </span>
-            </div>
-            <div
-              className="hidden sm:block w-16 h-1"
-              style={{ backgroundColor: brandColor }}
-            ></div>
-            <div className="flex items-center">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
-                style={{ backgroundColor: brandColor }}
-              >
-                <Check className="h-6 w-6" />
-              </div>
-              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
-                Payment
-              </span>
-            </div>
-            <div
-              className="hidden sm:block w-16 h-1"
-              style={{ backgroundColor: brandColor }}
-            ></div>
-            <div className="flex items-center">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white"
-                style={{ backgroundColor: brandColor }}
-              >
-                <Check className="h-6 w-6" />
-              </div>
-              <span className="ml-1.5 sm:ml-2 text-sm sm:text-base font-medium text-gray-900">
-                Confirmation
-              </span>
-            </div>
+          <div className="flex items-center justify-center gap-3 sm:gap-4">
+            {steps.map((label, i) => (
+              <React.Fragment key={label}>
+                {i > 0 && (
+                  <div
+                    className="hidden sm:block h-1 w-14 rounded-full"
+                    style={{ backgroundColor: primary }}
+                  />
+                )}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm"
+                    style={{ backgroundColor: primary }}
+                  >
+                    <Check className="h-5 w-5 text-white" strokeWidth={2.5} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-800 hidden sm:inline">
+                    {label}
+                  </span>
+                </div>
+              </React.Fragment>
+            ))}
           </div>
         </div>
 
-        {/* Success Header */}
-        <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 shadow-lg"
-            style={{
-              backgroundColor: `${secondaryColor}15`,
-              border: `2px solid ${secondaryColor}`,
-            }}
-          >
-            <CheckCircle
-              className="h-12 w-12"
-              style={{ color: secondaryColor }}
-            />
+        {/* ── Hero banner ── */}
+        <div
+          className="rounded-2xl p-8 mb-8 text-white text-center shadow-lg"
+          style={{
+            background: `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`,
+          }}
+        >
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4">
+            <CheckCircle className="h-10 w-10 text-white" />
           </div>
-          <h1
-            className="text-2xl sm:text-3xl font-bold mb-2"
-            style={{ color: secondaryColor }}
-          >
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1">
             Booking Confirmed!
           </h1>
-          <p className="text-gray-600">
+          <p className="text-white/80 mb-4">
             Your booking has been successfully confirmed
           </p>
-          <p className="text-sm text-gray-500 font-mono bg-gray-100 inline-block px-4 py-2 rounded-full mt-3">
-            Confirmation #{booking.id.substring(0, 8).toUpperCase()}
-          </p>
+          <span className="inline-block bg-white/20 text-white text-sm font-mono px-4 py-1.5 rounded-full">
+            Ref #{booking.id.substring(0, 8).toUpperCase()}
+          </span>
         </div>
 
-        {/* Status Summary Card */}
+        {/* ── Status card ── */}
         <div className="max-w-2xl mx-auto mb-8">
           <BookingStatusCard
             bookingStatus={booking.status}
@@ -286,38 +261,20 @@ export default function BookingConfirmationPage() {
           />
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-center mb-8">
-          <Button
-            onClick={handleDownloadConfirmation}
-            className="shadow-sm hover:shadow-md transition-all"
-            style={{ backgroundColor: brandColor }}
-            disabled={!canDownloadReceipt(booking.paymentStatus)}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF
-          </Button>
-        </div>
-
-        {/* Property Details */}
+        {/* ── Main grid ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
+          {/* Left — property + next steps */}
           <div className="lg:col-span-2 space-y-6">
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h2
-                className="text-xl font-semibold mb-4"
-                style={{ color: secondaryColor }}
-              >
+            {/* Property card */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-5">
                 Property Details
               </h2>
 
-              <div className="flex flex-col md:flex-row items-start gap-6 mb-6">
-                <div className="relative w-full md:w-48 h-48 rounded-xl overflow-hidden flex-shrink-0">
-                  {booking.property?.images?.[0]?.url &&
-                  typeof booking.property.images[0].url === "string" ? (
+              {/* Image + title row */}
+              <div className="flex flex-col md:flex-row gap-5 mb-6">
+                <div className="relative w-full md:w-44 h-44 rounded-xl overflow-hidden flex-shrink-0">
+                  {booking.property?.images?.[0]?.url ? (
                     <Image
                       src={booking.property.images[0].url}
                       alt={booking.property.title || "Property"}
@@ -329,17 +286,16 @@ export default function BookingConfirmationPage() {
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                      <Home className="h-16 w-16 text-gray-400" />
+                      <Home className="h-12 w-12 text-gray-400" />
                     </div>
                   )}
                 </div>
-
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 leading-snug">
                     {booking.property?.title || "Unknown Property"}
                   </h3>
-                  <div className="flex items-center text-gray-600 mb-4">
-                    <MapPin className="h-4 w-4 mr-2" />
+                  <div className="flex items-center gap-1.5 text-gray-500 text-sm">
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
                     <span>
                       {booking.property?.city}, {booking.property?.state}
                     </span>
@@ -347,150 +303,255 @@ export default function BookingConfirmationPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <div className="flex items-center mb-2">
-                    <Calendar className="h-5 w-5 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium text-blue-900">
+              {/* Detail boxes */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Check-in */}
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${primary}18` }}
+                    >
+                      <Calendar
+                        className="h-4 w-4"
+                        style={{ color: primary }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                       Check-in
                     </span>
                   </div>
-                  <p className="text-gray-900 font-semibold">
+                  <p className="text-sm font-semibold text-gray-900">
                     {formatDate(booking.checkInDate)}
                   </p>
+                  {booking.property?.checkInTime && (
+                    <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {booking.property.checkInTime}
+                    </p>
+                  )}
                 </div>
 
-                <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
-                  <div className="flex items-center mb-2">
-                    <Calendar className="h-5 w-5 text-purple-600 mr-2" />
-                    <span className="text-sm font-medium text-purple-900">
+                {/* Check-out */}
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${primary}18` }}
+                    >
+                      <Calendar
+                        className="h-4 w-4"
+                        style={{ color: primary }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                       Check-out
                     </span>
                   </div>
-                  <p className="text-gray-900 font-semibold">
+                  <p className="text-sm font-semibold text-gray-900">
                     {formatDate(booking.checkOutDate)}
+                  </p>
+                  {booking.property?.checkOutTime && (
+                    <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {booking.property.checkOutTime}
+                    </p>
+                  )}
+                </div>
+
+                {/* Duration */}
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${primary}18` }}
+                    >
+                      <Moon className="h-4 w-4" style={{ color: primary }} />
+                    </div>
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Duration
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {nights} {nights === 1 ? "Night" : "Nights"}
                   </p>
                 </div>
 
-                <div className="p-4 bg-green-50 rounded-xl border border-green-100">
-                  <div className="flex items-center mb-2">
-                    <Users className="h-5 w-5 text-green-600 mr-2" />
-                    <span className="text-sm font-medium text-green-900">
+                {/* Guests */}
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${primary}18` }}
+                    >
+                      <Users className="h-4 w-4" style={{ color: primary }} />
+                    </div>
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                       Guests
                     </span>
                   </div>
-                  <p className="text-gray-900 font-semibold">
+                  <p className="text-sm font-semibold text-gray-900">
                     {booking.totalGuests}{" "}
                     {booking.totalGuests === 1 ? "Guest" : "Guests"}
                   </p>
                 </div>
-
-                <div className="p-4 bg-orange-50 rounded-xl border border-orange-100">
-                  <div className="flex items-center mb-2">
-                    <Calendar className="h-5 w-5 text-orange-600 mr-2" />
-                    <span className="text-sm font-medium text-orange-900">
-                      Duration
-                    </span>
-                  </div>
-                  <p className="text-gray-900 font-semibold">
-                    {nights} {nights === 1 ? "Night" : "Nights"}
-                  </p>
-                </div>
               </div>
-            </Card>
+            </div>
+
+            {/* What happens next */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                What Happens Next?
+              </h2>
+              <ol className="space-y-4">
+                {[
+                  {
+                    icon: <CheckCircle className="h-5 w-5" />,
+                    title: "Booking Confirmed",
+                    body: "Your reservation is secured and the host has been notified.",
+                  },
+                  {
+                    icon: <CreditCard className="h-5 w-5" />,
+                    title: "Payment Held Securely",
+                    body: "Your payment is held in escrow and will only be released after check-in.",
+                  },
+                  {
+                    icon: <ArrowRight className="h-5 w-5" />,
+                    title: "Enjoy Your Stay",
+                    body: "Check in on your scheduled date. Contact the host if you need assistance.",
+                  },
+                ].map(({ icon, title, body }, i) => (
+                  <li key={i} className="flex gap-4">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                      style={{
+                        backgroundColor: `${primary}18`,
+                        color: primary,
+                      }}
+                    >
+                      {icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {title}
+                      </p>
+                      <p className="text-sm text-gray-500">{body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </div>
 
-          {/* Booking Summary Sidebar */}
+          {/* Right — payment sidebar */}
           <div className="lg:col-span-1">
-            <Card
-              className="p-6 border border-gray-200 !bg-white shadow-sm sticky top-4 lg:top-8"
-              style={{ backgroundColor: "#ffffff", color: "#111827" }}
-            >
-              <h2
-                className="text-xl font-semibold mb-4"
-                style={{ color: secondaryColor }}
-              >
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm sticky top-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-5">
                 Payment Summary
               </h2>
 
-              <div className="space-y-3 mb-4 pb-4 border-b border-gray-200">
-                <div className="flex justify-between text-gray-700">
+              {/* Fee breakdown */}
+              <div className="space-y-3 pb-4 border-b border-gray-100 text-sm">
+                <div className="flex justify-between text-gray-600">
                   <span>
-                    {formatPrice(
-                      booking.property?.pricePerNight || 0,
-                      booking.currency,
-                    )}{" "}
-                    x {nights} nights
+                    {formatPrice(pricePerNight, booking.currency)} × {nights}{" "}
+                    {nights === 1 ? "night" : "nights"}
                   </span>
-                  <span className="font-medium">
-                    {formatPrice(
-                      (booking.property?.pricePerNight || 0) * nights,
-                      booking.currency,
-                    )}
+                  <span className="font-medium text-gray-900">
+                    {formatPrice(roomFee, booking.currency)}
                   </span>
                 </div>
+                {cleaningFee != null && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Cleaning fee</span>
+                    <span className="font-medium text-gray-900">
+                      {formatPrice(cleaningFee, booking.currency)}
+                    </span>
+                  </div>
+                )}
+                {serviceFee != null && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Service fee</span>
+                    <span className="font-medium text-gray-900">
+                      {formatPrice(serviceFee, booking.currency)}
+                    </span>
+                  </div>
+                )}
+                {securityDeposit != null && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Security deposit</span>
+                    <span className="font-medium text-gray-900">
+                      {formatPrice(securityDeposit, booking.currency)}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                <span
-                  className="text-lg font-semibold"
-                  style={{ color: secondaryColor }}
-                >
-                  Total
-                </span>
-                <span
-                  className="text-2xl font-bold"
-                  style={{ color: brandColor }}
-                >
+              {/* Total */}
+              <div className="flex justify-between items-center py-4 border-b border-gray-100">
+                <span className="font-semibold text-gray-900">Total</span>
+                <span className="text-xl font-bold" style={{ color: primary }}>
                   {formatPrice(booking.totalPrice, booking.currency)}
                 </span>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Booking Status:</span>
-                    <BookingStatusBadge status={booking.status} size="sm" />
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Payment Method:</span>
-                    <span className="font-semibold text-gray-900">
-                      {booking.payment?.method === "PAYSTACK"
-                        ? "Paystack"
-                        : booking.payment?.method === "FLUTTERWAVE"
-                          ? "Flutterwave"
-                          : booking.payment?.method || "Card Payment"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Payment Status:</span>
-                    <PaymentStatusBadge
-                      status={booking.paymentStatus}
-                      size="sm"
-                    />
-                  </div>
+              {/* Status rows */}
+              <div className="space-y-2.5 pt-4 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Booking status</span>
+                  <BookingStatusBadge status={booking.status} size="sm" />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Payment status</span>
+                  <PaymentStatusBadge
+                    status={booking.paymentStatus}
+                    size="sm"
+                  />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Payment method</span>
+                  <span className="font-medium text-gray-900">
+                    {booking.payment?.method === "PAYSTACK"
+                      ? "Paystack"
+                      : booking.payment?.method === "FLUTTERWAVE"
+                        ? "Flutterwave"
+                        : booking.payment?.method || "Card"}
+                  </span>
                 </div>
               </div>
 
-              <Button
-                onClick={() => router.push("/guest/bookings")}
-                className="w-full mt-6"
-                style={{ backgroundColor: brandColor }}
-              >
-                View All Bookings
-              </Button>
-            </Card>
+              {/* Actions */}
+              <div className="mt-6 space-y-3">
+                <Button
+                  onClick={handleDownloadConfirmation}
+                  disabled={!canDownloadReceipt(booking.paymentStatus)}
+                  className="w-full h-11 rounded-xl font-semibold"
+                  style={{ backgroundColor: primary }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Receipt
+                </Button>
+                <Button
+                  onClick={() => router.push("/guest/bookings")}
+                  variant="outline"
+                  className="w-full h-11 rounded-xl font-semibold"
+                >
+                  View All Bookings
+                </Button>
+                <Button
+                  onClick={() => router.push("/guest/browse")}
+                  variant="outline"
+                  className="w-full h-11 rounded-xl font-semibold"
+                >
+                  Browse More Properties
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </main>
 
-      <Footer
-        realtorName={realtorName}
-        tagline={tagline}
-        logo={logoUrl}
-        description={description}
-        primaryColor={brandColor}
-      />
+      <Footer {...footerProps} />
     </div>
   );
 }
