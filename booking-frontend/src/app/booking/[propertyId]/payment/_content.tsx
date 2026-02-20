@@ -576,8 +576,7 @@ export default function PaymentPageContent() {
     const totalPrice = Number(booking.totalPrice || 0);
     const total = Number(
       (
-        totalPrice ||
-        subtotal + serviceFee + cleaningFee + securityDeposit
+        totalPrice || subtotal + serviceFee + cleaningFee + securityDeposit
       ).toFixed(2),
     );
 
@@ -1034,7 +1033,10 @@ export default function PaymentPageContent() {
                         <>
                           <Lock className="h-5 w-5 mr-2" />
                           Pay{" "}
-                          {formatPrice(Number(booking.totalPrice), booking.currency)}
+                          {formatPrice(
+                            Number(booking.totalPrice),
+                            booking.currency,
+                          )}
                         </>
                       )}
                     </button>
