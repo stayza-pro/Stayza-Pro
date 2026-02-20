@@ -288,8 +288,25 @@
 }
 
 /* Custom date picker dropdown styles used by AnimatedDateInput */
+
+/* Portal root rendered at document.body by react-datepicker's portalId.
+   Do NOT add position/transform here – Popper.js calculates offsets
+   against document.body, adding positioning breaks those calculations. */
+#datepicker-portal {
+  z-index: 9999;
+}
+
 .stayza-datepicker-popper {
-  z-index: 80 !important;
+  z-index: 9999 !important;
+}
+
+/* Strip the default react-datepicker visible border/shadow so our custom class
+   takes full visual control */
+.stayza-datepicker-popper .react-datepicker {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .stayza-datepicker {
@@ -297,10 +314,10 @@
   display: inline-block;
   width: 100%;
   min-width: 300px;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+  border: 1px solid #e5e7eb !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18) !important;
   overflow: hidden;
   font-family: 'Inter', system-ui, sans-serif;
 }

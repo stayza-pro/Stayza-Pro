@@ -295,7 +295,8 @@ export const AnimatedDateInput = ({
         wrapperClassName="block w-full"
         calendarClassName="stayza-datepicker"
         popperClassName="stayza-datepicker-popper"
-        popperPlacement="auto"
+        popperPlacement="bottom-start"
+        portalId="datepicker-portal"
       />
     </AnimatedInputShell>
   );

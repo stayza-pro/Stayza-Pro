@@ -1,5 +1,6 @@
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import "react-datepicker/dist/react-datepicker.css";
 import { AuthProvider } from "../context/AuthContext";
 import { QueryProvider } from "../context/QueryProvider";
 import { AlertProvider } from "../context/AlertContext";
