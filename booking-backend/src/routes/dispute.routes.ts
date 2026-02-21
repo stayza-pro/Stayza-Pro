@@ -26,7 +26,17 @@ router.use(authenticate);
  */
 router.post(
   "/upload-attachment",
-  disputeUpload.single("file"),
+  (req, res, next) => {
+    disputeUpload.single("file")(req, res, (err) => {
+      if (err) {
+        res
+          .status(400)
+          .json({ message: err.message || "File upload rejected" });
+        return;
+      }
+      next();
+    });
+  },
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const userId = req.user?.id;

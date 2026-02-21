@@ -240,7 +240,9 @@ export const disputeService = {
       formData,
       {
         headers: {
-          "Content-Type": "multipart/form-data",
+          // Let the browser set Content-Type automatically so it includes
+          // the multipart boundary — manually setting it breaks parsing.
+          "Content-Type": undefined,
         },
       },
     );
