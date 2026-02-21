@@ -60,7 +60,7 @@ export async function completePastBookings(now: Date = new Date()) {
 }
 
 /**
- * Cancels stale pending bookings that have exceeded the payment timeout window.
+ * Expires stale pending bookings that have exceeded the payment timeout window.
  */
 export async function cancelStalePendingBookings(now: Date = new Date()) {
   const timeoutMinutes = config.BOOKING_PAYMENT_TIMEOUT_MINUTES;
@@ -81,7 +81,7 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
     return { processed: 0, bookings: [] as string[] };
   }
 
-  const cancelledIds: string[] = [];
+  const expiredIds: string[] = [];
 
   for (const booking of candidates) {
     try {
@@ -104,7 +104,7 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
 
         await tx.booking.update({
           where: { id: booking.id },
-          data: { status: "CANCELLED" },
+          data: { status: BookingStatus.EXPIRED },
         });
 
         if (fresh.payment) {
@@ -115,27 +115,27 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
         }
       });
 
-      cancelledIds.push(booking.id);
+      expiredIds.push(booking.id);
       auditLogger
         .log("BOOKING_STATUS_UPDATE", "BOOKING", {
           entityId: booking.id,
           userId: booking.guestId,
           details: {
             auto: true,
-            newStatus: "CANCELLED",
+            newStatus: "EXPIRED",
             reason: "PAYMENT_TIMEOUT",
           },
         })
         .catch(() => {});
     } catch (err) {
-      logger.error("Failed to auto-cancel stale pending booking", {
+      logger.error("Failed to auto-expire stale pending booking", {
         bookingId: booking.id,
         error: err instanceof Error ? err.message : String(err),
       });
     }
   }
 
-  return { processed: cancelledIds.length, bookings: cancelledIds };
+  return { processed: expiredIds.length, bookings: expiredIds };
 }
 
 /**

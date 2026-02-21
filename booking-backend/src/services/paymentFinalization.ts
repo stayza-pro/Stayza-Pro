@@ -1,14 +1,19 @@
-import { BookingStatus, PaymentStatus, Prisma } from "@prisma/client";
+import {
+  BookingStatus,
+  EmailEventType,
+  PaymentStatus,
+  Prisma,
+} from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import escrowService from "@/services/escrowService";
 import {
   sendBookingConfirmation,
-  sendPaymentReceipt,
 } from "@/services/email";
 import { getMetadataObject } from "@/services/savedPaymentMethods";
 import { SystemMessageService } from "@/services/systemMessage";
 import { logger } from "@/utils/logger";
+import { config } from "@/config";
 import type { ProcessingFeeMode } from "@/services/pricingEngine";
 
 export interface FinalizePaystackPaymentParams {
@@ -196,19 +201,30 @@ const createPaymentNotifications = async (
   });
 };
 
-const sendConfirmationEmails = (payment: PaymentWithRelations): void => {
-  sendPaymentReceipt(
-    payment.booking.guest.email,
-    payment.booking.guest.firstName,
-    {
-      reference: payment.reference || payment.id,
-      amount: Number(payment.amount),
-      propertyName: payment.booking.property.title,
-      checkInDate: payment.booking.checkInDate,
-      checkOutDate: payment.booking.checkOutDate,
-    },
-    payment.booking.property
-  ).catch(() => undefined);
+const sendConfirmationEmails = async (
+  payment: PaymentWithRelations,
+): Promise<void> => {
+  const dedupeKey = `${payment.booking.id}:${EmailEventType.BOOKING_CONFIRMED}`;
+
+  try {
+    await prisma.emailEventDedupe.create({
+      data: {
+        bookingId: payment.booking.id,
+        eventType: EmailEventType.BOOKING_CONFIRMED,
+        dedupeKey,
+      },
+    });
+  } catch (error) {
+    const isDuplicate =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2002";
+    if (isDuplicate) {
+      return;
+    }
+    throw error;
+  }
 
   sendBookingConfirmation(
     payment.booking.guest.email,
@@ -219,12 +235,15 @@ const sendConfirmationEmails = (payment: PaymentWithRelations): void => {
       checkInDate: payment.booking.checkInDate,
       checkOutDate: payment.booking.checkOutDate,
       totalPrice: Number(payment.booking.totalPrice),
+      captureLink: `${config.FRONTEND_URL}/evidence/capture?booking=${encodeURIComponent(
+        payment.booking.id,
+      )}`,
       realtorName:
         payment.booking.property.realtor.businessName ||
         `${payment.booking.property.realtor.user.firstName} ${payment.booking.property.realtor.user.lastName}`,
       realtorEmail: payment.booking.property.realtor.user.email,
     },
-    payment.booking.property.realtor
+    payment.booking.property.realtor,
   ).catch(() => undefined);
 };
 
@@ -340,7 +359,7 @@ export const finalizePaystackPayment = async (
       },
     });
 
-    sendConfirmationEmails(payment);
+    void sendConfirmationEmails(payment);
     await createPaymentNotifications(payment);
 
     try {

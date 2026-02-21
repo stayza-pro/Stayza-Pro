@@ -14,6 +14,8 @@ import {
   WalletTransactionSource,
 } from "@prisma/client";
 import { logger } from "@/utils/logger";
+import { config } from "@/config";
+import { sendEmail } from "@/services/email";
 import * as walletService from "./walletService";
 import * as escrowService from "./escrowService";
 import { processRefund } from "./paystack";
@@ -225,6 +227,35 @@ const mapCategoryToSubject = (category: DisputeCategory): DisputeSubject => {
   return DisputeSubject.ROOM_FEE;
 };
 
+const sendDisputeOpenedEmails = async (params: {
+  bookingId: string;
+  propertyTitle: string;
+  summary: string;
+  guestEmail: string;
+  realtorEmail: string;
+}) => {
+  const captureUrl = `${config.FRONTEND_URL}/evidence/capture?booking=${encodeURIComponent(params.bookingId)}`;
+  const subject = `Dispute Opened - Booking ${params.bookingId}`;
+  const template = {
+    subject,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <h2 style="color: #dc2626; margin-bottom: 8px;">Dispute Opened</h2>
+        <p style="margin: 0 0 14px 0;">A dispute has been opened for <strong>${params.propertyTitle}</strong>.</p>
+        <p style="margin: 0 0 14px 0;"><strong>Booking reference:</strong> ${params.bookingId}</p>
+        <p style="margin: 0 0 20px 0;"><strong>Summary:</strong> ${params.summary}</p>
+        <a href="${captureUrl}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 600;">Add evidence</a>
+        <p style="margin-top: 14px; font-size: 12px; color: #6b7280;">You must be logged in to use the camera capture link.</p>
+      </div>
+    `,
+  };
+
+  await Promise.allSettled([
+    sendEmail(params.guestEmail, template),
+    sendEmail(params.realtorEmail, template),
+  ]);
+};
+
 /**
  * Open a ROOM_FEE dispute (Guest opens within 1hr of check-in)
  */
@@ -240,8 +271,23 @@ export const openRoomFeeDispute = async (
     where: { id: bookingId },
     include: {
       payment: true,
+      guest: {
+        select: {
+          email: true,
+        },
+      },
       property: {
-        include: { realtor: true },
+        include: {
+          realtor: {
+            include: {
+              user: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
+        },
       },
       escrow: true,
     },
@@ -367,6 +413,14 @@ export const openRoomFeeDispute = async (
     guestRefund: amounts.guestRefundAmount,
   });
 
+  void sendDisputeOpenedEmails({
+    bookingId,
+    propertyTitle: booking.property.title,
+    summary: writeup,
+    guestEmail: booking.guest.email,
+    realtorEmail: booking.property.realtor.user.email,
+  });
+
   return dispute;
 };
 
@@ -386,7 +440,24 @@ export const openDepositDispute = async (
     where: { id: bookingId },
     include: {
       payment: true,
-      property: true,
+      guest: {
+        select: {
+          email: true,
+        },
+      },
+      property: {
+        include: {
+          realtor: {
+            include: {
+              user: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      },
       escrow: true,
     },
   });
@@ -512,6 +583,14 @@ export const openDepositDispute = async (
     claimedAmount: cappedClaimedAmount,
     guestRefund: amounts.guestRefundAmount,
     realtorPayout: amounts.realtorPayoutAmount,
+  });
+
+  void sendDisputeOpenedEmails({
+    bookingId,
+    propertyTitle: booking.property.title,
+    summary: writeup,
+    guestEmail: booking.guest.email,
+    realtorEmail: booking.property.realtor.user.email,
   });
 
   return dispute;

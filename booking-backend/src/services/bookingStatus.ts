@@ -34,7 +34,11 @@ export const BOOKING_STATUS_TRANSITIONS: Record<
   BookingStatus,
   BookingStatus[]
 > = {
-  PENDING: [BookingStatus.ACTIVE, BookingStatus.CANCELLED],
+  PENDING: [
+    BookingStatus.ACTIVE,
+    BookingStatus.CANCELLED,
+    BookingStatus.EXPIRED,
+  ],
   ACTIVE: [
     BookingStatus.COMPLETED,
     BookingStatus.CANCELLED,
@@ -43,6 +47,7 @@ export const BOOKING_STATUS_TRANSITIONS: Record<
   DISPUTED: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
   CANCELLED: [], // Terminal state - no transitions allowed
   COMPLETED: [], // Terminal state - no transitions allowed
+  EXPIRED: [], // Terminal state - no transitions allowed
 };
 
 // Business rules for status transitions
@@ -70,6 +75,9 @@ export const STATUS_TRANSITION_RULES: Partial<
   [BookingStatus.CANCELLED]: {
     allowRefund: true,
     description: "Booking cancellation may trigger refund processing",
+  },
+  [BookingStatus.EXPIRED]: {
+    description: "Pending booking expired due to payment timeout",
   },
 };
 

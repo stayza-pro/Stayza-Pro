@@ -25,11 +25,12 @@ export const BOOKING_STATUS_TRANSITIONS: Record<
   BookingStatus,
   BookingStatus[]
 > = {
-  PENDING: ["ACTIVE", "CANCELLED"],
+  PENDING: ["ACTIVE", "CANCELLED", "EXPIRED"],
   ACTIVE: ["DISPUTED", "COMPLETED", "CANCELLED"],
   DISPUTED: ["COMPLETED", "CANCELLED"],
   COMPLETED: [], // Terminal state
   CANCELLED: [], // Terminal state
+  EXPIRED: [], // Terminal state
 };
 
 /**
@@ -46,7 +47,11 @@ export const isValidBookingStatusTransition = (
  * Check if booking status is a terminal state
  */
 export const isTerminalBookingStatus = (status: BookingStatus): boolean => {
-  return status === "COMPLETED" || status === "CANCELLED";
+  return (
+    status === "COMPLETED" ||
+    status === "CANCELLED" ||
+    status === "EXPIRED"
+  );
 };
 
 /**
@@ -74,6 +79,7 @@ export const formatBookingStatus = (
     DISPUTED: "Disputed",
     COMPLETED: "Completed",
     CANCELLED: "Cancelled",
+    EXPIRED: "Expired",
   };
   return statusMap[status] || status;
 };
@@ -131,6 +137,11 @@ export const getBookingStatusColor = (
       border: "border-green-200",
     },
     CANCELLED: {
+      bg: "bg-gray-50",
+      text: "text-gray-700",
+      border: "border-gray-200",
+    },
+    EXPIRED: {
       bg: "bg-gray-50",
       text: "text-gray-700",
       border: "border-gray-200",

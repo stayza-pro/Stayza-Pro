@@ -52,6 +52,38 @@ const CONFIRMED_PAYMENT_STATUSES: PaymentStatus[] = [
 const BOOKING_PAYMENT_TIMEOUT_MS =
   config.BOOKING_PAYMENT_TIMEOUT_MINUTES * 60 * 1000;
 
+const buildSnapshotDateTime = (
+  baseDate: Date,
+  propertyTime: string | null | undefined,
+  fallbackHour: number,
+  fallbackMinute: number,
+): Date => {
+  const snapshot = new Date(baseDate);
+  snapshot.setHours(fallbackHour, fallbackMinute, 0, 0);
+
+  if (!propertyTime) {
+    return snapshot;
+  }
+
+  const normalized = propertyTime.trim();
+  const matched = normalized.match(/^(\d{1,2}):(\d{2})$/);
+  if (!matched) {
+    return snapshot;
+  }
+
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return snapshot;
+  }
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return snapshot;
+  }
+
+  snapshot.setHours(hour, minute, 0, 0);
+  return snapshot;
+};
+
 const getStaleUnpaidBookingFilter = (): Prisma.BookingWhereInput => {
   const paymentUnpaidOrFailed: Prisma.BookingWhereInput["OR"] = [
     { payment: { is: null } },
@@ -80,6 +112,9 @@ const getStaleUnpaidBookingFilter = (): Prisma.BookingWhereInput => {
         {
           status: BookingStatus.CANCELLED,
           OR: paymentUnpaidOrFailed,
+        },
+        {
+          status: BookingStatus.EXPIRED,
         },
       ],
     },
@@ -646,11 +681,25 @@ router.post(
       refundCutoffTime.setHours(refundCutoffTime.getHours() - 24);
 
       const payoutEligibleAt = new Date(checkIn);
+      const checkInAtSnapshot = buildSnapshotDateTime(
+        checkIn,
+        property.checkInTime,
+        14,
+        0,
+      );
+      const checkOutAtSnapshot = buildSnapshotDateTime(
+        checkOut,
+        property.checkOutTime,
+        11,
+        0,
+      );
 
       const booking = await tx.booking.create({
         data: {
           checkInDate: checkIn,
           checkOutDate: checkOut,
+          checkInAtSnapshot,
+          checkOutAtSnapshot,
           totalGuests,
           totalPrice: new Prisma.Decimal(totalPrice.toFixed(2)),
           currency: property.currency,
@@ -2882,7 +2931,9 @@ router.post(
     }
 
     const now = new Date();
-    const realtorDisputeClosesAt = new Date(now.getTime() + 4 * 60 * 60 * 1000); // +4 hours
+    const realtorDisputeClosesAt = new Date(
+      now.getTime() + (4 * 60 + 10) * 60 * 1000,
+    ); // +4 hours + 10 minutes grace
 
     // Update booking to checked out
     await prisma.booking.update({
@@ -2916,7 +2967,7 @@ router.post(
           userId: booking.guestId,
           type: "BOOKING_CONFIRMED",
           title: "Checkout Confirmed",
-          message: `Your security deposit will be refunded in 4 hours if no damages are reported by the realtor.`,
+          message: `Your security deposit will be refunded in 4 hours 10 minutes if no damages are reported by the realtor.`,
           bookingId: bookingId,
           priority: "medium",
           isRead: false,
@@ -2929,7 +2980,7 @@ router.post(
           userId: booking.property.realtor.userId,
           type: "BOOKING_REMINDER",
           title: "Guest Checked Out",
-          message: `Guest has checked out. You have 4 hours to report any damages with photo evidence.`,
+          message: `Guest has checked out. You have 4 hours 10 minutes to report any damages with photo evidence.`,
           bookingId: bookingId,
           priority: "high",
           isRead: false,
@@ -2952,7 +3003,7 @@ router.post(
         bookingId,
         checkOutTime: now,
         depositRefundEligibleAt: realtorDisputeClosesAt,
-        realtorDisputeWindowDuration: "4 hours",
+        realtorDisputeWindowDuration: "4 hours 10 minutes",
         depositAmount: booking.securityDeposit,
       },
     });

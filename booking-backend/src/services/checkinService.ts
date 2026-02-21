@@ -3,6 +3,11 @@ import { AppError } from "@/middleware/errorHandler";
 import { logger } from "@/utils/logger";
 import escrowService from "./escrowService";
 
+const DISPUTE_WINDOW_MINUTES = 60;
+const DISPUTE_GRACE_MINUTES = 10;
+const REALTOR_DISPUTE_WINDOW_MINUTES = 4 * 60;
+const REALTOR_DISPUTE_GRACE_MINUTES = 10;
+
 const LAGOS_TIMEZONE = "Africa/Lagos";
 
 const toLagosDateKey = (value: Date): string =>
@@ -88,10 +93,11 @@ export const validateCheckInEligibility = async (
 
   // For AUTO_FALLBACK: Must be 30 minutes after check-in time
   if (confirmationType === "AUTO_FALLBACK") {
-    const fallbackTime = new Date(checkInDate.getTime() + 30 * 60 * 1000); // +30 minutes
+    const checkInSnapshot = booking.checkInAtSnapshot || checkInDate;
+    const fallbackTime = new Date(checkInSnapshot.getTime());
     if (now < fallbackTime) {
       throw new AppError(
-        "Auto-fallback can only trigger 30 minutes after check-in time",
+        "Auto-fallback can only trigger at or after the scheduled check-in time",
         400
       );
     }
@@ -118,11 +124,28 @@ export const startGuestDisputeTimer = (
   checkinConfirmedAt: Date
 ): { disputeWindowClosesAt: Date; roomFeeReleaseEligibleAt: Date } => {
   const disputeWindowClosesAt = new Date(
-    checkinConfirmedAt.getTime() + 60 * 60 * 1000
-  ); // +1 hour
+    checkinConfirmedAt.getTime() +
+      (DISPUTE_WINDOW_MINUTES + DISPUTE_GRACE_MINUTES) * 60 * 1000
+  ); // +1 hour + 10 minutes grace
   const roomFeeReleaseEligibleAt = disputeWindowClosesAt; // Same time
 
   return { disputeWindowClosesAt, roomFeeReleaseEligibleAt };
+};
+
+export const startRealtorDisputeTimer = (
+  checkoutConfirmedAt: Date,
+): { realtorDisputeClosesAt: Date; depositRefundEligibleAt: Date } => {
+  const realtorDisputeClosesAt = new Date(
+    checkoutConfirmedAt.getTime() +
+      (REALTOR_DISPUTE_WINDOW_MINUTES + REALTOR_DISPUTE_GRACE_MINUTES) *
+        60 *
+        1000,
+  );
+
+  return {
+    realtorDisputeClosesAt,
+    depositRefundEligibleAt: realtorDisputeClosesAt,
+  };
 };
 
 /**
@@ -188,7 +211,7 @@ export const confirmCheckIn = async (
         userId: updatedBooking.guestId,
         type: "BOOKING_REMINDER",
         title: "Check-in Confirmed",
-        message: `You have 1 hour to report any issues with the property. Dispute window closes at ${disputeWindowClosesAt.toLocaleTimeString()}.`,
+        message: `You have 1 hour and 10 minutes to report any issues with the property. Dispute window closes at ${disputeWindowClosesAt.toLocaleTimeString()}.`,
         bookingId: bookingId,
         priority: "high",
         isRead: false,
@@ -201,7 +224,7 @@ export const confirmCheckIn = async (
         userId: updatedBooking.property.realtor.userId,
         type: "BOOKING_CONFIRMED",
         title: "Guest Checked In",
-        message: `Guest has checked into ${updatedBooking.property.title}. Room fee will be released after 1-hour dispute window.`,
+        message: `Guest has checked into ${updatedBooking.property.title}. Room fee will be released after the 1 hour 10 minute dispute window.`,
         bookingId: bookingId,
         priority: "medium",
         isRead: false,
@@ -231,6 +254,101 @@ export const autoConfirmCheckIn = async (
   bookingId: string
 ): Promise<CheckInConfirmationResult> => {
   return confirmCheckIn(bookingId, "AUTO_FALLBACK", "system");
+};
+
+export const autoCheckOut = async (bookingId: string) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      property: {
+        include: {
+          realtor: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      },
+      guest: true,
+    },
+  });
+
+  if (!booking) {
+    throw new AppError("Booking not found", 404);
+  }
+
+  if (booking.checkOutTime || booking.stayStatus === "CHECKED_OUT") {
+    throw new AppError("Booking already checked out", 400);
+  }
+
+  if (booking.status !== "ACTIVE" && booking.status !== "DISPUTED") {
+    throw new AppError("Booking is not eligible for auto checkout", 400);
+  }
+
+  const now = new Date();
+  const { realtorDisputeClosesAt, depositRefundEligibleAt } =
+    startRealtorDisputeTimer(now);
+
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: {
+      stayStatus: "CHECKED_OUT",
+      checkOutTime: now,
+      realtorDisputeClosesAt,
+      depositRefundEligibleAt,
+    },
+  });
+
+  await escrowService.logEscrowEvent({
+    bookingId,
+    eventType: "HOLD_SECURITY_DEPOSIT",
+    amount: booking.securityDeposit,
+    description: `Auto checkout processed. Deposit dispute window closes at ${realtorDisputeClosesAt.toISOString()}`,
+    metadata: {
+      checkOutTime: now.toISOString(),
+      realtorDisputeClosesAt: realtorDisputeClosesAt.toISOString(),
+      source: "AUTO_CHECKOUT",
+    },
+  });
+
+  await Promise.allSettled([
+    prisma.notification.create({
+      data: {
+        userId: booking.guestId,
+        type: "BOOKING_CONFIRMED",
+        title: "Checkout Auto-Confirmed",
+        message:
+          "Your checkout was auto-confirmed at scheduled checkout time. Deposit dispute window is now active.",
+        bookingId,
+        priority: "medium",
+        isRead: false,
+      },
+    }),
+    prisma.notification.create({
+      data: {
+        userId: booking.property.realtor.userId,
+        type: "BOOKING_REMINDER",
+        title: "Guest Auto-Checked Out",
+        message: `Guest checkout for ${booking.property.title} was auto-confirmed. You can submit deposit dispute evidence within the active window.`,
+        bookingId,
+        priority: "high",
+        isRead: false,
+      },
+    }),
+  ]);
+
+  logger.info("Auto checkout completed", {
+    bookingId,
+    checkOutTime: now.toISOString(),
+    realtorDisputeClosesAt: realtorDisputeClosesAt.toISOString(),
+  });
+
+  return {
+    bookingId,
+    checkOutTime: now,
+    realtorDisputeClosesAt,
+    depositRefundEligibleAt,
+  };
 };
 
 /**
@@ -313,7 +431,7 @@ export const canGuestOpenDispute = async (
   if (now >= booking.disputeWindowClosesAt) {
     return {
       canOpen: false,
-      reason: "Dispute window expired (1 hour limit exceeded)",
+      reason: "Dispute window expired (1 hour 10 minute limit exceeded)",
     };
   }
 
@@ -356,7 +474,7 @@ export const canRealtorOpenDispute = async (
   if (now >= booking.realtorDisputeClosesAt) {
     return {
       canOpen: false,
-      reason: "Dispute window expired (4 hour limit exceeded)",
+      reason: "Dispute window expired (4 hour 10 minute limit exceeded)",
     };
   }
 
@@ -366,8 +484,10 @@ export const canRealtorOpenDispute = async (
 export default {
   confirmCheckIn,
   autoConfirmCheckIn,
+  autoCheckOut,
   validateCheckInEligibility,
   startGuestDisputeTimer,
+  startRealtorDisputeTimer,
   isGuestDisputeWindowOpen,
   isRealtorDisputeWindowOpen,
   canGuestOpenDispute,

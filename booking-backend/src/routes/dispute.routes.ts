@@ -3,11 +3,13 @@ import {
   DisputeCategory,
   DisputeResponseAction,
   AdminDisputeDecision,
+  EvidenceCaptureType,
 } from "@prisma/client";
 import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
 import { authenticate } from "@/middleware/auth";
 import * as disputeService from "@/services/disputeService";
+import * as evidenceService from "@/services/evidenceService";
 import { disputeUpload, uploadDisputeEvidence } from "@/utils/upload";
 
 const router = Router();
@@ -51,6 +53,28 @@ router.post(
         return;
       }
 
+      const bookingId = String(req.body?.bookingId || "").trim();
+      const disputeId = String(req.body?.disputeId || "").trim();
+
+      if (bookingId) {
+        const evidence = await evidenceService.uploadUnverifiedSupportingEvidence({
+          bookingId,
+          userId,
+          fileBuffer: file.buffer,
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          disputeId: disputeId || undefined,
+        });
+
+        res.status(200).json({
+          url: evidence.fileUrl,
+          evidenceId: evidence.evidenceId,
+          verified: false,
+          verificationType: evidence.verificationType,
+        });
+        return;
+      }
+
       const result = await uploadDisputeEvidence(file.buffer, file.mimetype);
       res.status(200).json({ url: result.secure_url });
     } catch (error: any) {
@@ -58,6 +82,139 @@ router.post(
       res.status(400).json({
         message: error.message || "Failed to upload attachment",
       });
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/disputes/evidence/server-time:
+ *   get:
+ *     summary: Get trusted server timestamp and watermark preview for evidence capture
+ *     tags: [Disputes]
+ *     security:
+ *       - BearerAuth: []
+ */
+router.get(
+  "/evidence/server-time",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const bookingId = String(req.query.bookingId || "").trim();
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      if (!bookingId) {
+        res.status(400).json({ message: "bookingId is required" });
+        return;
+      }
+
+      const context = await evidenceService.getCaptureContext(bookingId, userId);
+      res.status(200).json(context);
+    } catch (error: any) {
+      logger.error("Error getting evidence server-time context:", error);
+      res.status(400).json({ message: error.message || "Failed to get capture context" });
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/disputes/evidence/trusted:
+ *   post:
+ *     summary: Upload trusted evidence captured via Stayza Pro camera
+ *     tags: [Disputes]
+ *     security:
+ *       - BearerAuth: []
+ */
+router.post(
+  "/evidence/trusted",
+  (req, res, next) => {
+    disputeUpload.single("file")(req, res, (err) => {
+      if (err) {
+        res.status(400).json({ message: err.message || "File upload rejected" });
+        return;
+      }
+      next();
+    });
+  },
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const bookingId = String(req.body?.bookingId || "").trim();
+      const disputeIdRaw = String(req.body?.disputeId || "").trim();
+      const captureTypeRaw = String(req.body?.captureType || "PHOTO").trim();
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      if (!bookingId) {
+        res.status(400).json({ message: "bookingId is required" });
+        return;
+      }
+
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) {
+        res.status(400).json({ message: "No file uploaded" });
+        return;
+      }
+
+      if (captureTypeRaw !== "PHOTO" && captureTypeRaw !== "VIDEO") {
+        res.status(400).json({ message: "captureType must be PHOTO or VIDEO" });
+        return;
+      }
+
+      const evidence = await evidenceService.uploadTrustedEvidence({
+        bookingId,
+        userId,
+        captureType: captureTypeRaw as EvidenceCaptureType,
+        fileBuffer: file.buffer,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        disputeId: disputeIdRaw || undefined,
+      });
+
+      res.status(201).json(evidence);
+    } catch (error: any) {
+      logger.error("Error uploading trusted evidence:", error);
+      res.status(400).json({
+        message: error.message || "Failed to upload trusted evidence",
+      });
+    }
+  },
+);
+
+/**
+ * @swagger
+ * /api/disputes/evidence/booking/{bookingId}:
+ *   get:
+ *     summary: List evidence for a booking
+ *     tags: [Disputes]
+ *     security:
+ *       - BearerAuth: []
+ */
+router.get(
+  "/evidence/booking/:bookingId",
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { bookingId } = req.params;
+
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
+
+      const items = await evidenceService.listBookingEvidence(bookingId, userId);
+      res.status(200).json(items);
+    } catch (error: any) {
+      logger.error("Error listing booking evidence:", error);
+      res.status(400).json({ message: error.message || "Failed to list evidence" });
     }
   },
 );

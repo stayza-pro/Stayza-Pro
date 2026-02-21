@@ -80,6 +80,11 @@ export default function RealtorBookingsPage() {
       color: "bg-red-50 text-red-700 border-red-200",
       icon: XCircle,
     },
+    EXPIRED: {
+      label: "Expired",
+      color: "bg-gray-50 text-gray-700 border-gray-200",
+      icon: Clock,
+    },
   };
 
   if (isLoading && bookings.length === 0) {

@@ -77,37 +77,35 @@ const runUnpaidBookingCancellationPass = async () => {
 
         await tx.auditLog.create({
           data: {
-            action: "BOOKING_AUTO_CANCELLED",
+            action: "BOOKING_AUTO_EXPIRED",
             entityType: "BOOKING",
             entityId: booking.id,
             userId: booking.guestId,
             details: {
               reason: "PAYMENT_TIMEOUT",
-              visibility: "PURGED_FROM_USER_LISTS",
+              visibility: "HIDDEN_FROM_USER_LISTS",
               bookingCreatedAt: fresh.createdAt,
-              autoCancelledAt: new Date(),
+              autoExpiredAt: new Date(),
               paymentStatus: fresh.payment?.status ?? "NONE",
             },
             timestamp: new Date(),
           },
         });
 
-        // Keep stale pending bookings out of UX entirely by purging unpaid records.
-        await tx.escrowEvent.deleteMany({
-          where: { bookingId: booking.id },
-        });
-        await tx.escrow.deleteMany({
-          where: { bookingId: booking.id },
-        });
-        await tx.notification.deleteMany({
-          where: { bookingId: booking.id },
-        });
-        await tx.booking.delete({
+        await tx.booking.update({
           where: { id: booking.id },
+          data: { status: "EXPIRED" },
         });
+
+        if (fresh.payment) {
+          await tx.payment.update({
+            where: { id: fresh.payment.id },
+            data: { status: "FAILED" },
+          });
+        }
       });
 
-      logger.info(`Auto-cancelled unpaid booking ${booking.id}`, {
+      logger.info(`Auto-expired unpaid booking ${booking.id}`, {
         bookingId: booking.id,
         guestEmail: booking.guest.email,
         propertyTitle: booking.property.title,
@@ -119,7 +117,7 @@ const runUnpaidBookingCancellationPass = async () => {
   }
 
   logger.info(
-    `Unpaid booking cancellation job completed. Cancelled ${expiredBookings.length} bookings.`
+    `Unpaid booking expiration job completed. Expired ${expiredBookings.length} bookings.`
   );
 };
 

@@ -8,6 +8,7 @@ export const MAIN_DOMAIN_ALLOWED_EXACT_PATHS = new Set([
 export const MAIN_DOMAIN_ALLOWED_PREFIXES = [
   "/guest",
   "/guest-landing",
+  "/evidence",
   "/booking",
   "/auth",
   "/admin",

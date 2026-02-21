@@ -10,19 +10,15 @@ import checkinService from "@/services/checkinService";
 
 export const processCheckinFallbacks = async (): Promise<void> => {
   const now = new Date();
-  const fallbackThreshold = new Date(now.getTime() - 30 * 60 * 1000); // 30 minutes ago
 
   try {
-    // Find bookings that need auto check-in confirmation
-    const eligibleBookings = await prisma.booking.findMany({
+    // Auto check-in candidates (at/after scheduled check-in snapshot)
+    const eligibleCheckins = await prisma.booking.findMany({
       where: {
-        status: {
-          in: ["ACTIVE"], // Payment completed but not checked in
-        },
-        checkInDate: {
-          lte: fallbackThreshold, // Check-in time + 30 minutes has passed
-        },
+        status: "ACTIVE",
+        checkInAtSnapshot: { lte: now },
         checkinConfirmedAt: null, // Not yet confirmed
+        stayStatus: "NOT_STARTED",
         payment: {
           status: {
             in: ["HELD"], // Payment must be in escrow
@@ -41,16 +37,36 @@ export const processCheckinFallbacks = async (): Promise<void> => {
       take: 50, // Process in batches
     });
 
-    if (eligibleBookings.length === 0) {
-      logger.debug("No bookings eligible for auto check-in confirmation");
+    // Auto checkout candidates (at/after scheduled checkout snapshot)
+    const eligibleCheckouts = await prisma.booking.findMany({
+      where: {
+        status: { in: ["ACTIVE", "DISPUTED"] },
+        checkOutAtSnapshot: { lte: now },
+        checkOutTime: null,
+        stayStatus: { in: ["CHECKED_IN", "NOT_STARTED"] },
+      },
+      include: {
+        payment: true,
+        property: {
+          include: {
+            realtor: true,
+          },
+        },
+        guest: true,
+      },
+      take: 50,
+    });
+
+    if (eligibleCheckins.length === 0 && eligibleCheckouts.length === 0) {
+      logger.debug("No bookings eligible for lifecycle automation");
       return;
     }
 
     logger.info(
-      `Processing auto check-in confirmation for ${eligibleBookings.length} bookings`
+      `Processing lifecycle automation: ${eligibleCheckins.length} auto check-ins, ${eligibleCheckouts.length} auto check-outs`
     );
 
-    for (const booking of eligibleBookings) {
+    for (const booking of eligibleCheckins) {
       try {
         await processBookingCheckinFallback(booking);
       } catch (error) {
@@ -62,11 +78,22 @@ export const processCheckinFallbacks = async (): Promise<void> => {
       }
     }
 
+    for (const booking of eligibleCheckouts) {
+      try {
+        await processBookingCheckoutFallback(booking);
+      } catch (error) {
+        logger.error(
+          `Failed to process checkout fallback for booking ${booking.id}:`,
+          error
+        );
+      }
+    }
+
     logger.info(
-      `Check-in fallback job completed. Processed ${eligibleBookings.length} bookings`
+      `Lifecycle automation job completed. Processed ${eligibleCheckins.length + eligibleCheckouts.length} bookings`
     );
   } catch (error) {
-    logger.error("Check-in fallback job failed:", error);
+    logger.error("Lifecycle automation job failed:", error);
     throw error;
   }
 };
@@ -75,7 +102,7 @@ export const processCheckinFallbacks = async (): Promise<void> => {
  * Process auto check-in confirmation for a single booking
  */
 const processBookingCheckinFallback = async (booking: any): Promise<void> => {
-  const checkInTime = new Date(booking.checkInDate);
+  const checkInTime = new Date(booking.checkInAtSnapshot || booking.checkInDate);
   const now = new Date();
   const minutesElapsed = Math.floor(
     (now.getTime() - checkInTime.getTime()) / (60 * 1000)
@@ -103,7 +130,7 @@ const processBookingCheckinFallback = async (booking: any): Promise<void> => {
           userId: booking.guestId,
           type: "BOOKING_REMINDER",
           title: "Check-In Auto-Confirmed",
-          message: `Your check-in has been automatically confirmed. You have 1 hour to report any issues with the property.`,
+          message: `Your check-in has been automatically confirmed. You have 1 hour 10 minutes to report any issues with the property.`,
           bookingId: booking.id,
           priority: "high",
           isRead: false,
@@ -135,6 +162,20 @@ const processBookingCheckinFallback = async (booking: any): Promise<void> => {
     );
     throw error;
   }
+};
+
+const processBookingCheckoutFallback = async (booking: any): Promise<void> => {
+  const checkOutTime = new Date(booking.checkOutAtSnapshot || booking.checkOutDate);
+  const now = new Date();
+  const minutesElapsed = Math.floor(
+    (now.getTime() - checkOutTime.getTime()) / (60 * 1000)
+  );
+
+  logger.info(
+    `Auto-confirming checkout for booking ${booking.id} (${minutesElapsed} minutes after scheduled checkout)`
+  );
+
+  await checkinService.autoCheckOut(booking.id);
 };
 
 export default {

@@ -51,7 +51,8 @@ export type BookingStatus =
   | "ACTIVE" // Paid and in progress
   | "DISPUTED" // Has active dispute
   | "COMPLETED" // Fully settled
-  | "CANCELLED"; // Booking cancelled before check-in
+  | "CANCELLED" // Booking cancelled before check-in
+  | "EXPIRED"; // Pending booking expired before payment
 
 // Stay lifecycle states (matches backend Prisma schema)
 export type StayStatus =

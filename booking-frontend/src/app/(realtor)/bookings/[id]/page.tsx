@@ -166,6 +166,13 @@ export default function RealtorBookingDetailsPage() {
         borderColor: "#FCA5A5",
         icon: XCircle,
       },
+      EXPIRED: {
+        text: "Expired",
+        color: "#6B7280",
+        backgroundColor: "#F3F4F6",
+        borderColor: "#D1D5DB",
+        icon: Clock,
+      },
     };
     return configs[status] || configs.PENDING;
   };

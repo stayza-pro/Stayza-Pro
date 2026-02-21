@@ -8,6 +8,31 @@ import {
 
 type DisputeResponseAction = "ACCEPT" | "REJECT_ESCALATE";
 
+export type EvidenceCaptureType = "PHOTO" | "VIDEO";
+
+export interface CaptureContextResponse {
+  bookingId: string;
+  bookingReference: string;
+  role: "GUEST" | "REALTOR";
+  serverNow: string;
+  watermarkPreview: string;
+}
+
+export interface TrustedEvidenceUploadResponse {
+  evidenceId: string;
+  bookingId: string;
+  role: "GUEST" | "REALTOR";
+  captureType: EvidenceCaptureType;
+  verificationType: "TRUSTED_CAMERA";
+  capturedAtServer: string;
+  uploadedAt: string;
+  watermarkText: string;
+  sha256: string;
+  fileUrl: string;
+  certificateJwt: string;
+  certificateIssuedAt: string;
+}
+
 type LegacyOpenDisputeRequest = {
   bookingId: string;
   disputeType: "USER_DISPUTE" | "REALTOR_DISPUTE";
@@ -231,9 +256,19 @@ export const disputeService = {
     return extractStats(response);
   },
 
-  uploadDisputeAttachment: async (file: File): Promise<string> => {
+  uploadDisputeAttachment: async (
+    file: File,
+    bookingId?: string,
+    disputeId?: string,
+  ): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
+    if (bookingId) {
+      formData.append("bookingId", bookingId);
+    }
+    if (disputeId) {
+      formData.append("disputeId", disputeId);
+    }
 
     const response = await apiClient.post<{ url: string }>(
       "/disputes/upload-attachment",
@@ -242,6 +277,46 @@ export const disputeService = {
 
     const payload = (response as any)?.data || response;
     return String(payload?.url || "");
+  },
+
+  getEvidenceCaptureContext: async (
+    bookingId: string,
+  ): Promise<CaptureContextResponse> => {
+    const response = await apiClient.get<CaptureContextResponse>(
+      `/disputes/evidence/server-time?bookingId=${encodeURIComponent(bookingId)}`,
+    );
+    return (response as any)?.data || response;
+  },
+
+  uploadTrustedEvidence: async (
+    file: File,
+    bookingId: string,
+    captureType: EvidenceCaptureType,
+    disputeId?: string,
+  ): Promise<TrustedEvidenceUploadResponse> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("bookingId", bookingId);
+    formData.append("captureType", captureType);
+    if (disputeId) {
+      formData.append("disputeId", disputeId);
+    }
+
+    const response = await apiClient.post<TrustedEvidenceUploadResponse>(
+      "/disputes/evidence/trusted",
+      formData,
+    );
+
+    return (response as any)?.data || response;
+  },
+
+  listBookingEvidence: async (
+    bookingId: string,
+  ): Promise<TrustedEvidenceUploadResponse[]> => {
+    const response = await apiClient.get<TrustedEvidenceUploadResponse[]>(
+      `/disputes/evidence/booking/${encodeURIComponent(bookingId)}`,
+    );
+    return (response as any)?.data || response;
   },
 };
 

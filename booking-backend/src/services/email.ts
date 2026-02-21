@@ -729,39 +729,43 @@ export const emailTemplates = {
   }),
 
   bookingConfirmation: (booking: any, property: any, realtor: any) => ({
-    subject: `Booking Confirmed - ${property.title}`,
+    subject: `Booking Confirmed - ${booking?.propertyName || property?.title || "Your stay"}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #10b981;">Booking Confirmed!</h2>
         <p>Your booking has been confirmed. Here are the details:</p>
         
         <div style="background-color: #f9fafb; padding: 20px; border-radius: 5px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">${property.title}</h3>
+          <h3 style="margin-top: 0;">${booking?.propertyName || property?.title || "Property"}</h3>
           <p><strong>Check-in:</strong> ${new Date(
-            booking.checkInDate,
+            booking?.checkInDate,
           ).toLocaleDateString()}</p>
           <p><strong>Check-out:</strong> ${new Date(
-            booking.checkOutDate,
+            booking?.checkOutDate,
           ).toLocaleDateString()}</p>
-          <p><strong>Guests:</strong> ${booking.totalGuests}</p>
-          <p><strong>Total Amount:</strong> ${booking.currency} ${
-            booking.totalPrice
+          <p><strong>Total Amount:</strong> NGN ${
+            booking?.totalPrice || booking?.amount || "-"
           }</p>
-          <p><strong>Booking ID:</strong> ${booking.id}</p>
+          <p><strong>Booking ID:</strong> ${booking?.bookingId || booking?.id || "-"}</p>
         </div>
 
         <div style="background-color: #eff6ff; padding: 20px; border-radius: 5px; margin: 20px 0;">
           <h4 style="margin-top: 0;">Property Details</h4>
-          <p><strong>Address:</strong> ${property.address}, ${property.city}, ${
-            property.country
+          <p><strong>Host:</strong> ${
+            booking?.realtorName || realtor?.businessName || "Host"
           }</p>
-          <p><strong>Host:</strong> ${realtor.businessName}</p>
           ${
-            realtor.businessEmail
-              ? `<p><strong>Contact:</strong> ${realtor.businessEmail}</p>`
+            booking?.realtorEmail || realtor?.businessEmail
+              ? `<p><strong>Contact:</strong> ${booking?.realtorEmail || realtor?.businessEmail}</p>`
               : ""
           }
         </div>
+
+        ${
+          booking?.captureLink
+            ? `<div style="margin: 20px 0; text-align: center;"><a href="${booking.captureLink}" style="display: inline-block; background-color: #2563eb; color: #fff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 600;">Open Stayza Camera</a><p style="font-size: 12px; color: #6b7280; margin-top: 8px;">Use this link to record verified evidence inside Stayza Pro.</p></div>`
+            : ""
+        }
 
         <p><strong>Important Information:</strong></p>
         <ul>

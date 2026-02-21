@@ -19,7 +19,6 @@ import { logger } from "@/utils/logger";
 import { NotificationService } from "@/services/notificationService";
 import { startUnpaidBookingCron } from "@/jobs/unpaidBookingCron";
 import { initializeScheduledJobs } from "@/jobs/scheduler";
-import { processCheckinFallbacks } from "@/jobs/checkinFallbackJob";
 import { SystemMessageService } from "@/services/systemMessage";
 import {
   getFinanceConfigHealth,
@@ -492,14 +491,6 @@ if (require.main === module) {
       }
     });
 
-    // Check-in Fallback Job (every 5 minutes)
-    cron.schedule("*/5 * * * *", async () => {
-      try {
-        await processCheckinFallbacks();
-      } catch (error) {
-        logger.error("Check-in Fallback Job failed", { error });
-      }
-    });
   };
 
   bootstrap().catch((error) => {
