@@ -84,6 +84,45 @@ const buildSnapshotDateTime = (
   return snapshot;
 };
 
+const BOOKING_CREATE_COMPAT_FIELDS = [
+  "checkInAtSnapshot",
+  "checkOutAtSnapshot",
+  "commissionBaseRate",
+  "commissionVolumeReductionRate",
+  "commissionEffectiveRate",
+  "monthlyVolumeAtPricing",
+  "serviceFeeStayza",
+  "serviceFeeProcessing",
+  "processingFeeMode",
+] as const;
+
+const resolveMissingCreateField = (
+  error: unknown,
+): (typeof BOOKING_CREATE_COMPAT_FIELDS)[number] | null => {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return null;
+  }
+
+  if (error.code !== "P2022") {
+    return null;
+  }
+
+  const missingColumnRaw = String((error.meta as { column?: unknown })?.column || "").toLowerCase();
+  if (!missingColumnRaw) {
+    return null;
+  }
+
+  return (
+    BOOKING_CREATE_COMPAT_FIELDS.find((field) => {
+      const fieldLower = field.toLowerCase();
+      return (
+        missingColumnRaw.includes(fieldLower) ||
+        fieldLower.includes(missingColumnRaw)
+      );
+    }) || null
+  );
+};
+
 const getStaleUnpaidBookingFilter = (): Prisma.BookingWhereInput => {
   const paymentUnpaidOrFailed: Prisma.BookingWhereInput["OR"] = [
     { payment: { is: null } },
@@ -694,68 +733,94 @@ router.post(
         0,
       );
 
-      const booking = await tx.booking.create({
-        data: {
-          checkInDate: checkIn,
-          checkOutDate: checkOut,
-          checkInAtSnapshot,
-          checkOutAtSnapshot,
-          totalGuests,
-          totalPrice: new Prisma.Decimal(totalPrice.toFixed(2)),
-          currency: property.currency,
-          specialRequests: specialRequests || "",
-          refundCutoffTime,
-          payoutEligibleAt,
-          payoutStatus: "PENDING",
-          roomFee: new Prisma.Decimal(quote.roomFee),
-          cleaningFee: new Prisma.Decimal(quote.cleaningFee),
-          securityDeposit: new Prisma.Decimal(quote.securityDeposit),
-          serviceFee: new Prisma.Decimal(quote.serviceFee),
-          platformFee: new Prisma.Decimal(quote.platformFee),
-          commissionBaseRate: new Prisma.Decimal(
-            quote.commissionSnapshot.baseRate,
-          ),
-          commissionVolumeReductionRate: new Prisma.Decimal(
-            quote.commissionSnapshot.volumeReductionRate,
-          ),
-          commissionEffectiveRate: new Prisma.Decimal(
-            quote.commissionSnapshot.effectiveRate,
-          ),
-          monthlyVolumeAtPricing: new Prisma.Decimal(monthlyVolume),
-          serviceFeeStayza: new Prisma.Decimal(
-            quote.serviceFeeBreakdown.stayza,
-          ),
-          serviceFeeProcessing: new Prisma.Decimal(
-            quote.serviceFeeBreakdown.processing,
-          ),
-          processingFeeMode: quote.serviceFeeBreakdown.processingMode,
-          guestId: req.user!.id,
-          propertyId,
-        },
-        include: {
-          property: {
-            select: {
-              id: true,
-              title: true,
-              images: true,
-              address: true,
-              city: true,
-              country: true,
-              realtor: {
-                select: {
-                  id: true,
-                  userId: true,
-                },
+      const bookingCreateData: Record<string, unknown> = {
+        checkInDate: checkIn,
+        checkOutDate: checkOut,
+        checkInAtSnapshot,
+        checkOutAtSnapshot,
+        totalGuests,
+        totalPrice: new Prisma.Decimal(totalPrice.toFixed(2)),
+        currency: property.currency,
+        specialRequests: specialRequests || "",
+        refundCutoffTime,
+        payoutEligibleAt,
+        payoutStatus: "PENDING",
+        roomFee: new Prisma.Decimal(quote.roomFee),
+        cleaningFee: new Prisma.Decimal(quote.cleaningFee),
+        securityDeposit: new Prisma.Decimal(quote.securityDeposit),
+        serviceFee: new Prisma.Decimal(quote.serviceFee),
+        platformFee: new Prisma.Decimal(quote.platformFee),
+        commissionBaseRate: new Prisma.Decimal(
+          quote.commissionSnapshot.baseRate,
+        ),
+        commissionVolumeReductionRate: new Prisma.Decimal(
+          quote.commissionSnapshot.volumeReductionRate,
+        ),
+        commissionEffectiveRate: new Prisma.Decimal(
+          quote.commissionSnapshot.effectiveRate,
+        ),
+        monthlyVolumeAtPricing: new Prisma.Decimal(monthlyVolume),
+        serviceFeeStayza: new Prisma.Decimal(quote.serviceFeeBreakdown.stayza),
+        serviceFeeProcessing: new Prisma.Decimal(
+          quote.serviceFeeBreakdown.processing,
+        ),
+        processingFeeMode: quote.serviceFeeBreakdown.processingMode,
+        guestId: req.user!.id,
+        propertyId,
+      };
+
+      const bookingInclude = {
+        property: {
+          select: {
+            id: true,
+            title: true,
+            images: true,
+            address: true,
+            city: true,
+            country: true,
+            realtor: {
+              select: {
+                id: true,
+                userId: true,
               },
             },
           },
-          guest: {
-            select: {
-              id: true,
-            },
+        },
+        guest: {
+          select: {
+            id: true,
           },
         },
-      });
+      };
+
+      let booking: any = null;
+      let workingData = { ...bookingCreateData };
+
+      for (let attempt = 0; attempt <= BOOKING_CREATE_COMPAT_FIELDS.length; attempt++) {
+        try {
+          booking = await tx.booking.create({
+            data: workingData as Prisma.BookingUncheckedCreateInput,
+            include: bookingInclude,
+          });
+          break;
+        } catch (createError) {
+          const missingField = resolveMissingCreateField(createError);
+          if (!missingField || !(missingField in workingData)) {
+            throw createError;
+          }
+
+          logger.warn("Booking create compatibility fallback triggered", {
+            propertyId,
+            guestId: req.user!.id,
+            missingField,
+          });
+          delete workingData[missingField];
+        }
+      }
+
+      if (!booking) {
+        throw new AppError("Unable to create booking due to schema mismatch", 500);
+      }
 
       return booking;
     });
