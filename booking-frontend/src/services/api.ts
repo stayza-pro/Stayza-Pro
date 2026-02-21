@@ -33,6 +33,13 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    const isFormData =
+      typeof FormData !== "undefined" && config.data instanceof FormData;
+    if (isFormData && config.headers) {
+      delete (config.headers as Record<string, unknown>)["Content-Type"];
+      delete (config.headers as Record<string, unknown>)["content-type"];
+    }
+
     let token = localStorage.getItem("accessToken");
 
     // Fallback to cookies for cross-subdomain refreshes

@@ -238,13 +238,6 @@ export const disputeService = {
     const response = await apiClient.post<{ url: string }>(
       "/disputes/upload-attachment",
       formData,
-      {
-        headers: {
-          // Let the browser set Content-Type automatically so it includes
-          // the multipart boundary — manually setting it breaks parsing.
-          "Content-Type": undefined,
-        },
-      },
     );
 
     const payload = (response as any)?.data || response;
