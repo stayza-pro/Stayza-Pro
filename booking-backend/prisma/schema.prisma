@@ -565,8 +565,10 @@ model Dispute {
    adminDecision       AdminDisputeDecision?
    adminNotes          String?                @db.Text
    adminResolvedAt     DateTime?
+   adminDeadlineAt     DateTime? // SLA deadline (48h from escalation)
    // Final outcome
    finalOutcome        DisputeFinalOutcome?
+   tier                DisputeTier? // Severity tier (set during resolution)
    executedAt          DateTime?
    executionReference  String? // Reference to escrow/wallet transactions
    createdAt           DateTime               @default(now())
@@ -1011,6 +1013,7 @@ enum WalletTransactionSource {
    REFUND
    ADJUSTMENT
    CANCELLATION
+   SECURITY_DEPOSIT
 }
 
 enum WalletTransactionStatus {

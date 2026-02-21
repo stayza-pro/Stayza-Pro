@@ -185,19 +185,11 @@ export const disputeService = {
   },
 
   acceptDispute: async (disputeId: string, resolution: string): Promise<Dispute> => {
-    try {
-      return await disputeService.respondToDisputeAction(
-        disputeId,
-        "ACCEPT",
-        resolution,
-      );
-    } catch (error) {
-      const fallback = await apiClient.post<ApiDisputePayload>(
-        `/disputes/${disputeId}/accept`,
-        { resolution },
-      );
-      return extractDispute(fallback as any);
-    }
+    return disputeService.respondToDisputeAction(
+      disputeId,
+      "ACCEPT",
+      resolution,
+    );
   },
 
   rejectAndEscalateDispute: async (

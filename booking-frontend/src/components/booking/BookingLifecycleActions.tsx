@@ -1,7 +1,16 @@
 "use client";
 
 import React from "react";
-import { AlertCircle, CalendarDays, Clock3, Film, ImageIcon, RefreshCw, Upload, X } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarDays,
+  Check,
+  Clock3,
+  Film,
+  RefreshCw,
+  Upload,
+  X,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import { Booking } from "@/types";
 import {
@@ -25,30 +34,40 @@ const GUEST_DISPUTE_CATEGORY_OPTIONS: {
   value: RoomFeeDisputeCategory;
   label: string;
   example: string;
+  refundImpact: string;
+  severity: "high" | "medium";
 }[] = [
   {
     value: "MINOR_INCONVENIENCE",
-    label: "Minor inconvenience",
+    label: "Minor Inconvenience",
     example:
       "e.g. Minor noise disturbance, slightly late check-in, minor temperature issue",
+    refundImpact: "Up to 30% refund",
+    severity: "medium",
   },
   {
     value: "MISSING_AMENITIES_CLEANLINESS",
-    label: "Missing amenities or cleanliness",
+    label: "Missing Amenities / Cleanliness",
     example:
       "e.g. Advertised WiFi not working, unclean bathroom on arrival, missing promised toiletries",
+    refundImpact: "Up to 30% refund",
+    severity: "medium",
   },
   {
     value: "MAJOR_MISREPRESENTATION",
-    label: "Major misrepresentation",
+    label: "Major Misrepresentation",
     example:
       "e.g. Property looks nothing like photos, advertised features or rooms don't exist, wrong location",
+    refundImpact: "Up to 100% refund",
+    severity: "high",
   },
   {
     value: "SAFETY_UNINHABITABLE",
-    label: "Safety or uninhabitable issue",
+    label: "Safety / Uninhabitable",
     example:
       "e.g. Structural damage, broken locks, pest infestation, no running water or electricity",
+    refundImpact: "Up to 100% refund",
+    severity: "high",
   },
 ];
 
@@ -56,30 +75,40 @@ const REALTOR_DISPUTE_CATEGORY_OPTIONS: {
   value: DepositDisputeCategory;
   label: string;
   example: string;
+  refundImpact: string;
+  severity: "high" | "medium";
 }[] = [
   {
     value: "PROPERTY_DAMAGE",
-    label: "Property damage",
+    label: "Property Damage",
     example:
       "e.g. Broken furniture, holes in walls, stained carpets or mattresses",
+    refundImpact: "Up to full deposit",
+    severity: "high",
   },
   {
     value: "MISSING_ITEMS",
-    label: "Missing items",
+    label: "Missing Items",
     example:
       "e.g. TV remote, kitchen utensils, artwork, or other listed items missing after guest leaves",
+    refundImpact: "Up to full deposit",
+    severity: "medium",
   },
   {
     value: "CLEANING_REQUIRED",
-    label: "Cleaning required",
+    label: "Cleaning Required",
     example:
       "e.g. Excessive mess, biohazardous waste, or significant cleaning beyond normal use",
+    refundImpact: "Up to full deposit",
+    severity: "medium",
   },
   {
     value: "OTHER_DEPOSIT_CLAIM",
-    label: "Other deposit claim",
+    label: "Other Deposit Claim",
     example:
       "e.g. Unauthorised pets, smoking in a non-smoking property, extra guests not on booking",
+    refundImpact: "Up to full deposit",
+    severity: "medium",
   },
 ];
 
@@ -149,10 +178,13 @@ export function BookingLifecycleActions({
     id: string;
     file: File;
     url: string | null;
+    preview: string | null;
     uploading: boolean;
     error: string | null;
   };
   const [evidenceFiles, setEvidenceFiles] = React.useState<EvidenceFile[]>([]);
+  const [dragOver, setDragOver] = React.useState(false);
+  const dragCounterRef = React.useRef(0);
   const evidenceInputRef = React.useRef<HTMLInputElement>(null);
   const isBlockedBooking = isBlockedDatesBooking(booking.specialRequests);
 
@@ -278,64 +310,88 @@ export function BookingLifecycleActions({
     });
   };
 
+  const processFiles = React.useCallback(
+    async (rawFiles: FileList | File[]) => {
+      const files = Array.from(rawFiles);
+      if (!files.length) return;
+      const incoming = files.slice(0, Math.max(0, 5 - evidenceFiles.length));
+      if (!incoming.length) return;
+      const newEntries: EvidenceFile[] = incoming.map((file) => ({
+        id: `${file.name}-${Date.now()}-${Math.random()}`,
+        file,
+        url: null,
+        preview: file.type.startsWith("image/")
+          ? URL.createObjectURL(file)
+          : null,
+        uploading: true,
+        error: null,
+      }));
+      setEvidenceFiles((prev) => [...prev, ...newEntries]);
+      await Promise.all(
+        newEntries.map(async (entry) => {
+          try {
+            const url = await disputeService.uploadDisputeAttachment(
+              entry.file,
+            );
+            setEvidenceFiles((prev) =>
+              prev.map((f) =>
+                f.id === entry.id ? { ...f, url, uploading: false } : f,
+              ),
+            );
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "Upload failed";
+            setEvidenceFiles((prev) =>
+              prev.map((f) =>
+                f.id === entry.id
+                  ? { ...f, uploading: false, error: message }
+                  : f,
+              ),
+            );
+          }
+        }),
+      );
+    },
+    [evidenceFiles.length],
+  );
+
   const handleEvidenceSelect = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const files = Array.from(event.target.files ?? []);
-    if (!files.length) return;
+    const { files } = event.target;
     event.target.value = "";
-    const incoming = files.slice(0, Math.max(0, 5 - evidenceFiles.length));
-    const newEntries: EvidenceFile[] = incoming.map((file) => ({
-      id: `${file.name}-${Date.now()}-${Math.random()}`,
-      file,
-      url: null,
-      uploading: true,
-      error: null,
-    }));
-    setEvidenceFiles((prev) => [...prev, ...newEntries]);
-    await Promise.all(
-      newEntries.map(async (entry) => {
-        try {
-          const url = await disputeService.uploadDisputeAttachment(entry.file);
-          setEvidenceFiles((prev) =>
-            prev.map((f) =>
-              f.id === entry.id ? { ...f, url, uploading: false } : f,
-            ),
-          );
-        } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "Upload failed";
-          setEvidenceFiles((prev) =>
-            prev.map((f) =>
-              f.id === entry.id
-                ? { ...f, uploading: false, error: message }
-                : f,
-            ),
-          );
-        }
-      }),
-    );
+    if (files) await processFiles(files);
+  };
+
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    dragCounterRef.current = 0;
+    setDragOver(false);
+    await processFiles(event.dataTransfer.files);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    dragCounterRef.current += 1;
+    setDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) setDragOver(false);
   };
 
   const removeEvidence = (id: string) => {
-    setEvidenceFiles((prev) => prev.filter((f) => f.id !== id));
+    setEvidenceFiles((prev) => {
+      const target = prev.find((f) => f.id === id);
+      if (target?.preview) URL.revokeObjectURL(target.preview);
+      return prev.filter((f) => f.id !== id);
+    });
   };
-
-  const guestCategoryExample = React.useMemo(
-    () =>
-      GUEST_DISPUTE_CATEGORY_OPTIONS.find(
-        (o) => o.value === guestDisputeCategory,
-      )?.example ?? "",
-    [guestDisputeCategory],
-  );
-
-  const realtorCategoryExample = React.useMemo(
-    () =>
-      REALTOR_DISPUTE_CATEGORY_OPTIONS.find(
-        (o) => o.value === realtorDisputeCategory,
-      )?.example ?? "",
-    [realtorDisputeCategory],
-  );
 
   const handleOpenDispute = async () => {
     await runAction("open-dispute", async () => {
@@ -450,22 +506,50 @@ export function BookingLifecycleActions({
               <Clock3 className="w-4 h-4" />
               Dispute Windows
             </h4>
-            <div className="grid sm:grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg border border-gray-200 p-3">
-                <p className="font-medium text-gray-800 mb-1">Guest Window</p>
-                <p className="text-gray-600">Deadline: {guestDeadlineText}</p>
-                <p className="text-gray-600">
-                  Can open:{" "}
-                  {disputeWindows.guestDisputeWindow?.canOpen ? "Yes" : "No"}
-                </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="rounded-lg border border-gray-200 p-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-gray-800">
+                    Guest Window
+                  </p>
+                  {disputeWindows.guestDisputeWindow?.canOpen ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                      Open
+                    </span>
+                  ) : disputeWindows.guestDisputeWindow?.expired ? (
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                      Expired
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                      Unavailable
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">{guestDeadlineText}</p>
               </div>
-              <div className="rounded-lg border border-gray-200 p-3">
-                <p className="font-medium text-gray-800 mb-1">Realtor Window</p>
-                <p className="text-gray-600">Deadline: {realtorDeadlineText}</p>
-                <p className="text-gray-600">
-                  Can open:{" "}
-                  {disputeWindows.realtorDisputeWindow?.canOpen ? "Yes" : "No"}
-                </p>
+              <div className="rounded-lg border border-gray-200 p-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-gray-800">
+                    Realtor Window
+                  </p>
+                  {disputeWindows.realtorDisputeWindow?.canOpen ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                      Open
+                    </span>
+                  ) : disputeWindows.realtorDisputeWindow?.expired ? (
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                      Expired
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                      Unavailable
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">{realtorDeadlineText}</p>
               </div>
             </div>
 
@@ -491,139 +575,250 @@ export function BookingLifecycleActions({
                 </div>
 
                 {showDisputeForm && canOpenDispute ? (
-                  <div className="space-y-4">
-                    {role === "GUEST" ? (
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 block mb-1">
-                          Dispute Category
-                        </label>
-                        <select
-                          value={guestDisputeCategory}
+                  <div className="space-y-5 pt-1">
+                    {/* Category cards */}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        Dispute Category
+                      </p>
+                      {role === "GUEST" ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {GUEST_DISPUTE_CATEGORY_OPTIONS.map((option) => {
+                            const selected =
+                              guestDisputeCategory === option.value;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() =>
+                                  setGuestDisputeCategory(option.value)
+                                }
+                                className={`relative text-left rounded-xl border-2 p-3 transition-all ${
+                                  selected
+                                    ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-200"
+                                    : "border-gray-200 bg-white hover:border-gray-300"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <span
+                                    className={`text-xs font-semibold leading-tight ${
+                                      selected
+                                        ? "text-indigo-900"
+                                        : "text-gray-800"
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </span>
+                                  <span
+                                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                      option.severity === "high"
+                                        ? "bg-orange-100 text-orange-700"
+                                        : "bg-sky-100 text-sky-700"
+                                    }`}
+                                  >
+                                    {option.refundImpact}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] leading-relaxed text-gray-500">
+                                  {option.example}
+                                </p>
+                                {selected && (
+                                  <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500">
+                                    <Check className="h-2.5 w-2.5 text-white" />
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {REALTOR_DISPUTE_CATEGORY_OPTIONS.map((option) => {
+                            const selected =
+                              realtorDisputeCategory === option.value;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() =>
+                                  setRealtorDisputeCategory(option.value)
+                                }
+                                className={`relative text-left rounded-xl border-2 p-3 transition-all ${
+                                  selected
+                                    ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-200"
+                                    : "border-gray-200 bg-white hover:border-gray-300"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <span
+                                    className={`text-xs font-semibold leading-tight ${
+                                      selected
+                                        ? "text-indigo-900"
+                                        : "text-gray-800"
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </span>
+                                  <span
+                                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                      option.severity === "high"
+                                        ? "bg-orange-100 text-orange-700"
+                                        : "bg-sky-100 text-sky-700"
+                                    }`}
+                                  >
+                                    {option.refundImpact}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] leading-relaxed text-gray-500">
+                                  {option.example}
+                                </p>
+                                {selected && (
+                                  <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500">
+                                    <Check className="h-2.5 w-2.5 text-white" />
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Claimed amount — realtor only */}
+                    {role === "REALTOR" && (
+                      <label className="text-sm font-medium text-gray-700 block">
+                        Claimed Amount
+                        <input
+                          type="number"
+                          min={0}
+                          value={claimedAmount}
                           onChange={(event) =>
-                            setGuestDisputeCategory(
-                              event.target.value as RoomFeeDisputeCategory,
+                            setClaimedAmount(
+                              Math.max(0, Number(event.target.value || 0)),
                             )
                           }
-                          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                        >
-                          {GUEST_DISPUTE_CATEGORY_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        {guestCategoryExample && (
-                          <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
-                            {guestCategoryExample}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700 block mb-1">
-                            Dispute Category
-                          </label>
-                          <select
-                            value={realtorDisputeCategory}
-                            onChange={(event) =>
-                              setRealtorDisputeCategory(
-                                event.target.value as DepositDisputeCategory,
-                              )
-                            }
-                            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                          >
-                            {REALTOR_DISPUTE_CATEGORY_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          {realtorCategoryExample && (
-                            <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
-                              {realtorCategoryExample}
-                            </p>
-                          )}
-                        </div>
-                        <label className="text-sm font-medium text-gray-700 block">
-                          Claimed Amount
-                          <input
-                            type="number"
-                            min={0}
-                            value={claimedAmount}
-                            onChange={(event) =>
-                              setClaimedAmount(
-                                Math.max(0, Number(event.target.value || 0)),
-                              )
-                            }
-                            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                          />
-                        </label>
-                      </>
+                          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                        />
+                      </label>
                     )}
 
-                    <label className="text-sm font-medium text-gray-700 block">
-                      Dispute Details
+                    {/* Dispute details with character counter */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 block mb-1">
+                        Dispute Details
+                      </label>
                       <textarea
                         rows={3}
                         value={disputeWriteup}
                         onChange={(event) =>
                           setDisputeWriteup(event.target.value)
                         }
-                        placeholder="Describe the issue in detail (minimum 20 characters)..."
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                        placeholder="Describe the issue in detail..."
+                        className="block w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm"
                       />
-                    </label>
+                      <div className="mt-1 flex justify-between">
+                        <span className="text-xs text-gray-400">
+                          Minimum 20 characters
+                        </span>
+                        <span
+                          className={`text-xs ${
+                            disputeWriteup.trim().length >= 20
+                              ? "text-green-600"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {disputeWriteup.trim().length} chars
+                        </span>
+                      </div>
+                    </div>
 
-                    {/* Evidence upload — required */}
+                    {/* Evidence upload */}
                     <div>
-                      <p className="text-sm font-medium text-gray-700 mb-1">
-                        Evidence{" "}
-                        <span className="text-red-500">*</span>
+                      <p className="mb-2 text-sm font-medium text-gray-700">
+                        Evidence <span className="text-red-500">*</span>
                         <span className="font-normal text-gray-500">
-                          {" "}(required — photo or video, up to 5 files)
+                          {" "}
+                          &mdash; photo or video required (up to 5)
                         </span>
                       </p>
 
+                      {/* Thumbnail grid */}
                       {evidenceFiles.length > 0 && (
-                        <ul className="mb-2 space-y-1.5">
+                        <div className="mb-2 grid grid-cols-3 gap-2">
                           {evidenceFiles.map((ef) => (
-                            <li
+                            <div
                               key={ef.id}
-                              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs"
+                              className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
                             >
-                              {ef.file.type.startsWith("video/") ? (
-                                <Film className="w-4 h-4 text-gray-500 shrink-0" />
+                              {ef.preview ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={ef.preview}
+                                  alt={ef.file.name}
+                                  className="h-full w-full object-cover"
+                                />
                               ) : (
-                                <ImageIcon className="w-4 h-4 text-gray-500 shrink-0" />
+                                <Film className="h-5 w-5 text-gray-400" />
                               )}
-                              <span className="flex-1 truncate text-gray-700">
-                                {ef.file.name}
-                              </span>
                               {ef.uploading && (
-                                <span className="text-gray-400">Uploading…</span>
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                  <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                                </div>
                               )}
                               {ef.error && (
-                                <span className="text-red-500">{ef.error}</span>
+                                <div className="absolute inset-0 flex items-end bg-red-400/20">
+                                  <span className="w-full truncate bg-red-600 px-1 py-0.5 text-[9px] text-white">
+                                    {ef.error}
+                                  </span>
+                                </div>
                               )}
                               {ef.url && (
-                                <span className="text-green-600">Uploaded</span>
+                                <span className="absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-500">
+                                  <Check className="h-2.5 w-2.5 text-white" />
+                                </span>
                               )}
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1.5 py-0.5">
+                                <p className="truncate text-[9px] text-white">
+                                  {ef.file.name}
+                                </p>
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => removeEvidence(ef.id)}
-                                className="ml-auto text-gray-400 hover:text-red-500"
+                                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 transition-colors hover:bg-black/70"
                                 aria-label="Remove file"
                               >
-                                <X className="w-3.5 h-3.5" />
+                                <X className="h-3 w-3 text-white" />
                               </button>
-                            </li>
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       )}
 
+                      {/* Drag-and-drop zone */}
                       {evidenceFiles.length < 5 && (
-                        <>
+                        <div
+                          onDragEnter={handleDragEnter}
+                          onDragLeave={handleDragLeave}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => void handleDrop(e)}
+                          onClick={() => evidenceInputRef.current?.click()}
+                          className={`cursor-pointer rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors ${
+                            dragOver
+                              ? "border-indigo-400 bg-indigo-50"
+                              : "border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100"
+                          }`}
+                        >
+                          <Upload className="mx-auto mb-1.5 h-5 w-5 text-gray-400" />
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium text-indigo-600">
+                              Click to upload
+                            </span>{" "}
+                            or drag and drop
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            Photos and videos
+                          </p>
                           <input
                             ref={evidenceInputRef}
                             type="file"
@@ -633,15 +828,7 @@ export function BookingLifecycleActions({
                             onChange={(e) => void handleEvidenceSelect(e)}
                             aria-label="Upload evidence"
                           />
-                          <button
-                            type="button"
-                            onClick={() => evidenceInputRef.current?.click()}
-                            className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
-                          >
-                            <Upload className="w-3.5 h-3.5" />
-                            Add photo or video
-                          </button>
-                        </>
+                        </div>
                       )}
                     </div>
 

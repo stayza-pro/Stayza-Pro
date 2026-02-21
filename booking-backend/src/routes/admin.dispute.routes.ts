@@ -117,7 +117,7 @@ router.post(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const { decision, adminNotes } = req.body;
+      const { decision, adminNotes, adminClaimedAmount } = req.body;
       const adminId = req.user?.id;
 
       if (!adminId) {
@@ -130,6 +130,17 @@ router.post(
           message: "Missing required fields: decision, adminNotes",
         });
         return;
+      }
+
+      // Validate adminClaimedAmount when PARTIAL_REFUND is chosen
+      if (decision === "PARTIAL_REFUND" && adminClaimedAmount != null) {
+        const claimed = Number(adminClaimedAmount);
+        if (isNaN(claimed) || claimed < 0) {
+          res.status(400).json({
+            message: "adminClaimedAmount must be a non-negative number",
+          });
+          return;
+        }
       }
 
       const validDecisions = ["FULL_REFUND", "PARTIAL_REFUND", "NO_REFUND"];
@@ -145,7 +156,8 @@ router.post(
         id,
         adminId,
         decision as AdminDisputeDecision,
-        adminNotes
+        adminNotes,
+        adminClaimedAmount != null ? Number(adminClaimedAmount) : undefined,
       );
 
       res.status(200).json({

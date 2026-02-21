@@ -577,6 +577,7 @@ export const respondToDispute = async (
         responseAction,
         responseNotes,
         escalatedToAdmin: true,
+        adminDeadlineAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
       },
     });
 
@@ -598,6 +599,7 @@ export const adminResolveDispute = async (
   adminId: string,
   decision: AdminDisputeDecision,
   adminNotes: string,
+  adminClaimedAmount?: number,
 ) => {
   const dispute = await prisma.dispute.findUnique({
     where: { id: disputeId },
@@ -638,6 +640,7 @@ export const adminResolveDispute = async (
     decision,
     adminNotes,
     adminId,
+    adminClaimedAmount,
   );
 };
 
@@ -649,6 +652,7 @@ const executeDisputeResolution = async (
   adminDecision: AdminDisputeDecision | null,
   notes: string | undefined,
   adminId?: string,
+  adminClaimedAmount?: number,
 ) => {
   const dispute = await prisma.dispute.findUnique({
     where: { id: disputeId },
@@ -747,10 +751,16 @@ const executeDisputeResolution = async (
       realtorPayoutAmount = 0;
       finalOutcome = DisputeFinalOutcome.DEPOSIT_RETURNED;
     } else if (adminDecision === AdminDisputeDecision.PARTIAL_REFUND) {
-      // Admin: Partial (use 50% as default partial)
+      // Admin: Partial — use adminClaimedAmount (realtor's claimed portion) or fall back to 50%
       const deposit = payment.securityDepositAmount.toNumber();
-      realtorPayoutAmount = deposit * 0.5;
-      guestRefundAmount = deposit * 0.5;
+      const claimed =
+        adminClaimedAmount != null &&
+        adminClaimedAmount >= 0 &&
+        adminClaimedAmount <= deposit
+          ? adminClaimedAmount
+          : deposit * 0.5;
+      realtorPayoutAmount = claimed;
+      guestRefundAmount = deposit - claimed;
       finalOutcome = DisputeFinalOutcome.DEPOSIT_PARTIAL;
     } else if (adminDecision === AdminDisputeDecision.NO_REFUND) {
       // Admin: Full deposit to realtor
@@ -940,7 +950,7 @@ const executeDisputeResolution = async (
         await walletService.creditWallet(
           realtorWallet.id,
           realtorPayoutAmount,
-          WalletTransactionSource.ROOM_FEE, // Use ROOM_FEE source for deposit forfeit
+          WalletTransactionSource.SECURITY_DEPOSIT,
           booking.id,
           { disputeId, depositClaim: true },
         );
@@ -1141,309 +1151,6 @@ export const getAllOpenDisputes = async () => {
   });
 };
 
-/**
- * NEW DISPUTE SYSTEM - Conversation-based disputes
- */
-
-/**
- * Create a new conversation-style dispute
- */
-export const createNewDispute = async (
-  bookingId: string,
-  guestId: string,
-  issueType: string,
-  subject: string,
-  description: string,
-) => {
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: {
-      property: { include: { realtor: true } },
-      guest: true,
-    },
-  });
-
-  if (!booking) {
-    throw new Error("Booking not found");
-  }
-
-  if (booking.guestId !== guestId) {
-    throw new Error("You can only create disputes for your own bookings");
-  }
-
-  // Check if dispute already exists
-  const existingDispute = await prisma.dispute.findFirst({
-    where: {
-      bookingId,
-      status: { notIn: [DisputeStatus.RESOLVED] },
-    },
-  });
-
-  if (existingDispute) {
-    throw new Error("A dispute already exists for this booking");
-  }
-
-  const category = mapIssueTypeToCategory(issueType);
-
-  const disputeSubject = mapCategoryToSubject(category);
-
-  if (
-    disputeSubject === DisputeSubject.SECURITY_DEPOSIT &&
-    Number(booking.securityDeposit || 0) <= 0
-  ) {
-    throw new Error(
-      "Security deposit disputes are unavailable for bookings without a deposit",
-    );
-  }
-
-  // Store the conversation bootstrap in attachments as JSON
-  const dispute = await prisma.dispute.create({
-    data: {
-      bookingId,
-      disputeSubject,
-      category,
-      openedBy: guestId,
-      writeup: `${subject}\n\n${description}`,
-      maxRefundPercent: 0,
-      claimedAmount: 0,
-      guestRefundAmount: 0,
-      realtorPayoutAmount: 0,
-      platformFeeAmount: 0,
-      attachments: {
-        issueType,
-        subject,
-        description,
-        messages: [
-          {
-            senderType: "GUEST",
-            message: description,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-        guestArgumentCount: 0,
-        realtorArgumentCount: 0,
-      },
-      status: DisputeStatus.OPEN,
-    },
-    include: {
-      booking: {
-        include: {
-          property: { include: { realtor: { include: { user: true } } } },
-          guest: true,
-        },
-      },
-      opener: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
-      },
-    },
-  });
-
-  // Transform to match frontend expectations
-  const attachments = dispute.attachments as any;
-  return {
-    id: dispute.id,
-    bookingId: dispute.bookingId,
-    issueType: attachments.issueType,
-    subject: attachments.subject,
-    description: attachments.description,
-    status: dispute.status,
-    guestId: dispute.openedBy,
-    realtorId: booking.property.realtorId,
-    guestArgumentCount: attachments.guestArgumentCount || 0,
-    realtorArgumentCount: attachments.realtorArgumentCount || 0,
-    messages: attachments.messages || [],
-    createdAt: dispute.createdAt,
-    updatedAt: dispute.updatedAt,
-    guest: dispute.opener,
-    booking: {
-      id: booking.id,
-      property: {
-        title: booking.property.title,
-      },
-    },
-  };
-};
-
-/**
- * Get dispute by booking ID
- */
-export const getDisputeByBookingId = async (bookingId: string) => {
-  const dispute = await prisma.dispute.findFirst({
-    where: { bookingId },
-    include: {
-      booking: {
-        include: {
-          property: { include: { realtor: { include: { user: true } } } },
-          guest: true,
-        },
-      },
-      opener: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!dispute) {
-    return null;
-  }
-
-  const attachments = dispute.attachments as any;
-  return {
-    id: dispute.id,
-    bookingId: dispute.bookingId,
-    issueType: attachments.issueType,
-    subject: attachments.subject,
-    description: attachments.description,
-    status: dispute.status,
-    guestId: dispute.openedBy,
-    realtorId: dispute.booking.property.realtorId,
-    guestArgumentCount: attachments.guestArgumentCount || 0,
-    realtorArgumentCount: attachments.realtorArgumentCount || 0,
-    messages: attachments.messages || [],
-    createdAt: dispute.createdAt,
-    updatedAt: dispute.updatedAt,
-    guest: dispute.opener,
-    booking: {
-      id: dispute.booking.id,
-      property: {
-        title: dispute.booking.property.title,
-      },
-    },
-  };
-};
-
-/**
- * Respond to a dispute (both guest and realtor)
- */
-export const respondToNewDispute = async (
-  disputeId: string,
-  userId: string,
-  userRole: string,
-  message: string,
-) => {
-  const dispute = await prisma.dispute.findUnique({
-    where: { id: disputeId },
-    include: {
-      booking: {
-        include: {
-          property: { include: { realtor: true } },
-        },
-      },
-    },
-  });
-
-  if (!dispute) {
-    throw new Error("Dispute not found");
-  }
-
-  const attachments = dispute.attachments as any;
-  const isGuest = userId === dispute.booking.guestId;
-  const isRealtor = userId === dispute.booking.property.realtorId;
-
-  if (!isGuest && !isRealtor) {
-    throw new Error("You are not authorized to respond to this dispute");
-  }
-
-  // Check argument limits
-  const currentCount = isGuest
-    ? attachments.guestArgumentCount || 0
-    : attachments.realtorArgumentCount || 0;
-
-  if (currentCount >= 2) {
-    throw new Error("Maximum number of responses (2) reached");
-  }
-
-  // Add message to conversation
-  const newMessage = {
-    senderType: isGuest ? "GUEST" : "REALTOR",
-    message,
-    createdAt: new Date().toISOString(),
-  };
-
-  const updatedMessages = [...(attachments.messages || []), newMessage];
-
-  // Increment argument count
-  const updatedAttachments = {
-    ...attachments,
-    messages: updatedMessages,
-    guestArgumentCount: isGuest
-      ? currentCount + 1
-      : attachments.guestArgumentCount || 0,
-    realtorArgumentCount: isRealtor
-      ? currentCount + 1
-      : attachments.realtorArgumentCount || 0,
-  };
-
-  // Determine new status
-  let newStatus = dispute.status;
-  if (isGuest) {
-    newStatus = DisputeStatus.AWAITING_RESPONSE; // Waiting for realtor
-  } else if (isRealtor) {
-    newStatus = DisputeStatus.OPEN; // Back to guest
-  }
-
-  // Update dispute
-  const updatedDispute = await prisma.dispute.update({
-    where: { id: disputeId },
-    data: {
-      attachments: updatedAttachments,
-      status: newStatus,
-      respondedBy: userId,
-      respondedAt: new Date(),
-    },
-    include: {
-      booking: {
-        include: {
-          property: { include: { realtor: { include: { user: true } } } },
-          guest: true,
-        },
-      },
-      opener: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
-      },
-    },
-  });
-
-  const updatedData = updatedDispute.attachments as any;
-  return {
-    id: updatedDispute.id,
-    bookingId: updatedDispute.bookingId,
-    issueType: updatedData.issueType,
-    subject: updatedData.subject,
-    description: updatedData.description,
-    status: updatedDispute.status,
-    guestId: updatedDispute.openedBy,
-    realtorId: updatedDispute.booking.property.realtorId,
-    guestArgumentCount: updatedData.guestArgumentCount || 0,
-    realtorArgumentCount: updatedData.realtorArgumentCount || 0,
-    messages: updatedData.messages || [],
-    createdAt: updatedDispute.createdAt,
-    updatedAt: updatedDispute.updatedAt,
-    guest: updatedDispute.opener,
-    booking: {
-      id: updatedDispute.booking.id,
-      property: {
-        title: updatedDispute.booking.property.title,
-      },
-    },
-  };
-};
 
 /**
  * Get all disputes for a realtor
@@ -1585,97 +1292,6 @@ export const getRealtorDisputeStats = async (realtorUserId: string) => {
   }
 };
 
-/**
- * Accept and resolve a dispute (realtor only)
- */
-export const acceptDispute = async (
-  disputeId: string,
-  realtorUserId: string,
-  resolution: string,
-) => {
-  const dispute = await prisma.dispute.findUnique({
-    where: { id: disputeId },
-    include: {
-      booking: {
-        include: {
-          property: { include: { realtor: true } },
-        },
-      },
-    },
-  });
-
-  if (!dispute) {
-    throw new Error("Dispute not found");
-  }
-
-  if (dispute.booking.property.realtor.userId !== realtorUserId) {
-    throw new Error("Only the realtor can accept this dispute");
-  }
-
-  const attachments = dispute.attachments as any;
-
-  // Add resolution message
-  const resolutionMessage = {
-    senderType: "REALTOR",
-    message: `ACCEPTED: ${resolution}`,
-    createdAt: new Date().toISOString(),
-  };
-
-  const updatedMessages = [...(attachments.messages || []), resolutionMessage];
-
-  const updatedDispute = await prisma.dispute.update({
-    where: { id: disputeId },
-    data: {
-      status: DisputeStatus.RESOLVED,
-      attachments: {
-        ...attachments,
-        messages: updatedMessages,
-        resolution,
-      },
-      closedAt: new Date(),
-    },
-    include: {
-      booking: {
-        include: {
-          property: { include: { realtor: { include: { user: true } } } },
-          guest: true,
-        },
-      },
-      opener: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
-      },
-    },
-  });
-
-  const updatedData = updatedDispute.attachments as any;
-  return {
-    id: updatedDispute.id,
-    bookingId: updatedDispute.bookingId,
-    issueType: updatedData.issueType,
-    subject: updatedData.subject,
-    description: updatedData.description,
-    status: updatedDispute.status,
-    guestId: updatedDispute.openedBy,
-    realtorId: updatedDispute.booking.property.realtorId,
-    guestArgumentCount: updatedData.guestArgumentCount || 0,
-    realtorArgumentCount: updatedData.realtorArgumentCount || 0,
-    messages: updatedData.messages || [],
-    createdAt: updatedDispute.createdAt,
-    updatedAt: updatedDispute.updatedAt,
-    guest: updatedDispute.opener,
-    booking: {
-      id: updatedDispute.booking.id,
-      property: {
-        title: updatedDispute.booking.property.title,
-      },
-    },
-  };
-};
 
 export default {
   openRoomFeeDispute,
@@ -1686,11 +1302,6 @@ export default {
   getDisputeById,
   getDisputesByBooking,
   getAllOpenDisputes,
-  // New dispute system
-  createNewDispute,
-  getDisputeByBookingId,
-  respondToNewDispute,
   getRealtorDisputes,
   getRealtorDisputeStats,
-  acceptDispute,
 };

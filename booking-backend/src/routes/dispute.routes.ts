@@ -8,6 +8,7 @@ import { logger } from "@/utils/logger";
 import { AuthenticatedRequest } from "@/types";
 import { authenticate } from "@/middleware/auth";
 import * as disputeService from "@/services/disputeService";
+import { disputeUpload, uploadDisputeEvidence } from "@/utils/upload";
 
 const router = Router();
 
@@ -16,54 +17,46 @@ router.use(authenticate);
 
 /**
  * @swagger
- * /api/disputes:
+ * /api/disputes/upload-attachment:
  *   post:
- *     summary: Create a new dispute (Guest)
+ *     summary: Upload a dispute evidence file (image or video)
  *     tags: [Disputes]
  *     security:
  *       - BearerAuth: []
  */
-router.post("/", async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { bookingId, issueType, subject, description } = req.body;
-    const userId = req.user?.id;
+router.post(
+  "/upload-attachment",
+  disputeUpload.single("file"),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
 
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) {
+        res.status(400).json({ message: "No file uploaded" });
+        return;
+      }
 
-    if (!bookingId || !issueType || !subject || !description) {
+      const result = await uploadDisputeEvidence(file.buffer, file.mimetype);
+      res.status(200).json({ url: result.secure_url });
+    } catch (error: any) {
+      logger.error("Error uploading dispute attachment:", error);
       res.status(400).json({
-        message:
-          "Missing required fields: bookingId, issueType, subject, description",
+        message: error.message || "Failed to upload attachment",
       });
-      return;
     }
-
-    // Create dispute with conversation-style system
-    const dispute = await disputeService.createNewDispute(
-      bookingId,
-      userId,
-      issueType,
-      subject,
-      description
-    );
-
-    res.status(201).json(dispute);
-  } catch (error: any) {
-    logger.error("Error creating dispute:", error);
-    res.status(400).json({
-      message: error.message || "Failed to create dispute",
-    });
-  }
-});
+  },
+);
 
 /**
  * @swagger
  * /api/disputes/booking/{bookingId}:
  *   get:
- *     summary: Get dispute for a specific booking
+ *     summary: Get disputes for a specific booking
  *     tags: [Disputes]
  */
 router.get(
@@ -78,63 +71,19 @@ router.get(
         return;
       }
 
-      const dispute = await disputeService.getDisputeByBookingId(bookingId);
+      const disputes = await disputeService.getDisputesByBooking(bookingId);
 
-      if (!dispute) {
+      if (!disputes || disputes.length === 0) {
         res.status(404).json({ message: "No dispute found for this booking" });
         return;
       }
 
-      res.status(200).json(dispute);
+      // Return most recent dispute as primary for backward compatibility
+      res.status(200).json(disputes[0]);
     } catch (error: any) {
       logger.error("Error fetching dispute:", error);
       res.status(500).json({
         message: error.message || "Failed to fetch dispute",
-      });
-    }
-  }
-);
-
-/**
- * @swagger
- * /api/disputes/{id}/message:
- *   post:
- *     summary: Send a dispute conversation message (Guest or Realtor)
- *     tags: [Disputes]
- */
-router.post(
-  "/:id/message",
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const { id } = req.params;
-      const { message } = req.body;
-      const userId = req.user?.id;
-      const userRole = req.user?.role;
-
-      if (!userId) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-      }
-
-      if (!message || message.length < 10) {
-        res.status(400).json({
-          message: "Message must be at least 10 characters",
-        });
-        return;
-      }
-
-      const dispute = await disputeService.respondToNewDispute(
-        id,
-        userId,
-        userRole || "GUEST",
-        message
-      );
-
-      res.status(200).json(dispute);
-    } catch (error: any) {
-      logger.error("Error responding to dispute:", error);
-      res.status(400).json({
-        message: error.message || "Failed to respond to dispute",
       });
     }
   }
@@ -203,42 +152,6 @@ router.get(
     }
   }
 );
-
-/**
- * @swagger
- * /api/disputes/{id}/accept:
- *   post:
- *     summary: Accept and resolve a dispute (Realtor only)
- *     tags: [Disputes]
- */
-router.post("/:id/accept", async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { resolution } = req.body;
-    const userId = req.user?.id;
-
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    if (!resolution) {
-      res.status(400).json({
-        message: "Resolution plan is required",
-      });
-      return;
-    }
-
-    const dispute = await disputeService.acceptDispute(id, userId, resolution);
-
-    res.status(200).json(dispute);
-  } catch (error: any) {
-    logger.error("Error accepting dispute:", error);
-    res.status(400).json({
-      message: error.message || "Failed to accept dispute",
-    });
-  }
-});
 
 /**
  * @swagger

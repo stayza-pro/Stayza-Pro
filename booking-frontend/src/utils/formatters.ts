@@ -3,7 +3,7 @@
  */
 export const formatCurrency = (
   amount: number,
-  _currency: string = "NGN"
+  _currency: string = "NGN",
 ): string => {
   void _currency;
   const safeAmount = Number.isFinite(amount) ? amount : 0;

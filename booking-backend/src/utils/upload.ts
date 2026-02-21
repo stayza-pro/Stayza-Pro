@@ -28,6 +28,29 @@ export const upload = multer({
 });
 
 /**
+ * Multer instance for dispute evidence — accepts images AND videos, 50 MB limit
+ */
+export const disputeUpload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50 MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype.startsWith("image/") ||
+      file.mimetype.startsWith("video/")
+    ) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error("Only image and video files are allowed for dispute evidence") as any,
+        false,
+      );
+    }
+  },
+});
+
+/**
  * Upload single image to Cloudinary
  */
 export const uploadSingleImage = async (
@@ -68,6 +91,38 @@ export const uploadMultipleImages = async (
     uploadSingleImage(buffer, folder)
   );
   return Promise.all(uploadPromises);
+};
+
+/**
+ * Upload dispute evidence (image or video) to Cloudinary.
+ * Videos are uploaded without image transformations.
+ */
+export const uploadDisputeEvidence = async (
+  buffer: Buffer,
+  mimetype: string,
+  folder: string = "disputes",
+): Promise<CloudinaryUploadResult> => {
+  const isVideo = mimetype.startsWith("video/");
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream(
+        {
+          folder,
+          resource_type: isVideo ? "video" : "image",
+          ...(!isVideo && {
+            transformation: [
+              { width: 1920, height: 1080, crop: "limit" },
+              { quality: "auto", fetch_format: "auto" },
+            ],
+          }),
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result as CloudinaryUploadResult);
+        },
+      )
+      .end(buffer);
+  });
 };
 
 /**
