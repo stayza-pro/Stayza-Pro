@@ -86,7 +86,7 @@ router.get(
         message: error.message || "Failed to fetch dispute",
       });
     }
-  }
+  },
 );
 
 /**
@@ -110,7 +110,7 @@ router.get(
 
       const disputes = await disputeService.getRealtorDisputes(
         userId,
-        status as string
+        status as string,
       );
 
       res.status(200).json(disputes);
@@ -120,7 +120,7 @@ router.get(
         message: error.message || "Failed to fetch disputes",
       });
     }
-  }
+  },
 );
 
 /**
@@ -150,7 +150,7 @@ router.get(
         message: error.message || "Failed to fetch stats",
       });
     }
-  }
+  },
 );
 
 /**
@@ -211,7 +211,7 @@ router.post("/room-fee", async (req: AuthenticatedRequest, res: Response) => {
       userId,
       category as DisputeCategory,
       writeup,
-      attachments
+      attachments,
     );
 
     res.status(201).json({
@@ -304,7 +304,7 @@ router.post("/deposit", async (req: AuthenticatedRequest, res: Response) => {
       category as DisputeCategory,
       parseFloat(claimedAmount),
       writeup,
-      attachments
+      attachments,
     );
 
     res.status(201).json({
@@ -377,7 +377,7 @@ router.post(
         id,
         userId,
         responseAction as DisputeResponseAction,
-        responseNotes
+        responseNotes,
       );
 
       res.status(200).json({
@@ -393,7 +393,7 @@ router.post(
         message: error.message || "Failed to respond to dispute",
       });
     }
-  }
+  },
 );
 
 /**
@@ -479,7 +479,7 @@ router.get(
         message: error.message || "Failed to fetch disputes",
       });
     }
-  }
+  },
 );
 
 export default router;

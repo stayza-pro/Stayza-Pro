@@ -43,7 +43,9 @@ export const disputeUpload = multer({
       cb(null, true);
     } else {
       cb(
-        new Error("Only image and video files are allowed for dispute evidence") as any,
+        new Error(
+          "Only image and video files are allowed for dispute evidence",
+        ) as any,
         false,
       );
     }
@@ -55,7 +57,7 @@ export const disputeUpload = multer({
  */
 export const uploadSingleImage = async (
   buffer: Buffer,
-  folder: string = "booking-system"
+  folder: string = "booking-system",
 ): Promise<CloudinaryUploadResult> => {
   return new Promise((resolve, reject) => {
     cloudinary.uploader
@@ -74,7 +76,7 @@ export const uploadSingleImage = async (
           } else {
             resolve(result as CloudinaryUploadResult);
           }
-        }
+        },
       )
       .end(buffer);
   });
@@ -85,10 +87,10 @@ export const uploadSingleImage = async (
  */
 export const uploadMultipleImages = async (
   files: Buffer[],
-  folder: string = "booking-system"
+  folder: string = "booking-system",
 ): Promise<CloudinaryUploadResult[]> => {
   const uploadPromises = files.map((buffer) =>
-    uploadSingleImage(buffer, folder)
+    uploadSingleImage(buffer, folder),
   );
   return Promise.all(uploadPromises);
 };

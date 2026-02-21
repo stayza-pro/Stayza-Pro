@@ -170,7 +170,7 @@ router.post(
         message: error.message || "Failed to resolve dispute",
       });
     }
-  }
+  },
 );
 
 /**

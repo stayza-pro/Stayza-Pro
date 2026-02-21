@@ -105,7 +105,11 @@ const extractDisputes = (payload: ApiDisputePayload): Dispute[] => {
     (payload as any)?.data ||
     payload;
 
-  const list = Array.isArray(maybeArray) ? maybeArray : maybeArray ? [maybeArray] : [];
+  const list = Array.isArray(maybeArray)
+    ? maybeArray
+    : maybeArray
+      ? [maybeArray]
+      : [];
   return list.map(normalizeDispute);
 };
 
@@ -121,7 +125,10 @@ const extractStats = (payload: unknown): DisputeStats => {
 
 export const disputeService = {
   openDispute: async (data: LegacyOpenDisputeRequest): Promise<Dispute> => {
-    const response = await apiClient.post<ApiDisputePayload>("/disputes/open", data);
+    const response = await apiClient.post<ApiDisputePayload>(
+      "/disputes/open",
+      data,
+    );
     return extractDispute(response as any);
   },
 
@@ -131,7 +138,9 @@ export const disputeService = {
   },
 
   getDisputeById: async (disputeId: string): Promise<Dispute> => {
-    const response = await apiClient.get<ApiDisputePayload>(`/disputes/${disputeId}`);
+    const response = await apiClient.get<ApiDisputePayload>(
+      `/disputes/${disputeId}`,
+    );
     return extractDispute(response as any);
   },
 
@@ -154,7 +163,10 @@ export const disputeService = {
     }
   },
 
-  sendDisputeMessage: async (disputeId: string, message: string): Promise<Dispute> => {
+  sendDisputeMessage: async (
+    disputeId: string,
+    message: string,
+  ): Promise<Dispute> => {
     const response = await apiClient.post<ApiDisputePayload>(
       `/disputes/${disputeId}/message`,
       { message },
@@ -184,7 +196,10 @@ export const disputeService = {
     });
   },
 
-  acceptDispute: async (disputeId: string, resolution: string): Promise<Dispute> => {
+  acceptDispute: async (
+    disputeId: string,
+    resolution: string,
+  ): Promise<Dispute> => {
     return disputeService.respondToDisputeAction(
       disputeId,
       "ACCEPT",

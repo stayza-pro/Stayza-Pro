@@ -1151,7 +1151,6 @@ export const getAllOpenDisputes = async () => {
   });
 };
 
-
 /**
  * Get all disputes for a realtor
  */
@@ -1291,7 +1290,6 @@ export const getRealtorDisputeStats = async (realtorUserId: string) => {
     throw error;
   }
 };
-
 
 export default {
   openRoomFeeDispute,
