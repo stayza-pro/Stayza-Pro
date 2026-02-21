@@ -30,6 +30,25 @@ const toWatermarkTimestamp = (date: Date) => {
 };
 
 export default function EvidenceCapturePage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl p-6">
+          <Card className="p-8 flex items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+            <span className="ml-2 text-sm text-gray-600">
+              Loading capture page...
+            </span>
+          </Card>
+        </div>
+      }
+    >
+      <EvidenceCaptureContent />
+    </React.Suspense>
+  );
+}
+
+function EvidenceCaptureContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useCurrentUser();
