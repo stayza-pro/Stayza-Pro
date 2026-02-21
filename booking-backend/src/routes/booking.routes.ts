@@ -888,7 +888,23 @@ router.get(
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          propertyId: true,
+          guestId: true,
+          checkInDate: true,
+          checkOutDate: true,
+          checkInTime: true,
+          checkOutTime: true,
+          totalGuests: true,
+          totalPrice: true,
+          currency: true,
+          status: true,
+          stayStatus: true,
+          paymentStatus: true,
+          specialRequests: true,
+          createdAt: true,
+          updatedAt: true,
           property: {
             select: {
               id: true,
@@ -906,7 +922,18 @@ router.get(
               },
             },
           },
-          payment: true,
+          payment: {
+            select: {
+              id: true,
+              status: true,
+              amount: true,
+              currency: true,
+              method: true,
+              reference: true,
+              providerId: true,
+              paidAt: true,
+            },
+          },
           review: {
             select: {
               id: true,
@@ -1033,7 +1060,23 @@ router.get(
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          propertyId: true,
+          guestId: true,
+          checkInDate: true,
+          checkOutDate: true,
+          checkInTime: true,
+          checkOutTime: true,
+          totalGuests: true,
+          totalPrice: true,
+          currency: true,
+          status: true,
+          stayStatus: true,
+          paymentStatus: true,
+          specialRequests: true,
+          createdAt: true,
+          updatedAt: true,
           property: {
             select: {
               id: true,
@@ -1052,7 +1095,18 @@ router.get(
               email: true,
             },
           },
-          payment: true,
+          payment: {
+            select: {
+              id: true,
+              status: true,
+              amount: true,
+              currency: true,
+              method: true,
+              reference: true,
+              providerId: true,
+              paidAt: true,
+            },
+          },
         },
         orderBy: {
           [sortBy]: sortOrder,
