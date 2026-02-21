@@ -406,7 +406,9 @@ export function BookingLifecycleActions({
         throw new Error("Provide at least 20 characters for dispute details.");
       }
 
-      const trustedEvidence = await disputeService.listBookingEvidence(booking.id);
+      const trustedEvidence = await disputeService.listBookingEvidence(
+        booking.id,
+      );
       const trustedUrls = trustedEvidence
         .filter((item) => item.verificationType === "TRUSTED_CAMERA")
         .map((item) => item.fileUrl)
@@ -752,8 +754,14 @@ export function BookingLifecycleActions({
                       </p>
 
                       <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-800">
-                        <p className="font-medium">Trusted evidence must be captured inside Stayza Pro camera.</p>
-                        <p className="mt-1">Manual uploads are saved as unverified supporting attachments only.</p>
+                        <p className="font-medium">
+                          Trusted evidence must be captured inside Stayza Pro
+                          camera.
+                        </p>
+                        <p className="mt-1">
+                          Manual uploads are saved as unverified supporting
+                          attachments only.
+                        </p>
                         <Link
                           href={`/evidence/capture?booking=${encodeURIComponent(booking.id)}`}
                           className="mt-2 inline-flex rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"

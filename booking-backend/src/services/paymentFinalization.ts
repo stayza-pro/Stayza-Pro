@@ -7,9 +7,7 @@ import {
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/config/database";
 import escrowService from "@/services/escrowService";
-import {
-  sendBookingConfirmation,
-} from "@/services/email";
+import { sendBookingConfirmation } from "@/services/email";
 import { getMetadataObject } from "@/services/savedPaymentMethods";
 import { SystemMessageService } from "@/services/systemMessage";
 import { logger } from "@/utils/logger";
@@ -18,11 +16,7 @@ import type { ProcessingFeeMode } from "@/services/pricingEngine";
 
 export interface FinalizePaystackPaymentParams {
   paymentId: string;
-  source:
-    | "VERIFY_PAYSTACK"
-    | "VERIFY_BY_BOOKING"
-    | "SAVED_METHOD"
-    | "WEBHOOK";
+  source: "VERIFY_PAYSTACK" | "VERIFY_BY_BOOKING" | "SAVED_METHOD" | "WEBHOOK";
   providerData?: Record<string, unknown> | null;
   extraMetadata?: Record<string, unknown>;
 }
@@ -59,7 +53,7 @@ const TERMINAL_PAYMENT_STATUSES = new Set<PaymentStatus>([
 ]);
 
 const isKnownPrismaError = (
-  error: unknown
+  error: unknown,
 ): error is Prisma.PrismaClientKnownRequestError => {
   return (
     typeof error === "object" &&
@@ -70,7 +64,7 @@ const isKnownPrismaError = (
 };
 
 const loadPaymentForFinalization = async (
-  paymentId: string
+  paymentId: string,
 ): Promise<PaymentWithRelations | null> => {
   return prisma.payment.findUnique({
     where: { id: paymentId },
@@ -93,7 +87,9 @@ const loadPaymentForFinalization = async (
   });
 };
 
-const ensureEscrowHeld = async (payment: PaymentWithRelations): Promise<void> => {
+const ensureEscrowHeld = async (
+  payment: PaymentWithRelations,
+): Promise<void> => {
   const escrowExists = await prisma.escrow.findUnique({
     where: { bookingId: payment.booking.id },
     select: { id: true },
@@ -117,7 +113,7 @@ const ensureEscrowHeld = async (payment: PaymentWithRelations): Promise<void> =>
       payment.id,
       payment.booking.id,
       payment.booking.property.realtorId,
-      feeBreakdown
+      feeBreakdown,
     );
   } catch (error) {
     if (isKnownPrismaError(error) && error.code === "P2002") {
@@ -133,7 +129,7 @@ const buildMergedMetadata = (
   now: Date,
   source: FinalizePaystackPaymentParams["source"],
   providerData?: Record<string, unknown> | null,
-  extraMetadata?: Record<string, unknown>
+  extraMetadata?: Record<string, unknown>,
 ): Prisma.InputJsonValue => {
   const metadata = getMetadataObject(payment.metadata);
   const nextMetadata: Prisma.JsonObject = {
@@ -160,7 +156,7 @@ const buildMergedMetadata = (
 };
 
 const toActualProcessingMode = (
-  providerData?: Record<string, unknown> | null
+  providerData?: Record<string, unknown> | null,
 ): ProcessingFeeMode => {
   const authorization =
     providerData?.authorization &&
@@ -178,7 +174,7 @@ const toActualProcessingMode = (
 };
 
 const createPaymentNotifications = async (
-  payment: PaymentWithRelations
+  payment: PaymentWithRelations,
 ): Promise<void> => {
   await prisma.notification.create({
     data: {
@@ -248,7 +244,7 @@ const sendConfirmationEmails = async (
 };
 
 export const finalizePaystackPayment = async (
-  params: FinalizePaystackPaymentParams
+  params: FinalizePaystackPaymentParams,
 ): Promise<FinalizePaystackPaymentResult> => {
   const payment = await loadPaymentForFinalization(params.paymentId);
 
@@ -272,36 +268,37 @@ export const finalizePaystackPayment = async (
     now,
     params.source,
     params.providerData,
-    params.extraMetadata
+    params.extraMetadata,
   );
 
   const effectiveRate = Number(
     payment.booking.commissionEffectiveRate ||
       payment.commissionEffectiveRate ||
-      0.1
+      0.1,
   );
   const roomFeeAmount = new Decimal(payment.booking.roomFee).mul(
-    1 - effectiveRate
+    1 - effectiveRate,
   );
   const platformRoomFeeAmount = new Decimal(payment.booking.roomFee).mul(
-    effectiveRate
+    effectiveRate,
   );
 
   const quotedProcessing = Number(
     payment.booking.serviceFeeProcessing ||
       payment.serviceFeeProcessingQuotedAmount ||
-      0
+      0,
   );
   const stayzaAmount = Number(
-    payment.booking.serviceFeeStayza || payment.serviceFeeStayzaAmount || 0
+    payment.booking.serviceFeeStayza || payment.serviceFeeStayzaAmount || 0,
   );
   const providerFeesRaw =
     typeof params.providerData?.fees === "number"
       ? Number(params.providerData.fees)
       : null;
-  const actualProcessingFee = providerFeesRaw !== null ? providerFeesRaw / 100 : quotedProcessing;
+  const actualProcessingFee =
+    providerFeesRaw !== null ? providerFeesRaw / 100 : quotedProcessing;
   const processingVariance = Number(
-    (actualProcessingFee - quotedProcessing).toFixed(2)
+    (actualProcessingFee - quotedProcessing).toFixed(2),
   );
   const processingModeActual = toActualProcessingMode(params.providerData);
 
@@ -323,13 +320,13 @@ export const finalizePaystackPayment = async (
       commissionEffectiveRate: new Decimal(effectiveRate),
       commissionBaseAmount: payment.booking.commissionBaseRate
         ? new Decimal(payment.booking.roomFee).mul(
-            payment.booking.commissionBaseRate
+            payment.booking.commissionBaseRate,
           )
         : null,
       serviceFeeStayzaAmount: new Decimal(stayzaAmount),
       serviceFeeProcessingQuotedAmount: new Decimal(quotedProcessing),
       serviceFeeProcessingActualAmount: new Decimal(
-        Number(actualProcessingFee.toFixed(2))
+        Number(actualProcessingFee.toFixed(2)),
       ),
       serviceFeeProcessingVarianceAmount: new Decimal(processingVariance),
       processingFeeModeQuoted:
@@ -354,7 +351,7 @@ export const finalizePaystackPayment = async (
         processingFeeMode: processingModeActual,
         serviceFeeStayza: new Decimal(stayzaAmount),
         serviceFeeProcessing: new Decimal(
-          Number(actualProcessingFee.toFixed(2))
+          Number(actualProcessingFee.toFixed(2)),
         ),
       },
     });

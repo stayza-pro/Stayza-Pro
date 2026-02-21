@@ -49,7 +49,11 @@ export default function RealtorBookingDetailsPage() {
   const brandColor = branding?.colors?.primary || "#3B82F6";
 
   // Fetch booking details
-  const { data: booking, isLoading, refetch: refetchBooking } = useQuery({
+  const {
+    data: booking,
+    isLoading,
+    refetch: refetchBooking,
+  } = useQuery({
     queryKey: ["realtor-booking", bookingId],
     queryFn: () => bookingService.getRealtorBooking(bookingId),
     enabled: !!user && !!bookingId,
@@ -57,7 +61,9 @@ export default function RealtorBookingDetailsPage() {
 
   const handleLifecycleRefresh = React.useCallback(async () => {
     await refetchBooking();
-    await queryClient.invalidateQueries({ queryKey: ["realtor-booking", bookingId] });
+    await queryClient.invalidateQueries({
+      queryKey: ["realtor-booking", bookingId],
+    });
     await queryClient.invalidateQueries({ queryKey: ["realtor-bookings"] });
   }, [bookingId, queryClient, refetchBooking]);
 
@@ -80,7 +86,7 @@ export default function RealtorBookingDetailsPage() {
         ? formatPaymentStatus(booking.paymentStatus)
         : "Unknown";
       showToast.error(
-        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`
+        `Receipt available once payment is released. Current status: ${paymentStatusLabel}.`,
       );
       return;
     }
@@ -478,7 +484,9 @@ export default function RealtorBookingDetailsPage() {
         <div className="lg:col-span-1">
           <div className="sticky top-24 space-y-4">
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-4">Booking Tools</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">
+                Booking Tools
+              </h3>
               <div className="space-y-3">
                 <button
                   onClick={handleDownloadReceipt}
@@ -513,9 +521,6 @@ export default function RealtorBookingDetailsPage() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }
-
-

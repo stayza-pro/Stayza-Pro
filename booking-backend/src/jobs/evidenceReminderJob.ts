@@ -83,7 +83,10 @@ export const runEvidenceReminderJob = async (): Promise<void> => {
   for (const booking of bookings) {
     const captureLink = buildCaptureLink(booking.id);
 
-    if (booking.checkInAtSnapshot && shouldSendWithinWindow(booking.checkInAtSnapshot, now)) {
+    if (
+      booking.checkInAtSnapshot &&
+      shouldSendWithinWindow(booking.checkInAtSnapshot, now)
+    ) {
       const shouldSend = await createDedupe(
         booking.id,
         EmailEventType.PRE_CHECKIN_REMINDER,

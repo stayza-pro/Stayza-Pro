@@ -2,9 +2,19 @@
 
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Camera, Circle, Download, Loader2, Video, VideoOff } from "lucide-react";
+import {
+  Camera,
+  Circle,
+  Download,
+  Loader2,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import { Button, Card } from "@/components/ui";
-import { disputeService, type CaptureContextResponse } from "@/services/disputes";
+import {
+  disputeService,
+  type CaptureContextResponse,
+} from "@/services/disputes";
 import { bookingService } from "@/services/bookings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import toast from "react-hot-toast";
@@ -26,14 +36,20 @@ export default function EvidenceCapturePage() {
 
   const bookingId = searchParams.get("booking") || "";
 
-  const [context, setContext] = React.useState<CaptureContextResponse | null>(null);
+  const [context, setContext] = React.useState<CaptureContextResponse | null>(
+    null,
+  );
   const [bookingTitle, setBookingTitle] = React.useState<string>("Booking");
   const [loading, setLoading] = React.useState(true);
   const [capturing, setCapturing] = React.useState(false);
   const [recording, setRecording] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
-  const [lastUploadedUrl, setLastUploadedUrl] = React.useState<string | null>(null);
-  const [lastCertificate, setLastCertificate] = React.useState<string | null>(null);
+  const [lastUploadedUrl, setLastUploadedUrl] = React.useState<string | null>(
+    null,
+  );
+  const [lastCertificate, setLastCertificate] = React.useState<string | null>(
+    null,
+  );
 
   const [serverClock, setServerClock] = React.useState<Date | null>(null);
 
@@ -189,10 +205,15 @@ export default function EvidenceCapturePage() {
     setUploading(true);
     try {
       const extension = captureType === "PHOTO" ? "jpg" : "webm";
-      const mime = captureType === "PHOTO" ? "image/jpeg" : blob.type || "video/webm";
-      const file = new File([blob], `stayza-evidence-${Date.now()}.${extension}`, {
-        type: mime,
-      });
+      const mime =
+        captureType === "PHOTO" ? "image/jpeg" : blob.type || "video/webm";
+      const file = new File(
+        [blob],
+        `stayza-evidence-${Date.now()}.${extension}`,
+        {
+          type: mime,
+        },
+      );
 
       const uploaded = await disputeService.uploadTrustedEvidence(
         file,
@@ -217,15 +238,19 @@ export default function EvidenceCapturePage() {
     drawFrameWithWatermark();
 
     await new Promise<void>((resolve) => {
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          toast.error("Failed to capture photo");
+      canvas.toBlob(
+        async (blob) => {
+          if (!blob) {
+            toast.error("Failed to capture photo");
+            resolve();
+            return;
+          }
+          await uploadBlob(blob, "PHOTO");
           resolve();
-          return;
-        }
-        await uploadBlob(blob, "PHOTO");
-        resolve();
-      }, "image/jpeg", 0.92);
+        },
+        "image/jpeg",
+        0.92,
+      );
     });
   };
 
@@ -246,7 +271,9 @@ export default function EvidenceCapturePage() {
     tick();
 
     const captureStream = canvas.captureStream(24);
-    sourceStream.getAudioTracks().forEach((track) => captureStream.addTrack(track));
+    sourceStream
+      .getAudioTracks()
+      .forEach((track) => captureStream.addTrack(track));
 
     const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
       ? "video/webm;codecs=vp9,opus"
@@ -291,7 +318,9 @@ export default function EvidenceCapturePage() {
       <div className="mx-auto max-w-3xl p-6">
         <Card className="p-8 flex items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
-          <span className="ml-2 text-sm text-gray-600">Loading capture page...</span>
+          <span className="ml-2 text-sm text-gray-600">
+            Loading capture page...
+          </span>
         </Card>
       </div>
     );
@@ -300,17 +329,33 @@ export default function EvidenceCapturePage() {
   return (
     <div className="mx-auto max-w-3xl p-6 space-y-4">
       <Card className="p-5 space-y-2">
-        <h1 className="text-xl font-semibold text-gray-900">Verified Evidence Capture</h1>
+        <h1 className="text-xl font-semibold text-gray-900">
+          Verified Evidence Capture
+        </h1>
         <p className="text-sm text-gray-600">{bookingTitle}</p>
         <p className="text-xs text-gray-500">Booking: {bookingId}</p>
-        <p className="text-xs text-gray-500">Role: {context?.role || user?.role}</p>
+        <p className="text-xs text-gray-500">
+          Role: {context?.role || user?.role}
+        </p>
         <p className="text-xs text-gray-700 font-medium">{buildWatermark()}</p>
       </Card>
 
       <Card className="p-5 space-y-4">
         <div className="rounded-xl overflow-hidden bg-black/90">
-          <video ref={videoRef} autoPlay muted playsInline className="w-full aspect-video object-cover" />
-          <video ref={hiddenSourceRef} autoPlay muted playsInline className="hidden" />
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className="w-full aspect-video object-cover"
+          />
+          <video
+            ref={hiddenSourceRef}
+            autoPlay
+            muted
+            playsInline
+            className="hidden"
+          />
           <canvas ref={canvasRef} className="hidden" />
         </div>
 
@@ -319,29 +364,46 @@ export default function EvidenceCapturePage() {
             <Camera className="h-4 w-4 mr-2" />
             Start Camera
           </Button>
-          <Button onClick={capturePhoto} disabled={!capturing || recording || uploading} variant="outline">
+          <Button
+            onClick={capturePhoto}
+            disabled={!capturing || recording || uploading}
+            variant="outline"
+          >
             <Circle className="h-4 w-4 mr-2" />
             Capture Photo
           </Button>
           {!recording ? (
-            <Button onClick={startRecording} disabled={!capturing || uploading} variant="outline">
+            <Button
+              onClick={startRecording}
+              disabled={!capturing || uploading}
+              variant="outline"
+            >
               <Video className="h-4 w-4 mr-2" />
               Start Video
             </Button>
           ) : (
-            <Button onClick={stopRecording} disabled={uploading} variant="outline">
+            <Button
+              onClick={stopRecording}
+              disabled={uploading}
+              variant="outline"
+            >
               <VideoOff className="h-4 w-4 mr-2" />
               Stop Video
             </Button>
           )}
-          <Button onClick={releaseCamera} disabled={!capturing} variant="outline">
+          <Button
+            onClick={releaseCamera}
+            disabled={!capturing}
+            variant="outline"
+          >
             Stop Camera
           </Button>
         </div>
 
         {uploading && (
           <div className="text-sm text-indigo-600 flex items-center">
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading trusted evidence...
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading trusted
+            evidence...
           </div>
         )}
 

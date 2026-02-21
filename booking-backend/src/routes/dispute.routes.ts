@@ -57,14 +57,15 @@ router.post(
       const disputeId = String(req.body?.disputeId || "").trim();
 
       if (bookingId) {
-        const evidence = await evidenceService.uploadUnverifiedSupportingEvidence({
-          bookingId,
-          userId,
-          fileBuffer: file.buffer,
-          mimeType: file.mimetype,
-          sizeBytes: file.size,
-          disputeId: disputeId || undefined,
-        });
+        const evidence =
+          await evidenceService.uploadUnverifiedSupportingEvidence({
+            bookingId,
+            userId,
+            fileBuffer: file.buffer,
+            mimeType: file.mimetype,
+            sizeBytes: file.size,
+            disputeId: disputeId || undefined,
+          });
 
         res.status(200).json({
           url: evidence.fileUrl,
@@ -112,11 +113,16 @@ router.get(
         return;
       }
 
-      const context = await evidenceService.getCaptureContext(bookingId, userId);
+      const context = await evidenceService.getCaptureContext(
+        bookingId,
+        userId,
+      );
       res.status(200).json(context);
     } catch (error: any) {
       logger.error("Error getting evidence server-time context:", error);
-      res.status(400).json({ message: error.message || "Failed to get capture context" });
+      res
+        .status(400)
+        .json({ message: error.message || "Failed to get capture context" });
     }
   },
 );
@@ -135,7 +141,9 @@ router.post(
   (req, res, next) => {
     disputeUpload.single("file")(req, res, (err) => {
       if (err) {
-        res.status(400).json({ message: err.message || "File upload rejected" });
+        res
+          .status(400)
+          .json({ message: err.message || "File upload rejected" });
         return;
       }
       next();
@@ -210,11 +218,16 @@ router.get(
         return;
       }
 
-      const items = await evidenceService.listBookingEvidence(bookingId, userId);
+      const items = await evidenceService.listBookingEvidence(
+        bookingId,
+        userId,
+      );
       res.status(200).json(items);
     } catch (error: any) {
       logger.error("Error listing booking evidence:", error);
-      res.status(400).json({ message: error.message || "Failed to list evidence" });
+      res
+        .status(400)
+        .json({ message: error.message || "Failed to list evidence" });
     }
   },
 );

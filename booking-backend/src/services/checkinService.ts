@@ -41,7 +41,7 @@ interface CheckInConfirmationResult {
  */
 export const validateCheckInEligibility = async (
   bookingId: string,
-  confirmationType: CheckInConfirmationType
+  confirmationType: CheckInConfirmationType,
 ): Promise<void> => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -59,7 +59,7 @@ export const validateCheckInEligibility = async (
   if (booking.status !== "ACTIVE") {
     throw new AppError(
       `Cannot confirm check-in for booking with status: ${booking.status}`,
-      400
+      400,
     );
   }
 
@@ -86,7 +86,7 @@ export const validateCheckInEligibility = async (
     if (now < checkInDate) {
       throw new AppError(
         "Realtor cannot confirm check-in before official check-in time",
-        400
+        400,
       );
     }
   }
@@ -98,7 +98,7 @@ export const validateCheckInEligibility = async (
     if (now < fallbackTime) {
       throw new AppError(
         "Auto-fallback can only trigger at or after the scheduled check-in time",
-        400
+        400,
       );
     }
   }
@@ -111,7 +111,7 @@ export const validateCheckInEligibility = async (
     if (todayInLagos !== checkInDayInLagos) {
       throw new AppError(
         "Guest check-in can only be confirmed on the official check-in day",
-        400
+        400,
       );
     }
   }
@@ -121,11 +121,11 @@ export const validateCheckInEligibility = async (
  * Start guest dispute timer (1 hour after check-in confirmation)
  */
 export const startGuestDisputeTimer = (
-  checkinConfirmedAt: Date
+  checkinConfirmedAt: Date,
 ): { disputeWindowClosesAt: Date; roomFeeReleaseEligibleAt: Date } => {
   const disputeWindowClosesAt = new Date(
     checkinConfirmedAt.getTime() +
-      (DISPUTE_WINDOW_MINUTES + DISPUTE_GRACE_MINUTES) * 60 * 1000
+      (DISPUTE_WINDOW_MINUTES + DISPUTE_GRACE_MINUTES) * 60 * 1000,
   ); // +1 hour + 10 minutes grace
   const roomFeeReleaseEligibleAt = disputeWindowClosesAt; // Same time
 
@@ -154,7 +154,7 @@ export const startRealtorDisputeTimer = (
 export const confirmCheckIn = async (
   bookingId: string,
   confirmationType: CheckInConfirmationType,
-  userId: string // Who is confirming (guest or realtor)
+  userId: string, // Who is confirming (guest or realtor)
 ): Promise<CheckInConfirmationResult> => {
   // Validate eligibility
   await validateCheckInEligibility(bookingId, confirmationType);
@@ -235,7 +235,7 @@ export const confirmCheckIn = async (
   }
 
   logger.info(
-    `Check-in confirmed for booking ${bookingId} via ${confirmationType}`
+    `Check-in confirmed for booking ${bookingId} via ${confirmationType}`,
   );
 
   return {
@@ -251,7 +251,7 @@ export const confirmCheckIn = async (
  * Auto-confirm check-in (for fallback job)
  */
 export const autoConfirmCheckIn = async (
-  bookingId: string
+  bookingId: string,
 ): Promise<CheckInConfirmationResult> => {
   return confirmCheckIn(bookingId, "AUTO_FALLBACK", "system");
 };
@@ -355,7 +355,7 @@ export const autoCheckOut = async (bookingId: string) => {
  * Check if guest dispute window is still open
  */
 export const isGuestDisputeWindowOpen = async (
-  bookingId: string
+  bookingId: string,
 ): Promise<boolean> => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -377,7 +377,7 @@ export const isGuestDisputeWindowOpen = async (
  * Check if realtor dispute window is still open
  */
 export const isRealtorDisputeWindowOpen = async (
-  bookingId: string
+  bookingId: string,
 ): Promise<boolean> => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -399,7 +399,7 @@ export const isRealtorDisputeWindowOpen = async (
  * Validate if guest can open dispute
  */
 export const canGuestOpenDispute = async (
-  bookingId: string
+  bookingId: string,
 ): Promise<{ canOpen: boolean; reason?: string }> => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -442,7 +442,7 @@ export const canGuestOpenDispute = async (
  * Validate if realtor can open dispute
  */
 export const canRealtorOpenDispute = async (
-  bookingId: string
+  bookingId: string,
 ): Promise<{ canOpen: boolean; reason?: string }> => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },

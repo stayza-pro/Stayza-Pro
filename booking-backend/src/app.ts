@@ -490,7 +490,6 @@ if (require.main === module) {
         logger.error("System message periodic rehydration failed", { error });
       }
     });
-
   };
 
   bootstrap().catch((error) => {

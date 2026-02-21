@@ -48,7 +48,9 @@ const resolveBookingRole = async (bookingId: string, userId: string) => {
   const isRealtor = booking.property.realtor.userId === userId;
 
   if (!isGuest && !isRealtor) {
-    throw new Error("You are not authorized to record evidence for this booking");
+    throw new Error(
+      "You are not authorized to record evidence for this booking",
+    );
   }
 
   return {
@@ -61,11 +63,17 @@ const validateCaptureMime = (
   captureType: EvidenceCaptureType,
   mimeType: string,
 ): void => {
-  if (captureType === EvidenceCaptureType.PHOTO && !mimeType.startsWith("image/")) {
+  if (
+    captureType === EvidenceCaptureType.PHOTO &&
+    !mimeType.startsWith("image/")
+  ) {
     throw new Error("PHOTO capture must be an image file");
   }
 
-  if (captureType === EvidenceCaptureType.VIDEO && !mimeType.startsWith("video/")) {
+  if (
+    captureType === EvidenceCaptureType.VIDEO &&
+    !mimeType.startsWith("video/")
+  ) {
     throw new Error("VIDEO capture must be a video file");
   }
 };
@@ -119,7 +127,15 @@ export const uploadTrustedEvidence = async (params: {
   sizeBytes: number;
   disputeId?: string;
 }) => {
-  const { bookingId, userId, captureType, fileBuffer, mimeType, sizeBytes, disputeId } = params;
+  const {
+    bookingId,
+    userId,
+    captureType,
+    fileBuffer,
+    mimeType,
+    sizeBytes,
+    disputeId,
+  } = params;
 
   validateCaptureMime(captureType, mimeType);
 
@@ -129,7 +145,11 @@ export const uploadTrustedEvidence = async (params: {
 
   const sha256 = crypto.createHash("sha256").update(fileBuffer).digest("hex");
 
-  const uploaded = await uploadDisputeEvidence(fileBuffer, mimeType, "evidence/trusted");
+  const uploaded = await uploadDisputeEvidence(
+    fileBuffer,
+    mimeType,
+    "evidence/trusted",
+  );
 
   const created = await prisma.evidence.create({
     data: {
@@ -190,10 +210,15 @@ export const uploadUnverifiedSupportingEvidence = async (params: {
   sizeBytes: number;
   disputeId?: string;
 }) => {
-  const { bookingId, userId, fileBuffer, mimeType, sizeBytes, disputeId } = params;
+  const { bookingId, userId, fileBuffer, mimeType, sizeBytes, disputeId } =
+    params;
   const { booking, role } = await resolveBookingRole(bookingId, userId);
 
-  const uploaded = await uploadDisputeEvidence(fileBuffer, mimeType, "evidence/unverified");
+  const uploaded = await uploadDisputeEvidence(
+    fileBuffer,
+    mimeType,
+    "evidence/unverified",
+  );
   const capturedAtServer = new Date();
   const watermarkText = `Unverified supporting attachment • ${booking.id}`;
   const sha256 = crypto.createHash("sha256").update(fileBuffer).digest("hex");
@@ -232,7 +257,10 @@ export const uploadUnverifiedSupportingEvidence = async (params: {
   };
 };
 
-export const listBookingEvidence = async (bookingId: string, userId: string) => {
+export const listBookingEvidence = async (
+  bookingId: string,
+  userId: string,
+) => {
   await resolveBookingRole(bookingId, userId);
 
   return prisma.evidence.findMany({

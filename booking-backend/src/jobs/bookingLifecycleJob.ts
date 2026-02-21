@@ -50,7 +50,10 @@ const tryCreateEmailDedupe = async (
 const sendPreCheckInReminder = async (booking: {
   id: string;
   checkInAtSnapshot: Date | null;
-  property: { title: string; realtor: { user: { email: string; firstName: string } } };
+  property: {
+    title: string;
+    realtor: { user: { email: string; firstName: string } };
+  };
 }) => {
   if (!booking.checkInAtSnapshot) return;
 
@@ -106,8 +109,12 @@ const sendPreCheckOutReminder = async (booking: {
 
 export const runLifecycleReminderJobs = async (): Promise<void> => {
   const now = new Date();
-  const preCheckInWindow = new Date(now.getTime() + PRE_CHECKIN_LEAD_HOURS * 60 * 60 * 1000);
-  const preCheckOutWindow = new Date(now.getTime() + PRE_CHECKOUT_LEAD_HOURS * 60 * 60 * 1000);
+  const preCheckInWindow = new Date(
+    now.getTime() + PRE_CHECKIN_LEAD_HOURS * 60 * 60 * 1000,
+  );
+  const preCheckOutWindow = new Date(
+    now.getTime() + PRE_CHECKOUT_LEAD_HOURS * 60 * 60 * 1000,
+  );
 
   const [preCheckInBookings, preCheckOutBookings] = await Promise.all([
     prisma.booking.findMany({
@@ -170,7 +177,8 @@ export const runLifecycleReminderJobs = async (): Promise<void> => {
   for (const booking of preCheckInBookings) {
     if (!booking.checkInAtSnapshot) continue;
     const reminderAt = new Date(
-      booking.checkInAtSnapshot.getTime() - PRE_CHECKIN_LEAD_HOURS * 60 * 60 * 1000,
+      booking.checkInAtSnapshot.getTime() -
+        PRE_CHECKIN_LEAD_HOURS * 60 * 60 * 1000,
     );
     if (now < reminderAt) continue;
 
@@ -187,7 +195,8 @@ export const runLifecycleReminderJobs = async (): Promise<void> => {
   for (const booking of preCheckOutBookings) {
     if (!booking.checkOutAtSnapshot) continue;
     const reminderAt = new Date(
-      booking.checkOutAtSnapshot.getTime() - PRE_CHECKOUT_LEAD_HOURS * 60 * 60 * 1000,
+      booking.checkOutAtSnapshot.getTime() -
+        PRE_CHECKOUT_LEAD_HOURS * 60 * 60 * 1000,
     );
     if (now < reminderAt) continue;
 
@@ -205,7 +214,8 @@ export const runLifecycleReminderJobs = async (): Promise<void> => {
 const autoCheckoutBooking = async (bookingId: string): Promise<boolean> => {
   const now = new Date();
   const realtorDisputeClosesAt = new Date(
-    now.getTime() + (REALTOR_DISPUTE_HOURS * 60 + DISPUTE_GRACE_MINUTES) * 60 * 1000,
+    now.getTime() +
+      (REALTOR_DISPUTE_HOURS * 60 + DISPUTE_GRACE_MINUTES) * 60 * 1000,
   );
 
   const result = await prisma.$transaction(async (tx) => {
@@ -297,7 +307,11 @@ export const runBookingLifecycleAutomation = async (): Promise<void> => {
         },
         payment: {
           status: {
-            in: [PaymentStatus.HELD, PaymentStatus.PARTIALLY_RELEASED, PaymentStatus.SETTLED],
+            in: [
+              PaymentStatus.HELD,
+              PaymentStatus.PARTIALLY_RELEASED,
+              PaymentStatus.SETTLED,
+            ],
           },
         },
       },

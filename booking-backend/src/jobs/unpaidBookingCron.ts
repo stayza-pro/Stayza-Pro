@@ -46,7 +46,7 @@ const runUnpaidBookingCancellationPass = async () => {
   });
 
   logger.info(
-    `Found ${expiredBookings.length} expired unpaid bookings to cancel`
+    `Found ${expiredBookings.length} expired unpaid bookings to cancel`,
   );
 
   if (expiredBookings.length === 0) {
@@ -117,7 +117,7 @@ const runUnpaidBookingCancellationPass = async () => {
   }
 
   logger.info(
-    `Unpaid booking expiration job completed. Expired ${expiredBookings.length} bookings.`
+    `Unpaid booking expiration job completed. Expired ${expiredBookings.length} bookings.`,
   );
 };
 
@@ -139,6 +139,6 @@ export const startUnpaidBookingCron = () => {
   });
 
   logger.info(
-    `Unpaid booking auto-cancellation CRON started (timeout=${PAYMENT_TIMEOUT_MINUTES}m, runs every minute)`
+    `Unpaid booking auto-cancellation CRON started (timeout=${PAYMENT_TIMEOUT_MINUTES}m, runs every minute)`,
   );
 };

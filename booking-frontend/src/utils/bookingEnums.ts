@@ -48,9 +48,7 @@ export const isValidBookingStatusTransition = (
  */
 export const isTerminalBookingStatus = (status: BookingStatus): boolean => {
   return (
-    status === "COMPLETED" ||
-    status === "CANCELLED" ||
-    status === "EXPIRED"
+    status === "COMPLETED" || status === "CANCELLED" || status === "EXPIRED"
   );
 };
 

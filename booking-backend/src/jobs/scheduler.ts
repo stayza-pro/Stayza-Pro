@@ -29,7 +29,10 @@ export const initializeScheduledJobs = () => {
     try {
       await processCheckinFallbacks();
     } catch (error) {
-      logger.error("[Job Scheduler] Booking lifecycle automation failed:", error);
+      logger.error(
+        "[Job Scheduler] Booking lifecycle automation failed:",
+        error,
+      );
     }
   });
 
@@ -59,7 +62,9 @@ export const initializeScheduledJobs = () => {
 
   logger.info("[Job Scheduler] Scheduled jobs initialized successfully");
   logger.info("[Job Scheduler] - Escrow release jobs: Every 5 minutes");
-  logger.info("[Job Scheduler] - Booking lifecycle automation: Every 5 minutes");
+  logger.info(
+    "[Job Scheduler] - Booking lifecycle automation: Every 5 minutes",
+  );
   logger.info("[Job Scheduler] - Evidence reminder emails: Every 10 minutes");
   logger.info("[Job Scheduler] - Withdrawal retry jobs: Every hour at :15");
   logger.info("[Job Scheduler] - Email worker: queued delivery with retries");
