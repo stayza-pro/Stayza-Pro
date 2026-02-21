@@ -358,9 +358,9 @@ export function BookingLifecycleActions({
   const handleEvidenceSelect = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const { files } = event.target;
+    const files = event.target.files ? Array.from(event.target.files) : [];
     event.target.value = "";
-    if (files) await processFiles(files);
+    if (files.length) await processFiles(files);
   };
 
   const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
