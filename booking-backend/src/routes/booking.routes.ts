@@ -1149,7 +1149,12 @@ router.get(
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        paymentStatus: true,
+        checkInDate: true,
+        checkOutDate: true,
         payment: {
           select: {
             status: true,
@@ -1252,7 +1257,23 @@ router.get(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        propertyId: true,
+        guestId: true,
+        checkInDate: true,
+        checkOutDate: true,
+        checkInTime: true,
+        checkOutTime: true,
+        totalGuests: true,
+        totalPrice: true,
+        currency: true,
+        status: true,
+        stayStatus: true,
+        paymentStatus: true,
+        specialRequests: true,
+        createdAt: true,
+        updatedAt: true,
         property: {
           include: {
             realtor: {
@@ -1288,8 +1309,27 @@ router.get(
             email: true,
           },
         },
-        payment: true,
-        review: true,
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            currency: true,
+            method: true,
+            reference: true,
+            providerId: true,
+            paidAt: true,
+          },
+        },
+        review: {
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
 
@@ -2873,10 +2913,11 @@ router.post(
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
-        guest: true,
+      select: {
+        id: true,
+        guestId: true,
         property: {
-          include: {
+          select: {
             realtor: true,
           },
         },
@@ -2951,11 +2992,14 @@ router.post(
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
-        guest: true,
-        payment: true,
+      select: {
+        id: true,
+        guestId: true,
+        stayStatus: true,
+        checkOutTime: true,
+        securityDeposit: true,
         property: {
-          include: {
+          select: {
             realtor: true,
           },
         },

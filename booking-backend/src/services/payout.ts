@@ -39,12 +39,12 @@ const paystackClient = axios.create({
  * This should be called when realtor adds their bank account
  */
 export const createTransferRecipient = async (
-  recipientData: TransferRecipient
+  recipientData: TransferRecipient,
 ): Promise<string> => {
   try {
     const response = await paystackClient.post(
       "/transferrecipient",
-      recipientData
+      recipientData,
     );
 
     if (!response.data.status) {
@@ -53,7 +53,7 @@ export const createTransferRecipient = async (
 
     return response.data.data.recipient_code;
   } catch (error: any) {
-        throw new Error("Failed to create transfer recipient");
+    throw new Error("Failed to create transfer recipient");
   }
 };
 
@@ -61,7 +61,7 @@ export const createTransferRecipient = async (
  * Initiate transfer to realtor
  */
 export const initiateTransfer = async (
-  transferData: TransferRequest
+  transferData: TransferRequest,
 ): Promise<any> => {
   const response = await paystackClient.post("/transfer", transferData);
 
@@ -78,12 +78,26 @@ export const initiateTransfer = async (
 export const processBookingPayout = async (bookingId: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
+    select: {
+      id: true,
+      propertyId: true,
+      guestId: true,
+      checkInDate: true,
+      checkOutDate: true,
+      totalPrice: true,
+      payoutStatus: true,
       payment: true,
       property: {
-        include: {
+        select: {
+          id: true,
+          title: true,
+          pricePerNight: true,
+          serviceFee: true,
+          cleaningFee: true,
+          securityDeposit: true,
           realtor: {
-            include: {
+            select: {
+              id: true,
               user: true,
             },
           },
@@ -120,7 +134,7 @@ export const processBookingPayout = async (bookingId: string) => {
   // Calculate property base amount (excluding optional fees for commission calculation)
   const nights = Math.ceil(
     (booking.checkOutDate.getTime() - booking.checkInDate.getTime()) /
-      (1000 * 60 * 60 * 24)
+      (1000 * 60 * 60 * 24),
   );
   const pricePerNight = Number(booking.property.pricePerNight);
   const propertyBaseAmount = pricePerNight * nights;
@@ -162,7 +176,7 @@ export const processBookingPayout = async (bookingId: string) => {
     // In production, you'd require bank account before approval
 
     const recipientCode = await ensureRealtorTransferRecipientCode(
-      booking.property.realtor.id
+      booking.property.realtor.id,
     );
 
     // Initiate transfer via Paystack
@@ -197,7 +211,6 @@ export const processBookingPayout = async (bookingId: string) => {
       },
     });
 
-    
     return {
       success: true,
       bookingId,
@@ -215,7 +228,7 @@ export const processBookingPayout = async (bookingId: string) => {
       },
     });
 
-        throw error;
+    throw error;
   }
 };
 

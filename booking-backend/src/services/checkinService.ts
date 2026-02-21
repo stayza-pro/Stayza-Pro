@@ -45,9 +45,24 @@ export const validateCheckInEligibility = async (
 ): Promise<void> => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
-      payment: true,
-      property: true,
+    select: {
+      id: true,
+      status: true,
+      paymentStatus: true,
+      checkInDate: true,
+      checkInAtSnapshot: true,
+      checkinConfirmedAt: true,
+      payment: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+      property: {
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
@@ -259,17 +274,24 @@ export const autoConfirmCheckIn = async (
 export const autoCheckOut = async (bookingId: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
+    select: {
+      id: true,
+      guestId: true,
+      status: true,
+      stayStatus: true,
+      checkOutTime: true,
+      securityDeposit: true,
       property: {
-        include: {
+        select: {
+          title: true,
           realtor: {
-            include: {
+            select: {
+              userId: true,
               user: true,
             },
           },
         },
       },
-      guest: true,
     },
   });
 

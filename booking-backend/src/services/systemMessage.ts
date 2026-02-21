@@ -93,7 +93,7 @@ export class SystemMessageService {
     });
 
     return logs.some(
-      (log) => this.getLogDetailType(log.details) === params.type
+      (log) => this.getLogDetailType(log.details) === params.type,
     );
   }
 
@@ -255,7 +255,7 @@ Thank you for staying with us! We'd love to hear about your experience - please 
    */
   static async sendSystemMessage(
     type: SystemMessageType,
-    data: SystemMessageData
+    data: SystemMessageData,
   ): Promise<void> {
     const alreadySent = await this.hasAuditLogForType({
       action: "SYSTEM_MESSAGE_SENT",
@@ -328,10 +328,10 @@ Thank you for staying with us! We'd love to hear about your experience - please 
   static getScheduledMessageTimes(checkInDate: Date, checkOutDate: Date) {
     return {
       checkInInstructionsAt: new Date(
-        new Date(checkInDate).getTime() - 24 * 60 * 60 * 1000
+        new Date(checkInDate).getTime() - 24 * 60 * 60 * 1000,
       ),
       checkOutReminderAt: new Date(
-        new Date(checkOutDate).getTime() - 24 * 60 * 60 * 1000
+        new Date(checkOutDate).getTime() - 24 * 60 * 60 * 1000,
       ),
       checkOutInstructionsAt: new Date(checkOutDate),
     };
@@ -390,9 +390,26 @@ Thank you for staying with us! We'd love to hear about your experience - please 
     // Fetch booking data
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
+      select: {
+        id: true,
+        propertyId: true,
+        guestId: true,
+        checkInDate: true,
+        checkOutDate: true,
+        paymentStatus: true,
         property: {
-          include: {
+          select: {
+            realtorId: true,
+            title: true,
+            address: true,
+            city: true,
+            checkInTime: true,
+            checkOutTime: true,
+            accessInstructions: true,
+            houseRules: true,
+            wifiName: true,
+            wifiPassword: true,
+            parkingInstructions: true,
             realtor: true,
           },
         },
@@ -443,7 +460,7 @@ Thank you for staying with us! We'd love to hear about your experience - please 
 
     const schedule = this.getScheduledMessageTimes(
       booking.checkInDate,
-      booking.checkOutDate
+      booking.checkOutDate,
     );
 
     await this.scheduleMessageDispatch({
@@ -476,7 +493,11 @@ Thank you for staying with us! We'd love to hear about your experience - please 
       where: {
         checkOutDate: { gte: lookbackWindow },
         status: {
-          in: [BookingStatus.PENDING, BookingStatus.ACTIVE, BookingStatus.COMPLETED],
+          in: [
+            BookingStatus.PENDING,
+            BookingStatus.ACTIVE,
+            BookingStatus.COMPLETED,
+          ],
         },
       },
       select: {

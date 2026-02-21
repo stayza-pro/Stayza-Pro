@@ -30,7 +30,10 @@ const runUnpaidBookingCancellationPass = async () => {
         },
       ],
     },
-    include: {
+    select: {
+      id: true,
+      guestId: true,
+      createdAt: true,
       payment: true,
       property: {
         select: {
@@ -58,7 +61,18 @@ const runUnpaidBookingCancellationPass = async () => {
       await prisma.$transaction(async (tx) => {
         const fresh = await tx.booking.findUnique({
           where: { id: booking.id },
-          include: { payment: true },
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+            payment: {
+              select: {
+                id: true,
+                status: true,
+                paidAt: true,
+              },
+            },
+          },
         });
 
         if (!fresh || fresh.status !== "PENDING") {

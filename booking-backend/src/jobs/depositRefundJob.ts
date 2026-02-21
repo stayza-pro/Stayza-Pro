@@ -25,14 +25,16 @@ export const processDepositRefunds = async (): Promise<void> => {
           depositInEscrow: true, // Deposit is in escrow
         },
       },
-      include: {
+      select: {
+        id: true,
+        guestId: true,
+        securityDeposit: true,
         payment: true,
         property: {
-          include: {
+          select: {
             realtor: true,
           },
         },
-        guest: true,
       },
       take: 50, // Process in batches
     });
@@ -43,7 +45,7 @@ export const processDepositRefunds = async (): Promise<void> => {
     }
 
     logger.info(
-      `Processing deposit refunds for ${eligibleBookings.length} bookings`
+      `Processing deposit refunds for ${eligibleBookings.length} bookings`,
     );
 
     for (const booking of eligibleBookings) {
@@ -61,7 +63,7 @@ export const processDepositRefunds = async (): Promise<void> => {
 
         if (activeDispute) {
           logger.info(
-            `Skipping booking ${booking.id}: Active deposit dispute exists (${activeDispute.status})`
+            `Skipping booking ${booking.id}: Active deposit dispute exists (${activeDispute.status})`,
           );
           continue; // Skip this booking
         }
@@ -70,14 +72,14 @@ export const processDepositRefunds = async (): Promise<void> => {
       } catch (error) {
         logger.error(
           `Failed to process deposit refund for booking ${booking.id}:`,
-          error
+          error,
         );
         // Continue with next booking
       }
     }
 
     logger.info(
-      `Deposit refund job completed. Processed ${eligibleBookings.length} bookings`
+      `Deposit refund job completed. Processed ${eligibleBookings.length} bookings`,
     );
   } catch (error) {
     logger.error("Deposit refund job failed:", error);
@@ -92,7 +94,7 @@ const processBookingDepositRefund = async (booking: any): Promise<void> => {
   const { payment, securityDeposit } = booking;
 
   logger.info(
-    `Refunding deposit for booking ${booking.id}: ₦${securityDeposit}`
+    `Refunding deposit for booking ${booking.id}: ₦${securityDeposit}`,
   );
 
   try {
@@ -105,7 +107,7 @@ const processBookingDepositRefund = async (booking: any): Promise<void> => {
     await escrowService.returnSecurityDeposit(
       booking.id,
       payment.id,
-      booking.guestId
+      booking.guestId,
     );
 
     // Update booking status to COMPLETED
@@ -148,7 +150,7 @@ const processBookingDepositRefund = async (booking: any): Promise<void> => {
     } catch (notificationError) {
       logger.error(
         "Failed to send deposit refund notifications:",
-        notificationError
+        notificationError,
       );
     }
 

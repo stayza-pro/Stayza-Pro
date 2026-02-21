@@ -151,9 +151,22 @@ export async function transitionBookingStatus(
   // Get current booking to validate context
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
-      payment: true,
-      property: true,
+    select: {
+      id: true,
+      guestId: true,
+      status: true,
+      checkInDate: true,
+      payment: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+      property: {
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
@@ -210,10 +223,46 @@ export async function transitionBookingStatus(
   // Get updated booking for return
   const updatedBooking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
-      payment: true,
-      property: true,
-      guest: true,
+    select: {
+      id: true,
+      propertyId: true,
+      guestId: true,
+      checkInDate: true,
+      checkOutDate: true,
+      totalGuests: true,
+      totalPrice: true,
+      currency: true,
+      status: true,
+      paymentStatus: true,
+      createdAt: true,
+      updatedAt: true,
+      payment: {
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          currency: true,
+          method: true,
+          reference: true,
+          paidAt: true,
+        },
+      },
+      property: {
+        select: {
+          id: true,
+          title: true,
+          city: true,
+          country: true,
+        },
+      },
+      guest: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
     },
   });
 
@@ -301,7 +350,13 @@ export async function assertBookingStatus(
   bookingId: string,
   allowed: BookingStatus[],
 ) {
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
   if (!booking) throw new Error("Booking not found");
   if (!allowed.includes(booking.status as BookingStatus)) {
     throw new BookingStatusConflictError(
@@ -330,10 +385,18 @@ export async function canCancelBooking(
 ): Promise<{ canCancel: boolean; reason?: string; refundEligible?: boolean }> {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
-      payment: true,
+    select: {
+      id: true,
+      status: true,
+      checkInDate: true,
+      payment: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
       property: {
-        include: {
+        select: {
           realtor: true,
         },
       },

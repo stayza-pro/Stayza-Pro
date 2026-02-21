@@ -63,10 +63,20 @@ router.post(
         id: bookingId,
         guestId: user.id,
       },
-      include: {
-        payment: true,
+      select: {
+        id: true,
+        guestId: true,
+        currency: true,
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            refundAmount: true,
+          },
+        },
         property: {
-          include: {
+          select: {
             realtor: true,
           },
         },
@@ -94,7 +104,7 @@ router.post(
     if (requestedAmount > availableForRefund) {
       throw new AppError(
         `Refund amount cannot exceed available balance of ${booking.currency} ${availableForRefund}`,
-        400
+        400,
       );
     }
 
@@ -115,7 +125,7 @@ router.post(
     if (existingRequest) {
       throw new AppError(
         "There is already a pending refund request for this booking",
-        400
+        400,
       );
     }
 
@@ -164,7 +174,7 @@ router.post(
     } catch (notificationError) {
       logger.error(
         "Failed to send refund request notification:",
-        notificationError
+        notificationError,
       );
     }
 
@@ -180,7 +190,7 @@ router.post(
         createdAt: refundRequest.createdAt,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -279,7 +289,6 @@ router.get(
       prisma.refundRequest.count({ where }),
     ]);
 
-    
     const totalPages = Math.ceil(total / limitNum);
 
     return res.json({
@@ -294,7 +303,7 @@ router.get(
         hasPrevPage: pageNum > 1,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -378,7 +387,7 @@ router.patch(
     if (!refundRequest) {
       throw new AppError(
         "Refund request not found or not pending approval",
-        404
+        404,
       );
     }
 
@@ -435,7 +444,7 @@ router.patch(
     } catch (notificationError) {
       logger.error(
         "Failed to send refund decision notification:",
-        notificationError
+        notificationError,
       );
     }
 
@@ -451,7 +460,7 @@ router.patch(
         realtorApprovedAt: updatedRequest.realtorApprovedAt,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -544,7 +553,7 @@ router.get(
       message: "Refund request details retrieved successfully",
       data: refundRequest,
     });
-  })
+  }),
 );
 
 export default router;

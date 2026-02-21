@@ -27,7 +27,7 @@ interface FeeBreakdown {
 const clampRate = (value: number): number => Math.min(Math.max(value, 0), 1);
 
 const toNumeric = (
-  value: Prisma.Decimal | Decimal | number | null | undefined
+  value: Prisma.Decimal | Decimal | number | null | undefined,
 ): number | null => {
   if (value === null || value === undefined) {
     return null;
@@ -39,7 +39,7 @@ const toNumeric = (
 
 const deriveRateFromAmounts = (
   roomFeeValue: Prisma.Decimal | Decimal | number | null | undefined,
-  platformValue: Prisma.Decimal | Decimal | number | null | undefined
+  platformValue: Prisma.Decimal | Decimal | number | null | undefined,
 ): number | null => {
   const roomFee = toNumeric(roomFeeValue);
   const platform = toNumeric(platformValue);
@@ -69,7 +69,7 @@ const resolveEffectiveCommissionRate = (params: {
   }
 
   throw new Error(
-    "Missing commission snapshot for escrow split. Backfill booking/payment commission data before release."
+    "Missing commission snapshot for escrow split. Backfill booking/payment commission data before release.",
   );
 };
 
@@ -86,7 +86,7 @@ export const calculateFeeBreakdown = (
   pricePerNight: number,
   numberOfNights: number,
   cleaningFee: number = 0,
-  securityDeposit: number = 0
+  securityDeposit: number = 0,
 ): FeeBreakdown => {
   // Validate inputs
   if (
@@ -96,7 +96,7 @@ export const calculateFeeBreakdown = (
     securityDeposit < 0
   ) {
     throw new Error(
-      "Invalid fee breakdown parameters: all values must be non-negative and nights >= 1"
+      "Invalid fee breakdown parameters: all values must be non-negative and nights >= 1",
     );
   }
 
@@ -159,7 +159,7 @@ export const createEscrowEvent = async (
   transactionReference?: string,
   notes?: string,
   triggeredBy?: string,
-  providerResponse?: any
+  providerResponse?: any,
 ) => {
   return await prisma.escrowEvent.create({
     data: {
@@ -190,7 +190,7 @@ export const holdFundsInEscrow = async (
   paymentId: string,
   bookingId: string,
   realtorId: string,
-  feeBreakdown: FeeBreakdown
+  feeBreakdown: FeeBreakdown,
 ) => {
   // Get booking details for escrow record
   const booking = await prisma.booking.findUnique({
@@ -233,7 +233,7 @@ export const holdFundsInEscrow = async (
       const realtorWallet = await walletService.getOrCreateWallet(
         WalletOwnerType.REALTOR,
         realtorId,
-        tx
+        tx,
       );
       await walletService.creditWallet(
         realtorWallet.id,
@@ -241,7 +241,7 @@ export const holdFundsInEscrow = async (
         WalletTransactionSource.CLEANING_FEE,
         bookingId,
         { bookingId, paymentId },
-        tx
+        tx,
       );
     }
 
@@ -250,7 +250,7 @@ export const holdFundsInEscrow = async (
       const platformWallet = await walletService.getOrCreateWallet(
         WalletOwnerType.PLATFORM,
         "platform", // Fixed platform ID
-        tx
+        tx,
       );
       await walletService.creditWallet(
         platformWallet.id,
@@ -258,7 +258,7 @@ export const holdFundsInEscrow = async (
         WalletTransactionSource.SERVICE_FEE,
         bookingId,
         { bookingId, paymentId },
-        tx
+        tx,
       );
     }
   });
@@ -271,7 +271,7 @@ export const holdFundsInEscrow = async (
     "CUSTOMER",
     "ESCROW",
     undefined,
-    `Room fee of ₦${feeBreakdown.roomFee.toFixed(2)} held in escrow`
+    `Room fee of ₦${feeBreakdown.roomFee.toFixed(2)} held in escrow`,
   );
 
   if (feeBreakdown.securityDeposit > 0) {
@@ -283,8 +283,8 @@ export const holdFundsInEscrow = async (
       "ESCROW",
       undefined,
       `Security deposit of ₦${feeBreakdown.securityDeposit.toFixed(
-        2
-      )} held in escrow`
+        2,
+      )} held in escrow`,
     );
   }
 
@@ -298,8 +298,8 @@ export const holdFundsInEscrow = async (
       "REALTOR",
       undefined,
       `Cleaning fee of ₦${feeBreakdown.cleaningFee.toFixed(
-        2
-      )} released immediately to realtor (non-refundable)`
+        2,
+      )} released immediately to realtor (non-refundable)`,
     );
   }
 
@@ -312,8 +312,8 @@ export const holdFundsInEscrow = async (
       "PLATFORM",
       undefined,
       `Service fee of ₦${feeBreakdown.serviceFee.toFixed(
-        2
-      )} released immediately to platform (non-refundable)`
+        2,
+      )} released immediately to platform (non-refundable)`,
     );
   }
 
@@ -348,7 +348,7 @@ export const transferCleaningFeeToRealtor = async (
   bookingId: string,
   paymentId: string,
   realtorId: string,
-  cleaningFee: number
+  cleaningFee: number,
 ): Promise<{ success: boolean; transferId?: string; error?: string }> => {
   logger.warn(
     "DEPRECATED: transferCleaningFeeToRealtor called - cleaning fee should be handled in holdFundsInEscrow",
@@ -357,98 +357,11 @@ export const transferCleaningFeeToRealtor = async (
       paymentId,
       realtorId,
       cleaningFee,
-    }
+    },
   );
 
   // Return success to avoid breaking existing code
   return { success: true };
-
-  /* OLD IMPLEMENTATION - DEPRECATED
-  ============================================
-  if (cleaningFee <= 0) {
-    return { success: true }; // No cleaning fee to transfer
-  }
-
-  try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        property: {
-          include: {
-            realtor: true,
-          },
-        },
-        payment: true,
-      },
-    });
-
-    if (!booking) {
-      throw new Error(`Booking ${bookingId} not found`);
-    }
-
-    const realtor = booking.property.realtor;
-
-    try {
-      const recipientCode = await ensureRealtorTransferRecipientCode(realtor.id);
-
-      // Idempotent reference
-      const transferReference = `cleaning_fee_${bookingId}_${paymentId.slice(
-        -8
-      )}`;
-
-      // Check if transfer already exists
-      const existingEvent = await prisma.escrowEvent.findFirst({
-        where: {
-          bookingId,
-          eventType: EscrowEventType.RELEASE_ROOM_FEE_SPLIT,
-          toParty: "REALTOR",
-          transactionReference: transferReference,
-          notes: { contains: "Cleaning fee" },
-        },
-      });
-
-      if (!existingEvent) {
-        // Initiate Paystack transfer
-        const transferResult = await paystackService.initiateTransfer({
-          amount: cleaningFee,
-          recipient: recipientCode,
-          reason: `Cleaning fee for booking ${bookingId}`,
-          reference: transferReference,
-        });
-
-        logger.info("Cleaning fee transferred successfully", {
-          bookingId,
-          realtorId: realtor.id,
-          amount: cleaningFee,
-          reference: transferReference,
-          transferId: transferResult.id,
-        });
-
-        return { success: true, transferId: transferResult.id };
-      }
-
-      logger.info("Cleaning fee transfer already processed", {
-        bookingId,
-        reference: transferReference,
-      });
-      return { success: true };
-    } catch (paystackError: any) {
-      logger.error("Cleaning fee transfer failed", {
-        bookingId,
-        realtorId: realtor.id,
-        amount: cleaningFee,
-        error: paystackError.message,
-      });
-      return { success: false, error: paystackError.message };
-    }
-  } catch (error: any) {
-    logger.error("Failed to transfer cleaning fee", {
-      bookingId,
-      error: error.message,
-    });
-    return { success: false, error: error.message };
-  }
-  ============================================ */
 };
 
 /**
@@ -461,7 +374,7 @@ export const transferCleaningFeeToRealtor = async (
 export const releaseRoomFeeSplit = async (
   bookingId: string,
   paymentId: string,
-  realtorId: string
+  realtorId: string,
 ) => {
   // Check payment status
   const paymentCheck = await prisma.payment.findUnique({
@@ -504,9 +417,10 @@ export const releaseRoomFeeSplit = async (
   // Get booking details
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
+    select: {
+      id: true,
       property: {
-        include: {
+        select: {
           realtor: true,
         },
       },
@@ -523,7 +437,7 @@ export const releaseRoomFeeSplit = async (
     const realtorWallet = await walletService.getOrCreateWallet(
       WalletOwnerType.REALTOR,
       realtorId,
-      tx
+      tx,
     );
     await walletService.creditWallet(
       realtorWallet.id,
@@ -536,14 +450,14 @@ export const releaseRoomFeeSplit = async (
         effectiveCommissionRate: effectiveRate,
         payoutRate: 1 - effectiveRate,
       },
-      tx
+      tx,
     );
 
     // 2. Credit platform wallet
     const platformWallet = await walletService.getOrCreateWallet(
       WalletOwnerType.PLATFORM,
       "platform",
-      tx
+      tx,
     );
     await walletService.creditWallet(
       platformWallet.id,
@@ -555,7 +469,7 @@ export const releaseRoomFeeSplit = async (
         paymentId,
         effectiveCommissionRate: effectiveRate,
       },
-      tx
+      tx,
     );
 
     // 3. Update payment status
@@ -587,8 +501,8 @@ export const releaseRoomFeeSplit = async (
       "REALTOR_WALLET",
       `room_fee_${bookingId}_${paymentId.slice(-8)}`,
       `Released ₦${realtorAmount.toFixed(
-        2
-      )} (${((1 - effectiveRate) * 100).toFixed(2)}%) to realtor wallet from room fee`
+        2,
+      )} (${((1 - effectiveRate) * 100).toFixed(2)}%) to realtor wallet from room fee`,
     );
 
     await createEscrowEvent(
@@ -598,7 +512,7 @@ export const releaseRoomFeeSplit = async (
       "ESCROW",
       "PLATFORM_WALLET",
       undefined,
-      `Released ₦${platformAmount.toFixed(2)} (${(effectiveRate * 100).toFixed(2)}%) to platform from room fee`
+      `Released ₦${platformAmount.toFixed(2)} (${(effectiveRate * 100).toFixed(2)}%) to platform from room fee`,
     );
   });
 
@@ -625,7 +539,7 @@ export const releaseRoomFeeSplit = async (
 export const returnSecurityDeposit = async (
   bookingId: string,
   paymentId: string,
-  customerId: string
+  customerId: string,
 ) => {
   // Use transaction to ensure atomicity
   return await prisma.$transaction(async (tx) => {
@@ -690,7 +604,7 @@ export const returnSecurityDeposit = async (
       if (paymentMethod === PaymentMethod.PAYSTACK) {
         const refundResult = await paystackService.processRefund(
           transactionReference,
-          depositAmount
+          depositAmount,
         );
         logger.info("Paystack deposit refund initiated", {
           bookingId,
@@ -757,8 +671,8 @@ export const returnSecurityDeposit = async (
       "CUSTOMER",
       refundReference,
       `Returned security deposit of ₦${depositAmount.toFixed(
-        2
-      )} to customer via Paystack refund`
+        2,
+      )} to customer via Paystack refund`,
     );
 
     logger.info("Security deposit returned successfully", {
@@ -782,7 +696,7 @@ export const payRealtorFromDeposit = async (
   bookingId: string,
   paymentId: string,
   amount: number,
-  notes: string
+  notes: string,
 ) => {
   // Use transaction to ensure atomicity
   return await prisma.$transaction(async (tx) => {
@@ -814,7 +728,7 @@ export const payRealtorFromDeposit = async (
 
     if (amount > depositAmount) {
       throw new Error(
-        `Requested amount ₦${amount} exceeds available deposit ₦${depositAmount}`
+        `Requested amount ₦${amount} exceeds available deposit ₦${depositAmount}`,
       );
     }
 
@@ -826,10 +740,10 @@ export const payRealtorFromDeposit = async (
 
     // Idempotent references
     const transferReference = `deposit_realtor_${bookingId}_${paymentId.slice(
-      -8
+      -8,
     )}`;
     const refundReference = `deposit_remain_${bookingId}_${paymentId.slice(
-      -8
+      -8,
     )}`;
 
     // Check if transfer already processed
@@ -858,19 +772,19 @@ export const payRealtorFromDeposit = async (
       throw new Error("Cannot process without transaction reference");
     }
 
-      // Transfer to realtor
-      try {
-        if (paymentMethod === PaymentMethod.PAYSTACK) {
-          const recipientCode = await ensureRealtorTransferRecipientCode(
-            realtor.id
-          );
+    // Transfer to realtor
+    try {
+      if (paymentMethod === PaymentMethod.PAYSTACK) {
+        const recipientCode = await ensureRealtorTransferRecipientCode(
+          realtor.id,
+        );
 
-          const transferResult = await paystackService.initiateTransfer({
-            amount,
-            recipient: recipientCode,
-            reason: `Deposit claim: ${notes}`,
-            reference: transferReference,
-          });
+        const transferResult = await paystackService.initiateTransfer({
+          amount,
+          recipient: recipientCode,
+          reason: `Deposit claim: ${notes}`,
+          reference: transferReference,
+        });
 
         logger.info("Paystack deposit transfer to realtor initiated", {
           bookingId,
@@ -904,7 +818,7 @@ export const payRealtorFromDeposit = async (
       });
 
       throw new Error(
-        `Deposit transfer to realtor failed: ${transferError.message}`
+        `Deposit transfer to realtor failed: ${transferError.message}`,
       );
     }
 
@@ -914,7 +828,7 @@ export const payRealtorFromDeposit = async (
         if (paymentMethod === PaymentMethod.PAYSTACK) {
           const refundResult = await paystackService.processRefund(
             transactionReference,
-            remainingDeposit
+            remainingDeposit,
           );
           logger.info("Paystack remaining deposit refund initiated", {
             bookingId,
@@ -945,7 +859,7 @@ export const payRealtorFromDeposit = async (
         });
 
         throw new Error(
-          `Remaining deposit refund failed: ${refundError.message}`
+          `Remaining deposit refund failed: ${refundError.message}`,
         );
       }
     }
@@ -958,7 +872,7 @@ export const payRealtorFromDeposit = async (
       "ESCROW",
       "REALTOR",
       transferReference,
-      notes
+      notes,
     );
 
     if (remainingDeposit > 0) {
@@ -970,8 +884,8 @@ export const payRealtorFromDeposit = async (
         "CUSTOMER",
         refundReference,
         `Returned remaining security deposit of ₦${remainingDeposit.toFixed(
-          2
-        )} to customer`
+          2,
+        )} to customer`,
       );
     }
 
@@ -1005,7 +919,7 @@ export const refundRoomFeeToCustomer = async (
   bookingId: string,
   paymentId: string,
   refundAmount: number,
-  notes: string
+  notes: string,
 ) => {
   // Use transaction to ensure atomicity
   return await prisma.$transaction(async (tx) => {
@@ -1037,7 +951,7 @@ export const refundRoomFeeToCustomer = async (
 
     if (refundAmount > roomFee) {
       throw new Error(
-        `Refund amount ₦${refundAmount} exceeds available room fee ₦${roomFee}`
+        `Refund amount ₦${refundAmount} exceeds available room fee ₦${roomFee}`,
       );
     }
 
@@ -1055,10 +969,10 @@ export const refundRoomFeeToCustomer = async (
       ],
     });
     const realtorAmount = Number(
-      (remainingForRealtor * (1 - effectiveRate)).toFixed(2)
+      (remainingForRealtor * (1 - effectiveRate)).toFixed(2),
     );
     const platformAmount = Number(
-      (remainingForRealtor * effectiveRate).toFixed(2)
+      (remainingForRealtor * effectiveRate).toFixed(2),
     );
 
     const paymentMethod = payment.method || PaymentMethod.PAYSTACK;
@@ -1068,10 +982,10 @@ export const refundRoomFeeToCustomer = async (
 
     // Idempotent references
     const refundReference = `roomfee_refund_${bookingId}_${paymentId.slice(
-      -8
+      -8,
     )}`;
     const transferReference = `roomfee_realtor_${bookingId}_${paymentId.slice(
-      -8
+      -8,
     )}`;
 
     // Check if refund already processed
@@ -1106,7 +1020,7 @@ export const refundRoomFeeToCustomer = async (
       if (paymentMethod === PaymentMethod.PAYSTACK) {
         const refundResult = await paystackService.processRefund(
           transactionReference,
-          refundAmount
+          refundAmount,
         );
         logger.info("Paystack room fee refund initiated", {
           bookingId,
@@ -1146,7 +1060,7 @@ export const refundRoomFeeToCustomer = async (
       try {
         if (paymentMethod === PaymentMethod.PAYSTACK) {
           const recipientCode = await ensureRealtorTransferRecipientCode(
-            realtor.id
+            realtor.id,
           );
 
           const transferResult = await paystackService.initiateTransfer({
@@ -1165,7 +1079,7 @@ export const refundRoomFeeToCustomer = async (
               amount: realtorAmount,
               transferReference,
               transferId: transferResult.transfer_code,
-            }
+            },
           );
         } else {
           throw new Error(`Unsupported payment method: ${paymentMethod}`);
@@ -1191,7 +1105,7 @@ export const refundRoomFeeToCustomer = async (
         });
 
         throw new Error(
-          `Partial room fee transfer failed: ${transferError.message}`
+          `Partial room fee transfer failed: ${transferError.message}`,
         );
       }
     }
@@ -1204,7 +1118,7 @@ export const refundRoomFeeToCustomer = async (
       "ESCROW",
       "CUSTOMER",
       refundReference,
-      notes
+      notes,
     );
 
     if (remainingForRealtor > 0) {
@@ -1215,7 +1129,7 @@ export const refundRoomFeeToCustomer = async (
         "ESCROW",
         "REALTOR",
         transferReference,
-        `Released ₦${realtorAmount.toFixed(2)} (${((1 - effectiveRate) * 100).toFixed(2)}% of remaining) to realtor`
+        `Released ₦${realtorAmount.toFixed(2)} (${((1 - effectiveRate) * 100).toFixed(2)}% of remaining) to realtor`,
       );
 
       await createEscrowEvent(
@@ -1225,7 +1139,7 @@ export const refundRoomFeeToCustomer = async (
         "ESCROW",
         "PLATFORM",
         undefined,
-        `Released ₦${platformAmount.toFixed(2)} (${(effectiveRate * 100).toFixed(2)}% of remaining) to platform`
+        `Released ₦${platformAmount.toFixed(2)} (${(effectiveRate * 100).toFixed(2)}% of remaining) to platform`,
       );
     }
 
@@ -1272,7 +1186,7 @@ export const isUserDisputeWindowOpen = (checkInTime: Date): boolean => {
 export const isRealtorDisputeWindowOpen = (checkOutTime: Date): boolean => {
   const now = new Date(); // UTC
   const twoHoursAfterCheckOut = new Date(
-    checkOutTime.getTime() + 2 * 60 * 60 * 1000 // UTC + 2 hours
+    checkOutTime.getTime() + 2 * 60 * 60 * 1000, // UTC + 2 hours
   );
   return now < twoHoursAfterCheckOut;
 };
@@ -1296,10 +1210,14 @@ export const getBookingsEligibleForRoomFeeRelease = async () => {
         roomFeeSplitDone: false,
       },
     },
-    include: {
+    select: {
+      id: true,
+      propertyId: true,
+      guestId: true,
       payment: true,
       property: {
-        include: {
+        select: {
+          title: true,
           realtor: true,
         },
       },
@@ -1326,7 +1244,10 @@ export const getBookingsEligibleForDepositReturn = async () => {
         depositRefunded: false,
       },
     },
-    include: {
+    select: {
+      id: true,
+      propertyId: true,
+      guestId: true,
       payment: true,
       guest: true,
     },
@@ -1348,5 +1269,3 @@ export default {
   getBookingsEligibleForRoomFeeRelease,
   getBookingsEligibleForDepositReturn,
 };
-
-

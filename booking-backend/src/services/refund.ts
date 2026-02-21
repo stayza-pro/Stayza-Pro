@@ -32,7 +32,7 @@ interface RefundSplit {
 export const calculateRefundSplit = (
   checkInTime: Date,
   roomFeeAmount: number,
-  depositAmount: number
+  depositAmount: number,
 ): RefundSplit => {
   const now = new Date();
   const hoursUntilCheckIn =
@@ -71,13 +71,13 @@ export const calculateRefundSplit = (
 
   // Calculate room fee splits (tier-based)
   const roomFeeToGuest = Number(
-    (roomFeeAmount * (customerPercent / 100)).toFixed(2)
+    (roomFeeAmount * (customerPercent / 100)).toFixed(2),
   );
   const roomFeeToRealtor = Number(
-    (roomFeeAmount * (realtorPercent / 100)).toFixed(2)
+    (roomFeeAmount * (realtorPercent / 100)).toFixed(2),
   );
   const roomFeeToPlatform = Number(
-    (roomFeeAmount * (stayzaPercent / 100)).toFixed(2)
+    (roomFeeAmount * (stayzaPercent / 100)).toFixed(2),
   );
 
   // Deposit is always 100% refunded (not subject to tiers)
@@ -108,10 +108,16 @@ export const calculateRefundSplit = (
 export const processBookingRefund = async (bookingId: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
+    select: {
+      id: true,
+      propertyId: true,
+      guestId: true,
+      checkInDate: true,
+      currency: true,
+      status: true,
       payment: true,
       property: {
-        include: {
+        select: {
           realtor: true,
         },
       },
@@ -125,7 +131,7 @@ export const processBookingRefund = async (bookingId: string) => {
 
   if (!booking.payment || booking.payment.status !== PaymentStatus.HELD) {
     throw new Error(
-      "Payment must be in HELD status (escrow) for cancellation refund"
+      "Payment must be in HELD status (escrow) for cancellation refund",
     );
   }
 
@@ -141,7 +147,7 @@ export const processBookingRefund = async (bookingId: string) => {
   const refundSplit = calculateRefundSplit(
     booking.checkInDate,
     roomFeeAmount,
-    depositAmount
+    depositAmount,
   );
 
   logger.info("💰 Refund calculation", {
@@ -174,7 +180,7 @@ export const processBookingRefund = async (bookingId: string) => {
 
       paystackRefundData = await paystackProcessRefund(
         booking.payment.reference,
-        refundSplit.customerRefund
+        refundSplit.customerRefund,
       );
 
       logger.info("✅ Paystack refund successful", {

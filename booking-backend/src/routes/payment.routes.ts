@@ -343,12 +343,28 @@ router.post(
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
+      select: {
+        id: true,
+        guestId: true,
+        totalPrice: true,
+        propertyId: true,
+        currency: true,
+        roomFee: true,
+        cleaningFee: true,
+        securityDeposit: true,
+        serviceFee: true,
+        platformFee: true,
+        commissionBaseRate: true,
+        commissionVolumeReductionRate: true,
+        commissionEffectiveRate: true,
+        serviceFeeStayza: true,
+        serviceFeeProcessing: true,
+        processingFeeMode: true,
         guest: true,
         property: {
-          include: {
+          select: {
             realtor: {
-              include: {
+              select: {
                 user: true,
               },
             },
@@ -1250,18 +1266,47 @@ router.post(
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
+      select: {
+        id: true,
+        guestId: true,
+        status: true,
+        totalPrice: true,
+        propertyId: true,
+        currency: true,
+        roomFee: true,
+        cleaningFee: true,
+        securityDeposit: true,
+        serviceFee: true,
+        platformFee: true,
+        commissionBaseRate: true,
+        commissionVolumeReductionRate: true,
+        commissionEffectiveRate: true,
+        serviceFeeStayza: true,
+        serviceFeeProcessing: true,
+        processingFeeMode: true,
         guest: true,
         property: {
-          include: {
+          select: {
             realtor: {
-              include: {
+              select: {
                 user: true,
               },
             },
           },
         },
-        payment: true,
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            currency: true,
+            method: true,
+            reference: true,
+            providerId: true,
+            paidAt: true,
+            metadata: true,
+          },
+        },
       },
     });
 

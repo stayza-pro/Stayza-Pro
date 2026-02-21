@@ -25,14 +25,17 @@ export const processCheckinFallbacks = async (): Promise<void> => {
           },
         },
       },
-      include: {
-        payment: true,
+      select: {
+        id: true,
+        guestId: true,
+        checkInDate: true,
+        checkInAtSnapshot: true,
         property: {
-          include: {
+          select: {
+            title: true,
             realtor: true,
           },
         },
-        guest: true,
       },
       take: 50, // Process in batches
     });
@@ -45,14 +48,15 @@ export const processCheckinFallbacks = async (): Promise<void> => {
         checkOutTime: null,
         stayStatus: { in: ["CHECKED_IN", "NOT_STARTED"] },
       },
-      include: {
-        payment: true,
+      select: {
+        id: true,
+        checkOutDate: true,
+        checkOutAtSnapshot: true,
         property: {
-          include: {
+          select: {
             realtor: true,
           },
         },
-        guest: true,
       },
       take: 50,
     });
@@ -63,7 +67,7 @@ export const processCheckinFallbacks = async (): Promise<void> => {
     }
 
     logger.info(
-      `Processing lifecycle automation: ${eligibleCheckins.length} auto check-ins, ${eligibleCheckouts.length} auto check-outs`
+      `Processing lifecycle automation: ${eligibleCheckins.length} auto check-ins, ${eligibleCheckouts.length} auto check-outs`,
     );
 
     for (const booking of eligibleCheckins) {
@@ -72,7 +76,7 @@ export const processCheckinFallbacks = async (): Promise<void> => {
       } catch (error) {
         logger.error(
           `Failed to process check-in fallback for booking ${booking.id}:`,
-          error
+          error,
         );
         // Continue with next booking
       }
@@ -84,13 +88,13 @@ export const processCheckinFallbacks = async (): Promise<void> => {
       } catch (error) {
         logger.error(
           `Failed to process checkout fallback for booking ${booking.id}:`,
-          error
+          error,
         );
       }
     }
 
     logger.info(
-      `Lifecycle automation job completed. Processed ${eligibleCheckins.length + eligibleCheckouts.length} bookings`
+      `Lifecycle automation job completed. Processed ${eligibleCheckins.length + eligibleCheckouts.length} bookings`,
     );
   } catch (error) {
     logger.error("Lifecycle automation job failed:", error);
@@ -102,14 +106,16 @@ export const processCheckinFallbacks = async (): Promise<void> => {
  * Process auto check-in confirmation for a single booking
  */
 const processBookingCheckinFallback = async (booking: any): Promise<void> => {
-  const checkInTime = new Date(booking.checkInAtSnapshot || booking.checkInDate);
+  const checkInTime = new Date(
+    booking.checkInAtSnapshot || booking.checkInDate,
+  );
   const now = new Date();
   const minutesElapsed = Math.floor(
-    (now.getTime() - checkInTime.getTime()) / (60 * 1000)
+    (now.getTime() - checkInTime.getTime()) / (60 * 1000),
   );
 
   logger.info(
-    `Auto-confirming check-in for booking ${booking.id} (${minutesElapsed} minutes after check-in time)`
+    `Auto-confirming check-in for booking ${booking.id} (${minutesElapsed} minutes after check-in time)`,
   );
 
   try {
@@ -119,7 +125,7 @@ const processBookingCheckinFallback = async (booking: any): Promise<void> => {
     logger.info(
       `Successfully auto-confirmed check-in for booking ${
         booking.id
-      }. Dispute window closes at ${result.disputeWindowClosesAt.toISOString()}`
+      }. Dispute window closes at ${result.disputeWindowClosesAt.toISOString()}`,
     );
 
     // Send additional notification about auto-confirmation
@@ -152,27 +158,29 @@ const processBookingCheckinFallback = async (booking: any): Promise<void> => {
     } catch (notificationError) {
       logger.error(
         "Failed to send auto check-in notifications:",
-        notificationError
+        notificationError,
       );
     }
   } catch (error) {
     logger.error(
       `Failed to auto-confirm check-in for booking ${booking.id}:`,
-      error
+      error,
     );
     throw error;
   }
 };
 
 const processBookingCheckoutFallback = async (booking: any): Promise<void> => {
-  const checkOutTime = new Date(booking.checkOutAtSnapshot || booking.checkOutDate);
+  const checkOutTime = new Date(
+    booking.checkOutAtSnapshot || booking.checkOutDate,
+  );
   const now = new Date();
   const minutesElapsed = Math.floor(
-    (now.getTime() - checkOutTime.getTime()) / (60 * 1000)
+    (now.getTime() - checkOutTime.getTime()) / (60 * 1000),
   );
 
   logger.info(
-    `Auto-confirming checkout for booking ${booking.id} (${minutesElapsed} minutes after scheduled checkout)`
+    `Auto-confirming checkout for booking ${booking.id} (${minutesElapsed} minutes after scheduled checkout)`,
   );
 
   await checkinService.autoCheckOut(booking.id);

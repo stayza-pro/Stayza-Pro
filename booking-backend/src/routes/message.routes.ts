@@ -908,11 +908,18 @@ router.post(
       // Verify booking and user access
       const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
-        include: {
+        select: {
+          id: true,
+          propertyId: true,
+          guestId: true,
+          status: true,
+          checkOutDate: true,
           property: {
-            include: { realtor: true },
+            select: {
+              title: true,
+              realtor: true,
+            },
           },
-          guest: true,
         },
       });
 
@@ -1414,15 +1421,28 @@ router.get(
 
       const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
-        include: {
+        select: {
+          id: true,
+          status: true,
           property: {
-            include: {
+            select: {
               realtor: {
-                include: { user: true },
+                select: {
+                  businessName: true,
+                  user: {
+                    select: { email: true },
+                  },
+                },
               },
             },
           },
-          guest: true,
+          guest: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
         },
       });
 

@@ -1116,7 +1116,9 @@ const executeDisputeResolution = async (
 export const autoReleaseDepositIfNoDispute = async (bookingId: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
+    select: {
+      id: true,
+      guestId: true,
       payment: true,
       escrow: true,
     },

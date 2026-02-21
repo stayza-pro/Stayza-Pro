@@ -228,9 +228,16 @@ router.post(
     // Verify booking exists and belongs to user
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
-        property: true,
-        review: true,
+      select: {
+        id: true,
+        guestId: true,
+        status: true,
+        propertyId: true,
+        review: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
@@ -340,7 +347,7 @@ router.post(
         completeReview!.property.realtor.userId,
         completeReview!.id,
         completeReview!.property.title,
-        rating
+        rating,
       );
       await notificationService.createAndSendNotification(realtorNotification);
     } catch (notificationError) {
@@ -352,7 +359,7 @@ router.post(
     try {
       await updateAllRatings(
         booking.propertyId,
-        completeReview!.property.realtor.id
+        completeReview!.property.realtor.id,
       );
     } catch (ratingError) {
       logger.error("Failed to update ratings:", ratingError);
@@ -364,7 +371,7 @@ router.post(
       message: "Review created successfully",
       data: completeReview,
     });
-  })
+  }),
 );
 
 /**
@@ -398,7 +405,7 @@ router.post(
   "/upload-photos",
   authenticate,
   uploadReviewPhotos,
-  processReviewPhotos
+  processReviewPhotos,
 );
 
 /**
@@ -522,7 +529,7 @@ router.get(
         hasPrev: Number(page) > 1,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -615,7 +622,7 @@ router.get(
         hasPrev: Number(page) > 1,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -733,7 +740,7 @@ router.get(
         hasPrev: Number(page) > 1,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -903,7 +910,7 @@ router.put(
       message: "Review updated successfully",
       data: updatedReview,
     });
-  })
+  }),
 );
 
 /**
@@ -978,7 +985,7 @@ router.delete(
           } catch (error) {
             logger.error("Failed to delete photo from cloudinary:", error);
           }
-        })
+        }),
       );
     }
 
@@ -998,7 +1005,7 @@ router.delete(
       success: true,
       message: "Review deleted successfully",
     });
-  })
+  }),
 );
 
 /**
@@ -1081,7 +1088,7 @@ router.post(
     if (review.property.realtorId !== realtorId) {
       throw new AppError(
         "You can only respond to reviews on your properties",
-        403
+        403,
       );
     }
 
@@ -1114,15 +1121,15 @@ router.post(
       const reviewResponseNotification = notificationHelpers.reviewResponse(
         review.author.id,
         review.id,
-        review.property.title
+        review.property.title,
       );
       await notificationService.createAndSendNotification(
-        reviewResponseNotification
+        reviewResponseNotification,
       );
     } catch (notificationError) {
       logger.error(
         "Failed to send review response notification:",
-        notificationError
+        notificationError,
       );
       // Don't fail the response creation if notifications fail
     }
@@ -1132,7 +1139,7 @@ router.post(
       message: "Review response created successfully",
       data: response,
     });
-  })
+  }),
 );
 
 /**
@@ -1276,7 +1283,7 @@ router.get(
         responsesGiven: responseRate[1],
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1361,7 +1368,7 @@ router.patch(
     if (review.property.realtor.userId !== user.id) {
       throw new AppError(
         "You can only moderate reviews for your own properties",
-        403
+        403,
       );
     }
 
@@ -1392,7 +1399,7 @@ router.patch(
         notificationHelpers.createReviewModerationNotification(
           updatedReview.property.title,
           action,
-          review.property.realtor.businessName
+          review.property.realtor.businessName,
         );
 
       await notificationService.createAndSendNotification({
@@ -1406,7 +1413,7 @@ router.patch(
     } catch (notificationError) {
       logger.error(
         "Failed to send review moderation notification:",
-        notificationError
+        notificationError,
       );
       // Don't fail the visibility update if notification fails
     }
@@ -1424,7 +1431,7 @@ router.patch(
           `${updatedReview.author.firstName} ${updatedReview.author.lastName}`.trim(),
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1574,7 +1581,7 @@ router.get(
         hasPrevPage: pageNum > 1,
       },
     });
-  })
+  }),
 );
 
 /**
@@ -1660,7 +1667,7 @@ router.post(
     if (review.hostResponse) {
       throw new AppError(
         "A response already exists for this review. Use PUT to update it.",
-        400
+        400,
       );
     }
 
@@ -1668,7 +1675,7 @@ router.post(
     if (review.property.realtor.userId !== userId) {
       throw new AppError(
         "You can only respond to reviews on your properties",
-        403
+        403,
       );
     }
 
@@ -1713,7 +1720,7 @@ router.post(
       message: "Response added successfully",
       data: response,
     });
-  })
+  }),
 );
 
 /**
@@ -1791,7 +1798,7 @@ router.put(
     if (!review.hostResponse) {
       throw new AppError(
         "No response exists for this review. Use POST to create one.",
-        404
+        404,
       );
     }
 
@@ -1824,7 +1831,7 @@ router.put(
       message: "Response updated successfully",
       data: updatedResponse,
     });
-  })
+  }),
 );
 
 /**
@@ -1896,7 +1903,7 @@ router.delete(
       success: true,
       message: "Response deleted successfully",
     });
-  })
+  }),
 );
 
 /**
@@ -2009,8 +2016,8 @@ router.post(
           isHelpful: true,
         },
       });
-    }
-  )
+    },
+  ),
 );
 
 export default router;

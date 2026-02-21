@@ -28,12 +28,21 @@ export async function processAutomaticCancellationRefund(
     // Fetch booking with all necessary relations
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: {
+      select: {
+        id: true,
+        propertyId: true,
+        guestId: true,
+        checkInDate: true,
+        checkOutDate: true,
+        totalPrice: true,
+        currency: true,
+        status: true,
+        refundTier: true,
         payment: true,
         property: {
-          include: {
+          select: {
             realtor: {
-              include: {
+              select: {
                 user: true,
               },
             },
@@ -91,7 +100,7 @@ export async function processAutomaticCancellationRefund(
 
     // Calculate refund amounts
     const refundCalc = refundPolicyService.calculateCancellationRefund({
-      booking,
+      booking: booking as unknown as Booking,
     });
 
     logger.info("Cancellation refund calculated", {

@@ -88,7 +88,17 @@ export async function cancelStalePendingBookings(now: Date = new Date()) {
       await prisma.$transaction(async (tx) => {
         const fresh = await tx.booking.findUnique({
           where: { id: booking.id },
-          include: { payment: true },
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+            payment: {
+              select: {
+                id: true,
+                status: true,
+              },
+            },
+          },
         });
 
         if (!fresh) return;

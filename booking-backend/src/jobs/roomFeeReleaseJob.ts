@@ -26,14 +26,16 @@ export const processRoomFeeRelease = async (): Promise<void> => {
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        guestId: true,
         payment: true,
         property: {
-          include: {
+          select: {
+            title: true,
             realtor: true,
           },
         },
-        guest: true,
       },
       take: 50,
     });
@@ -44,7 +46,7 @@ export const processRoomFeeRelease = async (): Promise<void> => {
     }
 
     logger.info(
-      `Processing room fee release for ${eligibleBookings.length} bookings`
+      `Processing room fee release for ${eligibleBookings.length} bookings`,
     );
 
     for (const booking of eligibleBookings) {
@@ -61,7 +63,7 @@ export const processRoomFeeRelease = async (): Promise<void> => {
 
         if (activeDispute) {
           logger.info(
-            `Skipping booking ${booking.id}: Active room fee dispute exists (${activeDispute.status})`
+            `Skipping booking ${booking.id}: Active room fee dispute exists (${activeDispute.status})`,
           );
           continue;
         }
@@ -70,13 +72,13 @@ export const processRoomFeeRelease = async (): Promise<void> => {
       } catch (error) {
         logger.error(
           `Failed to process room fee release for booking ${booking.id}:`,
-          error
+          error,
         );
       }
     }
 
     logger.info(
-      `Room fee release job completed. Processed ${eligibleBookings.length} bookings`
+      `Room fee release job completed. Processed ${eligibleBookings.length} bookings`,
     );
   } catch (error) {
     logger.error("Room fee release job failed:", error);
@@ -91,7 +93,7 @@ const processBookingRoomFeeRelease = async (booking: any): Promise<void> => {
     const result = await escrowService.releaseRoomFeeSplit(
       booking.id,
       payment.id,
-      property.realtor.id
+      property.realtor.id,
     );
 
     try {
@@ -122,7 +124,7 @@ const processBookingRoomFeeRelease = async (booking: any): Promise<void> => {
     } catch (notificationError) {
       logger.error(
         "Failed to send room fee release notifications:",
-        notificationError
+        notificationError,
       );
     }
 
@@ -130,7 +132,7 @@ const processBookingRoomFeeRelease = async (booking: any): Promise<void> => {
   } catch (error) {
     logger.error(
       `Failed to release room fee for booking ${booking.id}:`,
-      error
+      error,
     );
     throw error;
   }
