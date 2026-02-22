@@ -47,6 +47,49 @@ export default function RealtorBookingsPage() {
       currency: "NGN",
     }).format(amount || 0);
 
+  const formatScheduledTime = (value?: string | Date | null) => {
+    if (!value) return "Time not set";
+
+    const asString = String(value);
+    const timeMatch = asString.match(/^(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
+        return format(date, "hh:mm a");
+      }
+    }
+
+    const parsed = new Date(asString);
+    if (!Number.isNaN(parsed.getTime())) {
+      return format(parsed, "hh:mm a");
+    }
+
+    return asString;
+  };
+
+  const getCheckInTimeLabel = (booking: {
+    stayStatus?: string;
+    checkInTime?: string | Date;
+    property?: { checkInTime?: string | Date | null };
+  }) => {
+    const checkedInOrOut =
+      booking.stayStatus === "CHECKED_IN" ||
+      booking.stayStatus === "CHECKED_OUT";
+
+    if (checkedInOrOut && booking.checkInTime) {
+      return formatScheduledTime(booking.checkInTime);
+    }
+
+    if (booking.property?.checkInTime) {
+      return formatScheduledTime(booking.property.checkInTime);
+    }
+
+    return "Time not set";
+  };
+
   const statusConfig: Record<
     BookingStatus,
     {
@@ -290,6 +333,9 @@ export default function RealtorBookingsPage() {
                                   new Date(booking.checkOutDate),
                                   "MMM dd",
                                 )}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Check-in time: {getCheckInTimeLabel(booking)}
                               </p>
                             </div>
                           </div>

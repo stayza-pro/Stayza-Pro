@@ -38,6 +38,36 @@ const formatDateInLagos = (
     ...options,
   });
 
+const formatTimeInLagos = (value: string | Date) =>
+  new Date(value).toLocaleTimeString("en-US", {
+    timeZone: DISPLAY_TIMEZONE,
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+const formatScheduledTime = (value?: string | Date | null) => {
+  if (!value) return "Time not set";
+
+  const asString = String(value);
+  const timeMatch = asString.match(/^(\d{1,2}):(\d{2})/);
+  if (timeMatch) {
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return formatTimeInLagos(date);
+    }
+  }
+
+  const parsed = new Date(asString);
+  if (!Number.isNaN(parsed.getTime())) {
+    return formatTimeInLagos(parsed);
+  }
+
+  return asString;
+};
+
 export default function RealtorBookingDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -220,6 +250,12 @@ export default function RealtorBookingDetailsPage() {
   const status = getStatusConfig(booking.status, booking.stayStatus);
   const StatusIcon = status.icon;
   const nights = calculateNights();
+  const checkInTimeLabel =
+    (booking.stayStatus === "CHECKED_IN" ||
+      booking.stayStatus === "CHECKED_OUT") &&
+    booking.checkInTime
+      ? formatTimeInLagos(booking.checkInTime)
+      : formatScheduledTime(booking.property?.checkInTime);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -358,6 +394,9 @@ export default function RealtorBookingDetailsPage() {
                     {formatDateInLagos(booking.checkInDate, {
                       weekday: "long",
                     })}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Time: {checkInTimeLabel}
                   </p>
                 </div>
 

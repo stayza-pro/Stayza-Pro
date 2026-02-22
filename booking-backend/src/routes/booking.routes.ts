@@ -107,7 +107,9 @@ const resolveMissingCreateField = (
     return null;
   }
 
-  const missingColumnRaw = String((error.meta as { column?: unknown })?.column || "").toLowerCase();
+  const missingColumnRaw = String(
+    (error.meta as { column?: unknown })?.column || "",
+  ).toLowerCase();
   if (!missingColumnRaw) {
     return null;
   }
@@ -165,35 +167,49 @@ const getMonthlyConfirmedRoomFeeVolume = async (
   db: Pick<typeof prisma, "booking"> = prisma,
 ): Promise<number> => {
   const { start, end } = getCurrentLagosMonthBounds();
-
-  const aggregate = await db.booking.aggregate({
-    _sum: {
-      roomFee: true,
-    },
-    where: {
-      property: {
-        realtorId,
+  try {
+    const aggregate = await db.booking.aggregate({
+      _sum: {
+        roomFee: true,
       },
-      status: {
-        in: [
-          BookingStatus.ACTIVE,
-          BookingStatus.COMPLETED,
-          BookingStatus.DISPUTED,
-        ],
-      },
-      payment: {
+      where: {
+        property: {
+          realtorId,
+        },
         status: {
-          in: CONFIRMED_PAYMENT_STATUSES,
+          in: [
+            BookingStatus.ACTIVE,
+            BookingStatus.COMPLETED,
+            BookingStatus.DISPUTED,
+          ],
         },
-        paidAt: {
-          gte: start,
-          lt: end,
+        payment: {
+          status: {
+            in: CONFIRMED_PAYMENT_STATUSES,
+          },
+          paidAt: {
+            gte: start,
+            lt: end,
+          },
         },
       },
-    },
-  });
+    });
 
-  return Number(aggregate._sum.roomFee || 0);
+    return Number(aggregate._sum.roomFee || 0);
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2022"
+    ) {
+      logger.warn("Monthly room fee volume fallback due to schema drift", {
+        realtorId,
+        column: (error.meta as { column?: unknown })?.column,
+      });
+      return 0;
+    }
+
+    throw error;
+  }
 };
 
 /**
@@ -516,6 +532,13 @@ router.get(
           },
         ],
       },
+      select: {
+        id: true,
+        propertyId: true,
+        checkInDate: true,
+        checkOutDate: true,
+        status: true,
+      },
     });
 
     const unavailableDates: string[] = [];
@@ -675,6 +698,9 @@ router.post(
             },
           ],
         },
+        select: {
+          id: true,
+        },
       });
 
       if (conflictingBookings.length > 0) {
@@ -796,7 +822,11 @@ router.post(
       let booking: any = null;
       let workingData = { ...bookingCreateData };
 
-      for (let attempt = 0; attempt <= BOOKING_CREATE_COMPAT_FIELDS.length; attempt++) {
+      for (
+        let attempt = 0;
+        attempt <= BOOKING_CREATE_COMPAT_FIELDS.length;
+        attempt++
+      ) {
         try {
           booking = await tx.booking.create({
             data: workingData as Prisma.BookingUncheckedCreateInput,
@@ -819,7 +849,10 @@ router.post(
       }
 
       if (!booking) {
-        throw new AppError("Unable to create booking due to schema mismatch", 500);
+        throw new AppError(
+          "Unable to create booking due to schema mismatch",
+          500,
+        );
       }
 
       return booking;
